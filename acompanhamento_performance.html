@@ -1123,15 +1123,29 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         // Locking rule: Gestor is locked if status is 'Validado' (or if viewing closed past month without Master role)
         const gestorIsLocked = (valStatus === "Validado" && !isMaster) || isMaster || (monthNum < 7 && !isMaster);
 
-        let linesHTML = topic.lines.map((l, idx) => {
-          const dynamicClass = getLineClass(topic.id, idx, topic.lines);
-          return `
-            <div class="kpi-line">
-              <span class="label">${l.label}:</span>
-              <span class="val ${dynamicClass}">${l.val}</span>
-            </div>
-          `;
-        }).join("");
+                let linesHTML = `
+          <table style="width: 100%; border-collapse: collapse; margin-top: 2px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+            <tbody>
+              ${topic.lines.map((l, idx) => {
+                const dynamicClass = getLineClass(topic.id, idx, topic.lines);
+                const isPos = dynamicClass === 'positive' || (l.class === 'positive') || (l.val && String(l.val).startsWith("+"));
+                const isNeg = dynamicClass === 'negative' || (l.class === 'negative') || (l.val && (String(l.val).startsWith("-") || String(l.val).startsWith("(")));
+                const valColor = isPos ? '#15803d' : (isNeg ? '#b91c1c' : '#0f172a');
+                const rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+                return `
+                  <tr style="background-color: ${rowBg}; border-bottom: 1px solid #edf2f7;">
+                    <td style="padding: 4px 8px; font-size: 0.81rem; color: #475569; font-weight: 600; text-align: left; white-space: nowrap;">
+                      ${l.label}:
+                    </td>
+                    <td style="padding: 4px 8px; font-size: 0.86rem; color: ${valColor}; font-weight: 800; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.2px;">
+                      ${l.val}
+                    </td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        `;
 
         let statusPillHTML = "";
         if (valStatus === "Validado") {
