@@ -1199,18 +1199,22 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           <div class="comment-col">
             <div class="comment-col-title title-gestor">
               <span>📝 Justificativa do Gestor (${activeOS} - ${monthFmt.split('/')[0].trim()})</span>
-              ${statusPillHTML}
+              <span class="status-pill status-pendente">⏳ Pendente de Validação</span>
             </div>
-            <textarea id="g_${topic.id}" class="comment-input" ${gestorIsLocked ? 'readonly' : ''} style="${gestorIsLocked ? 'background:#f8fafc; color:#1e293b; cursor:default; border-color:#cbd5e1;' : ''}" placeholder="${gestorIsLocked ? 'Nenhum comentário registrado para este ciclo.' : 'Digite a justificativa do gestor da OS...'}">${savedGestor}</textarea>
+            <textarea id="g_${topic.id}" class="comment-input" placeholder="Digite a justificativa do gestor da OS...">${savedGestor}</textarea>
           </div>
 
           <div class="comment-col">
             <div class="comment-col-title title-master">
-              <span>🛡️ Validação da Performance (${activeOS} - ${monthFmt.split('/')[0].trim()})</span>
-              ${!isMaster ? '<span class="status-pill status-validado">🔒 Somente Máster</span>' : '<span class="status-pill status-reaberto">Edição Máster</span>'}
+              <span>🛡️ Comentário / Validação Performance (${activeOS} - ${monthFmt.split('/')[0].trim()})</span>
+              <span class="status-pill status-reaberto">✍️ Aberto para Edição</span>
             </div>
-            <textarea id="m_${topic.id}" class="comment-input" ${!isMaster ? 'disabled' : ''} placeholder="${!isMaster ? 'Comentário restrito ao setor de Performance.' : 'Digite a validação / recomendações da Performance...'}">${savedMaster}</textarea>
-            ${masterControlsHTML}
+            <textarea id="m_${topic.id}" class="comment-input" placeholder="Digite as observações e validação do setor de Performance...">${savedMaster}</textarea>
+            <div class="validation-control-bar" style="margin-top: 6px;">
+              <button class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:6px 12px; font-weight:700; font-size:0.80rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
+                🔒 Marcar como Validado
+              </button>
+            </div>
           </div>
 
           <div id="drawer_${topic.id}" class="history-drawer"></div>
