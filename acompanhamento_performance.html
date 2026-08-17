@@ -108,12 +108,12 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     /* Monthly Grid */
     .topics-table { display: flex; flex-direction: column; gap: 16px; }
     .topic-row {
-      display: grid; grid-template-columns: 360px 1fr 1fr; gap: 16px;
+      display: grid; grid-template-columns: 390px 1fr 1fr; gap: 16px;
       background-color: #ffffff; border-radius: 12px; border: 2.5px solid #162b58;
       padding: 16px; box-shadow: 0 8px 24px rgba(11, 26, 58, 0.4), 0 2px 8px rgba(11, 26, 58, 0.25);
     }
 
-    @media (max-width: 1150px) { .topic-row { grid-template-columns: 1fr; } }
+    @media (max-width: 1200px) { .topic-row { grid-template-columns: 1fr; } }
 
     .kpi-column {
       background-color: #f8fafc; border: 1.5px solid #162b58;
@@ -121,14 +121,39 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     }
 
     .kpi-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; }
-    .kpi-title { font-size: 1.0rem; font-weight: 700; color: #1e3a8a; }
+    .kpi-title { font-size: 1.0rem; font-weight: 800; color: #1e3a8a; }
     .kpi-badge { font-size: 0.78rem; background-color: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 6px; font-weight: 700; }
-    .kpi-lines { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; }
-    .kpi-line { display: flex; justify-content: space-between; align-items: center; }
-    .kpi-line .label { color: #475569; font-weight: 500; font-size: 0.85rem; }
-    .kpi-line .val { font-weight: 700; color: #0f172a; font-size: 0.88rem; }
-    .kpi-line .positive { color: #16a34a !important; font-weight: 800; font-size: 0.88rem; }
-    .kpi-line .negative { color: #dc2626 !important; font-weight: 800; font-size: 0.88rem; }
+    .kpi-lines { display: flex; flex-direction: column; gap: 5px; font-size: 0.84rem; }
+    .kpi-line { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      gap: 12px;
+      padding: 1.5px 0;
+      border-bottom: 1px dashed #e2e8f0;
+    }
+    .kpi-line:last-child { border-bottom: none; }
+    .kpi-line .label { 
+      color: #334155; 
+      font-weight: 600; 
+      font-size: 0.82rem; 
+      flex: 1; 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
+    }
+    .kpi-line .val { 
+      font-weight: 800; 
+      color: #0f172a; 
+      font-size: 0.86rem; 
+      text-align: right; 
+      font-variant-numeric: tabular-nums; 
+      font-feature-settings: "tnum"; 
+      min-width: 105px; 
+      white-space: nowrap; 
+    }
+    .kpi-line .positive { color: #16a34a !important; font-weight: 800; font-size: 0.86rem; text-align: right; font-variant-numeric: tabular-nums; }
+    .kpi-line .negative { color: #dc2626 !important; font-weight: 800; font-size: 0.86rem; text-align: right; font-variant-numeric: tabular-nums; }
 
     .timeline-btn {
       margin-top: 12px; background-color: #eff6ff; color: #2563eb;
@@ -1394,15 +1419,9 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       return "M00100";
     }
 
-    async function loadExcelComments() {
-      try {
-        const resp = await fetch('/scratch/excel_comments_os_mapped.json');
-        if (resp.ok) {
-          excelCommentsMap = await resp.json();
-          console.log(`Loaded mapped Excel comments for ${Object.keys(excelCommentsMap).length} primary OS codes!`);
-        }
-      } catch (e) {
-        console.warn("Could not fetch excel_comments_os_mapped.json:", e);
+    function loadExcelComments() {
+      if (window.EXCEL_COMMENTS_MAP) {
+        excelCommentsMap = window.EXCEL_COMMENTS_MAP;
       }
     }
 
