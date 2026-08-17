@@ -726,7 +726,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       }
     }
 
-        function updateFromURLParams() {
+            function updateFromURLParams() {
       const params = new URLSearchParams(window.location.search);
       
       // Topic 1: Faturamento Ano (Executivo, FCST e Real)
@@ -820,30 +820,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         if (params.get("IndenizacaoAcum")) t8.lines[1].val = "R$ " + params.get("IndenizacaoAcum");
       }
 
-                  // Topic 4: Assertividade (Margem Real vs Margem FCST Projetada)
-      const t4 = topicsData.find(t => t.id === 4);
-      if (t4) {
-        if (params.get("ResFcstAnt")) t4.lines[0].val = params.get("ResFcstAnt");
-        if (params.get("ResFcstAtu")) t4.lines[1].val = params.get("ResFcstAtu");
-        if (params.get("ResFcstDif")) t4.lines[2].val = params.get("ResFcstDif");
-        if (params.get("MargRealMes")) t4.lines[3].val = params.get("MargRealMes");
-        else if (params.get("MargFcstAtu")) t4.lines[3].val = params.get("MargFcstAtu");
-        if (params.get("MargFcstProj")) t4.lines[4].val = params.get("MargFcstProj");
-        else if (params.get("MargFcstAnt")) t4.lines[4].val = params.get("MargFcstAnt");
-        if (params.get("DifMargFcst")) t4.lines[5].val = params.get("DifMargFcst");
-        else if (params.get("MargFcstDif")) t4.lines[5].val = params.get("MargFcstDif");
-        if (params.get("AssertivMes")) {
-          t4.lines[6].val = params.get("AssertivMes");
-          t4.lines[6].class = params.get("AssertivMes") === "Não Assertivo" ? "negative" : "positive";
-        }
-        if (params.get("AssertivAcum") && params.get("AssertivAcum") !== "") {
-          t4.lines[7].val = params.get("AssertivAcum");
-        } else {
-          t4.lines[7].val = "83,33% (5/6 Meses)";
-        }
-      }
-
-            // Topic 6: Perda de Receita (Mês e Acumulado)
+      // Topic 6: Perda de Receita (Mês e Acumulado)
       const t6 = topicsData.find(t => t.id === 6);
       if (t6) {
         if (params.get("PerdaMes") && params.get("PerdaMes") !== "") {
@@ -886,7 +863,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         if (params.get("AbsenteismoMeta")) t11.lines[1].val = params.get("AbsenteismoMeta");
       }
 
-            // Topic 12: TurnOver
+      // Topic 12: TurnOver
       const t12 = topicsData.find(t => t.id === 12);
       if (t12) {
         if (params.get("TurnoverVal") && params.get("TurnoverVal").trim() !== "" && params.get("TurnoverVal") !== "0,00%") {
@@ -909,7 +886,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         if (params.get("CAFTotalVal")) t16.lines[0].val = params.get("CAFTotalVal");
       }
 
-            // Topic 17: Satisfação do Cliente (Anual)
+      // Topic 17: Satisfação do Cliente (Anual)
       const t17 = topicsData.find(t => t.id === 17);
       if (t17) {
         if (params.get("SatClienteVal") && params.get("SatClienteVal").trim() !== "") {
@@ -944,7 +921,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       }
     }
 
-                    function getLineClass(topicId, idx, lines) {
+    function getLineClass(topicId, idx, lines) {
       const parseVal = (str) => {
         if (!str) return 0;
         let cleaned = str.replace(/[^\d,-]/g, '').replace(',', '.');
@@ -1264,7 +1241,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       });
     }
 
-        function setValidationStatus(topicId, status) {
+    function setValidationStatus(topicId, status) {
       const currentParams = new URLSearchParams(window.location.search);
       const urlOS = currentParams.get("SelectedOS") || "M00100";
       const primaryOS = (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(urlOS) : urlOS) || urlOS;
@@ -1272,8 +1249,6 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
 
       safeSetStorage(`status_${primaryOS}_m${monthNum}_${topicId}`, status);
-      renderRows();
-    }`, status);
       renderRows();
     }
 
@@ -1383,6 +1358,22 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     }
 
     let excelCommentsMap = {};
+
+        function isMonthMatch(r, monthNum, mesFmt) {
+      if (!r) return false;
+      if (r.periodo_fmt && mesFmt && r.periodo_fmt.trim().toUpperCase() === mesFmt.trim().toUpperCase()) return true;
+      if (r.periodo_raw) {
+        const raw = String(r.periodo_raw);
+        const mm = String(monthNum).padStart(2, '0');
+        if (raw.includes(`-${mm}-`) || raw.includes(`/${mm}/`)) return true;
+      }
+      if (r.periodo_fmt && monthNum) {
+        const monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+        const targetName = monthNames[monthNum - 1];
+        if (targetName && r.periodo_fmt.toUpperCase().includes(targetName)) return true;
+      }
+      return false;
+    }
 
     function extractPrimaryOSCode(osStr) {
       if (!osStr) return "M00100";
@@ -2161,14 +2152,16 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       document.getElementById("timelineModal").style.display = "none";
     }
 
+        // Immediate initial render
+    loadExcelComments();
+    renderRows();
+    renderAnnualConsolidation();
+
     document.addEventListener("DOMContentLoaded", function() {
       loadExcelComments();
       renderRows();
+      renderAnnualConsolidation();
     });
-    if (document.readyState === "complete" || document.readyState === "interactive") {
-      loadExcelComments();
-      renderRows();
-    }
-  </script>
+</script>
 </body>
 </html>
