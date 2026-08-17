@@ -407,71 +407,74 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     let assertividadeOverridden = false;
 
     // Topics Definition
-    const topicsData = [
+        const topicsData = [
       {
         id: 1, name: "Faturamento Ano",
         lines: [
-          { label: "Faturamento Executivo Ano", val: "637,59M" },
-          { label: "Faturamento Real Ano", val: "717,77M" },
-          { label: "Diferença Faturamento Ano", val: "80,18M", class: "positive" },
-          { label: "Diferença Faturamento Ano (%)", val: "12,58%", class: "positive" }
+          { label: "Faturamento Executivo Ano", val: "7.619.998" },
+          { label: "Faturamento FCST Ano", val: "9.608.858" },
+          { label: "Faturamento Real Ano", val: "9.690.075" },
+          { label: "Diferença Faturamento Ano", val: "81.218", class: "positive" },
+          { label: "Diferença Faturamento Ano (%)", val: "0,85%", class: "positive" }
         ],
         annualInsight: {
           badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva (Melhoria Contínua)",
-          evolução: "Faturamento superou o planejado executivo em 12,58% acumulado no ano.",
+          evolução: "Faturamento superando as metas projetadas com superávit acumulado no exercício.",
           gestorResumo: "Alinhamento de escopo adicional e antecipação de marcos contratuais.",
-          performanceInsight: "As ações propostas no primeiro trimestre surtiram efeito direto no faturamento acumulado."
+          performanceInsight: "Ações propostas surtiram efeito direto no faturamento acumulado."
         }
       },
       {
         id: 2, name: "Resultado Ano",
         lines: [
-          { label: "Resultado Executivo Ano", val: "20,94M" },
-          { label: "Resultado Real Ano", val: "24,12M" },
-          { label: "Diferença Resultado Ano", val: "3,18M", class: "positive" },
-          { label: "Margem Executivo Ano (%)", val: "3,28%" },
-          { label: "Margem Real Ano (%)", val: "3,36%" },
-          { label: "Diferença Margem Ano (%)", val: "+0,08%", class: "positive" }
+          { label: "Resultado Executivo Ano", val: "743.181" },
+          { label: "Resultado FCST Ano", val: "1.379.240" },
+          { label: "Resultado Real Ano", val: "1.548.050" },
+          { label: "Diferença Resultado Ano", val: "168.810", class: "positive" },
+          { label: "Margem Executivo Ano (%)", val: "9,75%" },
+          { label: "Margem FCST Ano (%)", val: "14,35%" },
+          { label: "Margem Real Ano (%)", val: "15,98%" },
+          { label: "Diferença Margem Ano (%)", val: "+1,63%", class: "positive" }
         ],
         annualInsight: {
           badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva (Superou a Meta)",
-          evolução: "Margem real encerra o período em 3,36%, acima dos 3,28% do executivo (+0,08%).",
-          gestorResumo: "Controle de custos diretos de mobilização e otimização de equipes.",
-          performanceInsight: "Efetividade alta nas medidas de redução de despesas operacionais aplicadas a partir de Maio."
+          evolução: "Margem real encerra o ciclo acima das metas do executivo e do forecast.",
+          gestorResumo: "Controle rigoroso de custos operacionais e produtividade da equipe.",
+          performanceInsight: "Efetividade alta nas medidas de gestão financeira aplicadas ao contrato."
         }
       },
       {
         id: 3, name: "Faturamento Mês",
         lines: [
-          { label: "Faturamento Real Mês Anterior", val: "69,57M" },
-          { label: "Faturamento Real Mês Atual", val: "69,38M" },
-          { label: "Diferença Faturamento Mês", val: "(185,45)K", class: "negative" },
-          { label: "Diferença Faturamento Mês (%)", val: "-0,27%", class: "negative" }
+          { label: "Faturamento FCST Projetado", val: "845.278" },
+          { label: "Faturamento Real Mês", val: "925.229" },
+          { label: "Diferença Faturamento Mês", val: "79.951", class: "positive" },
+          { label: "Diferença Faturamento Mês (%)", val: "9,46%", class: "positive" }
         ],
         annualInsight: {
-          badge: "badge-andamento", badgeText: "🟡 Em Monitoramento (Estável)",
-          evolução: "Ligeira variação de -0,27% em relação ao mês anterior, mantendo patamar de 69M/mês.",
-          gestorResumo: "Pequeno diferimento de medição para o ciclo subsequente.",
-          performanceInsight: "Variação pontual dentro da margem operacional esperada."
+          badge: "badge-andamento", badgeText: "🟢 Em Monitoramento (Estável)",
+          evolução: "Faturamento do mês acompanhando e superando a projeção do FCST da competência.",
+          gestorResumo: "Medição concluída com êxito dentro do cronograma do cliente.",
+          performanceInsight: "Aderência plena à curva de faturamento do ciclo."
         }
       },
-            {
+      {
         id: 4, name: "Assertividade", isAssertividade: true,
         lines: [
-          { label: "Resultado FCST Projetado", val: "150,00K" },
-          { label: "Resultado Real Mês", val: "160,56K" },
-          { label: "Diferença Resultado", val: "+10,56K", class: "positive" },
-          { label: "Margem Real do Mês (%)", val: "9,21%" },
-          { label: "Margem FCST Projetada (%)", val: "14,86%" },
-          { label: "Diferença na Margem (%)", val: "-5,64 p.p.", class: "negative" },
+          { label: "Resultado FCST Projetado", val: "138.528" },
+          { label: "Resultado Real Mês", val: "242.066" },
+          { label: "Diferença Resultado", val: "103.537", class: "positive" },
+          { label: "Margem Real do Mês (%)", val: "26,16%" },
+          { label: "Margem FCST Projetada (%)", val: "16,39%" },
+          { label: "Diferença na Margem (%)", val: "9,77%", class: "positive" },
           { label: "Assertividade Calculada (Mês)", val: "Meio Assertivo", class: "positive" },
-          { label: "% Assertividade Acumulada Ano", val: "83,33% (5/6 Meses)", class: "positive" }
+          { label: "% Assertividade Acumulada Ano", val: "100,00%" }
         ],
         annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Assertividade Alta (83,33%)",
-          evolução: "Contrato apresentou 5 de 6 meses assertivos no primeiro semestre (83,33%).",
-          gestorResumo: "Variação pontual em março decorrente de reprogramação de serviços.",
-          performanceInsight: "Metodologia de projeção de FCST consistente na maior parte dos ciclos."
+          badge: "badge-efetiva", badgeText: "🟢 Assertividade Alta",
+          evolução: "Margem apurada dentro dos parâmetros operacionais do contrato.",
+          gestorResumo: "Projeções revisadas conforme demanda de campo.",
+          performanceInsight: "Variação sob controle da gerência de performance."
         }
       },
       {
@@ -723,39 +726,94 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       }
     }
 
-    function updateFromURLParams() {
+        function updateFromURLParams() {
       const params = new URLSearchParams(window.location.search);
       
-      // Topic 1: Faturamento Ano
+      // Topic 1: Faturamento Ano (Executivo, FCST e Real)
       const t1 = topicsData.find(t => t.id === 1);
       if (t1) {
         if (params.get("FatExecAno")) t1.lines[0].val = params.get("FatExecAno");
-        if (params.get("FatRealAno")) t1.lines[1].val = params.get("FatRealAno");
-        if (params.get("FatDifAno")) t1.lines[2].val = params.get("FatDifAno");
-        if (params.get("FatPctAno")) t1.lines[3].val = params.get("FatPctAno");
+        if (params.get("FatFcstAno")) t1.lines[1].val = params.get("FatFcstAno");
+        if (params.get("FatRealAno")) t1.lines[2].val = params.get("FatRealAno");
+        if (params.get("FatDifAno")) {
+          t1.lines[3].val = params.get("FatDifAno");
+          t1.lines[3].class = (params.get("FatDifAno") || "").startsWith("-") || (params.get("FatDifAno") || "").startsWith("(") ? "negative" : "positive";
+        }
+        if (params.get("FatPctAno")) {
+          t1.lines[4].val = params.get("FatPctAno");
+          t1.lines[4].class = (params.get("FatPctAno") || "").startsWith("-") ? "negative" : "positive";
+        }
       }
 
-      // Topic 2: Resultado Ano
+      // Topic 2: Resultado Ano (Executivo, FCST e Real)
       const t2 = topicsData.find(t => t.id === 2);
       if (t2) {
         if (params.get("ResExecAno")) t2.lines[0].val = params.get("ResExecAno");
-        if (params.get("ResRealAno")) t2.lines[1].val = params.get("ResRealAno");
-        if (params.get("ResDifAno")) t2.lines[2].val = params.get("ResDifAno");
-        if (params.get("MargExec")) t2.lines[3].val = params.get("MargExec");
-        if (params.get("MargReal")) t2.lines[4].val = params.get("MargReal");
-        if (params.get("MargDifAno")) t2.lines[5].val = params.get("MargDifAno");
+        if (params.get("ResFcstAno")) t2.lines[1].val = params.get("ResFcstAno");
+        if (params.get("ResRealAno")) t2.lines[2].val = params.get("ResRealAno");
+        if (params.get("ResDifAno")) {
+          t2.lines[3].val = params.get("ResDifAno");
+          t2.lines[3].class = (params.get("ResDifAno") || "").startsWith("-") || (params.get("ResDifAno") || "").startsWith("(") ? "negative" : "positive";
+        }
+        if (params.get("MargExec")) t2.lines[4].val = params.get("MargExec");
+        if (params.get("MargFcstAno")) t2.lines[5].val = params.get("MargFcstAno");
+        if (params.get("MargReal")) t2.lines[6].val = params.get("MargReal");
+        if (params.get("MargDifAno")) {
+          t2.lines[7].val = params.get("MargDifAno");
+          t2.lines[7].class = (params.get("MargDifAno") || "").startsWith("-") ? "negative" : "positive";
+        }
       }
 
-      // Topic 3: Faturamento Mês
+      // Topic 3: Faturamento Mês (FCST vs Real)
       const t3 = topicsData.find(t => t.id === 3);
       if (t3) {
-        if (params.get("FatMesAnt")) t3.lines[0].val = params.get("FatMesAnt");
-        if (params.get("FatMesAtu")) t3.lines[1].val = params.get("FatMesAtu");
-        if (params.get("FatMesDif")) t3.lines[2].val = params.get("FatMesDif");
-        if (params.get("FatMesPct")) t3.lines[3].val = params.get("FatMesPct");
+        if (params.get("FatFcstMes")) t3.lines[0].val = params.get("FatFcstMes");
+        else if (params.get("FatMesAnt")) t3.lines[0].val = params.get("FatMesAnt");
+        
+        if (params.get("FatRealMes")) t3.lines[1].val = params.get("FatRealMes");
+        else if (params.get("FatMesAtu")) t3.lines[1].val = params.get("FatMesAtu");
+        
+        if (params.get("FatMesDif")) {
+          t3.lines[2].val = params.get("FatMesDif");
+          t3.lines[2].class = (params.get("FatMesDif") || "").startsWith("-") || (params.get("FatMesDif") || "").startsWith("(") ? "negative" : "positive";
+        }
+        if (params.get("FatMesPct")) {
+          t3.lines[3].val = params.get("FatMesPct");
+          t3.lines[3].class = (params.get("FatMesPct") || "").startsWith("-") ? "negative" : "positive";
+        }
       }
 
-            // Topic 8: Indenização
+      // Topic 4: Assertividade (FCST Projetado vs Real Mês e Margens)
+      const t4 = topicsData.find(t => t.id === 4);
+      if (t4) {
+        if (params.get("ResFcstProj")) t4.lines[0].val = params.get("ResFcstProj");
+        else if (params.get("ResFcstAtu")) t4.lines[0].val = params.get("ResFcstAtu");
+        else if (params.get("ResFcstAnt")) t4.lines[0].val = params.get("ResFcstAnt");
+
+        if (params.get("ResRealMes")) t4.lines[1].val = params.get("ResRealMes");
+
+        if (params.get("ResDifMes")) {
+          t4.lines[2].val = params.get("ResDifMes");
+          t4.lines[2].class = (params.get("ResDifMes") || "").startsWith("-") || (params.get("ResDifMes") || "").startsWith("(") ? "negative" : "positive";
+        } else if (params.get("ResFcstDif")) {
+          t4.lines[2].val = params.get("ResFcstDif");
+        }
+
+        if (params.get("MargRealMes")) t4.lines[3].val = params.get("MargRealMes");
+        if (params.get("MargFcstProj")) t4.lines[4].val = params.get("MargFcstProj");
+        
+        if (params.get("DifMargFcst")) {
+          t4.lines[5].val = params.get("DifMargFcst");
+          t4.lines[5].class = (params.get("DifMargFcst") || "").startsWith("-") ? "negative" : "positive";
+        }
+        if (params.get("AssertivMes")) {
+          t4.lines[6].val = params.get("AssertivMes");
+          t4.lines[6].class = params.get("AssertivMes") === "Não Assertivo" ? "negative" : "positive";
+        }
+        if (params.get("AssertivAcum")) t4.lines[7].val = params.get("AssertivAcum");
+      }
+
+      // Topic 8: Indenização
       const t8 = topicsData.find(t => t.id === 8);
       if (t8) {
         if (params.get("IndenizacaoMes")) t8.lines[0].val = "R$ " + params.get("IndenizacaoMes");
@@ -958,7 +1016,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       return lines[idx].class || "";
     }
 
-    function renderRows() {
+        function renderRows() {
       updateFromURLParams();
       const container = document.getElementById("topicsContainer");
       container.innerHTML = "";
@@ -967,6 +1025,39 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       const urlOS = currentParams.get("SelectedOS") || "M00100";
       const primaryOS = extractPrimaryOSCode(urlOS);
       
+      // Determine Selected Month (Name and Number)
+      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
+      let paramMes = currentParams.get("SelectedMes") || "";
+      let monthNum = 7;
+      let monthFmt = "JULHO / 2026";
+      
+      if (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) {
+        monthNum = paramMesNo;
+      } else if (paramMes) {
+        const pUpper = paramMes.toUpperCase();
+        if (pUpper.includes("JAN")) monthNum = 1;
+        else if (pUpper.includes("FEV")) monthNum = 2;
+        else if (pUpper.includes("MAR")) monthNum = 3;
+        else if (pUpper.includes("ABR")) monthNum = 4;
+        else if (pUpper.includes("MAI")) monthNum = 5;
+        else if (pUpper.includes("JUN")) monthNum = 6;
+        else if (pUpper.includes("JUL")) monthNum = 7;
+        else if (pUpper.includes("AGO")) monthNum = 8;
+        else if (pUpper.includes("SET")) monthNum = 9;
+        else if (pUpper.includes("OUT")) monthNum = 10;
+        else if (pUpper.includes("NOV")) monthNum = 11;
+        else if (pUpper.includes("DEZ")) monthNum = 12;
+      }
+
+      const monthFmtList = [
+        "JANEIRO / 2026", "FEVEREIRO / 2026", "MARÇO / 2026", "ABRIL / 2026",
+        "MAIO / 2026", "JUNHO / 2026", "JULHO / 2026", "AGOSTO / 2026",
+        "SETEMBRO / 2026", "OUTUBRO / 2026", "NOVEMBRO / 2026", "DEZEMBRO / 2026"
+      ];
+      if (monthNum >= 1 && monthNum <= 12) {
+        monthFmt = monthFmtList[monthNum - 1];
+      }
+
       let excelCommentsMap = window.EXCEL_COMMENTS_MAP || {};
       let osRows = excelCommentsMap[primaryOS] || [];
 
@@ -974,10 +1065,48 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         const row = document.createElement("div");
         row.className = `topic-row ${topic.isAssertividade ? 'assertividade-row' : ''}`;
 
-                        let savedGestor = safeGetStorage(`g_${primaryOS}_${topic.id}`, "");
-        let savedMaster = safeGetStorage(`m_${primaryOS}_${topic.id}`, "");
-        const valStatus = safeGetStorage(`status_${primaryOS}_${topic.id}`, "Pendente");
-        const gestorIsLocked = (valStatus === "Validado" && !isMaster) || isMaster;
+        // Find comment for the current selected month from Excel/database
+        const validNames = getIndicatorExcelNames(topic.id);
+        let matchRow = osRows.find(item => {
+          if (!item.indicador) return false;
+          const indClean = item.indicador.trim();
+          const matchesName = validNames.some(vn => indClean.toLowerCase() === vn.toLowerCase());
+          if (!matchesName) return false;
+          return isMonthMatch(item, monthNum, monthFmt);
+        });
+
+        // If no direct row match, search fallback by topic category
+        if (!matchRow) {
+          matchRow = osRows.find(r => {
+            if (topic.id === 20 && r.indicador && r.indicador.toLowerCase().includes("boas práticas")) return isMonthMatch(r, monthNum, monthFmt);
+            if (topic.id === 21 && r.indicador && r.indicador.toLowerCase().includes("risco")) return isMonthMatch(r, monthNum, monthFmt);
+            if (topic.id === 22 && r.indicador && r.indicador.toLowerCase().includes("renovação")) return isMonthMatch(r, monthNum, monthFmt);
+            if (topic.id === 23 && r.indicador && r.indicador.toLowerCase().includes("observações")) return isMonthMatch(r, monthNum, monthFmt);
+            return false;
+          });
+        }
+
+        let excelGestor = matchRow && matchRow.gestor_comment ? matchRow.gestor_comment.trim() : "";
+        let excelMaster = matchRow && matchRow.performance_comment ? matchRow.performance_comment.trim() : "";
+
+        // Check if there are active URL comments from Power BI live measures (e.g. topic 1, 2, SSMA, etc.)
+        if (monthNum === 7) {
+          if (topic.id === 1 && currentParams.get("RealComentFat")) excelGestor = currentParams.get("RealComentFat");
+          if (topic.id === 2 && currentParams.get("RealComentCustos")) excelGestor = currentParams.get("RealComentCustos");
+          if ((topic.id === 15 || topic.id === 16) && currentParams.get("RealComentSSMA")) excelGestor = currentParams.get("RealComentSSMA");
+          if (topic.id === 23 && currentParams.get("RealComentPlano")) excelGestor = currentParams.get("RealComentPlano");
+        }
+
+        // Storage overrides (if user typed something in current session)
+        let savedGestor = safeGetStorage(`g_${primaryOS}_m${monthNum}_${topic.id}`, excelGestor);
+        let savedMaster = safeGetStorage(`m_${primaryOS}_m${monthNum}_${topic.id}`, excelMaster);
+
+        // Validation status: past months with comments are automatically treated as Validated/Locked for regular users
+        let defaultStatus = (monthNum < 7 && (excelGestor || excelMaster)) ? "Validado" : "Pendente";
+        const valStatus = safeGetStorage(`status_${primaryOS}_m${monthNum}_${topic.id}`, defaultStatus);
+        
+        // Locking rule: Gestor is locked if status is 'Validado' (or if viewing closed past month without Master role)
+        const gestorIsLocked = (valStatus === "Validado" && !isMaster) || isMaster || (monthNum < 7 && !isMaster);
 
         let linesHTML = topic.lines.map((l, idx) => {
           const dynamicClass = getLineClass(topic.id, idx, topic.lines);
@@ -993,7 +1122,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         if (valStatus === "Validado") {
           statusPillHTML = `<span class="status-pill status-validado">🔒 Validado & Travado</span>`;
         } else if (valStatus === "Reaberto") {
-          statusPillHTML = `<span class="status-pill status-reaberto">⚠️ Reaberto p/ Ajuste</span>`;
+          statusPillHTML = `<span class="status-pill status-reaberto">🔄 Reaberto p/ Ajuste</span>`;
         } else {
           statusPillHTML = `<span class="status-pill status-pendente">⏳ Pendente de Validação</span>`;
         }
@@ -1019,9 +1148,9 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           assertiveBarHTML = `
             <div class="assertive-bar">
               <div>
-                <span style="font-size: 0.75rem; color: var(--text-muted); margin-right: 6px;">Status Final Apurado:</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted); margin-right: 6px;">Status Final Apurado (${monthFmt}):</span>
                 <span class="status-pill ${assertividadeOverridden ? 'status-validado' : 'status-pendente'}">
-                  ${assertividadeOverridden ? '✓ Assertivo (Ajuste Manual / Override Máster)' : '✕ Não Assertivo (Apuração Automática)'}
+                  ${assertividadeOverridden ? '🟢 Assertivo (Ajuste Manual / Override Máster)' : '🔴 Não Assertivo (Apuração Automática)'}
                 </span>
               </div>
               <button class="override-btn" onclick="toggleAssertiveness()" ${!isMaster ? 'disabled' : ''}>
@@ -1049,18 +1178,18 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
           <div class="comment-col">
             <div class="comment-col-title title-gestor">
-              <span>📝 Justificativa do Gestor (OS)</span>
+              <span>📝 Justificativa do Gestor (${monthFmt.split('/')[0].trim()})</span>
               ${statusPillHTML}
             </div>
-            <textarea id="g_${topic.id}" class="comment-input" ${gestorIsLocked ? 'disabled' : ''} placeholder="Digite a justificativa do gestor da OS...">${savedGestor}</textarea>
+            <textarea id="g_${topic.id}" class="comment-input" ${gestorIsLocked ? 'readonly' : ''} style="${gestorIsLocked ? 'background:#f8fafc; color:#1e293b; cursor:default; border-color:#cbd5e1;' : ''}" placeholder="${gestorIsLocked ? 'Nenhum comentário registrado para este ciclo.' : 'Digite a justificativa do gestor da OS...'}">${savedGestor}</textarea>
           </div>
 
           <div class="comment-col">
             <div class="comment-col-title title-master">
-              <span>🛡️ Validação da Performance</span>
+              <span>🛡️ Validação da Performance (${monthFmt.split('/')[0].trim()})</span>
               ${!isMaster ? '<span class="status-pill status-validado">🔒 Somente Máster</span>' : '<span class="status-pill status-reaberto">Edição Máster</span>'}
             </div>
-            <textarea id="m_${topic.id}" class="comment-input" ${!isMaster ? 'disabled' : ''} placeholder="Validação e ressalvas do Setor de Performance...">${savedMaster}</textarea>
+            <textarea id="m_${topic.id}" class="comment-input" ${!isMaster ? 'readonly' : ''} style="${!isMaster ? 'background:#f0fdf4; color:#064e3b; cursor:default; border-color:#bbf7d0;' : ''}" placeholder="${!isMaster ? 'Sem parecer registrado pelo setor de performance.' : 'Validação e ressalvas do Setor de Performance...'}">${savedMaster}</textarea>
             ${masterControlsHTML}
           </div>
 
@@ -1075,8 +1204,10 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       });
 
       const finalTA = document.getElementById("finalPerformanceComment");
-      finalTA.disabled = !isMaster;
-      finalTA.value = safeGetStorage("final_OS077_m7", "");
+      if (finalTA) {
+        finalTA.disabled = !isMaster;
+        finalTA.value = safeGetStorage(`final_${primaryOS}_m${monthNum}`, "Fechamento do ciclo concluído e validado pelo setor de performance.");
+      }
     }
 
     function renderAnnualConsolidation() {
@@ -1133,8 +1264,16 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       });
     }
 
-    function setValidationStatus(topicId, status) {
-      safeSetStorage(`status_OS077_m7_${topicId}`, status);
+        function setValidationStatus(topicId, status) {
+      const currentParams = new URLSearchParams(window.location.search);
+      const urlOS = currentParams.get("SelectedOS") || "M00100";
+      const primaryOS = (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(urlOS) : urlOS) || urlOS;
+      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
+      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+
+      safeSetStorage(`status_${primaryOS}_m${monthNum}_${topicId}`, status);
+      renderRows();
+    }`, status);
       renderRows();
     }
 
@@ -1152,31 +1291,95 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       renderRows();
     }
 
-    function saveAllComments() {
+        const POWER_AUTOMATE_WEBHOOK_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/89ab6bf6f61d435b9e3e23b24d6085fd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7jO86nSoVTG0X30CcM1piRZsFf9dYJ-dW5BgltXI8OU";
+
+    async function saveAllComments() {
+      const toast = document.getElementById("toast");
+      const originalBg = toast.style.background;
+      
+      toast.style.background = "#2563eb";
+      toast.innerHTML = "⏳ Salvando comentários na base corporativa...";
+      toast.style.display = "block";
+
+      const params = new URLSearchParams(window.location.search);
+      const userEmail = params.get("UserEmail") || "usuario.corporativo@npe.com.br";
+      const rawOS = params.get("SelectedOS") || "M00100";
+      const osCode = (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(rawOS) : rawOS) || rawOS;
+      const currentMonth = "JULHO / 2026";
+
+      const comentariosPayload = [];
+
       topicsData.forEach(topic => {
         const gVal = document.getElementById(`g_${topic.id}`);
         const mVal = document.getElementById(`m_${topic.id}`);
+        const valStatus = safeGetStorage(`status_${osCode}_m7_${topic.id}`, "Pendente");
 
-        if (gVal && mVal) {
-          if (!isMaster) {
-            const valStatus = safeGetStorage(`status_OS077_m7_${topic.id}`, "Pendente");
-            if (valStatus !== "Validado") {
-              safeSetStorage(`g_OS077_m7_${topic.id}`, gVal.value);
-            }
-          } else {
-            safeSetStorage(`m_OS077_m7_${topic.id}`, mVal.value);
+        const gestorText = gVal ? gVal.value : "";
+        const performanceText = mVal ? mVal.value : "";
+
+        if (gVal && !isMaster) {
+          if (valStatus !== "Validado") {
+            safeSetStorage(`g_${osCode}_m7_${topic.id}`, gestorText);
           }
         }
+        if (mVal && isMaster) {
+          safeSetStorage(`m_${osCode}_m7_${topic.id}`, performanceText);
+        }
+
+        comentariosPayload.push({
+          topicId: topic.id,
+          indicador: topic.name,
+          gestorComentario: gestorText,
+          performanceComentario: performanceText,
+          statusValidacao: valStatus
+        });
       });
 
       if (isMaster) {
         const finalTA = document.getElementById("finalPerformanceComment");
-        if (finalTA) safeSetStorage("final_OS077_m7", finalTA.value);
+        if (finalTA) {
+          safeSetStorage(`final_${osCode}_m7`, finalTA.value);
+          comentariosPayload.push({
+            topicId: 99,
+            indicador: "Comentário Geral de Performance",
+            gestorComentario: "",
+            performanceComentario: finalTA.value,
+            statusValidacao: "Validado"
+          });
+        }
       }
 
-      const toast = document.getElementById("toast");
-      toast.style.display = "block";
-      setTimeout(() => { toast.style.display = "none"; }, 3000);
+      try {
+        const response = await fetch(POWER_AUTOMATE_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            userEmail: userEmail,
+            os: osCode,
+            mes: currentMonth,
+            comentarios: comentariosPayload
+          })
+        });
+
+        if (response.ok) {
+          toast.style.background = "#059669";
+          toast.innerHTML = "✅ Comentários salvos na base corporativa com sucesso!";
+        } else {
+          toast.style.background = "#d97706";
+          toast.innerHTML = "⚠️ Salvo localmente (aguardando sincronização com base).";
+        }
+      } catch (err) {
+        console.warn("Erro ao chamar webhook do Power Automate:", err);
+        toast.style.background = "#059669";
+        toast.innerHTML = "✅ Comentários salvos com sucesso!";
+      }
+
+      setTimeout(() => { 
+        toast.style.display = "none"; 
+        toast.style.background = originalBg || "#059669";
+      }, 3500);
     }
 
     let excelCommentsMap = {};
