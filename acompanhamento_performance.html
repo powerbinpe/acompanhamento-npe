@@ -1031,72 +1031,63 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       return lines[idx].class || "";
     }
 
-        function renderRows() {
-      updateFromURLParams();
+            function renderRows() {
       const container = document.getElementById("topicsContainer");
+      if (!container) return;
       container.innerHTML = "";
 
       const currentParams = new URLSearchParams(window.location.search);
-      const urlOS = currentParams.get("SelectedOS") || "M00100";
-      const primaryOS = extractPrimaryOSCode(urlOS);
+      const rawOS = currentParams.get("SelectedOS") || "M00100";
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
       
-      // Determine Selected Month (Name and Number)
+      // Active OS state for editing (if in multi-OS mode, use stored active OS or default to M00100)
+      let activeOS = isMultiOS ? safeGetStorage("active_multi_os", "M00100") : ((typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(rawOS) : rawOS) || rawOS);
+
       let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
-      let paramMes = currentParams.get("SelectedMes") || "";
-      let monthNum = 7;
-      let monthFmt = "JULHO / 2026";
-      
-      if (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) {
-        monthNum = paramMesNo;
-      } else if (paramMes) {
-        const pUpper = paramMes.toUpperCase();
-        if (pUpper.includes("JAN")) monthNum = 1;
-        else if (pUpper.includes("FEV")) monthNum = 2;
-        else if (pUpper.includes("MAR")) monthNum = 3;
-        else if (pUpper.includes("ABR")) monthNum = 4;
-        else if (pUpper.includes("MAI")) monthNum = 5;
-        else if (pUpper.includes("JUN")) monthNum = 6;
-        else if (pUpper.includes("JUL")) monthNum = 7;
-        else if (pUpper.includes("AGO")) monthNum = 8;
-        else if (pUpper.includes("SET")) monthNum = 9;
-        else if (pUpper.includes("OUT")) monthNum = 10;
-        else if (pUpper.includes("NOV")) monthNum = 11;
-        else if (pUpper.includes("DEZ")) monthNum = 12;
+      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+      const monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+      let monthName = currentParams.get("SelectedMes") || monthNames[monthNum - 1] || "JULHO";
+      let monthFmt = `${monthName.toUpperCase()} / 2026`;
+
+      // If in Multi-OS mode, build a list of all available OSs (46 OSs)
+      const allOSList = Object.keys(excelCommentsMap && Object.keys(excelCommentsMap).length > 0 ? excelCommentsMap : (window.EXCEL_COMMENTS_MAP || {}));
+      if (allOSList.length === 0) {
+        allOSList.push("M00100", "M02800", "M03500", "M01200", "M02000", "M03700", "N14200", "M03600", "M03200", "M01800", "M01900", "M01500", "M00700", "P00802", "M01010", "M01012", "M02600", "M05900", "M00500", "M03400");
       }
 
-      const monthFmtList = [
-        "JANEIRO / 2026", "FEVEREIRO / 2026", "MARÇO / 2026", "ABRIL / 2026",
-        "MAIO / 2026", "JUNHO / 2026", "JULHO / 2026", "AGOSTO / 2026",
-        "SETEMBRO / 2026", "OUTUBRO / 2026", "NOVEMBRO / 2026", "DEZEMBRO / 2026"
-      ];
-      if (monthNum >= 1 && monthNum <= 12) {
-        monthFmt = monthFmtList[monthNum - 1];
+      // Add Multi-OS Banner if viewing corporate consolidated view
+      if (isMultiOS) {
+        const banner = document.createElement("div");
+        banner.style.cssText = "background: linear-gradient(135deg, #1e3a8a, #0f2b5c); border: 2px solid #3b82f6; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; color: #ffffff; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.25); flex-wrap: wrap; gap: 12px;";
+        banner.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 1.6rem;">🌐</span>
+            <div>
+              <div style="font-weight: 800; font-size: 1.05rem; letter-spacing: 0.3px;">Visão Consolidada Corporativa (Todas as OSs)</div>
+              <div style="font-size: 0.82rem; color: #bfdbfe;">Visualizando consolidação global (${allOSList.length} OSs disponíveis). Alterne a OS abaixo para consultar ou cadastrar comentários individuais:</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-size: 0.85rem; font-weight: 700; color: #e2e8f0;">Selecionar OS para Comentários:</label>
+            <select id="multiOsGlobalSelect" onchange="changeActiveMultiOS(this.value)" style="padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 0.86rem; border: 1.5px solid #93c5fd; background: #ffffff; color: #0f172a; cursor: pointer; outline: none;">
+              ${allOSList.map(os => `<option value="${os}" ${os === activeOS ? 'selected' : ''}>${os}</option>`).join("")}
+            </select>
+          </div>
+        `;
+        container.appendChild(banner);
       }
-
-      let excelCommentsMap = window.EXCEL_COMMENTS_MAP || {};
-      let osRows = excelCommentsMap[primaryOS] || [];
 
       topicsData.forEach(topic => {
         const row = document.createElement("div");
-        row.className = `topic-row ${topic.isAssertividade ? 'assertividade-row' : ''}`;
+        row.className = "topic-row";
+        row.id = `row_${topic.id}`;
 
-        // Find comment for the current selected month from Excel/database
-        const validNames = getIndicatorExcelNames(topic.id);
-        let matchRow = osRows.find(item => {
-          if (!item.indicador) return false;
-          const indClean = item.indicador.trim();
-          const matchesName = validNames.some(vn => indClean.toLowerCase() === vn.toLowerCase());
-          if (!matchesName) return false;
-          return isMonthMatch(item, monthNum, monthFmt);
-        });
-
-        // If no direct row match, search fallback by topic category
-        if (!matchRow) {
-          matchRow = osRows.find(r => {
-            if (topic.id === 20 && r.indicador && r.indicador.toLowerCase().includes("boas práticas")) return isMonthMatch(r, monthNum, monthFmt);
-            if (topic.id === 21 && r.indicador && r.indicador.toLowerCase().includes("risco")) return isMonthMatch(r, monthNum, monthFmt);
-            if (topic.id === 22 && r.indicador && r.indicador.toLowerCase().includes("renovação")) return isMonthMatch(r, monthNum, monthFmt);
-            if (topic.id === 23 && r.indicador && r.indicador.toLowerCase().includes("observações")) return isMonthMatch(r, monthNum, monthFmt);
+        // Get Excel comment for the active OS
+        let matchRow = null;
+        if (excelCommentsMap && excelCommentsMap[activeOS]) {
+          const possibleNames = getIndicatorExcelNames(topic.id);
+          matchRow = excelCommentsMap[activeOS].find(r => {
+            if (possibleNames.includes(r.indicador) && isMonthMatch(r, monthNum, monthFmt)) return true;
             return false;
           });
         }
@@ -1104,8 +1095,8 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         let excelGestor = matchRow && matchRow.gestor_comment ? matchRow.gestor_comment.trim() : "";
         let excelMaster = matchRow && matchRow.performance_comment ? matchRow.performance_comment.trim() : "";
 
-        // Check if there are active URL comments from Power BI live measures (e.g. topic 1, 2, SSMA, etc.)
-        if (monthNum === 7) {
+        // URL comments from Power BI live measures (when available)
+        if (monthNum === 7 && activeOS === "M00100") {
           if (topic.id === 1 && currentParams.get("RealComentFat")) excelGestor = currentParams.get("RealComentFat");
           if (topic.id === 2 && currentParams.get("RealComentCustos")) excelGestor = currentParams.get("RealComentCustos");
           if ((topic.id === 15 || topic.id === 16) && currentParams.get("RealComentSSMA")) excelGestor = currentParams.get("RealComentSSMA");
@@ -1113,17 +1104,17 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         }
 
         // Storage overrides (if user typed something in current session)
-        let savedGestor = safeGetStorage(`g_${primaryOS}_m${monthNum}_${topic.id}`, excelGestor);
-        let savedMaster = safeGetStorage(`m_${primaryOS}_m${monthNum}_${topic.id}`, excelMaster);
+        let savedGestor = safeGetStorage(`g_${activeOS}_m${monthNum}_${topic.id}`, excelGestor);
+        let savedMaster = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, excelMaster);
 
-        // Validation status: past months with comments are automatically treated as Validated/Locked for regular users
-        let defaultStatus = (monthNum < 7 && (excelGestor || excelMaster)) ? "Validado" : "Pendente";
-        const valStatus = safeGetStorage(`status_${primaryOS}_m${monthNum}_${topic.id}`, defaultStatus);
+        // ALWAYS DEFAULT TO "Pendente" SO FIELDS ARE FULLY EDITABLE FOR ALL USERS
+        let defaultStatus = "Pendente";
+        const valStatus = safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, defaultStatus);
         
-        // Locking rule: Gestor is locked if status is 'Validado' (or if viewing closed past month without Master role)
-        const gestorIsLocked = (valStatus === "Validado" && !isMaster) || isMaster || (monthNum < 7 && !isMaster);
+        // Locking rule: Gestor is locked ONLY if status is explicitly 'Validado' AND the user is not Master!
+        const gestorIsLocked = (valStatus === "Validado" && !isMaster);
 
-                let linesHTML = `
+        let linesHTML = `
           <table style="width: 100%; border-collapse: collapse; margin-top: 2px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
             <tbody>
               ${topic.lines.map((l, idx) => {
@@ -1201,13 +1192,13 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
               </div>
             </div>
             <button id="btn_hist_${topic.id}" class="timeline-btn" onclick="toggleInlineHistory(${topic.id})">
-              📜 Histórico ATA_COMENTARIO
+              📜 Histórico ATA_COMENTARIO (${activeOS})
             </button>
           </div>
 
           <div class="comment-col">
             <div class="comment-col-title title-gestor">
-              <span>📝 Justificativa do Gestor (${monthFmt.split('/')[0].trim()})</span>
+              <span>📝 Justificativa do Gestor (${activeOS} - ${monthFmt.split('/')[0].trim()})</span>
               ${statusPillHTML}
             </div>
             <textarea id="g_${topic.id}" class="comment-input" ${gestorIsLocked ? 'readonly' : ''} style="${gestorIsLocked ? 'background:#f8fafc; color:#1e293b; cursor:default; border-color:#cbd5e1;' : ''}" placeholder="${gestorIsLocked ? 'Nenhum comentário registrado para este ciclo.' : 'Digite a justificativa do gestor da OS...'}">${savedGestor}</textarea>
@@ -1215,31 +1206,26 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
           <div class="comment-col">
             <div class="comment-col-title title-master">
-              <span>🛡️ Validação da Performance (${monthFmt.split('/')[0].trim()})</span>
+              <span>🛡️ Validação da Performance (${activeOS} - ${monthFmt.split('/')[0].trim()})</span>
               ${!isMaster ? '<span class="status-pill status-validado">🔒 Somente Máster</span>' : '<span class="status-pill status-reaberto">Edição Máster</span>'}
             </div>
-            <textarea id="m_${topic.id}" class="comment-input" ${!isMaster ? 'readonly' : ''} style="${!isMaster ? 'background:#f0fdf4; color:#064e3b; cursor:default; border-color:#bbf7d0;' : ''}" placeholder="${!isMaster ? 'Sem parecer registrado pelo setor de performance.' : 'Validação e ressalvas do Setor de Performance...'}">${savedMaster}</textarea>
+            <textarea id="m_${topic.id}" class="comment-input" ${!isMaster ? 'disabled' : ''} placeholder="${!isMaster ? 'Comentário restrito ao setor de Performance.' : 'Digite a validação / recomendações da Performance...'}">${savedMaster}</textarea>
             ${masterControlsHTML}
           </div>
 
+          <div id="drawer_${topic.id}" class="history-drawer"></div>
           ${assertiveBarHTML}
-
-          <!-- INLINE EXPANDABLE HISTORY PANEL -->
-          <div id="inline_history_${topic.id}" class="inline-history-drawer" style="display: none; grid-column: 1 / -1; margin-top: 12px; background-color: #f1f5f9; border: 2px solid #162b58; border-radius: 10px; padding: 14px 16px; box-shadow: inset 0 2px 6px rgba(11,26,58,0.1);">
-          </div>
         `;
 
         container.appendChild(row);
       });
-
-      const finalTA = document.getElementById("finalPerformanceComment");
-      if (finalTA) {
-        finalTA.disabled = !isMaster;
-        finalTA.value = safeGetStorage(`final_${primaryOS}_m${monthNum}`, "Fechamento do ciclo concluído e validado pelo setor de performance.");
-      }
     }
 
-    function renderAnnualConsolidation() {
+    function changeActiveMultiOS(newOS) {
+      safeSetStorage("active_multi_os", newOS);
+      renderRows();
+    }
+function renderAnnualConsolidation() {
       const container = document.getElementById("annualGridContainer");
       container.innerHTML = "";
 
