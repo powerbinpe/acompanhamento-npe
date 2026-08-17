@@ -123,21 +123,34 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     .kpi-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; }
     .kpi-title { font-size: 1.0rem; font-weight: 800; color: #1e3a8a; }
     .kpi-badge { font-size: 0.78rem; background-color: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 6px; font-weight: 700; }
-    .kpi-lines { display: flex; flex-direction: column; gap: 5px; font-size: 0.84rem; }
-    .kpi-line { 
+    .kpi-lines { 
       display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
-      gap: 12px;
-      padding: 1.5px 0;
-      border-bottom: 1px dashed #e2e8f0;
+      flex-direction: column; 
+      gap: 3px; 
+      font-size: 0.83rem; 
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 4px;
     }
-    .kpi-line:last-child { border-bottom: none; }
+    .kpi-line { 
+      display: grid; 
+      grid-template-columns: 1fr 130px; 
+      align-items: center; 
+      padding: 4px 8px; 
+      border-radius: 6px;
+      transition: background-color 0.15s ease;
+    }
+    .kpi-line:nth-child(even) { 
+      background-color: #f8fafc; 
+    }
+    .kpi-line:hover {
+      background-color: #eff6ff;
+    }
     .kpi-line .label { 
-      color: #334155; 
+      color: #475569; 
       font-weight: 600; 
-      font-size: 0.82rem; 
-      flex: 1; 
+      font-size: 0.80rem; 
       white-space: nowrap; 
       overflow: hidden; 
       text-overflow: ellipsis; 
@@ -145,15 +158,15 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     .kpi-line .val { 
       font-weight: 800; 
       color: #0f172a; 
-      font-size: 0.86rem; 
+      font-size: 0.85rem; 
       text-align: right; 
       font-variant-numeric: tabular-nums; 
       font-feature-settings: "tnum"; 
-      min-width: 105px; 
-      white-space: nowrap; 
+      white-space: nowrap;
+      padding-right: 2px;
     }
-    .kpi-line .positive { color: #16a34a !important; font-weight: 800; font-size: 0.86rem; text-align: right; font-variant-numeric: tabular-nums; }
-    .kpi-line .negative { color: #dc2626 !important; font-weight: 800; font-size: 0.86rem; text-align: right; font-variant-numeric: tabular-nums; }
+    .kpi-line .positive { color: #15803d !important; font-weight: 800; }
+    .kpi-line .negative { color: #b91c1c !important; font-weight: 800; }
 
     .timeline-btn {
       margin-top: 12px; background-color: #eff6ff; color: #2563eb;
