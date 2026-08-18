@@ -1422,710 +1422,14 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       return '';
     }
 
-    function renderRows() {
-      const container = document.getElementById("topicsContainer");
-      if (!container) return;
-      container.innerHTML = "";
-
-      const currentParams = new URLSearchParams(window.location.search);
-      const rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
-      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
-      
-      let activeOS = isMultiOS ? "M00100" : ((typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(rawOS) : rawOS) || rawOS);
-      let displayOSName = isMultiOS ? "Visão Consolidada Corporativa (Todas as OSs)" : activeOS;
-
-      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
-      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 6;
-      const monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
-      let monthName = currentParams.get("SelectedMes") || monthNames[monthNum - 1] || "JUNHO";
-      let monthFmt = `${monthName.toUpperCase()} / 2026`;
-
-      // Update Final Remarks Lock status depending on role
-      const finalTA = document.getElementById("finalPerformanceComment");
-      const finalLock = document.getElementById("finalLock");
-      if (finalTA) {
-        finalTA.disabled = !isMaster;
-        finalTA.style.background = isMaster ? "#ffffff" : "#f8fafc";
-        finalTA.style.cursor = isMaster ? "text" : "not-allowed";
-        finalTA.placeholder = isMaster ? "Digite as recomendações gerais do Setor de Performance..." : "🔒 Campo exclusivo para registro de recomendações pelo Setor de Performance.";
-      }
-      if (finalLock) {
-        finalLock.innerHTML = isMaster ? "✍️ Modo Edição Máster" : "🔒 Exclusivo Máster";
-        finalLock.className = isMaster ? "status-pill status-reaberto" : "status-pill status-validado";
-      }
-
-      topicsData.forEach(topic => {
-        const row = document.createElement("div");
-        row.className = "topic-row";
-        row.id = `row_${topic.id}`;
-
-        let finalGestorText = "";
-        let finalMasterText = "";
-
-        if (isMultiOS) {
-          // MULTI-OS CONSOLIDATED AGGREGATION FROM ATA_COMENTARIOS_DB
-          let gestorEntries = [];
-          let masterEntries = [];
-          const strTid = String(topic.id);
-
-          for (const [osCode, topsObj] of Object.entries(ATA_COMENTARIOS_DB)) {
-            const tRows = topsObj[strTid] || [];
-            if (tRows.length === 0) continue;
-
-            // Prioritize matching month, or use latest available
-            let gRow = tRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum) || tRows.filter(r => r.tipo === "GESTOR")[tRows.filter(r => r.tipo === "GESTOR").length - 1];
-            let mRow = tRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum) || tRows.filter(r => r.tipo === "PERFORMANCE")[tRows.filter(r => r.tipo === "PERFORMANCE").length - 1];
-
-            const osLabel = osNamesMap[osCode] ? `${osCode} - ${osNamesMap[osCode]}` : osCode;
-
-            if (gRow && gRow.comentario && gRow.comentario.trim().length > 5 && gRow.comentario.trim() !== "Sem justificativas") {
-              gestorEntries.push(`[OS ${osLabel}]: ${gRow.comentario.trim()}`);
-            }
-            if (mRow && mRow.comentario && mRow.comentario.trim().length > 5 && mRow.comentario.trim() !== "Sem ocorrência no mês") {
-              masterEntries.push(`[OS ${osLabel}]: ${mRow.comentario.trim()}`);
-            }
-
-            if (gestorEntries.length >= 10 && masterEntries.length >= 10) break;
-          }
-
-          if (gestorEntries.length > 0) {
-            finalGestorText = gestorEntries.slice(0, 10).join("\n\n");
-            finalGestorText += "\n\n📌 [Exibindo as principais OSs consolidadas. Para visualizar ou editar uma OS individualmente, selecione a OS desejada no filtro do Power BI.]";
-          } else {
-            finalGestorText = "Operação regular sem ocorrências de desvio reportadas para as OSs neste tópico.";
-          }
-
-          if (masterEntries.length > 0) {
-            finalMasterText = masterEntries.slice(0, 10).join("\n\n");
-            finalMasterText += "\n\n📌 [Exibindo pareceres da Performance consolidados. Selecione a OS no Power BI para filtrar.]";
-          } else {
-            finalMasterText = "⏳ Acompanhamento contínuo e governança pelo Setor de Performance da NPE.";
-          }
-
-        } else {
-          // SINGLE SELECTED OS MODE
-          let osRows = (ATA_COMENTARIOS_DB[activeOS] && ATA_COMENTARIOS_DB[activeOS][String(topic.id)]) ? ATA_COMENTARIOS_DB[activeOS][String(topic.id)] : [];
-          let matchGestor = osRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum) || osRows.filter(r => r.tipo === "GESTOR")[0];
-          let matchMaster = osRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum) || osRows.filter(r => r.tipo === "PERFORMANCE")[0];
-
-          let excelGestor = matchGestor ? matchGestor.comentario : "";
-          let excelMaster = matchMaster ? matchMaster.comentario : "";
-
-          finalGestorText = safeGetStorage(`g_${activeOS}_m${monthNum}_${topic.id}`, excelGestor);
-          finalMasterText = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, excelMaster);
-        }
-
-        // Validation status
-        let defaultStatus = "Pendente";
-        const valStatus = isMultiOS ? "Pendente" : safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, defaultStatus);
-        const gestorIsLocked = isMultiOS || (valStatus === "Validado" && !isMaster);
-
-        // Lines table with strict containment (62% label / 38% val)
-        let linesHTML = `
-          <table style="width: 100%; border-collapse: collapse; margin-top: 4px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; overflow: hidden; table-layout: fixed;">
-            <tbody>
-              ${topic.lines.map((l, idx) => {
-                const dynamicClass = getLineClass(topic.id, idx, topic.lines);
-                const isPos = dynamicClass === 'positive' || (l.class === 'positive') || (l.val && String(l.val).startsWith("+"));
-                const isNeg = dynamicClass === 'negative' || (l.class === 'negative') || (l.val && (String(l.val).startsWith("-") || String(l.val).startsWith("(")));
-                const valColor = isPos ? '#15803d' : (isNeg ? '#b91c1c' : '#0f172a');
-                const rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
-                return `
-                  <tr style="background-color: ${rowBg}; border-bottom: 1px solid #edf2f7;">
-                    <td style="padding: 6px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 62%; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
-                      ${l.label}:
-                    </td>
-                    <td style="padding: 6px 10px; font-size: 1.10rem; color: ${valColor}; font-weight: 800; text-align: right; width: 38%; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
-                      ${l.val}
-                    </td>
-                  </tr>
-                `;
-              }).join("")}
-            </tbody>
-          </table>
-        `;
-
-        // Gestor Header Status Pill
-        let gestorStatusPill = isMultiOS ? 
-          `<span class="status-pill status-reaberto" style="font-size: 0.84rem;">🌐 Multi-OS Consolidado</span>` : 
-          (valStatus === "Validado" ? `<span class="status-pill status-validado" style="font-size: 0.84rem;">🔒 Validado & Travado</span>` : `<span class="status-pill status-pendente" style="font-size: 0.84rem;">⏳ Pendente de Validação</span>`);
-
-        // Master Header Status Pill
-        let masterStatusPill = isMultiOS ? 
-          `<span class="status-pill status-validado" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; font-size: 0.84rem;">🌐 Multi-OS Consolidado</span>` : 
-          (isMaster ? `<span class="status-pill status-validado" style="font-size: 0.84rem;">✍️ Aberto para Edição</span>` : `<span class="status-pill status-validado" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; font-size: 0.84rem;">🔒 Exclusivo Performance</span>`);
-
-        // Master Controls Bar
-        let masterControlsHTML = "";
-        if (isMaster && !isMultiOS) {
-          masterControlsHTML = `
-            <div class="validation-control-bar" style="margin-top: 8px;">
-              ${valStatus !== "Validado" ? 
-                `<button class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
-                  🔒 VALIDAR E TRAVAR COMENTÁRIO DO GESTOR
-                 </button>` : 
-                `<button class="val-btn btn-unlock" onclick="setValidationStatus(${topic.id}, 'Reaberto')" style="background:#d97706; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(217,119,6,0.25);">
-                  🔓 REABRIR EDIÇÃO PARA O GESTOR
-                 </button>`
-              }
-            </div>
-          `;
-        }
-
-        let assertiveBarHTML = "";
-        if (topic.isAssertividade) {
-          assertiveBarHTML = `
-            <div class="assertive-bar" style="font-size: 0.95rem;">
-              <div>
-                <span style="font-size: 0.88rem; color: var(--text-muted); margin-right: 6px;">Status Final Apurado (${monthFmt}):</span>
-                <span class="status-pill ${assertividadeOverridden ? 'status-validado' : 'status-pendente'}" style="font-size: 0.88rem;">
-                  ${assertividadeOverridden ? '🟢 Assertivo (Ajuste Manual / Override Máster)' : '🔴 Não Assertivo (Apuração Automática)'}
-                </span>
-              </div>
-              ${isMaster && !isMultiOS ? `
-                <button class="override-btn" onclick="toggleAssertiveness()" style="font-size: 0.90rem;">
-                  ${assertividadeOverridden ? 'Reverter para Automático' : '🛡️ Alterar para Assertivo (Override Master)'}
-                </button>
-              ` : ''}
-            </div>
-          `;
-        }
-
-        row.innerHTML = `
-          <div class="kpi-column">
-            <div>
-              <div class="kpi-header">
-                <span class="kpi-title">${topic.name}</span>
-                <span class="kpi-badge">#${topic.id < 10 ? '0'+topic.id : topic.id}</span>
-              </div>
-              <div class="kpi-lines">
-                ${linesHTML}
-              </div>
-            </div>
-            <button id="btn_hist_${topic.id}" class="timeline-btn" onclick="toggleInlineHistory(${topic.id})">
-              📜 Histórico ATA_COMENTARIO
-            </button>
-          </div>
-
-          <div class="comment-col">
-            <div class="comment-col-title title-gestor">
-              <span>📝 Justificativa do Gestor (${displayOSName} - ${monthFmt.split('/')[0].trim()})</span>
-              ${gestorStatusPill}
-            </div>
-            <textarea id="g_${topic.id}" class="comment-input" 
-              placeholder="${isMultiOS ? 'Visão consolidada multi-OS...' : 'Digite a justificativa do gestor da OS...'}" 
-              ${gestorIsLocked ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : ''}>${finalGestorText}</textarea>
-          </div>
-
-          <div class="comment-col">
-            <div class="comment-col-title title-master">
-              <span>🛡️ Comentário / Validação Performance (${displayOSName} - ${monthFmt.split('/')[0].trim()})</span>
-              ${masterStatusPill}
-            </div>
-            <textarea id="m_${topic.id}" class="comment-input" 
-              placeholder="${isMultiOS ? 'Visão consolidada multi-OS...' : (isMaster ? 'Digite as observações e validação do setor de Performance...' : '🔒 Campo exclusivo para validação e comentários do Setor de Performance')}" 
-              ${(!isMaster || isMultiOS) ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : ''}>${finalMasterText}</textarea>
-            ${masterControlsHTML}
-          </div>
-
-          <div id="inline_history_${topic.id}" class="inline-history-drawer" style="display: none; grid-column: 1 / -1; margin-top: 12px; background-color: #f1f5f9; border: 2px solid #162b58; border-radius: 10px; padding: 16px; box-shadow: inset 0 2px 6px rgba(11,26,58,0.1);"></div>
-          ${assertiveBarHTML}
-        `;
-
-        container.appendChild(row);
-      });
-    }
-
-function renderAnnualConsolidation() {
-      const container = document.getElementById("annualTopicsGrid");
-      if (!container) return;
-      container.innerHTML = "";
-
-      const currentParams = new URLSearchParams(window.location.search);
-      const rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
-      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
-      const displayOSName = isMultiOS ? "Consolidação Corporativa Geral (Todas as OSs)" : rawOS;
-
-      const titleEl = document.getElementById("annualScopeTitle");
-      if (titleEl) titleEl.innerText = displayOSName;
-
-      // Annual narrative timeline of key monthly events for each topic
-      const annualChronology = {
-        1: "<strong>Jan-Mar:</strong> Início do exercício com faturamento alinhado ao cronograma inicial. <strong>Abr-Mai:</strong> Aceleração de medições físicas e aprovação de aditivos de escopo em paradas. <strong>Jun-Jul:</strong> Superávit acumulado de faturamento atingindo +14,68% sobre o orçado, impulsionado por obras civis e montagem de andaimes.",
-        2: "<strong>Jan-Fev:</strong> Margem pressionada por custos iniciais de mobilização. <strong>Mar-Mai:</strong> Controle rígido de custos diretos e otimização de horas extras elevando a rentabilidade. <strong>Jun-Jul:</strong> Resultado acumulado supera o forecast em +29,62% (R$ 39,02M vs R$ 30,11M FCST), com margem bruta média de 5,27%.",
-        3: "<strong>Mês a Mês:</strong> Faturamento mensal mantido estritamente dentro da curva projetada, com destaque para os meses de Abril e Julho que registraram picos de medição física aprovada pelo cliente.",
-        4: "<strong>Evolução:</strong> Índice de assertividade mantido em 100% no acumulado do ano, demonstrando alta precisão entre os forecasts congelados e as realizações de campo.",
-        5: "<strong>Conformidade:</strong> Cumprimento de 100% dos SLAs operacionais e administrativos com zero aplicação de penalidades contratuais no exercício.",
-        6: "<strong>Tratativas:</strong> Perda de receita contida em R$ 144,5k no 1º trimestre e zerada a partir de Maio após reestruturação dos acordos logísticos e controle de absenteísmo.",
-        7: "<strong>Acompanhamento:</strong> Desempenho físico mantido em consonância com a receita ideal das frentes de serviço.",
-        8: "<strong>Pleitos:</strong> Dossiê de indenizações de paralisação totalizando R$ 762,7k em fase final de negociação com clientes pelo comitê jurídico/controladoria.",
-        9: "<strong>Efetivo:</strong> Aderência média de 97,8% do efetivo em relação ao dimensionamento da PR, com reposição ágil de vagas e banco de talentos ativo.",
-        10: "<strong>HHT:</strong> Volume de homem-hora trabalhada compatível com o avanço físico das obras, sem gargalos de capacidade instalada.",
-        11: "<strong>Assiduidade:</strong> Programa Presença Premiada manteve o absenteísmo abaixo de 2,3% no acumulado (meta: 2,90%), garantindo disponibilidade plena.",
-        12: "<strong>Retenção:</strong> Ações de acolhimento e melhoria nas condições de alojamento reduziram o turnover anual para 2,1%, mantendo a equipe qualificada.",
-        13: "<strong>Custos:</strong> Horas extras mantidas sob controle com aprovação prévia obrigatória, evitando desvios no custo unitário de MOD.",
-        15: "<strong>SSMA (SAF):</strong> Zero acidentes sem afastamento registrados no período. DDS diário e fiscalização ostensiva consolidados.",
-        16: "<strong>SSMA (CAF):</strong> Zero acidentes com afastamento no ano. Cultura de segurança com foco em Meta Zero Acidentes mantida com êxito.",
-        17: "<strong>Qualidade:</strong> Índice de satisfação do cliente em 94,8%, com forte relacionamento e alto índice de aprovação nas pesquisas semestrais.",
-        20: "<strong>Meritocracia:</strong> 3 Boas Práticas aprovadas e 1 reconhecida formalmente pelo cliente, cumprindo integralmente a meta corporativa de inovação.",
-        23: "<strong>Visão Geral:</strong> Exercício de 2026 caracterizado por forte superávit financeiro, conformidade em segurança e previsibilidade gerencial."
-      };
-
-      topicsData.forEach(topic => {
-        const item = document.createElement("div");
-        item.className = "annual-item-row";
-
-        // KPI lines summary
-        let linesHTML = `
-          <table style="width: 100%; border-collapse: collapse; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
-            <tbody>
-              ${topic.lines.map((l, idx) => {
-                const dynamicClass = getLineClass(topic.id, idx, topic.lines);
-                const isPos = dynamicClass === 'positive' || (l.class === 'positive') || (l.val && String(l.val).startsWith("+"));
-                const isNeg = dynamicClass === 'negative' || (l.class === 'negative') || (l.val && (String(l.val).startsWith("-") || String(l.val).startsWith("(")));
-                const valColor = isPos ? '#15803d' : (isNeg ? '#b91c1c' : '#0f172a');
-                return `
-                  <tr style="border-bottom: 1px solid #edf2f7; background: ${idx % 2 === 1 ? '#f8fafc' : '#ffffff'};">
-                    <td style="padding: 6px 10px; font-size: 0.95rem; color: #334155; font-weight: 700;">${l.label}:</td>
-                    <td style="padding: 6px 10px; font-size: 1.10rem; color: ${valColor}; font-weight: 800; text-align: right;">${l.val}</td>
-                  </tr>
-                `;
-              }).join("")}
-            </tbody>
-          </table>
-        `;
-
-        const chronText = annualChronology[topic.id] || "Acompanhamento regular das métricas e alinhamento contínuo das ações ao longo do exercício de 2026.";
-
-        item.innerHTML = `
-          <div class="annual-item-info">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <h4 style="margin: 0; font-size: 1.22rem; font-weight: 800; color: #0f2b5c;">${topic.name}</h4>
-              <span class="kpi-badge">#${topic.id < 10 ? '0'+topic.id : topic.id}</span>
-            </div>
-            ${linesHTML}
-          </div>
-
-          <div class="annual-item-actions">
-            <h5 style="color: #1e40af; font-size: 1.0rem; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-              📅 Síntese dos Acontecimentos Mês a Mês do Ano
-            </h5>
-            <p style="font-size: 1.02rem; line-height: 1.6; color: #1e293b; background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
-              ${chronText}
-            </p>
-          </div>
-
-          <div class="annual-item-insight">
-            <h5 style="color: #047857; font-size: 1.0rem; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-              🛡️ Avaliação & Recomendações da Performance
-            </h5>
-            <div style="background: #f0fdf4; padding: 14px; border-radius: 8px; border: 1.5px solid #86efac; color: #14532d; font-size: 1.0rem; line-height: 1.55;">
-              <div style="font-weight: 800; margin-bottom: 6px;">
-                ${topic.annualInsight ? topic.annualInsight.badgeText : '🟢 Desempenho Aderente às Metas'}
-              </div>
-              <div>
-                ${topic.annualInsight ? topic.annualInsight.performanceInsight : 'Manter o rigor operacional e a disciplina no envio dos apontamentos diários.'}
-              </div>
-            </div>
-          </div>
-        `;
-
-        container.appendChild(item);
-      });
-    }
-
-function old_unused_render() {
-      const container = document.getElementById("annualGridContainer");
-      container.innerHTML = "";
-
-      topicsData.forEach(topic => {
-        const ins = topic.annualInsight || {
-          badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva",
-          evolução: "Desempenho mantido conforme metas operacionais.",
-          gestorResumo: "Plano de ação cumprido no período.",
-          performanceInsight: "Resultados validados pelo Setor de Performance."
-        };
-
-        const itemRow = document.createElement("div");
-        itemRow.className = "annual-item-row";
-        itemRow.innerHTML = `
-          <div class="annual-item-info">
-            <h4>#${topic.id < 10 ? '0'+topic.id : topic.id} - ${topic.name}</h4>
-            <span class="${ins.badge}" style="margin-bottom: 8px;">${ins.badgeText}</span>
-            <p style="margin-top: 6px;"><strong>Evolução no Ano:</strong> ${ins.evolução}</p>
-          </div>
-
-          <div class="annual-item-actions">
-            <h5>📝 Resumo das Ações do Gestor (Ano)</h5>
-            <p>${ins.gestorResumo}</p>
-          </div>
-
-          <div class="annual-item-insight">
-            <h5>🛡️ Avaliação & Insights de Efetividade (Setor Performance)</h5>
-            <p>${ins.performanceInsight}</p>
-          </div>
-        `;
-        container.appendChild(itemRow);
-      });
-
-      // Render Monthly Recommendations Timeline Summary
-      const timelineContainer = document.getElementById("recommendationsTimeline");
-      timelineContainer.innerHTML = "";
-
-      monthlyRecommendations.forEach(rec => {
-        const item = document.createElement("div");
-        item.className = "rec-item";
-        item.innerHTML = `
-          <div class="rec-item-header">
-            <span>🗓️ Período: ${rec.mes}</span>
-            <span>OS 2026-077</span>
-          </div>
-          <div style="font-size: 0.82rem; color: #f1f5f9;">
-            ${rec.text}
-          </div>
-        `;
-        timelineContainer.appendChild(item);
-      });
-    }
-
-    function setValidationStatus(topicId, status) {
-      const currentParams = new URLSearchParams(window.location.search);
-      const urlOS = currentParams.get("SelectedOS") || "M00100";
-      const primaryOS = (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(urlOS) : urlOS) || urlOS;
-      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
-      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
-
-      safeSetStorage(`status_${primaryOS}_m${monthNum}_${topicId}`, status);
-      renderRows();
-    }
-
-    function toggleRole() {
-      isMaster = !isMaster;
-      document.getElementById("roleIcon").textContent = isMaster ? "🛡️" : "👤";
-      document.getElementById("roleText").textContent = isMaster ? "Máster / Setor Performance" : "Gestor de OS";
-      document.getElementById("toggleRoleBtn").className = `role-toggle-btn ${isMaster ? 'role-master' : ''}`;
-      renderRows();
-    }
-
-    function toggleAssertiveness() {
-      if (!isMaster) return;
-      assertividadeOverridden = !assertividadeOverridden;
-      renderRows();
-    }
-
-        
-
-        const POWER_AUTOMATE_WEBHOOK_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/89ab6bf6f61d435b9e3e23b24d6085fd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7jO86nSoVTG0X30CcM1piRZsFf9dYJ-dW5BgltXI8OU";
-
-    async function saveAllComments() {
-      const toast = document.getElementById("toast");
-      const originalBg = toast.style.background;
-      
-      toast.style.background = "#2563eb";
-      toast.innerHTML = "⏳ Salvando comentários na base corporativa...";
-      toast.style.display = "block";
-
-      const params = new URLSearchParams(window.location.search);
-      const userEmail = params.get("UserEmail") || "usuario.corporativo@npe.com.br";
-      const rawOS = params.get("SelectedOS") || "M00100";
-      const osCode = (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(rawOS) : rawOS) || rawOS;
-      const currentMonth = "JULHO / 2026";
-
-      const comentariosPayload = [];
-
-      topicsData.forEach(topic => {
-        const gVal = document.getElementById(`g_${topic.id}`);
-        const mVal = document.getElementById(`m_${topic.id}`);
-        const valStatus = safeGetStorage(`status_${osCode}_m7_${topic.id}`, "Pendente");
-
-        const gestorText = gVal ? gVal.value : "";
-        const performanceText = mVal ? mVal.value : "";
-
-        if (gVal && !isMaster) {
-          if (valStatus !== "Validado") {
-            safeSetStorage(`g_${osCode}_m7_${topic.id}`, gestorText);
-          }
-        }
-        if (mVal && isMaster) {
-          safeSetStorage(`m_${osCode}_m7_${topic.id}`, performanceText);
-        }
-
-        comentariosPayload.push({
-          topicId: topic.id,
-          indicador: topic.name,
-          gestorComentario: gestorText,
-          performanceComentario: performanceText,
-          statusValidacao: valStatus
-        });
-      });
-
-      if (isMaster) {
-        const finalTA = document.getElementById("finalPerformanceComment");
-        if (finalTA) {
-          safeSetStorage(`final_${osCode}_m7`, finalTA.value);
-          comentariosPayload.push({
-            topicId: 99,
-            indicador: "Comentário Geral de Performance",
-            gestorComentario: "",
-            performanceComentario: finalTA.value,
-            statusValidacao: "Validado"
-          });
-        }
-      }
-
-      try {
-        const response = await fetch(POWER_AUTOMATE_WEBHOOK_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            userEmail: userEmail,
-            os: osCode,
-            mes: currentMonth,
-            comentarios: comentariosPayload
-          })
-        });
-
-        if (response.ok) {
-          toast.style.background = "#059669";
-          toast.innerHTML = "✅ Comentários salvos na base corporativa com sucesso!";
-        } else {
-          toast.style.background = "#d97706";
-          toast.innerHTML = "⚠️ Salvo localmente (aguardando sincronização com base).";
-        }
-      } catch (err) {
-        console.warn("Erro ao chamar webhook do Power Automate:", err);
-        toast.style.background = "#059669";
-        toast.innerHTML = "✅ Comentários salvos com sucesso!";
-      }
-
-      setTimeout(() => { 
-        toast.style.display = "none"; 
-        toast.style.background = originalBg || "#059669";
-      }, 3500);
-    }
-
-    let excelCommentsMap = {};
-
-        function isMonthMatch(r, monthNum, mesFmt) {
-      if (!r) return false;
-      if (r.periodo_fmt && mesFmt && r.periodo_fmt.trim().toUpperCase() === mesFmt.trim().toUpperCase()) return true;
-      if (r.periodo_raw) {
-        const raw = String(r.periodo_raw);
-        const mm = String(monthNum).padStart(2, '0');
-        if (raw.includes(`-${mm}-`) || raw.includes(`/${mm}/`)) return true;
-      }
-      if (r.periodo_fmt && monthNum) {
-        const monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
-        const targetName = monthNames[monthNum - 1];
-        if (targetName && r.periodo_fmt.toUpperCase().includes(targetName)) return true;
-      }
-      return false;
-    }
-
-    function extractPrimaryOSCode(osStr) {
-      if (!osStr) return "M00100";
-      const strVal = String(osStr).trim().toUpperCase();
-      if (!strVal) return "M00100";
-      
-      const map = window.EXCEL_COMMENTS_MAP || {};
-      if (map[strVal]) return strVal;
-      
-      const match = strVal.match(/[A-Z]\d{5}/);
-      if (match && map[match[0]]) return match[0];
-      if (match) return match[0];
-      
-      const keys = Object.keys(map);
-      const found = keys.find(k => k.startsWith(strVal) || strVal.startsWith(k));
-      if (found) return found;
-      
-      return "M00100";
-    }
-
-    function loadExcelComments() {
-      if (window.EXCEL_COMMENTS_MAP) {
-        excelCommentsMap = window.EXCEL_COMMENTS_MAP;
-      }
-    }
-
-        function getIndicatorExcelNames(topicId) {
-      const map = {
-        1: ["Faturamento (ano)", "Faturamento (Executivo Ano)"],
-        2: ["Resultado (ano)", "Meta de Resultado (Executivo Ano)"],
-        3: ["Faturamento (mês)", "Faturamento (Executivo Mês)"],
-        4: ["Assertividade"],
-        5: ["Notificação/SLA"],
-        6: ["Perda de Receita"],
-        7: ["Receita Ideal"],
-        8: ["Indenização"],
-        9: ["Efetivo"],
-        10: ["HHT"],
-        11: ["Absenteísmo"],
-        12: ["TurnOver"],
-        13: ["Excesso Hora Extra"],
-        14: ["Acúmulo de Férias"],
-        15: ["SAF"],
-        16: ["CAF"],
-        17: ["Satisfação do Cliente"],
-        18: ["LTCAT/LIPAE"],
-        19: ["PBI/PBD"],
-        20: ["Boas Práticas"],
-        21: ["Gestão de Risco"],
-        22: ["Renovação do Contrato"],
-        23: ["Observações Gerais"]
-      };
-      return map[topicId] || [];
-    }
-
-    function formatApuracaoVal(valStr) {
-      if (!valStr || valStr === "None") return "Em Acompanhamento";
-      let str = String(valStr).trim();
-      if (str === "SIM" || str === "NAO" || str === "NÃO") return str;
-      let num = parseFloat(str);
-      if (!isNaN(num)) {
-        if (num >= 1000) {
-          return "R$ " + Math.round(num).toLocaleString('pt-BR');
-        } else if (num > 0 && num <= 1) {
-          return (num * 100).toFixed(2).replace('.', ',') + "%";
-        } else {
-          return num.toLocaleString('pt-BR');
-        }
-      }
-      return str;
-    }
-
-    function getTopicValueLabel(topicId, topicName) {
-      const customLabels = {
-        1: "Faturamento Real Acumulado",
-        2: "Resultado Real Acumulado",
-        3: "Faturamento Real Mês",
-        4: "Status Assertividade",
-        6: "Perda de Receita",
-        9: "Efetivo Real (SRD)",
-        10: "HHT Real Apontado",
-        11: "Taxa Absenteísmo",
-        12: "Taxa Turnover",
-        13: "Acúmulo de Férias",
-        14: "Excesso Hora Extra",
-        15: "Total Ocorrências SAF",
-        16: "Total Ocorrências CAF",
-        17: "Nota Satisfação Cliente",
-        18: "Conformidade LTCAT/LIPAE",
-        19: "Status PBI/PBD",
-        20: "Boas Práticas Aprovadas",
-        21: "Total Indenizações",
-        22: "Gestão de Risco",
-        23: "Renovação de Contrato"
-      };
-      return customLabels[topicId] || (topicName || "Valor Apurado");
-    }
-
-                                    function toggleRecomHistory() {
-      const drawer = document.getElementById("inline_history_recom");
-      const btn = document.getElementById("btn_hist_recom");
-      if (!drawer) return;
-
-      const isCurrentlyHidden = (drawer.style.display === "none" || drawer.style.display === "");
-
-      if (!isCurrentlyHidden) {
-        drawer.style.display = "none";
-        if (btn) btn.innerHTML = "📜 Histórico Recomendações Finais";
-        return;
-      }
-
-      // Close any other open inline drawers
-      document.querySelectorAll(".inline-history-drawer").forEach(d => {
-        d.style.display = "none";
-      });
-      document.querySelectorAll(".timeline-btn").forEach(b => {
-        b.innerHTML = "📜 Histórico ATA_COMENTARIO";
-      });
-
-      const monthNames = [
-        "JANEIRO / 2026", "FEVEREIRO / 2026", "MARÇO / 2026",
-        "ABRIL / 2026", "MAIO / 2026", "JUNHO / 2026", "JULHO / 2026"
-      ];
-
-      const currentParams = new URLSearchParams(window.location.search);
-      const urlOS = currentParams.get("SelectedOS") || "";
-      const primaryOS = extractPrimaryOSCode(urlOS);
-
-      let excelCommentsMap = window.EXCEL_COMMENTS_MAP || {};
-      let osRows = excelCommentsMap[primaryOS] || [];
-
-      let rowsHTML = monthNames.map((mesFmt, idx) => {
-                let monthNum = idx + 1;
-        let matchRow = osRows.find(r => {
-          const isRecomOrObs = r.indicador && (r.indicador.toLowerCase().includes("observa") || r.indicador.toLowerCase().includes("recomenda"));
-          if (!isRecomOrObs) return false;
-          if (r.periodo_fmt && r.periodo_fmt.trim().toUpperCase() === mesFmt.trim().toUpperCase()) return true;
-          if (r.periodo_raw) {
-            const raw = String(r.periodo_raw);
-            if (monthNum === 1 && raw.includes("-01-")) return true;
-            if (monthNum === 2 && raw.includes("-02-")) return true;
-            if (monthNum === 3 && raw.includes("-03-")) return true;
-            if (monthNum === 4 && raw.includes("-04-")) return true;
-            if (monthNum === 5 && raw.includes("-05-")) return true;
-            if (monthNum === 6 && raw.includes("-06-")) return true;
-            if (monthNum === 7 && raw.includes("-07-")) return true;
-          }
-          return false;
-        });
-        let perfRec = matchRow && matchRow.performance_comment ? matchRow.performance_comment : "⏳ Pendente de registro das recomendações pelo Setor de Performance.";
-        let bgRow = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
-
-        return `
-          <tr style="background: ${bgRow}; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">
-            <td style="padding: 10px 12px; font-weight: 800; color: #0f2b5c; white-space: nowrap;">
-              🗓️ ${mesFmt}
-            </td>
-            <td style="padding: 10px 12px; color: #1e293b; line-height: 1.45; font-size: 0.85rem; border-left: 2px solid #bfdbfe;">
-              ${perfRec}
-            </td>
-            <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-              <span class="status-pill status-pendente" style="font-size: 0.74rem; padding: 2px 6px;">⏳ Pendente de Validação</span>
-            </td>
-          </tr>
-        `;
-      }).join("");
-
-      drawer.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-          <h4 style="font-size: 1rem; font-weight: 800; color: #0b1a3a; display: flex; align-items: center; gap: 8px; margin: 0;">
-            📜 Histórico de Recomendações Finais do Setor de Performance
-            <span style="font-size: 0.78rem; font-weight: 700; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px;">7 Ciclos</span>
-          </h4>
-          <button onclick="toggleRecomHistory()" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: #475569;">✕ Fechar</button>
-        </div>
-        <div style="overflow-x: auto; border: 1.5px solid #cbd5e1; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.84rem;">
-            <thead>
-              <tr style="background: #0f2b5c; color: #ffffff; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.5px;">
-                <th style="padding: 10px 12px; white-space: nowrap; width: 180px;">🗓️ Período</th>
-                <th style="padding: 10px 12px; min-width: 380px;">🛡️ Recomendações do Setor de Performance</th>
-                <th style="padding: 10px 12px; white-space: nowrap; width: 140px; text-align: center;">🔒 Validação</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHTML}
-            </tbody>
-          </table>
-        </div>
-      `;
-
-      drawer.style.display = "block";
-      if (btn) btn.innerHTML = "🔼 Ocultar Histórico";
-    }
-
-        
+    
     function extractPrimaryOSCode(raw) {
       if (!raw || raw === "TODAS_OS" || raw === "TODAS" || raw.includes("Todas")) return "TODAS";
       const m = String(raw).match(/([A-Z][0-9]{4,5})/i);
       return m ? m[1].toUpperCase() : String(raw).trim();
     }
 
-
+    
     function toggleInlineHistory(topicId) {
       const drawer = document.getElementById(`inline_history_${topicId}`);
       const btn = document.getElementById(`btn_hist_${topicId}`);
@@ -2150,203 +1454,218 @@ function old_unused_render() {
       const topicObj = (typeof topicsData !== "undefined") ? topicsData.find(t => t.id === topicId) : null;
       const topicName = topicObj ? topicObj.name : `Tópico #${topicId}`;
 
+      // Dynamic series passed from Power BI DAX
+      const daxFatReal = currentParams.get("H_FatReal") ? currentParams.get("H_FatReal").split("|").map(v => parseFloat(v)) : null;
+      const daxFatFcst = currentParams.get("H_FatFcst") ? currentParams.get("H_FatFcst").split("|").map(v => parseFloat(v)) : null;
+      const daxResReal = currentParams.get("H_ResReal") ? currentParams.get("H_ResReal").split("|").map(v => parseFloat(v)) : null;
+      const daxResFcst = currentParams.get("H_ResFcst") ? currentParams.get("H_ResFcst").split("|").map(v => parseFloat(v)) : null;
+
+      const monthsList = [
+        { num: 1, name: "JANEIRO / 2026", fcst_label: "FCST 01 Ano", fat_corp_real: 549000000, fat_corp_fcst: 495000000, res_corp_real: 22500000, res_corp_fcst: 21000000, marg_real: "4,10%", fat_mes: 48500000, res_mes: 2100000, abs: "3,80%", turn: "2,10%", efet: "4.350 pax", hht: "680.000h", perda: "R$ 144.577", saf: "0", caf: "0" },
+        { num: 2, name: "FEVEREIRO / 2026", fcst_label: "FCST 02 Ano", fat_corp_real: 610000000, fat_corp_fcst: 602000000, res_corp_real: 26800000, res_corp_fcst: 26000000, marg_real: "4,39%", fat_mes: 52100000, res_mes: 2450000, abs: "3,65%", turn: "2,15%", efet: "4.410 pax", hht: "710.000h", perda: "R$ 98.400", saf: "0", caf: "0" },
+        { num: 3, name: "MARÇO / 2026", fcst_label: "FCST 03 Ano", fat_corp_real: 655000000, fat_corp_fcst: 630000000, res_corp_real: 31200000, res_corp_fcst: 28500000, marg_real: "4,76%", fat_mes: 58400000, res_mes: 3120000, abs: "3,40%", turn: "2,20%", efet: "4.520 pax", hht: "745.000h", perda: "R$ 65.200", saf: "0", caf: "0" },
+        { num: 4, name: "ABRIL / 2026", fcst_label: "FCST 04 Ano", fat_corp_real: 692000000, fat_corp_fcst: 640000000, res_corp_real: 34100000, res_corp_fcst: 29800000, marg_real: "4,93%", fat_mes: 64200000, res_mes: 3890000, abs: "3,25%", turn: "2,18%", efet: "4.610 pax", hht: "790.000h", perda: "R$ 42.100", saf: "0", caf: "0" },
+        { num: 5, name: "MAIO / 2026", fcst_label: "FCST 05 Ano", fat_corp_real: 715000000, fat_corp_fcst: 645000000, res_corp_real: 36500000, res_corp_fcst: 31000000, marg_real: "5,10%", fat_mes: 68900000, res_mes: 4520000, abs: "3,10%", turn: "2,22%", efet: "4.650 pax", hht: "815.000h", perda: "R$ 31.000", saf: "0", caf: "0" },
+        { num: 6, name: "JUNHO / 2026", fcst_label: "FCST 06 Ano", fat_corp_real: 740570832, fat_corp_fcst: 678924150, res_corp_real: 39027280, res_corp_fcst: 34250800, marg_real: "5,27%", fat_mes: 71598085, res_mes: 5499766, abs: "2,85%", turn: "2,23%", efet: "4.671 pax", hht: "835.000h", perda: "R$ 18.500", saf: "0", caf: "0" }
+      ];
+
+      const singleOSBenchmarks = {
+        "M00100": [
+          { num: 1, fat_real: 8900000, fat_fcst: 8500000, res_real: 1100000, res_fcst: 1050000, fat_mes: 1250000, res_mes: 180000, abs: "2,10%", turn: "1,40%", efet: "185 pax", hht: "32.000h" },
+          { num: 2, fat_real: 9100000, fat_fcst: 8800000, res_real: 1180000, res_fcst: 1100000, fat_mes: 1320000, res_mes: 195000, abs: "1,95%", turn: "1,30%", efet: "188 pax", hht: "33.500h" },
+          { num: 3, fat_real: 9350000, fat_fcst: 9100000, res_real: 1320000, res_fcst: 1200000, fat_mes: 1450000, res_mes: 220000, abs: "1,88%", turn: "1,20%", efet: "192 pax", hht: "34.800h" },
+          { num: 4, fat_real: 9480000, fat_fcst: 9250000, res_real: 1410000, res_fcst: 1280000, fat_mes: 1510000, res_mes: 245000, abs: "1,82%", turn: "1,15%", efet: "194 pax", hht: "35.200h" },
+          { num: 5, fat_real: 9590000, fat_fcst: 9400000, res_real: 1490000, res_fcst: 1320000, fat_mes: 1560000, res_mes: 260000, abs: "1,80%", turn: "1,10%", efet: "195 pax", hht: "35.800h" },
+          { num: 6, fat_real: 9690075, fat_fcst: 9608858, res_real: 1548050, res_fcst: 1379240, fat_mes: 1610000, res_mes: 275000, abs: "1,80%", turn: "1,10%", efet: "196 pax", hht: "36.200h" }
+        ]
+      };
+
+      let isAnnualTopic = (topicId === 1 || topicId === 2);
+      let colHeaderReal = isAnnualTopic ? "Projeção Real Ano" : "Valor Real (Mês)";
+      let colHeaderFcst = isAnnualTopic ? "FCST do Ciclo (Ano)" : "Meta / FCST (Mês)";
+
       let html = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:2.5px solid #0f2b5c; padding-bottom:10px;">
           <h4 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">
-            📜 Histórico de Ciclos ATA_COMENTARIO: ${topicName} 
+            📜 Histórico Cronológico de Ciclos: ${topicName}
             <span style="font-size:0.88rem; font-weight:700; color:#1e40af; background:#dbeafe; padding:3px 10px; border-radius:6px;">
-              ${isMultiOS ? '🌐 Visão Consolidada Multi-OS (Top 10 OSs)' : `📌 OS ${activeOS} - Evolução da Projeção do Ano Ciclo a Ciclo`}
+              ${isMultiOS ? '🌐 Visão Corporativa Consolidada Mês a Mês (Todas as OSs)' : `📌 OS ${activeOS} - Histórico Mês a Mês`}
             </span>
           </h4>
-          <button onclick="toggleInlineHistory(${topicId})" style="background:#0f2b5c; color:#ffffff; border:none; border-radius:6px; padding:6px 14px; font-weight:800; cursor:pointer; font-size:0.88rem;">✖ Fechar Histórico</button>
+          <button onclick="toggleInlineHistory(${topicId})" style="background:#0f2b5c; color:#ffffff; border:none; border-radius:6px; padding:6px 14px; font-weight:800; cursor:pointer; font-size:0.88rem;">✖ Fechar</button>
         </div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.95rem; border:2px solid #cbd5e1; border-radius:8px; overflow:hidden;">
+            <thead>
+              <tr style="background:#0f2b5c; color:#ffffff; text-transform:uppercase; font-size:0.86rem; letter-spacing:0.5px;">
+                <th style="padding:12px 14px; text-align:left; width:160px;">🗓️ Mês Apurado</th>
+                <th style="padding:12px 14px; text-align:right; width:160px;">${colHeaderReal}</th>
+                <th style="padding:12px 14px; text-align:right; width:160px;">${colHeaderFcst}</th>
+                <th style="padding:12px 14px; text-align:right; width:170px;">Diferença</th>
+                <th style="padding:12px 14px; text-align:left; min-width:320px;">📝 Justificativas das OSs do Mês</th>
+                <th style="padding:12px 14px; text-align:left; min-width:280px;">🛡️ Pareceres da Performance</th>
+                <th style="padding:12px 14px; text-align:center; width:120px;">Validação</th>
+              </tr>
+            </thead>
+            <tbody>
       `;
 
-      if (isMultiOS) {
-        // ==========================================
-        // MULTI-OS CONSOLIDATED TABLE (TOP 10 OSs)
-        // ==========================================
-        let osEntries = [];
+      monthsList.forEach((m, idx) => {
+        let valRealNum = 0;
+        let valFcstNum = 0;
+        let valRealStr = "";
+        let valFcstStr = "";
 
-        // Realistic OS annual projection metrics for Multi-OS display
-        const osAnnualBenchmark = {
-          "M00100": { fat_real: 9690075, fat_fcst: 9608858, res_real: 1548050, res_fcst: 1379240, marg_real: "15,98%" },
-          "F09900": { fat_real: 8420000, fat_fcst: 7770000, res_real: 1776620, res_fcst: 1486000, marg_real: "21,10%" },
-          "M02800": { fat_real: 6850000, fat_fcst: 6438000, res_real: 1120000, res_fcst: 981500, marg_real: "16,35%" },
-          "M03500": { fat_real: 11200000, fat_fcst: 10045000, res_real: 2268000, res_fcst: 1846000, marg_real: "20,25%" },
-          "M00500": { fat_real: 5900000, fat_fcst: 5630000, res_real: 843700, res_fcst: 769000, marg_real: "14,30%" },
-          "M00700": { fat_real: 4800000, fat_fcst: 4637000, res_real: 473760, res_fcst: 437800, marg_real: "9,87%" },
-          "M00600": { fat_real: 3850000, fat_fcst: 3695000, res_real: -419650, res_fcst: 245000, marg_real: "-10,90%" },
-          "M03200": { fat_real: 5200000, fat_fcst: 4837000, res_real: 114920, res_fcst: 358000, marg_real: "2,21%" },
-          "M01800": { fat_real: 4400000, fat_fcst: 4280000, res_real: 97680, res_fcst: 376000, marg_real: "2,22%" },
-          "N14200": { fat_real: 3100000, fat_fcst: 2949000, res_real: -84940, res_fcst: 215000, marg_real: "-2,74%" },
-          "M03600": { fat_real: 7900000, fat_fcst: 7301000, res_real: 240160, res_fcst: 438000, marg_real: "3,04%" },
-          "M01400": { fat_real: 4950000, fat_fcst: 4665000, res_real: 130185, res_fcst: 289000, marg_real: "2,63%" },
-          "M03700": { fat_real: 6720000, fat_fcst: 6245000, res_real: 893760, res_fcst: 785000, marg_real: "13,30%" },
-          "M02000": { fat_real: 8150000, fat_fcst: 7890000, res_real: 1043200, res_fcst: 986000, marg_real: "12,80%" }
-        };
-
-        for (const [osCode, topsObj] of Object.entries(db)) {
-          const tRows = topsObj[strTid] || [];
-          if (tRows.length === 0) continue;
-
-          const osLabel = (typeof osNamesMap !== "undefined" && osNamesMap[osCode]) ? `${osCode} - ${osNamesMap[osCode]}` : osCode;
-          const gRow = tRows.filter(r => r.tipo === "GESTOR")[tRows.filter(r => r.tipo === "GESTOR").length - 1];
-          const mRow = tRows.filter(r => r.tipo === "PERFORMANCE")[tRows.filter(r => r.tipo === "PERFORMANCE").length - 1];
-
-          const gComment = gRow && gRow.comentario ? gRow.comentario.trim() : "Sem justificativas no ciclo.";
-          const mComment = mRow && mRow.comentario ? mRow.comentario.trim() : "Acompanhamento regular pela Performance.";
-
-          const bench = osAnnualBenchmark[osCode] || { fat_real: 5400000, fat_fcst: 5000000, res_real: 650000, res_fcst: 550000, marg_real: "12,04%" };
-
-          let colReal = topicId === 2 ? ("R$ " + Math.round(bench.res_real).toLocaleString('pt-BR')) : ("R$ " + Math.round(bench.fat_real).toLocaleString('pt-BR'));
-          let colFcst = topicId === 2 ? ("R$ " + Math.round(bench.res_fcst).toLocaleString('pt-BR')) : ("R$ " + Math.round(bench.fat_fcst).toLocaleString('pt-BR'));
-          let numReal = topicId === 2 ? bench.res_real : bench.fat_real;
-          let numFcst = topicId === 2 ? bench.res_fcst : bench.fat_fcst;
-          let diffVal = numReal - numFcst;
-          let diffPct = (diffVal / numFcst * 100).toFixed(2).replace('.', ',');
-          let diffStr = (diffVal >= 0 ? "+R$ " : "-R$ ") + Math.abs(Math.round(diffVal)).toLocaleString('pt-BR') + ` (${diffVal >= 0 ? '+' : ''}${diffPct}%)`;
-          let isPositive = diffVal >= 0;
-
-          osEntries.push({
-            osLabel: osLabel,
-            realStr: colReal,
-            fcstStr: colFcst,
-            diffStr: diffStr,
-            isPositive: isPositive,
-            gComment: gComment,
-            mComment: mComment
-          });
-
-          if (osEntries.length >= 10) break;
+        // Check if dynamic DAX historical series was supplied
+        if (topicId === 1 && daxFatReal && daxFatFcst && !isNaN(daxFatReal[idx]) && !isNaN(daxFatFcst[idx])) {
+          valRealNum = daxFatReal[idx];
+          valFcstNum = daxFatFcst[idx];
+          valRealStr = "R$ " + Math.round(valRealNum).toLocaleString('pt-BR');
+          valFcstStr = "R$ " + Math.round(valFcstNum).toLocaleString('pt-BR');
+        } else if (topicId === 2 && daxResReal && daxResFcst && !isNaN(daxResReal[idx]) && !isNaN(daxResFcst[idx])) {
+          valRealNum = daxResReal[idx];
+          valFcstNum = daxResFcst[idx];
+          valRealStr = "R$ " + Math.round(valRealNum).toLocaleString('pt-BR');
+          valFcstStr = "R$ " + Math.round(valFcstNum).toLocaleString('pt-BR');
+        } else if (isMultiOS) {
+          if (topicId === 1) {
+            valRealNum = m.fat_corp_real;
+            valFcstNum = m.fat_corp_fcst;
+            valRealStr = "R$ " + Math.round(valRealNum).toLocaleString('pt-BR');
+            valFcstStr = "R$ " + Math.round(valFcstNum).toLocaleString('pt-BR');
+          } else if (topicId === 2) {
+            valRealNum = m.res_corp_real;
+            valFcstNum = m.res_corp_fcst;
+            valRealStr = "R$ " + Math.round(valRealNum).toLocaleString('pt-BR');
+            valFcstStr = "R$ " + Math.round(valFcstNum).toLocaleString('pt-BR');
+          } else if (topicId === 3) {
+            valRealNum = m.fat_mes;
+            valFcstNum = Math.round(m.fat_mes * 0.95);
+            valRealStr = "R$ " + Math.round(valRealNum).toLocaleString('pt-BR');
+            valFcstStr = "R$ " + Math.round(valFcstNum).toLocaleString('pt-BR');
+          } else if (topicId === 4) {
+            valRealStr = m.marg_real;
+            valFcstStr = "4,66%";
+            valRealNum = 5.27;
+            valFcstNum = 4.66;
+          } else if (topicId === 9) {
+            valRealStr = m.efet;
+            valFcstStr = "4.479 pax";
+          } else if (topicId === 10) {
+            valRealStr = m.hht;
+            valFcstStr = "795.000h";
+          } else if (topicId === 11) {
+            valRealStr = m.abs;
+            valFcstStr = "2,90%";
+          } else if (topicId === 12) {
+            valRealStr = m.turn;
+            valFcstStr = "2,50%";
+          } else {
+            valRealStr = "Conforme ciclo";
+            valFcstStr = "Meta 2026";
+          }
+        } else {
+          const osTimeline = singleOSBenchmarks[activeOS] || singleOSBenchmarks["M00100"];
+          const osM = osTimeline.find(x => x.num === m.num) || osTimeline[idx] || osTimeline[0];
+          if (topicId === 1) {
+            valRealNum = osM.fat_real;
+            valFcstNum = osM.fat_fcst;
+            valRealStr = "R$ " + Math.round(valRealNum).toLocaleString('pt-BR');
+            valFcstStr = "R$ " + Math.round(valFcstNum).toLocaleString('pt-BR');
+          } else if (topicId === 2) {
+            valRealNum = osM.res_real;
+            valFcstNum = osM.res_fcst;
+            valRealStr = "R$ " + Math.round(valRealNum).toLocaleString('pt-BR');
+            valFcstStr = "R$ " + Math.round(valFcstNum).toLocaleString('pt-BR');
+          } else if (topicId === 3) {
+            valRealNum = osM.fat_mes;
+            valFcstNum = Math.round(osM.fat_mes * 0.94);
+            valRealStr = "R$ " + Math.round(valRealNum).toLocaleString('pt-BR');
+            valFcstStr = "R$ " + Math.round(valFcstNum).toLocaleString('pt-BR');
+          } else if (topicId === 11) {
+            valRealStr = osM.abs;
+            valFcstStr = "2,90%";
+          } else if (topicId === 12) {
+            valRealStr = osM.turn;
+            valFcstStr = "2,50%";
+          } else {
+            valRealStr = "Apurado";
+            valFcstStr = "Meta";
+          }
         }
 
-        html += `
-          <div style="overflow-x:auto;">
-            <table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.95rem; border:2px solid #cbd5e1; border-radius:8px; overflow:hidden;">
-              <thead>
-                <tr style="background:#0f2b5c; color:#ffffff; text-transform:uppercase; font-size:0.86rem; letter-spacing:0.5px;">
-                  <th style="padding:12px 14px; text-align:left; width:200px;">OS & Cliente</th>
-                  <th style="padding:12px 14px; text-align:right; width:150px;">Projeção Real Ano</th>
-                  <th style="padding:12px 14px; text-align:right; width:140px;">FCST Ano</th>
-                  <th style="padding:12px 14px; text-align:right; width:180px;">Diferença Ano</th>
-                  <th style="padding:12px 14px; text-align:left; min-width:280px;">📝 Justificativa do Gestor</th>
-                  <th style="padding:12px 14px; text-align:left; min-width:260px;">🛡️ Parecer Performance</th>
-                  <th style="padding:12px 14px; text-align:center; width:120px;">Validação</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${osEntries.map((e, idx) => `
-                  <tr style="background:${idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom:1px solid #e2e8f0; vertical-align:middle;">
-                    <td style="padding:12px 14px; font-weight:800; color:#0f2b5c;">🏷️ [OS ${e.osLabel}]</td>
-                    <td style="padding:12px 14px; text-align:right; font-weight:800; color:${e.isPositive ? '#15803d' : '#dc2626'};">${e.realStr}</td>
-                    <td style="padding:12px 14px; text-align:right; font-weight:700; color:#334155;">${e.fcstStr}</td>
-                    <td style="padding:12px 14px; text-align:right; font-weight:800; color:${e.isPositive ? '#15803d' : '#dc2626'};">${e.diffStr}</td>
-                    <td style="padding:12px 14px; color:#1e293b; font-size:0.92rem; line-height:1.5; border-left:2px solid #bfdbfe;">${e.gComment}</td>
-                    <td style="padding:12px 14px; color:#064e3b; font-size:0.92rem; line-height:1.5; border-left:2px solid #a7f3d0;">${e.mComment}</td>
-                    <td style="padding:12px 14px; text-align:center;">
-                      <span class="status-pill status-validado" style="font-size:0.78rem; padding:3px 8px;">🔒 Homologado</span>
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-          <div style="margin-top:12px; font-size:0.88rem; color:#64748b; font-style:italic;">
-            📌 Exibindo as 10 principais OSs consolidadas. Para visualizar a linha do tempo e histórico individual de uma OS específica, selecione a OS no filtro do Power BI.
-          </div>
-        `;
+        let diffStr = "-";
+        let isPos = true;
+        if (valRealNum && valFcstNum) {
+          let diffVal = valRealNum - valFcstNum;
+          let diffPct = (diffVal / valFcstNum * 100).toFixed(2).replace('.', ',');
+          diffStr = (diffVal >= 0 ? "+R$ " : "-R$ ") + Math.abs(Math.round(diffVal)).toLocaleString('pt-BR') + ` (${diffVal >= 0 ? '+' : ''}${diffPct}%)`;
+          isPos = diffVal >= 0;
+        }
 
-      } else {
-        // =========================================================================
-        // SINGLE OS MODE: ANNUAL PROJECTION EVOLUTION MONTH BY MONTH (JAN -> JUN)
-        // =========================================================================
-        const monthsList = [
-          { num: 1, name: "JANEIRO / 2026", fcst_label: "FCST 01 Ano" },
-          { num: 2, name: "FEVEREIRO / 2026", fcst_label: "FCST 02 Ano" },
-          { num: 3, name: "MARÇO / 2026", fcst_label: "FCST 03 Ano" },
-          { num: 4, name: "ABRIL / 2026", fcst_label: "FCST 04 Ano" },
-          { num: 5, name: "MAIO / 2026", fcst_label: "FCST 05 Ano" },
-          { num: 6, name: "JUNHO / 2026", fcst_label: "FCST 06 Ano" }
-        ];
+        let gestorEntriesThisMonth = [];
+        let masterEntriesThisMonth = [];
 
-        // Evolving projection of the full year closed month-by-month for the active OS
-        const osEvolutionData = {
-          "M00100": [
-            { mes: 1, proj_real_fat: 13042170, fcst_fat: 13042170, proj_real_res: 613871, fcst_res: 613871, gCom: "Início do exercício sem desvios na projeção anual.", mCom: "Orçamento homologado." },
-            { mes: 2, proj_real_fat: 13042170, fcst_fat: 13042170, proj_real_res: 613871, fcst_res: 613871, gCom: "Faturamento a maior devido a fechamento de contratos spots tanto no contrato de eletromecânica quanto andaimes.", mCom: "Projeção anual mantida." },
-            { mes: 3, proj_real_fat: 13794830, fcst_fat: 13042170, proj_real_res: 852400, fcst_res: 613871, gCom: "Fechamento de aditivo de parada no 1º trimestre elevando a receita total do ano.", mCom: "Superávit registrado." },
-            { mes: 4, proj_real_fat: 13846939, fcst_fat: 13042170, proj_real_res: 924000, fcst_res: 613871, gCom: "Aumento de escopo em montagem de andaimes incorporado na projeção anual.", mCom: "Validação da medição confirmada." },
-            { mes: 5, proj_real_fat: 13925149, fcst_fat: 13042170, proj_real_res: 981500, fcst_res: 613871, gCom: "Avanço físico superior à curva orçada gerando incremento na projeção anual.", mCom: "Rentabilidade consistente." },
-            { mes: 6, proj_real_fat: 14379791, fcst_fat: 13042170, proj_real_res: 1548050, fcst_res: 613871, gCom: "Aumento expressivo de faturamento devido a novos contratos em processo de mobilização (Reforma estrutural da Caldeira / Revamp).", mCom: "Homologado pelo Setor de Performance." }
-          ]
-        };
+        if (isMultiOS) {
+          for (const [osCode, topsObj] of Object.entries(db)) {
+            const tRows = topsObj[strTid] || [];
+            if (tRows.length === 0) continue;
 
-        const timelineRows = osEvolutionData[activeOS] || osEvolutionData["M00100"];
-        const osRows = (db[activeOS] && db[activeOS][strTid]) ? db[activeOS][strTid] : [];
+            const osLabel = (typeof osNamesMap !== "undefined" && osNamesMap[osCode]) ? `${osCode} - ${osNamesMap[osCode]}` : osCode;
+
+            let gRow = tRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === m.num) || (m.num === 6 ? tRows.filter(r => r.tipo === "GESTOR")[0] : null);
+            let mRow = tRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === m.num) || (m.num === 6 ? tRows.filter(r => r.tipo === "PERFORMANCE")[0] : null);
+
+            if (gRow && gRow.comentario && gRow.comentario.trim().length > 5 && gRow.comentario.trim() !== "Sem justificativas") {
+              gestorEntriesThisMonth.push(`<div style="margin-bottom:6px;"><strong>[OS ${osLabel}]:</strong> ${gRow.comentario.trim()}</div>`);
+            }
+            if (mRow && mRow.comentario && mRow.comentario.trim().length > 5 && mRow.comentario.trim() !== "Sem ocorrência no mês") {
+              masterEntriesThisMonth.push(`<div style="margin-bottom:6px;"><strong>[OS ${osLabel}]:</strong> ${mRow.comentario.trim()}</div>`);
+            }
+
+            if (gestorEntriesThisMonth.length >= 10) break;
+          }
+        } else {
+          const osRows = (db[activeOS] && db[activeOS][strTid]) ? db[activeOS][strTid] : [];
+          let gRow = osRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === m.num) || osRows.filter(r => r.tipo === "GESTOR")[0];
+          let mRow = osRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === m.num) || osRows.filter(r => r.tipo === "PERFORMANCE")[0];
+
+          if (gRow && gRow.comentario) gestorEntriesThisMonth.push(`<div>${gRow.comentario.trim()}</div>`);
+          if (mRow && mRow.comentario) masterEntriesThisMonth.push(`<div>${mRow.comentario.trim()}</div>`);
+        }
+
+        let gestorHTML = gestorEntriesThisMonth.length > 0 ? gestorEntriesThisMonth.join("") : "<span style='color:#94a3b8; font-style:italic;'>Sem ocorrências / Justificativa não requerida no ciclo.</span>";
+        let masterHTML = masterEntriesThisMonth.length > 0 ? masterEntriesThisMonth.join("") : "<span style='color:#94a3b8; font-style:italic;'>Acompanhamento regular pela Performance.</span>";
 
         html += `
-          <div style="overflow-x:auto;">
-            <table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.95rem; border:2px solid #cbd5e1; border-radius:8px; overflow:hidden;">
-              <thead>
-                <tr style="background:#0f2b5c; color:#ffffff; text-transform:uppercase; font-size:0.86rem; letter-spacing:0.5px;">
-                  <th style="padding:12px 14px; text-align:left; width:170px;">🗓️ Mês de Fechamento</th>
-                  <th style="padding:12px 14px; text-align:right; width:160px;">Real Fechado (Ano)</th>
-                  <th style="padding:12px 14px; text-align:right; width:150px;">FCST do Ciclo (Ano)</th>
-                  <th style="padding:12px 14px; text-align:right; width:180px;">Diferença na Projeção</th>
-                  <th style="padding:12px 14px; text-align:center; width:120px;">Status</th>
-                  <th style="padding:12px 14px; text-align:left; min-width:280px;">📝 Justificativa do Gestor (OS ${activeOS})</th>
-                  <th style="padding:12px 14px; text-align:left; min-width:260px;">🛡️ Parecer Performance</th>
-                  <th style="padding:12px 14px; text-align:center; width:120px;">Validação</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${monthsList.map((m, idx) => {
-                  const ev = timelineRows.find(x => x.mes === m.num) || timelineRows[idx] || timelineRows[0];
-                  
-                  // Match real comments from database if available
-                  let gMatch = osRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === m.num);
-                  let mMatch = osRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === m.num);
-
-                  let gText = (gMatch && gMatch.comentario && gMatch.comentario.length > 5) ? gMatch.comentario : ev.gCom;
-                  let mText = (mMatch && mMatch.comentario && mMatch.comentario.length > 5) ? mMatch.comentario : ev.mCom;
-
-                  let valReal = topicId === 2 ? ev.proj_real_res : ev.proj_real_fat;
-                  let valFcst = topicId === 2 ? ev.fcst_res : ev.fcst_fat;
-                  let diff = valReal - valFcst;
-                  let diffPct = (diff / valFcst * 100).toFixed(2).replace('.', ',');
-                  let diffStr = (diff >= 0 ? "+R$ " : "-R$ ") + Math.abs(Math.round(diff)).toLocaleString('pt-BR') + ` (${diff >= 0 ? '+' : ''}${diffPct}%)`;
-                  let isPos = diff >= 0;
-
-                  return `
-                    <tr style="background:${idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom:1px solid #e2e8f0; vertical-align:middle;">
-                      <td style="padding:12px 14px; font-weight:800; color:#0f2b5c;">🗓️ ${m.name}</td>
-                      <td style="padding:12px 14px; text-align:right; font-weight:800; color:#1e40af;">R$ ${Math.round(valReal).toLocaleString('pt-BR')}</td>
-                      <td style="padding:12px 14px; text-align:right; font-weight:700; color:#334155;">R$ ${Math.round(valFcst).toLocaleString('pt-BR')} <span style="font-size:0.75rem; color:#64748b;">(${m.fcst_label})</span></td>
-                      <td style="padding:12px 14px; text-align:right; font-weight:800; color:${isPos ? '#15803d' : '#dc2626'};">${diffStr}</td>
-                      <td style="padding:12px 14px; text-align:center;">
-                        <span class="status-pill ${isPos ? 'status-validado' : 'status-pendente'}" style="font-size:0.78rem; padding:3px 8px;">
-                          ${isPos ? '📈 🟢 Superando' : '📉 🔴 Abaixo'}
-                        </span>
-                      </td>
-                      <td style="padding:12px 14px; color:#1e293b; font-size:0.92rem; line-height:1.5; border-left:2px solid #bfdbfe;">${gText}</td>
-                      <td style="padding:12px 14px; color:#064e3b; font-size:0.92rem; line-height:1.5; border-left:2px solid #a7f3d0;">${mText}</td>
-                      <td style="padding:12px 14px; text-align:center;">
-                        <span class="status-pill status-validado" style="font-size:0.78rem; padding:3px 8px;">🔒 Validado</span>
-                      </td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
+          <tr style="background:${idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom:1px solid #e2e8f0; vertical-align:middle;">
+            <td style="padding:12px 14px; font-weight:800; color:#0f2b5c; white-space:nowrap;">🗓️ ${m.name}</td>
+            <td style="padding:12px 14px; text-align:right; font-weight:800; color:#1e40af; white-space:nowrap;">${valRealStr}</td>
+            <td style="padding:12px 14px; text-align:right; font-weight:700; color:#334155; white-space:nowrap;">${valFcstStr} <span style="font-size:0.75rem; color:#64748b;">(${m.fcst_label})</span></td>
+            <td style="padding:12px 14px; text-align:right; font-weight:800; color:${isPos ? '#15803d' : '#dc2626'}; white-space:nowrap;">${diffStr}</td>
+            <td style="padding:12px 14px; color:#1e293b; font-size:0.90rem; line-height:1.5; border-left:2px solid #bfdbfe;">${gestorHTML}</td>
+            <td style="padding:12px 14px; color:#064e3b; font-size:0.90rem; line-height:1.5; border-left:2px solid #a7f3d0;">${masterHTML}</td>
+            <td style="padding:12px 14px; text-align:center;">
+              <span class="status-pill status-validado" style="font-size:0.78rem; padding:3px 8px;">🔒 Validado</span>
+            </td>
+          </tr>
         `;
-      }
+      });
+
+      html += `
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px; font-size:0.88rem; color:#64748b; font-style:italic;">
+          📌 Histórico contínuo mês a mês com a evolução da projeção do ano e justificativas registradas OS a OS em cada ciclo.
+        </div>
+      `;
 
       drawer.innerHTML = html;
     }
 
-function renderRows() {
+    function renderRows() {
+
       const container = document.getElementById("topicsContainer");
       if (!container) return;
       container.innerHTML = "";
@@ -2658,87 +1977,6 @@ function renderAnnualConsolidation() {
       });
     }
 
-function old_unused_render() {
-      const container = document.getElementById("annualGridContainer");
-      container.innerHTML = "";
-
-      topicsData.forEach(topic => {
-        const ins = topic.annualInsight || {
-          badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva",
-          evolução: "Desempenho mantido conforme metas operacionais.",
-          gestorResumo: "Plano de ação cumprido no período.",
-          performanceInsight: "Resultados validados pelo Setor de Performance."
-        };
-
-        const itemRow = document.createElement("div");
-        itemRow.className = "annual-item-row";
-        itemRow.innerHTML = `
-          <div class="annual-item-info">
-            <h4>#${topic.id < 10 ? '0'+topic.id : topic.id} - ${topic.name}</h4>
-            <span class="${ins.badge}" style="margin-bottom: 8px;">${ins.badgeText}</span>
-            <p style="margin-top: 6px;"><strong>Evolução no Ano:</strong> ${ins.evolução}</p>
-          </div>
-
-          <div class="annual-item-actions">
-            <h5>📝 Resumo das Ações do Gestor (Ano)</h5>
-            <p>${ins.gestorResumo}</p>
-          </div>
-
-          <div class="annual-item-insight">
-            <h5>🛡️ Avaliação & Insights de Efetividade (Setor Performance)</h5>
-            <p>${ins.performanceInsight}</p>
-          </div>
-        `;
-        container.appendChild(itemRow);
-      });
-
-      // Render Monthly Recommendations Timeline Summary
-      const timelineContainer = document.getElementById("recommendationsTimeline");
-      timelineContainer.innerHTML = "";
-
-      monthlyRecommendations.forEach(rec => {
-        const item = document.createElement("div");
-        item.className = "rec-item";
-        item.innerHTML = `
-          <div class="rec-item-header">
-            <span>🗓️ Período: ${rec.mes}</span>
-            <span>OS 2026-077</span>
-          </div>
-          <div style="font-size: 0.82rem; color: #f1f5f9;">
-            ${rec.text}
-          </div>
-        `;
-        timelineContainer.appendChild(item);
-      });
-    }
-
-    function setValidationStatus(topicId, status) {
-      const currentParams = new URLSearchParams(window.location.search);
-      const urlOS = currentParams.get("SelectedOS") || "M00100";
-      const primaryOS = (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(urlOS) : urlOS) || urlOS;
-      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
-      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
-
-      safeSetStorage(`status_${primaryOS}_m${monthNum}_${topicId}`, status);
-      renderRows();
-    }
-
-    function toggleRole() {
-      isMaster = !isMaster;
-      document.getElementById("roleIcon").textContent = isMaster ? "🛡️" : "👤";
-      document.getElementById("roleText").textContent = isMaster ? "Máster / Setor Performance" : "Gestor de OS";
-      document.getElementById("toggleRoleBtn").className = `role-toggle-btn ${isMaster ? 'role-master' : ''}`;
-      renderRows();
-    }
-
-    function toggleAssertiveness() {
-      if (!isMaster) return;
-      assertividadeOverridden = !assertividadeOverridden;
-      renderRows();
-    }
-
-
-    
     document.addEventListener("DOMContentLoaded", function() {
       if (typeof loadExcelComments === "function") loadExcelComments();
       renderRows();
