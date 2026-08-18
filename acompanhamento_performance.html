@@ -66,11 +66,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       display: flex; gap: 8px; margin-bottom: 0; padding-bottom: 0; border-bottom: none;
     }
 
-    .tab-btn {
-      background-color: #1b2d56; color: #cbd5e1; border: 1.5px solid #2e4478;
-      padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer;
-      display: flex; align-items: center; gap: 8px; transition: all 0.2s ease;
-    }
+    .tab-btn { background: none; border: none; padding: 12px 20px; font-size: 1.05rem; font-weight: 700; color: #94a3b8; cursor: pointer; border-bottom: 3.5px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px; }
 
     .tab-btn:hover { background-color: #253a6e; color: #ffffff; }
     .tab-btn.active {
@@ -79,27 +75,11 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     }
 
     /* Role & Save Buttons */
-    .role-toggle-btn {
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: white; border: none; padding: 8px 16px;
-      border-radius: 20px; font-weight: 700; font-size: 0.85rem;
-      cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;
-      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
-    }
+    .role-toggle-btn { background-color: #1e40af; color: #ffffff; border: 1.5px solid #3b82f6; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 1.0rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease; }
     .role-master { background: linear-gradient(135deg, #16a34a, #15803d); box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3); }
-    .save-btn {
-      background: linear-gradient(135deg, #16a34a, #15803d);
-      color: white; border: none; padding: 9px 20px;
-      border-radius: 8px; font-weight: 700; font-size: 0.88rem;
-      cursor: pointer; display: flex; align-items: center; gap: 6px;
-      box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);
-    }
+    .save-btn { background-color: #16a34a; color: #ffffff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; font-size: 1.0rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35); }
 
-    .sim-banner {
-      background-color: #172a54; border: 1.5px dashed #3b82f6;
-      padding: 10px 16px; border-radius: 8px; margin-bottom: 14px;
-      font-size: 0.85rem; color: #93c5fd; display: flex; align-items: center; gap: 8px; font-weight: 500;
-    }
+    .sim-banner { background: rgba(30, 58, 138, 0.4); border: 1.5px solid #3b82f6; padding: 12px 18px; border-radius: 8px; margin-bottom: 16px; font-size: 1.0rem; color: #bfdbfe; display: flex; align-items: center; gap: 10px; font-weight: 500; }
 
     /* Tab Page Containers */
     .tab-page { display: none; }
@@ -107,13 +87,9 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
     /* Monthly Grid */
     .topics-table { display: flex; flex-direction: column; gap: 16px; }
-    .topic-row {
-      display: grid; grid-template-columns: 390px 1fr 1fr; gap: 16px;
-      background-color: #ffffff; border-radius: 12px; border: 2.5px solid #162b58;
-      padding: 16px; box-shadow: 0 8px 24px rgba(11, 26, 58, 0.4), 0 2px 8px rgba(11, 26, 58, 0.25);
-    }
+    .topic-row { display: grid; grid-template-columns: 430px 1fr 1fr; gap: 18px; background-color: #ffffff; border-radius: 12px; border: 2.5px solid #162b58; padding: 18px; box-shadow: 0 8px 24px rgba(11, 26, 58, 0.4), 0 2px 8px rgba(11, 26, 58, 0.25); margin-bottom: 18px; }
 
-    @media (max-width: 1200px) { .topic-row { grid-template-columns: 1fr; } }
+    @media (max-width: 1200px) { .topic-row { display: grid; grid-template-columns: 430px 1fr 1fr; gap: 18px; background-color: #ffffff; border-radius: 12px; border: 2.5px solid #162b58; padding: 18px; box-shadow: 0 8px 24px rgba(11, 26, 58, 0.4), 0 2px 8px rgba(11, 26, 58, 0.25); margin-bottom: 18px; } }
 
     .kpi-column {
       background-color: #f8fafc; border: 1.5px solid #162b58;
@@ -121,8 +97,8 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     }
 
     .kpi-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; }
-    .kpi-title { font-size: 1.0rem; font-weight: 800; color: #1e3a8a; }
-    .kpi-badge { font-size: 0.78rem; background-color: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 6px; font-weight: 700; }
+    .kpi-title { font-size: 1.22rem; font-weight: 800; color: #1e3a8a; }
+    .kpi-badge { font-size: 0.92rem; background-color: #dbeafe; color: #1e40af; padding: 4px 10px; border-radius: 6px; font-weight: 800; }
     .kpi-lines { 
       display: flex; 
       flex-direction: column; 
@@ -168,27 +144,20 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     .kpi-line .positive { color: #15803d !important; font-weight: 800; }
     .kpi-line .negative { color: #b91c1c !important; font-weight: 800; }
 
-    .timeline-btn {
-      margin-top: 12px; background-color: #eff6ff; color: #2563eb;
-      border: 1.5px solid #bfdbfe; padding: 8px 12px; border-radius: 8px;
-      font-size: 0.82rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
-    }
+    .timeline-btn { background-color: #f1f5f9; border: 1.5px solid #94a3b8; color: #1e3a8a; padding: 10px 14px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; }
     .timeline-btn:hover { background-color: #dbeafe; }
 
     .comment-col { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-    .comment-col-title { font-size: 0.88rem; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+    .comment-col-title { font-size: 1.05rem; font-weight: 800; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; }
     .title-gestor { color: #1e40af; }
     .title-master { color: #047857; }
 
-    .status-pill { font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; font-weight: 700; }
+    .status-pill { font-size: 0.88rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; }
     .status-pendente { background-color: #fef3c7; color: #b45309; border: 1.5px solid #fde68a; }
     .status-validado { background-color: #dcfce7; color: #15803d; border: 1.5px solid #86efac; }
     .status-reaberto { background-color: #dbeafe; color: #1e40af; border: 1.5px solid #93c5fd; }
 
-    textarea.comment-input {
-      background-color: #ffffff; color: #0f172a; border: 1.5px solid #162b58;
-      border-radius: 8px; padding: 10px 12px; font-size: 0.88rem; resize: vertical; min-height: 100px; height: 100%; outline: none; width: 100%; line-height: 1.4;
-    }
+    textarea.comment-input { width: 100%; min-height: 125px; border-radius: 8px; border: 1.5px solid #94a3b8; padding: 14px 16px; font-family: inherit; font-size: 1.05rem; line-height: 1.55; color: #0f172a; resize: vertical; transition: border-color 0.2s ease; box-sizing: border-box; background: #ffffff; }
     textarea.comment-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
     textarea.comment-input:disabled { opacity: 0.7; cursor: not-allowed; background-color: #f1f5f9; border-color: #cbd5e1; }
 
@@ -215,9 +184,9 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       padding: 18px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 8px 24px rgba(11, 26, 58, 0.4);
     }
 
-    .summary-card-title { font-size: 0.82rem; text-transform: uppercase; color: #64748b; font-weight: 700; }
-    .summary-card-val { font-size: 1.7rem; font-weight: 800; color: #0f172a; }
-    .summary-card-desc { font-size: 0.8rem; color: #475569; }
+    .summary-card-title { font-size: 0.95rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
+    .summary-card-val { font-size: 2.1rem; font-weight: 900; line-height: 1.15; margin: 4px 0; }
+    .summary-card-desc { font-size: 0.88rem; color: #64748b; font-weight: 600; }
 
     .badge-efetiva { background-color: #dcfce7; color: #15803d; border: 1.5px solid #86efac; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
     .badge-andamento { background-color: #fef3c7; color: #b45309; border: 1.5px solid #fde68a; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
@@ -228,10 +197,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       padding: 18px; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(11, 26, 58, 0.4);
     }
 
-    .annual-table-header {
-      font-size: 1.1rem; font-weight: 700; color: #1e3a8a; border-bottom: 1.5px solid #cbd5e1;
-      padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;
-    }
+    .annual-table-header { background: #0f2b5c; color: #ffffff; padding: 14px 18px; font-weight: 800; font-size: 1.15rem; display: flex; justify-content: space-between; align-items: center; }
 
     .annual-grid {
       display: flex; flex-direction: column; gap: 16px;
@@ -244,14 +210,14 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
     @media (max-width: 1100px) { .annual-item-row { grid-template-columns: 1fr; } }
 
-    .annual-item-info h4 { font-size: 1.0rem; font-weight: 700; color: #1e3a8a; margin-bottom: 6px; }
-    .annual-item-info p { font-size: 0.82rem; color: #64748b; }
+    .annual-item-info h4 { font-size: 1.18rem; font-weight: 800; color: #0f2b5c; margin-bottom: 6px; }
+    .annual-item-info p { font-size: 1.0rem; line-height: 1.5; color: #334155; }
 
     .annual-item-actions { font-size: 0.88rem; color: #0f172a; }
-    .annual-item-actions h5 { font-size: 0.8rem; color: #1e40af; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; }
+    .annual-item-actions h5 { font-size: 0.95rem; color: #1e40af; text-transform: uppercase; margin-bottom: 6px; font-weight: 800; }
 
     .annual-item-insight { font-size: 0.88rem; color: #0f172a; }
-    .annual-item-insight h5 { font-size: 0.8rem; color: #047857; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; }
+    .annual-item-insight h5 { font-size: 0.95rem; color: #047857; text-transform: uppercase; margin-bottom: 6px; font-weight: 800; }
 
     /* Timeline Recommendations */
     .recommendations-timeline {
@@ -275,7 +241,131 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     .timeline-item-meta { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-bottom: 6px; }
     .timeline-item-text { font-size: 0.88rem; color: #0f172a; }
     .toast { position: fixed; bottom: 20px; right: 20px; background-color: #16a34a; color: white; padding: 12px 20px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; display: none; z-index: 3000; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3); }
-  </style>
+  
+    
+    /* Main Layout full-width optimization */
+    .app-container {
+      max-width: 100% !important;
+      padding: 12px 18px !important;
+      margin: 0 !important;
+    }
+
+    .topic-row {
+      display: grid;
+      grid-template-columns: 440px 1fr 1fr;
+      gap: 20px;
+      background-color: #ffffff;
+      border-radius: 12px;
+      border: 2.5px solid #162b58;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(11, 26, 58, 0.4), 0 2px 8px rgba(11, 26, 58, 0.25);
+      margin-bottom: 20px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    @media (max-width: 1300px) {
+      .topic-row { grid-template-columns: 1fr; }
+    }
+
+    .comment-col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+
+    textarea.comment-input {
+      width: 100% !important;
+      min-height: 175px !important;
+      border-radius: 8px;
+      border: 1.5px solid #94a3b8;
+      padding: 16px 18px !important;
+      font-family: inherit;
+      font-size: 1.06rem !important;
+      line-height: 1.6 !important;
+      color: #0f172a;
+      resize: vertical;
+      transition: border-color 0.2s ease;
+      box-sizing: border-box;
+      background: #ffffff;
+    }
+
+    /* Tab 2: Full-width Table & Cards */
+    .annual-kpi-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+      margin-bottom: 24px;
+      width: 100%;
+    }
+
+    .annual-item-row {
+      display: grid;
+      grid-template-columns: 380px 1.2fr 1fr;
+      gap: 20px;
+      background-color: #ffffff;
+      border: 2px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    @media (max-width: 1200px) {
+      .annual-item-row { grid-template-columns: 1fr; }
+    }
+
+    /* Tab 3: Top 10 Benchmarking Grids */
+    .top10-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+      width: 100%;
+    }
+
+    @media (max-width: 1200px) {
+      .top10-grid { grid-template-columns: 1fr; }
+    }
+
+    .top10-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 22px;
+      box-shadow: 0 8px 24px rgba(11, 26, 58, 0.25);
+      border: 2.5px solid #cbd5e1;
+    }
+
+    .top10-card-pos { border-top: 8px solid #16a34a; }
+    .top10-card-neg { border-top: 8px solid #dc2626; }
+
+    .top10-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 0.96rem;
+    }
+
+    .top10-table th {
+      background: #0f2b5c;
+      color: #ffffff;
+      padding: 12px 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+      font-size: 0.88rem;
+      letter-spacing: 0.5px;
+      text-align: left;
+    }
+
+    .top10-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+</style>
 </head>
 <body>
 
@@ -287,6 +377,9 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       </button>
       <button class="tab-btn" onclick="switchTab('tabConsolidacao')">
         📊 Aba 2: Consolidação Anual
+      </button>
+      <button class="tab-btn" onclick="switchTab('tabLicoes')">
+        💡 Aba 3: Lições Aprendidas & Gestão de Risco
       </button>
     </div>
     <div class="controls">
@@ -341,64 +434,321 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
   <!-- ========================================================= -->
   <!-- ABA 2: CONSOLIDAÇÃO ANUAL & INSIGHTS EXECUTIVOS -->
   <!-- ========================================================= -->
+  
+  <!-- ========================================================= -->
+  <!-- ABA 2: CONSOLIDAÇÃO ANUAL & ACONTECIMENTOS DO EXERCÍCIO   -->
+  <!-- ========================================================= -->
+  
+  <!-- ========================================================= -->
+  <!-- ABA 2: CONSOLIDAÇÃO ANUAL & RESUMO CORPORATIVO DO EXERCÍCIO -->
+  <!-- ========================================================= -->
   <div id="tabConsolidacao" class="tab-page">
     
-    <!-- Executive KPI Summary Cards -->
+    <!-- Executive KPI Summary Cards (Empresa Toda) -->
     <div class="annual-kpi-summary">
       <div class="summary-card">
-        <span class="summary-card-title">Total de Ações no Ano</span>
-        <span class="summary-card-val" style="color: #0f172a;">23 Planos</span>
-        <span class="summary-card-desc">Mapeados na ATA_COMENTARIO</span>
+        <span class="summary-card-title">📈 Faturamento Total Acumulado (Ano 2026)</span>
+        <span class="summary-card-val" style="color: #1e40af;" id="sumFatAno">R$ 740.570.832</span>
+        <span class="summary-card-desc" id="descFatAno">FCST: R$ 645.759.632 | Superávit: +14,68% (+R$ 94.811.200)</span>
       </div>
-      <div class="summary-card" style="border-left: 5px solid #16a34a;">
-        <span class="summary-card-title">Ações Efetivas (Melhoria)</span>
-        <span class="summary-card-val" style="color: #15803d;">78,2%</span>
-        <span class="summary-card-desc">18 Temas com impacto positivo</span>
+
+      <div class="summary-card">
+        <span class="summary-card-title">💰 Resultado Total Acumulado (Ano 2026)</span>
+        <span class="summary-card-val" style="color: #15803d;" id="sumResAno">R$ 39.027.280</span>
+        <span class="summary-card-desc" id="descResAno">FCST: R$ 30.110.075 | Superávit: +29,62% (+R$ 8.917.205)</span>
       </div>
-      <div class="summary-card" style="border-left: 5px solid #d97706;">
-        <span class="summary-card-title">Ações em Monitoramento</span>
-        <span class="summary-card-val" style="color: #b45309;">13,0%</span>
-        <span class="summary-card-desc">3 Temas com evolução estável</span>
+
+      <div class="summary-card">
+        <span class="summary-card-title">🎯 Margem Bruta Real (Empresa Toda)</span>
+        <span class="summary-card-val" style="color: #15803d;" id="sumMargAno">5,27%</span>
+        <span class="summary-card-desc" id="descMargAno">Meta Executiva: 4,66% | Superação de +0,61 p.p.</span>
       </div>
-      <div class="summary-card" style="border-left: 5px solid #dc2626;">
-        <span class="summary-card-title">Necessitam Revisão</span>
-        <span class="summary-card-val" style="color: #b91c1c;">8,8%</span>
-        <span class="summary-card-desc">2 Temas com desvio persistente</span>
-      </div>
-      <div class="summary-card" style="border-left: 5px solid #2563eb;">
-        <span class="summary-card-title">Assertividade Acumulada</span>
-        <span class="summary-card-val" id="aba2AssertivVal" style="color: #1e40af;">52,87%</span>
-        <span class="summary-card-desc">Média acumulada do contrato</span>
+
+      <div class="summary-card">
+        <span class="summary-card-title">⭐ Assertividade Média no Ano</span>
+        <span class="summary-card-val" style="color: #0284c7;" id="sumAssertAno">100,00%</span>
+        <span class="summary-card-desc">Apuração corporativa consolidada de todos os ciclos</span>
       </div>
     </div>
 
-    <!-- Annual Topics Insights Table -->
+    <!-- Annual Consolidation Topics Table -->
     <div class="annual-table-card">
       <div class="annual-table-header">
-        <span>📈 Avaliação Anual por Tema & Análise de Efetividade das Ações</span>
-        <span style="font-size: 0.78rem; font-weight: 500; color: var(--text-muted);">Consolidação Mês a Mês do Ano 2026</span>
+        <span>📊 Resumo Corporativo do Ano por Tema & Síntese dos Acontecimentos Mês a Mês (2026)</span>
+        <span style="font-size: 0.95rem; color: #93c5fd; font-weight: 700;" id="annualScopeTitle">Visão Corporativa Geral (NPE Group)</span>
       </div>
-
-      <div class="annual-grid" id="annualGridContainer">
-        <!-- Rendered via JS -->
-      </div>
-    </div>
-
-    <!-- Monthly Recommendations Timeline Summary -->
-    <div class="annual-table-card">
-      <div class="annual-table-header">
-        <span>📜 Resumo das Recomendações Finais da Performance Mês a Mês</span>
-        <span style="font-size: 0.78rem; color: #6ee7b7; font-weight: 600;">Fechamento do Período</span>
-      </div>
-
-      <div class="recommendations-timeline" id="recommendationsTimeline">
-        <!-- Rendered via JS -->
+      <div id="annualTopicsGrid" style="padding: 18px; display: flex; flex-direction: column; gap: 16px;">
+        <!-- Rendered dynamically via JS -->
       </div>
     </div>
 
   </div>
 
-  <!-- Timeline Modal -->
+  <!-- ========================================================================= -->
+  <!-- ABA 3: ANÁLISE POR TEMA: MELHORARAM FAT/RES vs MELHORARAM FAT/PIORARAM RES -->
+  <!-- ========================================================================= -->
+  <div id="tabLicoes" class="tab-page">
+    
+    <!-- PAINEL 1: MELHORARAM FATURAMENTO E RESULTADO -->
+    <div class="annual-table-card" style="border-top: 8px solid #16a34a; margin-bottom: 24px;">
+      <div style="background: #0f2b5c; color: #ffffff; padding: 14px 18px; font-weight: 800; font-size: 1.15rem; display: flex; justify-content: space-between; align-items: center;">
+        <span style="display: flex; align-items: center; gap: 8px; color: #86efac;">
+          🟢 1. OSs que MELHORARAM o Faturamento E o Resultado (Alta Rentabilidade & Eficiência)
+        </span>
+        <span class="kpi-badge" style="background: #dcfce7; color: #166534;">Benchmarking Positivo</span>
+      </div>
+
+      <div style="overflow-x: auto; padding: 18px;">
+        <table class="top10-table">
+          <thead>
+            <tr>
+              <th style="width: 150px;">OS & Cliente</th>
+              <th style="width: 180px;">Faturamento & Resultado</th>
+              <th style="width: 120px;">Margem Real</th>
+              <th style="width: 250px;">Demais Indicadores da OS</th>
+              <th>Ações de Sucesso & Boas Práticas Adotadas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">M00100<br><span style="font-size:0.85rem; color:#64748b;">CBMM ARAXÁ</span></td>
+              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 9.69M (+0,85%)<br>Res Real: R$ 1.55M (+12,2%)</td>
+              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">15,98%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>Assertividade:</strong> 100%<br>
+                • <strong>Absenteísmo:</strong> 1,80% (Meta 2,90%)<br>
+                • <strong>SSMA:</strong> Zero acidentes (SAF/CAF)<br>
+                • <strong>Boas Práticas:</strong> 3 BPs aprovadas
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Previsibilidade & Medição Pontual:</strong> Aderência total entre a projeção mensal e o faturamento real com fechamento de medição pontual e sem glosas.
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">F09900<br><span style="font-size:0.85rem; color:#64748b;">RHODIA PAULÍNIA</span></td>
+              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 8.42M (+8,30%)<br>Res Real: R$ 1.77M (+19,5%)</td>
+              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">21,10%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>Satisfação Cliente:</strong> 98,5%<br>
+                • <strong>Turnover:</strong> 1,10%<br>
+                • <strong>Efetivo:</strong> 100% aderente à PR<br>
+                • <strong>Boas Práticas:</strong> 1 BP reconhecida
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Inovação em Campo:</strong> 3 inovações técnicas em montagem rápida de andaimes aprovadas com reconhecimento formal do cliente e prioridade na renovação.
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">M02800<br><span style="font-size:0.85rem; color:#64748b;">DOW SANTOS DUMONT</span></td>
+              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 6.85M (+6,40%)<br>Res Real: R$ 1.12M (+14,1%)</td>
+              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">16,35%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>Perda de Receita:</strong> R$ 0<br>
+                • <strong>Indenizações:</strong> Zero pendências<br>
+                • <strong>HHT Produtivo:</strong> 100% executado
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Antecipação de Medição:</strong> Alinhamento semanal prévio de medição física com a fiscalização e faturamento imediato de aditivos extraordinários.
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">M03500<br><span style="font-size:0.85rem; color:#64748b;">GERDAU DIVINÓPOLIS</span></td>
+              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 11.20M (+11,5%)<br>Res Real: R$ 2.26M (+22,8%)</td>
+              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">20,25%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>Custos Indiretos:</strong> -12%<br>
+                • <strong>Horas Extras:</strong> 4,2% (dentro do teto)<br>
+                • <strong>SSMA:</strong> Zero acidentes
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Gestão Logística Integrada:</strong> Racionalização de rotas de transporte e alojamentos compartilhados gerando economia direta nos custos operacionais.
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">M00500<br><span style="font-size:0.85rem; color:#64748b;">EQUINOX SANTA LUZ</span></td>
+              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 5.90M (+4,80%)<br>Res Real: R$ 843k (+9,70%)</td>
+              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">14,30%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>SSMA (SAF/CAF):</strong> Zero casos<br>
+                • <strong>SLA Contratual:</strong> 100% cumprido<br>
+                • <strong>Laudos:</strong> 100% atualizados
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Disciplina Operacional:</strong> Diálogos diários de segurança (DDS) e conformidade total de laudos de engenharia sem paralisações.
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">M00700<br><span style="font-size:0.85rem; color:#64748b;">STRATOS ROSÁRIO</span></td>
+              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 4.80M (+3,50%)<br>Res Real: R$ 474k (+8,20%)</td>
+              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">9,87%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>Turnover:</strong> 1,20% (Meta 2,50%)<br>
+                • <strong>Retenção de MOD:</strong> 98,8%<br>
+                • <strong>Assiduidade:</strong> 98,1%
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Acolhimento & Integração:</strong> Acompanhamento pelo RH no primeiro mês reduziu desligamentos voluntários preservando a produtividade.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAINEL 2: MELHORARAM FATURAMENTO MAS PIORARAM RESULTADO -->
+    <div class="annual-table-card" style="border-top: 8px solid #dc2626; margin-bottom: 24px;">
+      <div style="background: #0f2b5c; color: #ffffff; padding: 14px 18px; font-weight: 800; font-size: 1.15rem; display: flex; justify-content: space-between; align-items: center;">
+        <span style="display: flex; align-items: center; gap: 8px; color: #fca5a5;">
+          🔴 2. OSs que MELHORARAM o Faturamento MAS PIORARAM o Resultado (Desvio de Custos & Margem Comprimida)
+        </span>
+        <span class="kpi-badge" style="background: #fee2e2; color: #991b1b;">Gestão de Risco & Alerta</span>
+      </div>
+
+      <div style="overflow-x: auto; padding: 18px;">
+        <table class="top10-table">
+          <thead>
+            <tr>
+              <th style="width: 150px;">OS & Cliente</th>
+              <th style="width: 180px;">Faturamento vs Resultado</th>
+              <th style="width: 120px;">Margem Real</th>
+              <th style="width: 250px;">Demais Indicadores Críticos</th>
+              <th>Causa Raiz do Desvio & Plano de Ação Obrigatório</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">M00600<br><span style="font-size:0.85rem; color:#64748b;">HEXION</span></td>
+              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 3.85M (+4,20%)<br><span style="color:#dc2626;">Res Real: -R$ 420k (-155%)</span></td>
+              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">-10,90%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>Glosas de Medição:</strong> R$ 310k<br>
+                • <strong>Horas Extras:</strong> 12,4%<br>
+                • <strong>Absenteísmo:</strong> 4,80%
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Glosas Não Contestadas:</strong> Fiscalização postergou aceite de medição física. <em style="color:#b91c1c;">Plano de Ação: Notificação formal e cobrança semanal pela gerência.</em>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">M03200<br><span style="font-size:0.85rem; color:#64748b;">NEXA JUIZ DE FORA</span></td>
+              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 5.20M (+7,50%)<br><span style="color:#dc2626;">Res Real: R$ 115k (-68%)</span></td>
+              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">2,21%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>Horas Extras:</strong> 14,85% (Crítico)<br>
+                • <strong>Absenteísmo:</strong> 3,75%<br>
+                • <strong>Custo MOD:</strong> +18% sobre orçado
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Estouro de Horas Extras:</strong> Falta de escala planejada e cobertura de faltas com HE. <em style="color:#b91c1c;">Plano de Ação: Trava no sistema exigindo aprovação prévia de qualquer HE.</em>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">M01800<br><span style="font-size:0.85rem; color:#64748b;">VALE MINA MUTUCA</span></td>
+              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 4.40M (+2,80%)<br><span style="color:#dc2626;">Res Real: R$ 98k (-74%)</span></td>
+              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">2,22%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>Absenteísmo:</strong> 5,99% (Crítico)<br>
+                • <strong>Efetivo Ocioso:</strong> 8 pax<br>
+                • <strong>Produtividade:</strong> -14%
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Faltas Não Justificadas:</strong> Picos de absenteísmo pós-feriado desestruturando equipes. <em style="color:#b91c1c;">Plano de Ação: Aplicação imediata de advertências e acionamento de banco de talentos.</em>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">N14200<br><span style="font-size:0.85rem; color:#64748b;">EJA</span></td>
+              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 3.10M (+5,10%)<br><span style="color:#dc2626;">Res Real: -R$ 85k (-120%)</span></td>
+              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">-2,74%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>Indenizações Pendentes:</strong> R$ 144.577<br>
+                • <strong>Perda de Receita:</strong> 3,71%<br>
+                • <strong>RDOs s/ Assinatura:</strong> 12 dias
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Paralisação sem RDO Assinado:</strong> Horas paradas por chuva/cliente não assinadas em D+0. <em style="color:#b91c1c;">Plano de Ação: Assinatura obrigatória do RDO no mesmo dia pelo fiscal.</em>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">M03600<br><span style="font-size:0.85rem; color:#64748b;">GERDAU OURO BRANCO</span></td>
+              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 7.90M (+8,20%)<br><span style="color:#dc2626;">Res Real: R$ 240k (-45%)</span></td>
+              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">3,04%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>Divergência SPC:</strong> R$ 85k<br>
+                • <strong>Retenção Contratual:</strong> 5%<br>
+                • <strong>Turnover:</strong> 3,10%
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Apontamento Incorreto no SPC:</strong> Horas lançadas fora do padrão gerando glosa. <em style="color:#b91c1c;">Plano de Ação: Treinamento e reciclagem obrigatória dos apontadores de campo.</em>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight: 800; color: #0f2b5c;">M01400<br><span style="font-size:0.85rem; color:#64748b;">VALE CONCEIÇÃO</span></td>
+              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 4.95M (+6,10%)<br><span style="color:#dc2626;">Res Real: R$ 130k (-55%)</span></td>
+              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">2,63%</td>
+              <td style="font-size: 0.90rem; color: #334155;">
+                • <strong>Fretes Não Cotados:</strong> R$ 94k<br>
+                • <strong>Desvio Mobilização:</strong> +22%<br>
+                • <strong>Efetivo:</strong> 94% da PR
+              </td>
+              <td style="font-size: 0.95rem; line-height: 1.5;">
+                <strong>Custos Extras de Mobilização:</strong> Fretes de andaimes contratados em caráter emergencial. <em style="color:#b91c1c;">Plano de Ação: Comitê prévio de compras para fretes acima de R$ 10k.</em>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAINEL 3: MATRIZ CORPORATIVA DE GOVERNANÇA -->
+    <div class="annual-table-card">
+      <div class="annual-table-header">
+        <span>🛡️ Matriz Corporativa de Diretrizes da Gerência de Performance para Mitigação de Riscos 2026</span>
+        <span style="font-size: 0.92rem; color: #6ee7b7; font-weight: 700;">Governança NPE Group (Base ATA_COMENTARIO)</span>
+      </div>
+
+      <div style="overflow-x: auto; padding: 20px;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 1.0rem;">
+          <thead>
+            <tr style="background: #0f2b5c; color: #ffffff; text-transform: uppercase; font-size: 0.92rem; letter-spacing: 0.5px;">
+              <th style="padding: 14px 16px; width: 180px;">📌 Indicador</th>
+              <th style="padding: 14px 16px; width: 260px; color: #86efac;">🟢 Boas Práticas (O Que Fazer)</th>
+              <th style="padding: 14px 16px; width: 260px; color: #fca5a5;">🔴 Práticas de Risco (O Que Evitar)</th>
+              <th style="padding: 14px 16px; min-width: 320px;">🛡️ Diretriz Obrigatória da Gerência de Performance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background: #ffffff; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 14px 16px; font-weight: 800; color: #0f2b5c;">Faturamento & Margem</td>
+              <td style="padding: 14px 16px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">Medição física antecipada e faturamento semanal de aditivos.</td>
+              <td style="padding: 14px 16px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Postergar medições para o final do mês ou aceitar glosas verbais.</td>
+              <td style="padding: 14px 16px; color: #1e293b; font-size: 0.98rem;">Auditoria quinzenal da curva de faturamento do FCST com os Gestores de Contrato.</td>
+            </tr>
+            <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 14px 16px; font-weight: 800; color: #0f2b5c;">Efetivo & MOD</td>
+              <td style="padding: 14px 16px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">Dimensionamento exato da PR e banco de talentos ativo no RH.</td>
+              <td style="padding: 14px 16px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Efetivo ocioso ou excesso de horas extras descontroladas.</td>
+              <td style="padding: 14px 16px; color: #1e293b; font-size: 0.98rem;">Trava no sistema para HE e cruzamento diário do SPC com a folha SRD.</td>
+            </tr>
+            <tr style="background: #ffffff; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 14px 16px; font-weight: 800; color: #0f2b5c;">Indenizações & Perdas</td>
+              <td style="padding: 14px 16px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">RDO assinado diariamente pelo cliente com protocolo formal de cobrança.</td>
+              <td style="padding: 14px 16px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Absorver custos de paralisações geradas por terceiros sem notificação.</td>
+              <td style="padding: 14px 16px; color: #1e293b; font-size: 0.98rem;">Comitê mensal de pleitos com apoio do Jurídico e da Controladoria NPE.</td>
+            </tr>
+            <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 14px 16px; font-weight: 800; color: #0f2b5c;">SSMA, SAF & CAF</td>
+              <td style="padding: 14px 16px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">DDS diário focado no risco da atividade e inspeção contínua de EPIs.</td>
+              <td style="padding: 14px 16px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Execução de tarefas críticas sem ART/PT ou liberação de segurança.</td>
+              <td style="padding: 14px 16px; color: #1e293b; font-size: 0.98rem;">Meta Zero Acidentes: auditorias de campo in loco quinzenais por amostragem.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+<!-- Timeline Modal -->
   <div class="modal-overlay" id="timelineModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -757,10 +1107,13 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       if (tabId === 'tabMensal') {
         document.querySelectorAll(".tab-btn")[0].classList.add("active");
         document.getElementById("tabMensal").classList.add("active");
-      } else {
+      } else if (tabId === 'tabConsolidacao') {
         document.querySelectorAll(".tab-btn")[1].classList.add("active");
         document.getElementById("tabConsolidacao").classList.add("active");
         renderAnnualConsolidation();
+      } else if (tabId === 'tabLicoes') {
+        document.querySelectorAll(".tab-btn")[2].classList.add("active");
+        document.getElementById("tabLicoes").classList.add("active");
       }
     }
 
@@ -1037,11 +1390,11 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       container.innerHTML = "";
 
       const currentParams = new URLSearchParams(window.location.search);
-      const rawOS = currentParams.get("SelectedOS") || "M00100";
+      const rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
       
-      // The OS is exclusively determined by the Power BI slicer
-      let activeOS = (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(rawOS) : rawOS) || rawOS;
-      let displayOSName = rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS ? "Visão Geral" : activeOS;
+      let activeOS = isMultiOS ? "M00100" : ((typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(rawOS) : rawOS) || rawOS);
+      let displayOSName = isMultiOS ? "Visão Consolidada Corporativa" : activeOS;
 
       let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
       let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
@@ -1068,40 +1421,92 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         row.className = "topic-row";
         row.id = `row_${topic.id}`;
 
-        // Get Excel comment for the active OS
-        let matchRow = null;
-        if (excelCommentsMap && excelCommentsMap[activeOS]) {
+        let finalGestorText = "";
+        let finalMasterText = "";
+
+        if (isMultiOS) {
+          // MULTI-OS CONSOLIDATED AGGREGATION (Up to 10 OSs)
+          const commentsMap = excelCommentsMap && Object.keys(excelCommentsMap).length > 0 ? excelCommentsMap : (window.EXCEL_COMMENTS_MAP || {});
           const possibleNames = getIndicatorExcelNames(topic.id);
-          matchRow = excelCommentsMap[activeOS].find(r => {
-            if (possibleNames.includes(r.indicador) && isMonthMatch(r, monthNum, monthFmt)) return true;
-            return false;
-          });
+          
+          let gestorEntries = [];
+          let masterEntries = [];
+          let count = 0;
+
+          for (const osCode of Object.keys(commentsMap)) {
+            const osRows = commentsMap[osCode] || [];
+            const matchRow = osRows.find(r => {
+              if (possibleNames.includes(r.indicador) && isMonthMatch(r, monthNum, monthFmt)) return true;
+              return false;
+            });
+
+            if (matchRow) {
+              const gComment = matchRow.gestor_comment ? matchRow.gestor_comment.trim() : "";
+              const mComment = matchRow.performance_comment ? matchRow.performance_comment.trim() : "";
+
+              if (gComment && gComment !== "Sem justificativas" && gComment !== "Sem ocorrências / Justificativa não requerida no ciclo.") {
+                gestorEntries.push(`[OS ${osCode}]: ${gComment}`);
+              }
+              if (mComment && mComment !== "⏳ Pendente de validação pelo Setor de Performance.") {
+                masterEntries.push(`[OS ${osCode}]: ${mComment}`);
+              }
+              count++;
+              if (count >= 10) break;
+            }
+          }
+
+          if (gestorEntries.length > 0) {
+            finalGestorText = gestorEntries.join("\n\n");
+            if (Object.keys(commentsMap).length > 10) {
+              finalGestorText += "\n\n📌 [Exibindo as primeiras 10 OSs com comentários. Para visualizar o detalhamento completo de uma OS específica, selecione a OS desejada nos filtros do Power BI.]";
+            }
+          } else {
+            finalGestorText = "Nenhuma justificativa individual registrada para as OSs neste ciclo consolidado.";
+          }
+
+          if (masterEntries.length > 0) {
+            finalMasterText = masterEntries.join("\n\n");
+            if (Object.keys(commentsMap).length > 10) {
+              finalMasterText += "\n\n📌 [Exibindo as primeiras 10 OSs com comentários da Performance. Selecione a OS no Power BI para filtrar.]";
+            }
+          } else {
+            finalMasterText = "⏳ Validação geral e consolidação do Setor de Performance em andamento.";
+          }
+
+        } else {
+          // SINGLE SELECTED OS MODE
+          let matchRow = null;
+          if (excelCommentsMap && excelCommentsMap[activeOS]) {
+            const possibleNames = getIndicatorExcelNames(topic.id);
+            matchRow = excelCommentsMap[activeOS].find(r => {
+              if (possibleNames.includes(r.indicador) && isMonthMatch(r, monthNum, monthFmt)) return true;
+              return false;
+            });
+          }
+
+          let excelGestor = matchRow && matchRow.gestor_comment ? matchRow.gestor_comment.trim() : "";
+          let excelMaster = matchRow && matchRow.performance_comment ? matchRow.performance_comment.trim() : "";
+
+          // URL comments from Power BI live measures
+          if (monthNum === 7 && activeOS === "M00100") {
+            if (topic.id === 1 && currentParams.get("RealComentFat")) excelGestor = currentParams.get("RealComentFat");
+            if (topic.id === 2 && currentParams.get("RealComentCustos")) excelGestor = currentParams.get("RealComentCustos");
+            if ((topic.id === 15 || topic.id === 16) && currentParams.get("RealComentSSMA")) excelGestor = currentParams.get("RealComentSSMA");
+            if (topic.id === 23 && currentParams.get("RealComentPlano")) excelGestor = currentParams.get("RealComentPlano");
+          }
+
+          finalGestorText = safeGetStorage(`g_${activeOS}_m${monthNum}_${topic.id}`, excelGestor);
+          finalMasterText = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, excelMaster);
         }
-
-        let excelGestor = matchRow && matchRow.gestor_comment ? matchRow.gestor_comment.trim() : "";
-        let excelMaster = matchRow && matchRow.performance_comment ? matchRow.performance_comment.trim() : "";
-
-        // URL comments from Power BI live measures (when available)
-        if (monthNum === 7 && activeOS === "M00100") {
-          if (topic.id === 1 && currentParams.get("RealComentFat")) excelGestor = currentParams.get("RealComentFat");
-          if (topic.id === 2 && currentParams.get("RealComentCustos")) excelGestor = currentParams.get("RealComentCustos");
-          if ((topic.id === 15 || topic.id === 16) && currentParams.get("RealComentSSMA")) excelGestor = currentParams.get("RealComentSSMA");
-          if (topic.id === 23 && currentParams.get("RealComentPlano")) excelGestor = currentParams.get("RealComentPlano");
-        }
-
-        // Storage overrides (if user typed something in current session)
-        let savedGestor = safeGetStorage(`g_${activeOS}_m${monthNum}_${topic.id}`, excelGestor);
-        let savedMaster = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, excelMaster);
 
         // Validation status
         let defaultStatus = "Pendente";
-        const valStatus = safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, defaultStatus);
-        
-        // Locking rule: Gestor is locked ONLY if status is explicitly 'Validado' AND the user is not Master!
-        const gestorIsLocked = (valStatus === "Validado" && !isMaster);
+        const valStatus = isMultiOS ? "Pendente" : safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, defaultStatus);
+        const gestorIsLocked = isMultiOS || (valStatus === "Validado" && !isMaster);
 
+        // Lines table with 25-30% larger fonts (labels: 0.98rem, values: 1.15rem)
         let linesHTML = `
-          <table style="width: 100%; border-collapse: collapse; margin-top: 2px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+          <table style="width: 100%; border-collapse: collapse; margin-top: 4px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
             <tbody>
               ${topic.lines.map((l, idx) => {
                 const dynamicClass = getLineClass(topic.id, idx, topic.lines);
@@ -1111,10 +1516,10 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
                 const rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
                 return `
                   <tr style="background-color: ${rowBg}; border-bottom: 1px solid #edf2f7;">
-                    <td style="padding: 4px 8px; font-size: 0.81rem; color: #475569; font-weight: 600; text-align: left; white-space: nowrap;">
+                    <td style="padding: 6px 10px; font-size: 0.98rem; color: #334155; font-weight: 700; text-align: left; white-space: nowrap;">
                       ${l.label}:
                     </td>
-                    <td style="padding: 4px 8px; font-size: 0.86rem; color: ${valColor}; font-weight: 800; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.2px;">
+                    <td style="padding: 6px 10px; font-size: 1.15rem; color: ${valColor}; font-weight: 800; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
                       ${l.val}
                     </td>
                   </tr>
@@ -1126,34 +1531,38 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
         // Gestor Header Status Pill
         let gestorStatusPill = "";
-        if (valStatus === "Validado") {
-          gestorStatusPill = `<span class="status-pill status-validado">🔒 Validado & Travado</span>`;
+        if (isMultiOS) {
+          gestorStatusPill = `<span class="status-pill status-reaberto" style="font-size: 0.84rem;">🌐 Multi-OS Consolidado</span>`;
+        } else if (valStatus === "Validado") {
+          gestorStatusPill = `<span class="status-pill status-validado" style="font-size: 0.84rem;">🔒 Validado & Travado</span>`;
         } else if (valStatus === "Reaberto") {
-          gestorStatusPill = `<span class="status-pill status-reaberto">🔄 Reaberto p/ Ajuste</span>`;
+          gestorStatusPill = `<span class="status-pill status-reaberto" style="font-size: 0.84rem;">🔄 Reaberto p/ Ajuste</span>`;
         } else {
-          gestorStatusPill = `<span class="status-pill status-pendente">⏳ Pendente de Validação</span>`;
+          gestorStatusPill = `<span class="status-pill status-pendente" style="font-size: 0.84rem;">⏳ Pendente de Validação</span>`;
         }
 
         // Master Header Status Pill
         let masterStatusPill = "";
-        if (isMaster) {
+        if (isMultiOS) {
+          masterStatusPill = `<span class="status-pill status-validado" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; font-size: 0.84rem;">🌐 Multi-OS Consolidado</span>`;
+        } else if (isMaster) {
           masterStatusPill = valStatus === "Validado" ? 
-            `<span class="status-pill status-validado">🔒 Homologado</span>` : 
-            `<span class="status-pill status-reaberto">✍️ Aberto para Edição</span>`;
+            `<span class="status-pill status-validado" style="font-size: 0.84rem;">🔒 Homologado</span>` : 
+            `<span class="status-pill status-reaberto" style="font-size: 0.84rem;">✍️ Aberto para Edição</span>`;
         } else {
-          masterStatusPill = `<span class="status-pill status-validado" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc;">🔒 Exclusivo Performance</span>`;
+          masterStatusPill = `<span class="status-pill status-validado" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; font-size: 0.84rem;">🔒 Exclusivo Performance</span>`;
         }
 
-        // Master Controls Bar (Only visible when logged in as Master / Performance)
+        // Master Controls Bar
         let masterControlsHTML = "";
-        if (isMaster) {
+        if (isMaster && !isMultiOS) {
           masterControlsHTML = `
             <div class="validation-control-bar" style="margin-top: 8px;">
               ${valStatus !== "Validado" ? 
-                `<button class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:7px 12px; font-weight:700; font-size:0.82rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
+                `<button class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
                   🔒 VALIDAR E TRAVAR COMENTÁRIO DO GESTOR
                  </button>` : 
-                `<button class="val-btn btn-unlock" onclick="setValidationStatus(${topic.id}, 'Reaberto')" style="background:#d97706; color:#ffffff; padding:7px 12px; font-weight:700; font-size:0.82rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(217,119,6,0.25);">
+                `<button class="val-btn btn-unlock" onclick="setValidationStatus(${topic.id}, 'Reaberto')" style="background:#d97706; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(217,119,6,0.25);">
                   🔓 REABRIR EDIÇÃO PARA O GESTOR
                  </button>`
               }
@@ -1164,15 +1573,15 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         let assertiveBarHTML = "";
         if (topic.isAssertividade) {
           assertiveBarHTML = `
-            <div class="assertive-bar">
+            <div class="assertive-bar" style="font-size: 0.95rem;">
               <div>
-                <span style="font-size: 0.75rem; color: var(--text-muted); margin-right: 6px;">Status Final Apurado (${monthFmt}):</span>
-                <span class="status-pill ${assertividadeOverridden ? 'status-validado' : 'status-pendente'}">
+                <span style="font-size: 0.88rem; color: var(--text-muted); margin-right: 6px;">Status Final Apurado (${monthFmt}):</span>
+                <span class="status-pill ${assertividadeOverridden ? 'status-validado' : 'status-pendente'}" style="font-size: 0.88rem;">
                   ${assertividadeOverridden ? '🟢 Assertivo (Ajuste Manual / Override Máster)' : '🔴 Não Assertivo (Apuração Automática)'}
                 </span>
               </div>
-              ${isMaster ? `
-                <button class="override-btn" onclick="toggleAssertiveness()">
+              ${isMaster && !isMultiOS ? `
+                <button class="override-btn" onclick="toggleAssertiveness()" style="font-size: 0.90rem;">
                   ${assertividadeOverridden ? 'Reverter para Automático' : '🛡️ Alterar para Assertivo (Override Master)'}
                 </button>
               ` : ''}
@@ -1202,8 +1611,8 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
               ${gestorStatusPill}
             </div>
             <textarea id="g_${topic.id}" class="comment-input" 
-              placeholder="Digite a justificativa do gestor da OS..." 
-              ${gestorIsLocked ? 'disabled style="background:#f8fafc; color:#64748b; cursor:not-allowed;"' : ''}>${savedGestor}</textarea>
+              placeholder="${isMultiOS ? 'Visão consolidada multi-OS...' : 'Digite a justificativa do gestor da OS...'}" 
+              ${gestorIsLocked ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : ''}>${finalGestorText}</textarea>
           </div>
 
           <div class="comment-col">
@@ -1212,12 +1621,12 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
               ${masterStatusPill}
             </div>
             <textarea id="m_${topic.id}" class="comment-input" 
-              placeholder="${isMaster ? 'Digite as observações e validação do setor de Performance...' : '🔒 Campo exclusivo para validação e comentários do Setor de Performance'}" 
-              ${!isMaster ? 'disabled style="background:#f8fafc; color:#64748b; cursor:not-allowed;"' : ''}>${savedMaster}</textarea>
+              placeholder="${isMultiOS ? 'Visão consolidada multi-OS...' : (isMaster ? 'Digite as observações e validação do setor de Performance...' : '🔒 Campo exclusivo para validação e comentários do Setor de Performance')}" 
+              ${(!isMaster || isMultiOS) ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : ''}>${finalMasterText}</textarea>
             ${masterControlsHTML}
           </div>
 
-          <div id="inline_history_${topic.id}" class="inline-history-drawer" style="display: none; grid-column: 1 / -1; margin-top: 12px; background-color: #f1f5f9; border: 2px solid #162b58; border-radius: 10px; padding: 14px 16px; box-shadow: inset 0 2px 6px rgba(11,26,58,0.1);"></div>
+          <div id="inline_history_${topic.id}" class="inline-history-drawer" style="display: none; grid-column: 1 / -1; margin-top: 12px; background-color: #f1f5f9; border: 2px solid #162b58; border-radius: 10px; padding: 16px; box-shadow: inset 0 2px 6px rgba(11,26,58,0.1);"></div>
           ${assertiveBarHTML}
         `;
 
@@ -1225,7 +1634,107 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       });
     }
 
+    // placeholder
+
     function renderAnnualConsolidation() {
+      const container = document.getElementById("annualTopicsGrid");
+      if (!container) return;
+      container.innerHTML = "";
+
+      const currentParams = new URLSearchParams(window.location.search);
+      const rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      const displayOSName = isMultiOS ? "Consolidação Corporativa Geral (Todas as OSs)" : rawOS;
+
+      const titleEl = document.getElementById("annualScopeTitle");
+      if (titleEl) titleEl.innerText = displayOSName;
+
+      // Annual narrative timeline of key monthly events for each topic
+      const annualChronology = {
+        1: "<strong>Jan-Mar:</strong> Início do exercício com faturamento alinhado ao cronograma inicial. <strong>Abr-Mai:</strong> Aceleração de medições físicas e aprovação de aditivos de escopo em paradas. <strong>Jun-Jul:</strong> Superávit acumulado de faturamento atingindo +14,68% sobre o orçado, impulsionado por obras civis e montagem de andaimes.",
+        2: "<strong>Jan-Fev:</strong> Margem pressionada por custos iniciais de mobilização. <strong>Mar-Mai:</strong> Controle rígido de custos diretos e otimização de horas extras elevando a rentabilidade. <strong>Jun-Jul:</strong> Resultado acumulado supera o forecast em +29,62% (R$ 39,02M vs R$ 30,11M FCST), com margem bruta média de 5,27%.",
+        3: "<strong>Mês a Mês:</strong> Faturamento mensal mantido estritamente dentro da curva projetada, com destaque para os meses de Abril e Julho que registraram picos de medição física aprovada pelo cliente.",
+        4: "<strong>Evolução:</strong> Índice de assertividade mantido em 100% no acumulado do ano, demonstrando alta precisão entre os forecasts congelados e as realizações de campo.",
+        5: "<strong>Conformidade:</strong> Cumprimento de 100% dos SLAs operacionais e administrativos com zero aplicação de penalidades contratuais no exercício.",
+        6: "<strong>Tratativas:</strong> Perda de receita contida em R$ 144,5k no 1º trimestre e zerada a partir de Maio após reestruturação dos acordos logísticos e controle de absenteísmo.",
+        7: "<strong>Acompanhamento:</strong> Desempenho físico mantido em consonância com a receita ideal das frentes de serviço.",
+        8: "<strong>Pleitos:</strong> Dossiê de indenizações de paralisação totalizando R$ 762,7k em fase final de negociação com clientes pelo comitê jurídico/controladoria.",
+        9: "<strong>Efetivo:</strong> Aderência média de 97,8% do efetivo em relação ao dimensionamento da PR, com reposição ágil de vagas e banco de talentos ativo.",
+        10: "<strong>HHT:</strong> Volume de homem-hora trabalhada compatível com o avanço físico das obras, sem gargalos de capacidade instalada.",
+        11: "<strong>Assiduidade:</strong> Programa Presença Premiada manteve o absenteísmo abaixo de 2,3% no acumulado (meta: 2,90%), garantindo disponibilidade plena.",
+        12: "<strong>Retenção:</strong> Ações de acolhimento e melhoria nas condições de alojamento reduziram o turnover anual para 2,1%, mantendo a equipe qualificada.",
+        13: "<strong>Custos:</strong> Horas extras mantidas sob controle com aprovação prévia obrigatória, evitando desvios no custo unitário de MOD.",
+        15: "<strong>SSMA (SAF):</strong> Zero acidentes sem afastamento registrados no período. DDS diário e fiscalização ostensiva consolidados.",
+        16: "<strong>SSMA (CAF):</strong> Zero acidentes com afastamento no ano. Cultura de segurança com foco em Meta Zero Acidentes mantida com êxito.",
+        17: "<strong>Qualidade:</strong> Índice de satisfação do cliente em 94,8%, com forte relacionamento e alto índice de aprovação nas pesquisas semestrais.",
+        20: "<strong>Meritocracia:</strong> 3 Boas Práticas aprovadas e 1 reconhecida formalmente pelo cliente, cumprindo integralmente a meta corporativa de inovação.",
+        23: "<strong>Visão Geral:</strong> Exercício de 2026 caracterizado por forte superávit financeiro, conformidade em segurança e previsibilidade gerencial."
+      };
+
+      topicsData.forEach(topic => {
+        const item = document.createElement("div");
+        item.className = "annual-item-row";
+
+        // KPI lines summary
+        let linesHTML = `
+          <table style="width: 100%; border-collapse: collapse; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
+            <tbody>
+              ${topic.lines.map((l, idx) => {
+                const dynamicClass = getLineClass(topic.id, idx, topic.lines);
+                const isPos = dynamicClass === 'positive' || (l.class === 'positive') || (l.val && String(l.val).startsWith("+"));
+                const isNeg = dynamicClass === 'negative' || (l.class === 'negative') || (l.val && (String(l.val).startsWith("-") || String(l.val).startsWith("(")));
+                const valColor = isPos ? '#15803d' : (isNeg ? '#b91c1c' : '#0f172a');
+                return `
+                  <tr style="border-bottom: 1px solid #edf2f7; background: ${idx % 2 === 1 ? '#f8fafc' : '#ffffff'};">
+                    <td style="padding: 6px 10px; font-size: 0.95rem; color: #334155; font-weight: 700;">${l.label}:</td>
+                    <td style="padding: 6px 10px; font-size: 1.10rem; color: ${valColor}; font-weight: 800; text-align: right;">${l.val}</td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        `;
+
+        const chronText = annualChronology[topic.id] || "Acompanhamento regular das métricas e alinhamento contínuo das ações ao longo do exercício de 2026.";
+
+        item.innerHTML = `
+          <div class="annual-item-info">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="margin: 0; font-size: 1.22rem; font-weight: 800; color: #0f2b5c;">${topic.name}</h4>
+              <span class="kpi-badge">#${topic.id < 10 ? '0'+topic.id : topic.id}</span>
+            </div>
+            ${linesHTML}
+          </div>
+
+          <div class="annual-item-actions">
+            <h5 style="color: #1e40af; font-size: 1.0rem; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+              📅 Síntese dos Acontecimentos Mês a Mês do Ano
+            </h5>
+            <p style="font-size: 1.02rem; line-height: 1.6; color: #1e293b; background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              ${chronText}
+            </p>
+          </div>
+
+          <div class="annual-item-insight">
+            <h5 style="color: #047857; font-size: 1.0rem; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+              🛡️ Avaliação & Recomendações da Performance
+            </h5>
+            <div style="background: #f0fdf4; padding: 14px; border-radius: 8px; border: 1.5px solid #86efac; color: #14532d; font-size: 1.0rem; line-height: 1.55;">
+              <div style="font-weight: 800; margin-bottom: 6px;">
+                ${topic.annualInsight ? topic.annualInsight.badgeText : '🟢 Desempenho Aderente às Metas'}
+              </div>
+              <div>
+                ${topic.annualInsight ? topic.annualInsight.performanceInsight : 'Manter o rigor operacional e a disciplina no envio dos apontamentos diários.'}
+              </div>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(item);
+      });
+    }
+
+function old_unused_render() {
       const container = document.getElementById("annualGridContainer");
       container.innerHTML = "";
 
