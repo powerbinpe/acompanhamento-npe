@@ -1038,10 +1038,10 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
       const currentParams = new URLSearchParams(window.location.search);
       const rawOS = currentParams.get("SelectedOS") || "M00100";
-      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
       
-      // Active OS state for editing (if in multi-OS mode, use stored active OS or default to M00100)
-      let activeOS = isMultiOS ? safeGetStorage("active_multi_os", "M00100") : ((typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(rawOS) : rawOS) || rawOS);
+      // The OS is exclusively determined by the Power BI slicer
+      let activeOS = (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(rawOS) : rawOS) || rawOS;
+      let displayOSName = rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS ? "Visão Geral" : activeOS;
 
       let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
       let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
@@ -1049,32 +1049,18 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       let monthName = currentParams.get("SelectedMes") || monthNames[monthNum - 1] || "JULHO";
       let monthFmt = `${monthName.toUpperCase()} / 2026`;
 
-      // If in Multi-OS mode, build a list of all available OSs (46 OSs)
-      const allOSList = Object.keys(excelCommentsMap && Object.keys(excelCommentsMap).length > 0 ? excelCommentsMap : (window.EXCEL_COMMENTS_MAP || {}));
-      if (allOSList.length === 0) {
-        allOSList.push("M00100", "M02800", "M03500", "M01200", "M02000", "M03700", "N14200", "M03600", "M03200", "M01800", "M01900", "M01500", "M00700", "P00802", "M01010", "M01012", "M02600", "M05900", "M00500", "M03400");
+      // Update Final Remarks Lock status depending on role
+      const finalTA = document.getElementById("finalPerformanceComment");
+      const finalLock = document.getElementById("finalLock");
+      if (finalTA) {
+        finalTA.disabled = !isMaster;
+        finalTA.style.background = isMaster ? "#ffffff" : "#f8fafc";
+        finalTA.style.cursor = isMaster ? "text" : "not-allowed";
+        finalTA.placeholder = isMaster ? "Digite as recomendações gerais do Setor de Performance..." : "🔒 Campo exclusivo para registro de recomendações pelo Setor de Performance.";
       }
-
-      // Add Multi-OS Banner if viewing corporate consolidated view
-      if (isMultiOS) {
-        const banner = document.createElement("div");
-        banner.style.cssText = "background: linear-gradient(135deg, #1e3a8a, #0f2b5c); border: 2px solid #3b82f6; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; color: #ffffff; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.25); flex-wrap: wrap; gap: 12px;";
-        banner.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <span style="font-size: 1.6rem;">🌐</span>
-            <div>
-              <div style="font-weight: 800; font-size: 1.05rem; letter-spacing: 0.3px;">Visão Consolidada Corporativa (Todas as OSs)</div>
-              <div style="font-size: 0.82rem; color: #bfdbfe;">Visualizando consolidação global (${allOSList.length} OSs disponíveis). Alterne a OS abaixo para consultar ou cadastrar comentários individuais:</div>
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <label style="font-size: 0.85rem; font-weight: 700; color: #e2e8f0;">Selecionar OS para Comentários:</label>
-            <select id="multiOsGlobalSelect" onchange="changeActiveMultiOS(this.value)" style="padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 0.86rem; border: 1.5px solid #93c5fd; background: #ffffff; color: #0f172a; cursor: pointer; outline: none;">
-              ${allOSList.map(os => `<option value="${os}" ${os === activeOS ? 'selected' : ''}>${os}</option>`).join("")}
-            </select>
-          </div>
-        `;
-        container.appendChild(banner);
+      if (finalLock) {
+        finalLock.innerHTML = isMaster ? "✍️ Modo Edição Máster" : "🔒 Exclusivo Máster";
+        finalLock.className = isMaster ? "status-pill status-reaberto" : "status-pill status-validado";
       }
 
       topicsData.forEach(topic => {
@@ -1107,7 +1093,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         let savedGestor = safeGetStorage(`g_${activeOS}_m${monthNum}_${topic.id}`, excelGestor);
         let savedMaster = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, excelMaster);
 
-        // ALWAYS DEFAULT TO "Pendente" SO FIELDS ARE FULLY EDITABLE FOR ALL USERS
+        // Validation status
         let defaultStatus = "Pendente";
         const valStatus = safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, defaultStatus);
         
@@ -1138,24 +1124,36 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           </table>
         `;
 
-        let statusPillHTML = "";
+        // Gestor Header Status Pill
+        let gestorStatusPill = "";
         if (valStatus === "Validado") {
-          statusPillHTML = `<span class="status-pill status-validado">🔒 Validado & Travado</span>`;
+          gestorStatusPill = `<span class="status-pill status-validado">🔒 Validado & Travado</span>`;
         } else if (valStatus === "Reaberto") {
-          statusPillHTML = `<span class="status-pill status-reaberto">🔄 Reaberto p/ Ajuste</span>`;
+          gestorStatusPill = `<span class="status-pill status-reaberto">🔄 Reaberto p/ Ajuste</span>`;
         } else {
-          statusPillHTML = `<span class="status-pill status-pendente">⏳ Pendente de Validação</span>`;
+          gestorStatusPill = `<span class="status-pill status-pendente">⏳ Pendente de Validação</span>`;
         }
 
+        // Master Header Status Pill
+        let masterStatusPill = "";
+        if (isMaster) {
+          masterStatusPill = valStatus === "Validado" ? 
+            `<span class="status-pill status-validado">🔒 Homologado</span>` : 
+            `<span class="status-pill status-reaberto">✍️ Aberto para Edição</span>`;
+        } else {
+          masterStatusPill = `<span class="status-pill status-validado" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc;">🔒 Exclusivo Performance</span>`;
+        }
+
+        // Master Controls Bar (Only visible when logged in as Master / Performance)
         let masterControlsHTML = "";
         if (isMaster) {
           masterControlsHTML = `
             <div class="validation-control-bar" style="margin-top: 8px;">
               ${valStatus !== "Validado" ? 
-                `<button class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.85rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 3px 10px rgba(22,163,74,0.3);">
+                `<button class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:7px 12px; font-weight:700; font-size:0.82rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
                   🔒 VALIDAR E TRAVAR COMENTÁRIO DO GESTOR
                  </button>` : 
-                `<button class="val-btn btn-unlock" onclick="setValidationStatus(${topic.id}, 'Reaberto')" style="background:#d97706; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.85rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 3px 10px rgba(217,119,6,0.3);">
+                `<button class="val-btn btn-unlock" onclick="setValidationStatus(${topic.id}, 'Reaberto')" style="background:#d97706; color:#ffffff; padding:7px 12px; font-weight:700; font-size:0.82rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(217,119,6,0.25);">
                   🔓 REABRIR EDIÇÃO PARA O GESTOR
                  </button>`
               }
@@ -1173,9 +1171,11 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
                   ${assertividadeOverridden ? '🟢 Assertivo (Ajuste Manual / Override Máster)' : '🔴 Não Assertivo (Apuração Automática)'}
                 </span>
               </div>
-              <button class="override-btn" onclick="toggleAssertiveness()" ${!isMaster ? 'disabled' : ''}>
-                ${assertividadeOverridden ? 'Reverter para Automático' : '🛡️ Alterar para Assertivo (Override Master)'}
-              </button>
+              ${isMaster ? `
+                <button class="override-btn" onclick="toggleAssertiveness()">
+                  ${assertividadeOverridden ? 'Reverter para Automático' : '🛡️ Alterar para Assertivo (Override Master)'}
+                </button>
+              ` : ''}
             </div>
           `;
         }
@@ -1192,32 +1192,32 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
               </div>
             </div>
             <button id="btn_hist_${topic.id}" class="timeline-btn" onclick="toggleInlineHistory(${topic.id})">
-              📜 Histórico ATA_COMENTARIO (${activeOS})
+              📜 Histórico ATA_COMENTARIO
             </button>
           </div>
 
           <div class="comment-col">
             <div class="comment-col-title title-gestor">
-              <span>📝 Justificativa do Gestor (${activeOS} - ${monthFmt.split('/')[0].trim()})</span>
-              <span class="status-pill status-pendente">⏳ Pendente de Validação</span>
+              <span>📝 Justificativa do Gestor (${displayOSName} - ${monthFmt.split('/')[0].trim()})</span>
+              ${gestorStatusPill}
             </div>
-            <textarea id="g_${topic.id}" class="comment-input" placeholder="Digite a justificativa do gestor da OS...">${savedGestor}</textarea>
+            <textarea id="g_${topic.id}" class="comment-input" 
+              placeholder="Digite a justificativa do gestor da OS..." 
+              ${gestorIsLocked ? 'disabled style="background:#f8fafc; color:#64748b; cursor:not-allowed;"' : ''}>${savedGestor}</textarea>
           </div>
 
           <div class="comment-col">
             <div class="comment-col-title title-master">
-              <span>🛡️ Comentário / Validação Performance (${activeOS} - ${monthFmt.split('/')[0].trim()})</span>
-              <span class="status-pill status-reaberto">✍️ Aberto para Edição</span>
+              <span>🛡️ Comentário / Validação Performance (${displayOSName} - ${monthFmt.split('/')[0].trim()})</span>
+              ${masterStatusPill}
             </div>
-            <textarea id="m_${topic.id}" class="comment-input" placeholder="Digite as observações e validação do setor de Performance...">${savedMaster}</textarea>
-            <div class="validation-control-bar" style="margin-top: 6px;">
-              <button class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:6px 12px; font-weight:700; font-size:0.80rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
-                🔒 Marcar como Validado
-              </button>
-            </div>
+            <textarea id="m_${topic.id}" class="comment-input" 
+              placeholder="${isMaster ? 'Digite as observações e validação do setor de Performance...' : '🔒 Campo exclusivo para validação e comentários do Setor de Performance'}" 
+              ${!isMaster ? 'disabled style="background:#f8fafc; color:#64748b; cursor:not-allowed;"' : ''}>${savedMaster}</textarea>
+            ${masterControlsHTML}
           </div>
 
-          <div id="drawer_${topic.id}" class="history-drawer"></div>
+          <div id="inline_history_${topic.id}" class="inline-history-drawer" style="display: none; grid-column: 1 / -1; margin-top: 12px; background-color: #f1f5f9; border: 2px solid #162b58; border-radius: 10px; padding: 14px 16px; box-shadow: inset 0 2px 6px rgba(11,26,58,0.1);"></div>
           ${assertiveBarHTML}
         `;
 
@@ -1225,11 +1225,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       });
     }
 
-    function changeActiveMultiOS(newOS) {
-      safeSetStorage("active_multi_os", newOS);
-      renderRows();
-    }
-function renderAnnualConsolidation() {
+    function renderAnnualConsolidation() {
       const container = document.getElementById("annualGridContainer");
       container.innerHTML = "";
 
