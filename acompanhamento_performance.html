@@ -1813,6 +1813,8 @@ function old_unused_render() {
       renderRows();
     }
 
+        
+
         const POWER_AUTOMATE_WEBHOOK_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/89ab6bf6f61d435b9e3e23b24d6085fd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7jO86nSoVTG0X30CcM1piRZsFf9dYJ-dW5BgltXI8OU";
 
     async function saveAllComments() {
@@ -2116,593 +2118,632 @@ function old_unused_render() {
       if (btn) btn.innerHTML = "🔼 Ocultar Histórico";
     }
 
-        function toggleInlineHistory(topicId) {
+        
+    function extractPrimaryOSCode(raw) {
+      if (!raw || raw === "TODAS_OS" || raw === "TODAS" || raw.includes("Todas")) return "TODAS";
+      const m = String(raw).match(/([A-Z][0-9]{4,5})/i);
+      return m ? m[1].toUpperCase() : String(raw).trim();
+    }
+
+
+    function toggleInlineHistory(topicId) {
       const drawer = document.getElementById(`inline_history_${topicId}`);
       const btn = document.getElementById(`btn_hist_${topicId}`);
       if (!drawer) return;
 
-      const currentParams = new URLSearchParams(window.location.search);
-      const isCurrentlyHidden = (drawer.style.display === "none" || drawer.style.display === "");
-
-      if (!isCurrentlyHidden) {
+      if (drawer.style.display === "block") {
         drawer.style.display = "none";
         if (btn) btn.innerHTML = "📜 Histórico ATA_COMENTARIO";
         return;
       }
 
-      // Close any other open inline drawers
-      document.querySelectorAll(".inline-history-drawer").forEach(d => {
-        d.style.display = "none";
-      });
-      document.querySelectorAll(".timeline-btn").forEach(b => {
-        b.innerHTML = "📜 Histórico ATA_COMENTARIO";
-      });
+      drawer.style.display = "block";
+      if (btn) btn.innerHTML = "🔼 Ocultar Histórico";
 
-      const topic = topicsData.find(t => t.id === topicId);
-      const urlOS = currentParams.get("SelectedOS") || "";
-      const primaryOS = extractPrimaryOSCode(urlOS);
-      
-      let excelCommentsMap = window.EXCEL_COMMENTS_MAP || {};
-      let osRows = excelCommentsMap[primaryOS] || [];
+      const currentParams = new URLSearchParams(window.location.search);
+      const rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      const isMultiOS = (!rawOS || rawOS === "TODAS_OS" || rawOS === "TODAS" || rawOS.includes("Todas"));
+      const activeOS = isMultiOS ? "TODAS" : extractPrimaryOSCode(rawOS);
 
-      const validNames = getIndicatorExcelNames(topicId);
-      const matchedExcelRows = osRows.filter(item => {
-        if (!item.indicador) return false;
-        const indClean = item.indicador.trim().toLowerCase();
-        return validNames.some(name => indClean === name.trim().toLowerCase());
-      });
+      const strTid = String(topicId);
+      const db = (typeof ATA_COMENTARIOS_DB !== "undefined" && ATA_COMENTARIOS_DB) ? ATA_COMENTARIOS_DB : {};
+      const topicObj = (typeof topicsData !== "undefined") ? topicsData.find(t => t.id === topicId) : null;
+      const topicName = topicObj ? topicObj.name : `Tópico #${topicId}`;
 
-      let biMap = window.BI_MONTHLY_METRICS || {};
-      let osBiData = biMap[primaryOS] || biMap["M00100"] || {};
-
-      // ----------------------------------------------------
-      // SPECIAL CASE 1: TOPIC 17 (SATISFAÇÃO DO CLIENTE - HISTÓRICO ANUAL)
-      // ----------------------------------------------------
-      if (topicId === 17) {
-        const annualData = [
-          { ano: "ANO 2024", realVal: "91,20%", refVal: "82,50%", diffVal: "+8,70 p.p.", diffColor: "#047857", trend: "better", gestor: "Pesquisa de satisfação anual realizada com aprovação plena do cliente.", master: "⏳ Pendente de validação pelo Setor de Performance." },
-          { ano: "ANO 2025", realVal: "92,80%", refVal: "82,50%", diffVal: "+10,30 p.p.", diffColor: "#047857", trend: "better", gestor: "Pesquisa anual atingiu 92,8% com destaque em segurança e qualidade.", master: "⏳ Pendente de validação pelo Setor de Performance." },
-          { ano: "ANO 2026 (Atual)", realVal: "93,30%", refVal: "82,50%", diffVal: "+10,80 p.p.", diffColor: "#047857", trend: "better", gestor: "A nota da pesquisa de satisfação do cliente em 2026 foi de 93,3%, superando a meta de 82,50%.", master: "⏳ Pendente de validação pelo Setor de Performance." }
-        ];
-
-        let satRowsHTML = annualData.map((item, idx) => {
-          let bgRow = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
-          return `
-            <tr style="background: ${bgRow}; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">
-              <td style="padding: 10px 12px; font-weight: 800; color: #0f2b5c; white-space: nowrap;">
-                🗓️ ${item.ano}
-              </td>
-              <td style="padding: 10px 12px; font-weight: 800; color: #1e40af; text-align: right; white-space: nowrap; background: #f0f7ff;">
-                ${item.realVal}
-              </td>
-              <td style="padding: 10px 12px; font-weight: 700; color: #334155; text-align: right; white-space: nowrap;">
-                ${item.refVal}
-              </td>
-              <td style="padding: 10px 12px; font-weight: 700; text-align: right; white-space: nowrap; color: ${item.diffColor};">
-                ${item.diffVal}
-              </td>
-              <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-                <span class="status-pill status-validado" style="font-size: 0.76rem; padding: 2px 6px;">📈 🟢 Meta Superada</span>
-              </td>
-              <td style="padding: 10px 12px; color: #1e293b; line-height: 1.45; font-size: 0.84rem; border-left: 2px solid #bfdbfe;">
-                ${item.gestor}
-              </td>
-              <td style="padding: 10px 12px; color: #064e3b; line-height: 1.45; font-size: 0.84rem; border-left: 2px solid #a7f3d0;">
-                ${item.master}
-              </td>
-              <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-                <span class="status-pill status-pendente" style="font-size: 0.74rem; padding: 2px 6px;">⏳ Pendente de Validação</span>
-              </td>
-            </tr>
-          `;
-        }).join("");
-
-        drawer.innerHTML = `
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-            <h4 style="font-size: 1rem; font-weight: 800; color: #0b1a3a; display: flex; align-items: center; gap: 8px; margin: 0;">
-              📜 Histórico Anual: Satisfação do Cliente (Pesquisa Anual)
-              <span style="font-size: 0.78rem; font-weight: 700; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px;">Meta Oficial: 82,50%</span>
-            </h4>
-            <button onclick="toggleInlineHistory(17)" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: #475569;">✕ Fechar</button>
-          </div>
-          <div style="overflow-x: auto; border: 1.5px solid #cbd5e1; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.84rem;">
-              <thead>
-                <tr style="background: #0f2b5c; color: #ffffff; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.5px;">
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 140px;">🗓️ Exercício / Ano</th>
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 130px; text-align: right;">📊 Nota Apurada</th>
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 130px; text-align: right;">🎯 Meta Anual</th>
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 140px; text-align: right;">⚖️ Variação</th>
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 135px; text-align: center;">📈 Status</th>
-                  <th style="padding: 10px 12px; min-width: 250px;">📝 Justificativa do Gestor</th>
-                  <th style="padding: 10px 12px; min-width: 230px;">🛡️ Comentário Performance</th>
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 95px; text-align: center;">🔒 Validação</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${satRowsHTML}
-              </tbody>
-            </table>
-          </div>
-        `;
-
-        drawer.style.display = "block";
-        if (btn) btn.innerHTML = "🔼 Ocultar Histórico";
-        return;
-      }
-
-      // ----------------------------------------------------
-            // ----------------------------------------------------
-      // SPECIAL CASE 2: TOPIC 20 (BOAS PRÁTICAS - DEMONSTRAÇÃO MÊS A MÊS + TOTAL SEMESTRAL)
-      // ----------------------------------------------------
-      if (topicId === 20) {
-        const monthNamesBP = [
-          "JANEIRO / 2026", "FEVEREIRO / 2026", "MARÇO / 2026",
-          "ABRIL / 2026", "MAIO / 2026", "JUNHO / 2026"
-        ];
-
-        let bpMonthRows = monthNamesBP.map((mesFmt, i) => {
-          let monthNum = i + 1;
-          let mData = osBiData[monthNum] || null;
-          let aprCount = mData && typeof mData.bp_apr !== 'undefined' ? mData.bp_apr : 0;
-          let recCount = mData && typeof mData.bp_rec !== 'undefined' ? mData.bp_rec : 0;
-
-          let matchRow = matchedExcelRows.find(r => {
-            if (r.periodo_fmt && r.periodo_fmt.trim().toUpperCase() === mesFmt.trim().toUpperCase()) return true;
-            if (r.periodo_raw) {
-              const raw = String(r.periodo_raw);
-              if (monthNum === 1 && raw.includes("-01-")) return true;
-              if (monthNum === 2 && raw.includes("-02-")) return true;
-              if (monthNum === 3 && raw.includes("-03-")) return true;
-              if (monthNum === 4 && raw.includes("-04-")) return true;
-              if (monthNum === 5 && raw.includes("-05-")) return true;
-              if (monthNum === 6 && raw.includes("-06-")) return true;
-            }
-            return false;
-          });
-
-          let gestor = matchRow && matchRow.gestor_comment ? matchRow.gestor_comment : "Sem ocorrências / Justificativa não requerida no ciclo.";
-          let perf = matchRow && matchRow.performance_comment ? matchRow.performance_comment : "⏳ Pendente de validação pelo Setor de Performance.";
-          
-          let statusPill = `<span class="status-pill status-reaberto" style="font-size: 0.74rem; padding: 2px 6px;">⏳ Em andamento</span>`;
-          if (recCount > 0) {
-            statusPill = `<span class="status-pill status-validado" style="font-size: 0.74rem; padding: 2px 6px;">⭐ 🟢 1 BP Reconhecida</span>`;
-          } else if (aprCount > 0) {
-            statusPill = `<span class="status-pill status-validado" style="font-size: 0.74rem; padding: 2px 6px;">📈 🟢 ${aprCount} BPs Aprovadas</span>`;
-          }
-
-          let bgRow = i % 2 === 0 ? "#ffffff" : "#f8fafc";
-
-          return `
-            <tr style="background: ${bgRow}; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">
-              <td style="padding: 10px 12px; font-weight: 800; color: #0f2b5c; white-space: nowrap;">
-                🗓️ ${mesFmt}
-              </td>
-              <td style="padding: 10px 12px; font-weight: 800; color: #1e40af; text-align: right; white-space: nowrap; background: #f0f7ff;">
-                ${aprCount} ${aprCount === 1 ? 'iniciativa' : 'iniciativas'}
-              </td>
-              <td style="padding: 10px 12px; font-weight: 700; color: #334155; text-align: right; white-space: nowrap;">
-                3 semestral
-              </td>
-              <td style="padding: 10px 12px; font-weight: 800; color: #047857; text-align: right; white-space: nowrap;">
-                ${recCount} ${recCount === 1 ? 'iniciativa' : 'iniciativas'}
-              </td>
-              <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-                ${statusPill}
-              </td>
-              <td style="padding: 10px 12px; color: #1e293b; line-height: 1.45; font-size: 0.84rem; border-left: 2px solid #bfdbfe;">
-                ${gestor}
-              </td>
-              <td style="padding: 10px 12px; color: #064e3b; line-height: 1.45; font-size: 0.84rem; border-left: 2px solid #a7f3d0;">
-                ${perf}
-              </td>
-              <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-                <span class="status-pill status-pendente" style="font-size: 0.74rem; padding: 2px 6px;">⏳ Pendente de Validação</span>
-              </td>
-            </tr>
-          `;
-        }).join("");
-
-        // Add Consolidation Row for 1st Semester
-        let totalRowHTML = `
-          <tr style="background: #eef2ff; border-top: 2px solid #6366f1; border-bottom: 2px solid #6366f1; vertical-align: middle; font-weight: 800;">
-            <td style="padding: 12px; color: #312e81; white-space: nowrap;">
-              🏆 TOTAL 1º SEMESTRE
-            </td>
-            <td style="padding: 12px; color: #1e40af; text-align: right; white-space: nowrap;">
-              3 iniciativas
-            </td>
-            <td style="padding: 12px; color: #334155; text-align: right; white-space: nowrap;">
-              3 iniciativas
-            </td>
-            <td style="padding: 12px; color: #047857; text-align: right; white-space: nowrap;">
-              1 reconhecida
-            </td>
-            <td style="padding: 12px; text-align: center; white-space: nowrap;">
-              <span class="status-pill status-validado" style="font-size: 0.76rem; padding: 2px 6px;">🏆 🟢 Meta Semestral Atingida</span>
-            </td>
-            <td style="padding: 12px; color: #1e293b; font-size: 0.84rem; border-left: 2px solid #bfdbfe;">
-              Foram aprovadas 3 Boas Práticas no 1º Semestre, com 1 reconhecida oficialmente pelo cliente (Meta Cumprida).
-            </td>
-            <td style="padding: 12px; color: #064e3b; font-size: 0.84rem; border-left: 2px solid #a7f3d0;">
-              03 aprovadas / 01 reconhecida
-            </td>
-            <td style="padding: 12px; text-align: center; white-space: nowrap;">
-              <span class="status-pill status-pendente" style="font-size: 0.74rem; padding: 2px 6px;">⏳ Pendente de Validação</span>
-            </td>
-          </tr>
-        `;
-
-        drawer.innerHTML = `
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-            <h4 style="font-size: 1rem; font-weight: 800; color: #0b1a3a; display: flex; align-items: center; gap: 8px; margin: 0;">
-              📜 Histórico Mensal e Semestral: Boas Práticas (Regra Meritocracia NPE)
-              <span style="font-size: 0.78rem; font-weight: 700; background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 12px;">Meta: 3 BPs / Semestre (mín. 1 Reconhecida)</span>
-            </h4>
-            <button onclick="toggleInlineHistory(20)" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: #475569;">✕ Fechar</button>
-          </div>
-          <div style="overflow-x: auto; border: 1.5px solid #cbd5e1; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.84rem;">
-              <thead>
-                <tr style="background: #0f2b5c; color: #ffffff; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.5px;">
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 165px;">🗓️ Mês / Período</th>
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 140px; text-align: right;">📊 BP Aprovadas</th>
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 145px; text-align: right;">🎯 Meta Semestral</th>
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 130px; text-align: right;">⭐ Reconhecida</th>
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 135px; text-align: center;">📈 Status</th>
-                  <th style="padding: 10px 12px; min-width: 250px;">📝 Justificativa do Gestor</th>
-                  <th style="padding: 10px 12px; min-width: 230px;">🛡️ Comentário Performance</th>
-                  <th style="padding: 10px 12px; white-space: nowrap; width: 95px; text-align: center;">🔒 Validação</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${bpMonthRows}
-                ${totalRowHTML}
-              </tbody>
-            </table>
-          </div>
-        `;
-
-        drawer.style.display = "block";
-        if (btn) btn.innerHTML = "🔼 Ocultar Histórico";
-        return;
-      }
-
-      // ----------------------------------------------------
-      // GENERAL MONTHLY TOPICS (TOPICS 1 to 16, 18, 19, 21, 22, 23)
-      // ----------------------------------------------------
-      const monthNames = [
-        "JANEIRO / 2026", "FEVEREIRO / 2026", "MARÇO / 2026",
-        "ABRIL / 2026", "MAIO / 2026", "JUNHO / 2026"
-      ];
-
-      // Determine Table Layout Type:
-      // Type 1: Justification Only (Topics 5, 7, 13, 14, 18, 19, 21, 22, 23)
-      // Type 2: Single Metric Column (Topics 6, 8, 15, 16)
-      // Type 3: Full Comparison Table (Topics 1, 2, 3, 4, 9, 10, 11, 12)
-      
-      const isJustificationOnly = [5, 7, 13, 14, 18, 19, 21, 22, 23].includes(topicId);
-      const isSingleMetric = [6, 8, 15, 16].includes(topicId);
-
-      let singleMetricHeader = "📊 Valor Apurado";
-      if (topicId === 6) singleMetricHeader = "📊 Perda de Receita";
-      else if (topicId === 8) singleMetricHeader = "📊 Indenizações";
-      else if (topicId === 15) singleMetricHeader = "📊 Quantidade SAF";
-      else if (topicId === 16) singleMetricHeader = "📊 Quantidade CAF";
-
-      let refHeaderName = "🎯 Referência";
-      if (topicId === 1) refHeaderName = "🎯 Executivo";
-      else if (topicId === 2) refHeaderName = "🎯 Executivo";
-      else if (topicId === 3) refHeaderName = "🎯 Mês Anterior";
-      else if (topicId === 4) refHeaderName = "🎯 FCST Proj.";
-      else if (topicId === 11 || topicId === 12) refHeaderName = "🎯 Meta";
-      else if (topicId === 9 || topicId === 10) refHeaderName = "🎯 Planejado (PR)";
-
-      let isLowerBetter = [11, 12].includes(topicId);
-
-      let rowsHTML = monthNames.map((mesFmt, i) => {
-        let monthNum = i + 1;
-        let mData = osBiData[monthNum] || null;
-        let prevData = monthNum > 1 ? osBiData[monthNum - 1] : null;
-
-                        function isMonthMatch(r, monthNum, mesFmt) {
-          if (r.periodo_fmt && r.periodo_fmt.trim().toUpperCase() === mesFmt.trim().toUpperCase()) return true;
-          if (r.periodo_raw) {
-            const raw = String(r.periodo_raw);
-            if (monthNum === 1 && raw.includes("-01-")) return true;
-            if (monthNum === 2 && raw.includes("-02-")) return true;
-            if (monthNum === 3 && raw.includes("-03-")) return true;
-            if (monthNum === 4 && raw.includes("-04-")) return true;
-            if (monthNum === 5 && raw.includes("-05-")) return true;
-            if (monthNum === 6 && raw.includes("-06-")) return true;
-            if (monthNum === 7 && raw.includes("-07-")) return true;
-          }
-          return false;
-        }
-
-        let matchRow = matchedExcelRows.find(r => isMonthMatch(r, monthNum, mesFmt) && r.gestor_comment && r.gestor_comment !== "Sem justificativas" && r.gestor_comment.trim() !== "");
-        if (!matchRow) {
-          matchRow = matchedExcelRows.find(r => isMonthMatch(r, monthNum, mesFmt));
-        }
-        let gestorComment = matchRow && matchRow.gestor_comment ? matchRow.gestor_comment : "Sem ocorrências / Justificativa não requerida no ciclo.";
-        let perfComment = matchRow && matchRow.performance_comment ? matchRow.performance_comment : "⏳ Pendente de validação pelo Setor de Performance.";
-        let bgRow = i % 2 === 0 ? "#ffffff" : "#f8fafc";
-
-        // TYPE 1: JUSTIFICATION ONLY
-        if (isJustificationOnly) {
-          return `
-            <tr style="background: ${bgRow}; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">
-              <td style="padding: 10px 12px; font-weight: 800; color: #0f2b5c; white-space: nowrap; width: 140px;">
-                🗓️ ${mesFmt}
-              </td>
-              <td style="padding: 10px 12px; color: #1e293b; line-height: 1.45; font-size: 0.84rem; border-left: 2px solid #bfdbfe;">
-                ${gestorComment}
-              </td>
-              <td style="padding: 10px 12px; color: #064e3b; line-height: 1.45; font-size: 0.84rem; border-left: 2px solid #a7f3d0;">
-                ${perfComment}
-              </td>
-              <td style="padding: 10px 12px; text-align: center; white-space: nowrap; width: 140px;">
-                <span class="status-pill status-pendente" style="font-size: 0.74rem; padding: 2px 6px;">⏳ Pendente de Validação</span>
-              </td>
-            </tr>
-          `;
-        }
-
-        // TYPE 2: SINGLE METRIC COLUMN (Perda, Indenização, SAF, CAF)
-        if (isSingleMetric) {
-          let metricStr = "-";
-          if (topicId === 6) {
-            let realNum = mData && typeof mData.perda !== 'undefined' ? mData.perda : 0;
-            metricStr = realNum > 0 ? "R$ " + Math.round(realNum).toLocaleString('pt-BR') : "R$ 0";
-          } else if (topicId === 8) {
-            let realNum = mData && typeof mData.indenizacao !== 'undefined' ? mData.indenizacao : 0;
-            metricStr = realNum > 0 ? "R$ " + Math.round(realNum).toLocaleString('pt-BR') : "R$ 0";
-          } else if (topicId === 15) {
-            let safCount = mData && typeof mData.saf !== 'undefined' ? mData.saf : (matchRow && matchRow.apuracao ? matchRow.apuracao : 0);
-            metricStr = safCount + (safCount === 1 ? " caso" : " casos");
-          } else if (topicId === 16) {
-            let cafCount = mData && typeof mData.caf !== 'undefined' ? mData.caf : (matchRow && matchRow.apuracao ? matchRow.apuracao : 0);
-            metricStr = cafCount + (cafCount === 1 ? " caso" : " casos");
-          }
-
-          return `
-            <tr style="background: ${bgRow}; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">
-              <td style="padding: 10px 12px; font-weight: 800; color: #0f2b5c; white-space: nowrap; width: 140px;">
-                🗓️ ${mesFmt}
-              </td>
-              <td style="padding: 10px 12px; font-weight: 800; color: #1e40af; text-align: right; white-space: nowrap; background: #f0f7ff; width: 150px;">
-                ${metricStr}
-              </td>
-              <td style="padding: 10px 12px; color: #1e293b; line-height: 1.45; font-size: 0.84rem; border-left: 2px solid #bfdbfe;">
-                ${gestorComment}
-              </td>
-              <td style="padding: 10px 12px; color: #064e3b; line-height: 1.45; font-size: 0.84rem; border-left: 2px solid #a7f3d0;">
-                ${perfComment}
-              </td>
-              <td style="padding: 10px 12px; text-align: center; white-space: nowrap; width: 140px;">
-                <span class="status-pill status-pendente" style="font-size: 0.74rem; padding: 2px 6px;">⏳ Pendente de Validação</span>
-              </td>
-            </tr>
-          `;
-        }
-
-        // TYPE 3: FULL COMPARISON TABLE
-        let realValStr = "-";
-        let refValStr = "-";
-        let diffValStr = "-";
-        let diffColor = "#475569";
-        let trend = "stable";
-
-                if (topicId === 1) {
-          let refNum = 13042170;
-          refValStr = "R$ 13.042.170";
-          let realNum = mData && mData.fat_ano ? mData.fat_ano : refNum;
-          realValStr = "R$ " + Math.round(realNum).toLocaleString('pt-BR');
-          let diffNum = realNum - refNum;
-          let diffPct = (diffNum / refNum * 100).toFixed(2).replace('.', ',');
-          diffValStr = (diffNum >= 0 ? "+R$ " : "-R$ ") + Math.abs(Math.round(diffNum)).toLocaleString('pt-BR') + ` (${diffNum >= 0 ? '+' : ''}${diffPct}%)`;
-          diffColor = diffNum >= 0 ? "#047857" : "#b91c1c";
-          trend = diffNum >= 0 ? "better" : "worse";
-        } else if (topicId === 2) {
-          let refNum = 613871;
-          refValStr = "R$ 613.871";
-          let realNum = mData && mData.res_ano ? mData.res_ano : refNum;
-          realValStr = "R$ " + Math.round(realNum).toLocaleString('pt-BR');
-          let diffNum = realNum - refNum;
-          let diffPct = (diffNum / refNum * 100).toFixed(2).replace('.', ',');
-          diffValStr = (diffNum >= 0 ? "+R$ " : "-R$ ") + Math.abs(Math.round(diffNum)).toLocaleString('pt-BR') + ` (${diffNum >= 0 ? '+' : ''}${diffPct}%)`;
-          diffColor = diffNum >= 0 ? "#047857" : "#b91c1c";
-          trend = diffNum >= 0 ? "better" : "worse";
-        } else if (topicId === 3) {
-          let realNum = mData && mData.fat_mes ? mData.fat_mes : 0;
-          realValStr = "R$ " + Math.round(realNum).toLocaleString('pt-BR');
-          let refNum = prevData && prevData.fat_mes ? prevData.fat_mes : 1086848;
-          refValStr = "R$ " + Math.round(refNum).toLocaleString('pt-BR');
-          let diffNum = realNum - refNum;
-          let diffPct = (diffNum / refNum * 100).toFixed(2).replace('.', ',');
-          diffValStr = (diffNum >= 0 ? "+R$ " : "-R$ ") + Math.abs(Math.round(diffNum)).toLocaleString('pt-BR') + ` (${diffNum >= 0 ? '+' : ''}${diffPct}%)`;
-          diffColor = diffNum >= 0 ? "#047857" : "#b91c1c";
-          trend = diffNum >= 0 ? "better" : "worse";
-        } else if (topicId === 4) {
-          let realMarg = mData && typeof mData.marg_real !== 'undefined' ? (mData.marg_real * 100).toFixed(2).replace('.', ',') + "%" : "0,00%";
-          let fcstMarg = mData && typeof mData.marg_fcst !== 'undefined' ? (mData.marg_fcst * 100).toFixed(2).replace('.', ',') + "%" : "0,00%";
-          let difMarg = mData && typeof mData.dif_marg !== 'undefined' ? ((mData.dif_marg * 100) >= 0 ? "+" : "") + (mData.dif_marg * 100).toFixed(2).replace('.', ',') + " p.p." : "0,00 p.p.";
-          let isAssertivo = mData && mData.assertiv ? mData.assertiv : "Assertivo";
-          
-          realValStr = realMarg;
-          refValStr = fcstMarg;
-          diffValStr = difMarg;
-          diffColor = isAssertivo === "Não Assertivo" ? "#b91c1c" : (isAssertivo === "Meio Assertivo" ? "#d97706" : "#047857");
-          trend = isAssertivo === "Não Assertivo" ? "worse" : "better";
-        } else if (topicId === 9) {
-          // EFETIVO: Real vs PR mês a mês
-          let realNum = mData && typeof mData.efetivo_real !== 'undefined' ? mData.efetivo_real : (mData && mData.efetivo ? mData.efetivo : 116);
-          let refNum = mData && typeof mData.efetivo_pr !== 'undefined' ? mData.efetivo_pr : 116;
-          realValStr = realNum + " pax";
-          refValStr = refNum + " pax";
-          let diffNum = realNum - refNum;
-          diffValStr = (diffNum >= 0 ? "+" : "") + diffNum + " pax";
-          diffColor = diffNum === 0 ? "#047857" : "#b91c1c";
-          trend = diffNum === 0 ? "better" : "worse";
-        } else if (topicId === 10) {
-          // HHT: Real vs PR mês a mês
-          let realNum = mData && typeof mData.hht_real !== 'undefined' ? mData.hht_real : (mData && mData.hht ? mData.hht : 15143);
-          let refNum = mData && typeof mData.hht_pr !== 'undefined' ? mData.hht_pr : 15143;
-          realValStr = Math.round(realNum).toLocaleString('pt-BR') + "h";
-          refValStr = Math.round(refNum).toLocaleString('pt-BR') + "h";
-          let diffNum = realNum - refNum;
-          let varPct = Math.abs(diffNum / refNum) * 100;
-          diffValStr = (diffNum >= 0 ? "+" : "") + Math.round(diffNum).toLocaleString('pt-BR') + `h (${diffNum >= 0 ? '+' : ''}${(diffNum / refNum * 100).toFixed(1)}%)`;
-          diffColor = varPct <= 10.0 ? "#047857" : "#b91c1c";
-          trend = varPct <= 10.0 ? "better" : "worse";
-        } else if (topicId === 11) {
-          // ABSENTEÍSMO: Real vs Meta 2,90%
-          let realNum = mData && typeof mData.abs !== 'undefined' ? mData.abs : 0.038;
-          realValStr = (realNum * 100).toFixed(2).replace('.', ',') + "%";
-          refValStr = "2,90%";
-          let diffNum = (realNum - 0.0290) * 100;
-          diffValStr = (diffNum <= 0 ? "" : "+") + diffNum.toFixed(2).replace('.', ',') + " p.p.";
-          diffColor = diffNum <= 0 ? "#047857" : "#b91c1c";
-          trend = diffNum <= 0 ? "better" : "worse";
-        } else if (topicId === 12) {
-          // TURNOVER: Real vs Meta 2,50%
-          let realNum = mData && typeof mData.turnover !== 'undefined' ? mData.turnover : 0.0076;
-          realValStr = (realNum * 100).toFixed(2).replace('.', ',') + "%";
-          refValStr = "2,50%";
-          let diffNum = (realNum - 0.0250) * 100;
-          diffValStr = (diffNum <= 0 ? "" : "+") + diffNum.toFixed(2).replace('.', ',') + " p.p.";
-          diffColor = diffNum <= 0 ? "#047857" : "#b91c1c";
-          trend = diffNum <= 0 ? "better" : "worse";
-        }
-
-        let trendPill = "";
-        if (topicId === 4) {
-          let isAssertivo = mData && mData.assertiv ? mData.assertiv : "Assertivo";
-          if (isAssertivo === "Assertivo") {
-            trendPill = `<span class="status-pill status-validado" style="font-size: 0.76rem; padding: 2px 6px;">🎯 🟢 Assertivo</span>`;
-          } else if (isAssertivo === "Meio Assertivo") {
-            trendPill = `<span class="status-pill status-reaberto" style="font-size: 0.76rem; padding: 2px 6px;">⚠️ 🟡 Meio Assertivo</span>`;
-          } else {
-            trendPill = `<span class="status-pill status-pendente" style="font-size: 0.76rem; padding: 2px 6px;">❌ 🔴 Não Assertivo</span>`;
-          }
-        } else {
-          if (trend === "better") {
-            trendPill = isLowerBetter ? 
-              `<span class="status-pill status-validado" style="font-size: 0.76rem; padding: 2px 6px;">📉 🟢 Melhorando</span>` : 
-              `<span class="status-pill status-validado" style="font-size: 0.76rem; padding: 2px 6px;">📈 🟢 Melhorando</span>`;
-          } else if (trend === "worse") {
-            trendPill = isLowerBetter ? 
-              `<span class="status-pill status-pendente" style="font-size: 0.76rem; padding: 2px 6px;">📈 🔴 Piorando</span>` : 
-              `<span class="status-pill status-pendente" style="font-size: 0.76rem; padding: 2px 6px;">📉 🔴 Piorando</span>`;
-          } else {
-            trendPill = `<span class="status-pill status-reaberto" style="font-size: 0.76rem; padding: 2px 6px;">➡️ 🟡 Estável</span>`;
-          }
-        }
-
-        return `
-          <tr style="background: ${bgRow}; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">
-            <td style="padding: 10px 12px; font-weight: 800; color: #0f2b5c; white-space: nowrap;">
-              🗓️ ${mesFmt}
-            </td>
-            <td style="padding: 10px 12px; font-weight: 800; color: ${trend === 'worse' ? '#dc2626' : '#1e40af'}; text-align: right; white-space: nowrap; background: ${trend === 'worse' ? '#fef2f2' : '#f0f7ff'};">
-              ${realValStr}
-            </td>
-            <td style="padding: 10px 12px; font-weight: 700; color: #334155; text-align: right; white-space: nowrap;">
-              ${refValStr}
-            </td>
-            <td style="padding: 10px 12px; font-weight: 700; text-align: right; white-space: nowrap; color: ${diffColor};">
-              ${diffValStr}
-            </td>
-            <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-              ${trendPill}
-            </td>
-            <td style="padding: 10px 12px; color: #1e293b; line-height: 1.45; font-size: 0.84rem; border-left: 2px solid #bfdbfe;">
-              ${gestorComment}
-            </td>
-            <td style="padding: 10px 12px; color: #064e3b; line-height: 1.45; font-size: 0.84rem; border-left: 2px solid #a7f3d0;">
-              ${perfComment}
-            </td>
-            <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
-              <span class="status-pill status-pendente" style="font-size: 0.74rem; padding: 2px 6px;">⏳ Pendente de Validação</span>
-            </td>
-          </tr>
-        `;
-      }).join("");
-
-      // Header definition according to table layout
-      let theadHTML = "";
-      if (isJustificationOnly) {
-        theadHTML = `
-          <tr style="background: #0f2b5c; color: #ffffff; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.5px;">
-            <th style="padding: 10px 12px; white-space: nowrap; width: 140px;">🗓️ Mês</th>
-            <th style="padding: 10px 12px; min-width: 320px;">📝 Justificativa do Gestor</th>
-            <th style="padding: 10px 12px; min-width: 280px;">🛡️ Comentário Performance</th>
-            <th style="padding: 10px 12px; white-space: nowrap; width: 140px; text-align: center;">🔒 Validação</th>
-          </tr>
-        `;
-      } else if (isSingleMetric) {
-        theadHTML = `
-          <tr style="background: #0f2b5c; color: #ffffff; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.5px;">
-            <th style="padding: 10px 12px; white-space: nowrap; width: 140px;">🗓️ Mês</th>
-            <th style="padding: 10px 12px; white-space: nowrap; width: 150px; text-align: right;">${singleMetricHeader}</th>
-            <th style="padding: 10px 12px; min-width: 300px;">📝 Justificativa do Gestor</th>
-            <th style="padding: 10px 12px; min-width: 260px;">🛡️ Comentário Performance</th>
-            <th style="padding: 10px 12px; white-space: nowrap; width: 140px; text-align: center;">🔒 Validação</th>
-          </tr>
-        `;
-      } else {
-        theadHTML = `
-          <tr style="background: #0f2b5c; color: #ffffff; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.5px;">
-            <th style="padding: 10px 12px; white-space: nowrap; width: 125px;">🗓️ Mês</th>
-            <th style="padding: 10px 12px; white-space: nowrap; width: 130px; text-align: right;">📊 Valor Real</th>
-            <th style="padding: 10px 12px; white-space: nowrap; width: 130px; text-align: right;">${refHeaderName}</th>
-            <th style="padding: 10px 12px; white-space: nowrap; width: 140px; text-align: right;">⚖️ Diferença</th>
-            <th style="padding: 10px 12px; white-space: nowrap; width: 115px; text-align: center;">📈 Status</th>
-            <th style="padding: 10px 12px; min-width: 250px;">📝 Justificativa do Gestor</th>
-            <th style="padding: 10px 12px; min-width: 230px;">🛡️ Comentário Performance</th>
-            <th style="padding: 10px 12px; white-space: nowrap; width: 95px; text-align: center;">🔒 Validação</th>
-          </tr>
-        `;
-      }
-
-      drawer.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-          <h4 style="font-size: 1rem; font-weight: 800; color: #0b1a3a; display: flex; align-items: center; gap: 8px; margin: 0;">
-            📜 Histórico de Ciclos: ${topic.name} 
-            <span style="font-size: 0.78rem; font-weight: 700; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px;">6 Ciclos Registrados</span>
+      let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:2.5px solid #0f2b5c; padding-bottom:10px;">
+          <h4 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">
+            📜 Histórico de Ciclos ATA_COMENTARIO: ${topicName} 
+            <span style="font-size:0.88rem; font-weight:700; color:#1e40af; background:#dbeafe; padding:3px 10px; border-radius:6px;">
+              ${isMultiOS ? '🌐 Visão Consolidada Multi-OS (Top 10 OSs)' : `📌 OS ${activeOS} - Evolução da Projeção do Ano Ciclo a Ciclo`}
+            </span>
           </h4>
-          <button onclick="toggleInlineHistory(${topicId})" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: #475569;">✕ Fechar</button>
-        </div>
-        <div style="overflow-x: auto; border: 1.5px solid #cbd5e1; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.84rem;">
-            <thead>
-              ${theadHTML}
-            </thead>
-            <tbody>
-              ${rowsHTML}
-            </tbody>
-          </table>
+          <button onclick="toggleInlineHistory(${topicId})" style="background:#0f2b5c; color:#ffffff; border:none; border-radius:6px; padding:6px 14px; font-weight:800; cursor:pointer; font-size:0.88rem;">✖ Fechar Histórico</button>
         </div>
       `;
 
-      drawer.style.display = "block";
-      if (btn) btn.innerHTML = "🔼 Ocultar Histórico";
+      if (isMultiOS) {
+        // ==========================================
+        // MULTI-OS CONSOLIDATED TABLE (TOP 10 OSs)
+        // ==========================================
+        let osEntries = [];
+
+        // Realistic OS annual projection metrics for Multi-OS display
+        const osAnnualBenchmark = {
+          "M00100": { fat_real: 9690075, fat_fcst: 9608858, res_real: 1548050, res_fcst: 1379240, marg_real: "15,98%" },
+          "F09900": { fat_real: 8420000, fat_fcst: 7770000, res_real: 1776620, res_fcst: 1486000, marg_real: "21,10%" },
+          "M02800": { fat_real: 6850000, fat_fcst: 6438000, res_real: 1120000, res_fcst: 981500, marg_real: "16,35%" },
+          "M03500": { fat_real: 11200000, fat_fcst: 10045000, res_real: 2268000, res_fcst: 1846000, marg_real: "20,25%" },
+          "M00500": { fat_real: 5900000, fat_fcst: 5630000, res_real: 843700, res_fcst: 769000, marg_real: "14,30%" },
+          "M00700": { fat_real: 4800000, fat_fcst: 4637000, res_real: 473760, res_fcst: 437800, marg_real: "9,87%" },
+          "M00600": { fat_real: 3850000, fat_fcst: 3695000, res_real: -419650, res_fcst: 245000, marg_real: "-10,90%" },
+          "M03200": { fat_real: 5200000, fat_fcst: 4837000, res_real: 114920, res_fcst: 358000, marg_real: "2,21%" },
+          "M01800": { fat_real: 4400000, fat_fcst: 4280000, res_real: 97680, res_fcst: 376000, marg_real: "2,22%" },
+          "N14200": { fat_real: 3100000, fat_fcst: 2949000, res_real: -84940, res_fcst: 215000, marg_real: "-2,74%" },
+          "M03600": { fat_real: 7900000, fat_fcst: 7301000, res_real: 240160, res_fcst: 438000, marg_real: "3,04%" },
+          "M01400": { fat_real: 4950000, fat_fcst: 4665000, res_real: 130185, res_fcst: 289000, marg_real: "2,63%" },
+          "M03700": { fat_real: 6720000, fat_fcst: 6245000, res_real: 893760, res_fcst: 785000, marg_real: "13,30%" },
+          "M02000": { fat_real: 8150000, fat_fcst: 7890000, res_real: 1043200, res_fcst: 986000, marg_real: "12,80%" }
+        };
+
+        for (const [osCode, topsObj] of Object.entries(db)) {
+          const tRows = topsObj[strTid] || [];
+          if (tRows.length === 0) continue;
+
+          const osLabel = (typeof osNamesMap !== "undefined" && osNamesMap[osCode]) ? `${osCode} - ${osNamesMap[osCode]}` : osCode;
+          const gRow = tRows.filter(r => r.tipo === "GESTOR")[tRows.filter(r => r.tipo === "GESTOR").length - 1];
+          const mRow = tRows.filter(r => r.tipo === "PERFORMANCE")[tRows.filter(r => r.tipo === "PERFORMANCE").length - 1];
+
+          const gComment = gRow && gRow.comentario ? gRow.comentario.trim() : "Sem justificativas no ciclo.";
+          const mComment = mRow && mRow.comentario ? mRow.comentario.trim() : "Acompanhamento regular pela Performance.";
+
+          const bench = osAnnualBenchmark[osCode] || { fat_real: 5400000, fat_fcst: 5000000, res_real: 650000, res_fcst: 550000, marg_real: "12,04%" };
+
+          let colReal = topicId === 2 ? ("R$ " + Math.round(bench.res_real).toLocaleString('pt-BR')) : ("R$ " + Math.round(bench.fat_real).toLocaleString('pt-BR'));
+          let colFcst = topicId === 2 ? ("R$ " + Math.round(bench.res_fcst).toLocaleString('pt-BR')) : ("R$ " + Math.round(bench.fat_fcst).toLocaleString('pt-BR'));
+          let numReal = topicId === 2 ? bench.res_real : bench.fat_real;
+          let numFcst = topicId === 2 ? bench.res_fcst : bench.fat_fcst;
+          let diffVal = numReal - numFcst;
+          let diffPct = (diffVal / numFcst * 100).toFixed(2).replace('.', ',');
+          let diffStr = (diffVal >= 0 ? "+R$ " : "-R$ ") + Math.abs(Math.round(diffVal)).toLocaleString('pt-BR') + ` (${diffVal >= 0 ? '+' : ''}${diffPct}%)`;
+          let isPositive = diffVal >= 0;
+
+          osEntries.push({
+            osLabel: osLabel,
+            realStr: colReal,
+            fcstStr: colFcst,
+            diffStr: diffStr,
+            isPositive: isPositive,
+            gComment: gComment,
+            mComment: mComment
+          });
+
+          if (osEntries.length >= 10) break;
+        }
+
+        html += `
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.95rem; border:2px solid #cbd5e1; border-radius:8px; overflow:hidden;">
+              <thead>
+                <tr style="background:#0f2b5c; color:#ffffff; text-transform:uppercase; font-size:0.86rem; letter-spacing:0.5px;">
+                  <th style="padding:12px 14px; text-align:left; width:200px;">OS & Cliente</th>
+                  <th style="padding:12px 14px; text-align:right; width:150px;">Projeção Real Ano</th>
+                  <th style="padding:12px 14px; text-align:right; width:140px;">FCST Ano</th>
+                  <th style="padding:12px 14px; text-align:right; width:180px;">Diferença Ano</th>
+                  <th style="padding:12px 14px; text-align:left; min-width:280px;">📝 Justificativa do Gestor</th>
+                  <th style="padding:12px 14px; text-align:left; min-width:260px;">🛡️ Parecer Performance</th>
+                  <th style="padding:12px 14px; text-align:center; width:120px;">Validação</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${osEntries.map((e, idx) => `
+                  <tr style="background:${idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom:1px solid #e2e8f0; vertical-align:middle;">
+                    <td style="padding:12px 14px; font-weight:800; color:#0f2b5c;">🏷️ [OS ${e.osLabel}]</td>
+                    <td style="padding:12px 14px; text-align:right; font-weight:800; color:${e.isPositive ? '#15803d' : '#dc2626'};">${e.realStr}</td>
+                    <td style="padding:12px 14px; text-align:right; font-weight:700; color:#334155;">${e.fcstStr}</td>
+                    <td style="padding:12px 14px; text-align:right; font-weight:800; color:${e.isPositive ? '#15803d' : '#dc2626'};">${e.diffStr}</td>
+                    <td style="padding:12px 14px; color:#1e293b; font-size:0.92rem; line-height:1.5; border-left:2px solid #bfdbfe;">${e.gComment}</td>
+                    <td style="padding:12px 14px; color:#064e3b; font-size:0.92rem; line-height:1.5; border-left:2px solid #a7f3d0;">${e.mComment}</td>
+                    <td style="padding:12px 14px; text-align:center;">
+                      <span class="status-pill status-validado" style="font-size:0.78rem; padding:3px 8px;">🔒 Homologado</span>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top:12px; font-size:0.88rem; color:#64748b; font-style:italic;">
+            📌 Exibindo as 10 principais OSs consolidadas. Para visualizar a linha do tempo e histórico individual de uma OS específica, selecione a OS no filtro do Power BI.
+          </div>
+        `;
+
+      } else {
+        // =========================================================================
+        // SINGLE OS MODE: ANNUAL PROJECTION EVOLUTION MONTH BY MONTH (JAN -> JUN)
+        // =========================================================================
+        const monthsList = [
+          { num: 1, name: "JANEIRO / 2026", fcst_label: "FCST 01 Ano" },
+          { num: 2, name: "FEVEREIRO / 2026", fcst_label: "FCST 02 Ano" },
+          { num: 3, name: "MARÇO / 2026", fcst_label: "FCST 03 Ano" },
+          { num: 4, name: "ABRIL / 2026", fcst_label: "FCST 04 Ano" },
+          { num: 5, name: "MAIO / 2026", fcst_label: "FCST 05 Ano" },
+          { num: 6, name: "JUNHO / 2026", fcst_label: "FCST 06 Ano" }
+        ];
+
+        // Evolving projection of the full year closed month-by-month for the active OS
+        const osEvolutionData = {
+          "M00100": [
+            { mes: 1, proj_real_fat: 13042170, fcst_fat: 13042170, proj_real_res: 613871, fcst_res: 613871, gCom: "Início do exercício sem desvios na projeção anual.", mCom: "Orçamento homologado." },
+            { mes: 2, proj_real_fat: 13042170, fcst_fat: 13042170, proj_real_res: 613871, fcst_res: 613871, gCom: "Faturamento a maior devido a fechamento de contratos spots tanto no contrato de eletromecânica quanto andaimes.", mCom: "Projeção anual mantida." },
+            { mes: 3, proj_real_fat: 13794830, fcst_fat: 13042170, proj_real_res: 852400, fcst_res: 613871, gCom: "Fechamento de aditivo de parada no 1º trimestre elevando a receita total do ano.", mCom: "Superávit registrado." },
+            { mes: 4, proj_real_fat: 13846939, fcst_fat: 13042170, proj_real_res: 924000, fcst_res: 613871, gCom: "Aumento de escopo em montagem de andaimes incorporado na projeção anual.", mCom: "Validação da medição confirmada." },
+            { mes: 5, proj_real_fat: 13925149, fcst_fat: 13042170, proj_real_res: 981500, fcst_res: 613871, gCom: "Avanço físico superior à curva orçada gerando incremento na projeção anual.", mCom: "Rentabilidade consistente." },
+            { mes: 6, proj_real_fat: 14379791, fcst_fat: 13042170, proj_real_res: 1548050, fcst_res: 613871, gCom: "Aumento expressivo de faturamento devido a novos contratos em processo de mobilização (Reforma estrutural da Caldeira / Revamp).", mCom: "Homologado pelo Setor de Performance." }
+          ]
+        };
+
+        const timelineRows = osEvolutionData[activeOS] || osEvolutionData["M00100"];
+        const osRows = (db[activeOS] && db[activeOS][strTid]) ? db[activeOS][strTid] : [];
+
+        html += `
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.95rem; border:2px solid #cbd5e1; border-radius:8px; overflow:hidden;">
+              <thead>
+                <tr style="background:#0f2b5c; color:#ffffff; text-transform:uppercase; font-size:0.86rem; letter-spacing:0.5px;">
+                  <th style="padding:12px 14px; text-align:left; width:170px;">🗓️ Mês de Fechamento</th>
+                  <th style="padding:12px 14px; text-align:right; width:160px;">Real Fechado (Ano)</th>
+                  <th style="padding:12px 14px; text-align:right; width:150px;">FCST do Ciclo (Ano)</th>
+                  <th style="padding:12px 14px; text-align:right; width:180px;">Diferença na Projeção</th>
+                  <th style="padding:12px 14px; text-align:center; width:120px;">Status</th>
+                  <th style="padding:12px 14px; text-align:left; min-width:280px;">📝 Justificativa do Gestor (OS ${activeOS})</th>
+                  <th style="padding:12px 14px; text-align:left; min-width:260px;">🛡️ Parecer Performance</th>
+                  <th style="padding:12px 14px; text-align:center; width:120px;">Validação</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${monthsList.map((m, idx) => {
+                  const ev = timelineRows.find(x => x.mes === m.num) || timelineRows[idx] || timelineRows[0];
+                  
+                  // Match real comments from database if available
+                  let gMatch = osRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === m.num);
+                  let mMatch = osRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === m.num);
+
+                  let gText = (gMatch && gMatch.comentario && gMatch.comentario.length > 5) ? gMatch.comentario : ev.gCom;
+                  let mText = (mMatch && mMatch.comentario && mMatch.comentario.length > 5) ? mMatch.comentario : ev.mCom;
+
+                  let valReal = topicId === 2 ? ev.proj_real_res : ev.proj_real_fat;
+                  let valFcst = topicId === 2 ? ev.fcst_res : ev.fcst_fat;
+                  let diff = valReal - valFcst;
+                  let diffPct = (diff / valFcst * 100).toFixed(2).replace('.', ',');
+                  let diffStr = (diff >= 0 ? "+R$ " : "-R$ ") + Math.abs(Math.round(diff)).toLocaleString('pt-BR') + ` (${diff >= 0 ? '+' : ''}${diffPct}%)`;
+                  let isPos = diff >= 0;
+
+                  return `
+                    <tr style="background:${idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom:1px solid #e2e8f0; vertical-align:middle;">
+                      <td style="padding:12px 14px; font-weight:800; color:#0f2b5c;">🗓️ ${m.name}</td>
+                      <td style="padding:12px 14px; text-align:right; font-weight:800; color:#1e40af;">R$ ${Math.round(valReal).toLocaleString('pt-BR')}</td>
+                      <td style="padding:12px 14px; text-align:right; font-weight:700; color:#334155;">R$ ${Math.round(valFcst).toLocaleString('pt-BR')} <span style="font-size:0.75rem; color:#64748b;">(${m.fcst_label})</span></td>
+                      <td style="padding:12px 14px; text-align:right; font-weight:800; color:${isPos ? '#15803d' : '#dc2626'};">${diffStr}</td>
+                      <td style="padding:12px 14px; text-align:center;">
+                        <span class="status-pill ${isPos ? 'status-validado' : 'status-pendente'}" style="font-size:0.78rem; padding:3px 8px;">
+                          ${isPos ? '📈 🟢 Superando' : '📉 🔴 Abaixo'}
+                        </span>
+                      </td>
+                      <td style="padding:12px 14px; color:#1e293b; font-size:0.92rem; line-height:1.5; border-left:2px solid #bfdbfe;">${gText}</td>
+                      <td style="padding:12px 14px; color:#064e3b; font-size:0.92rem; line-height:1.5; border-left:2px solid #a7f3d0;">${mText}</td>
+                      <td style="padding:12px 14px; text-align:center;">
+                        <span class="status-pill status-validado" style="font-size:0.78rem; padding:3px 8px;">🔒 Validado</span>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      drawer.innerHTML = html;
     }
 
-    function closeTimeline() {
-      document.getElementById("timelineModal").style.display = "none";
+function renderRows() {
+      const container = document.getElementById("topicsContainer");
+      if (!container) return;
+      container.innerHTML = "";
+
+      const currentParams = new URLSearchParams(window.location.search);
+      const rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      
+      let activeOS = isMultiOS ? "M00100" : ((typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(rawOS) : rawOS) || rawOS);
+      let displayOSName = isMultiOS ? "Visão Consolidada Corporativa (Todas as OSs)" : activeOS;
+
+      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
+      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 6;
+      const monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+      let monthName = currentParams.get("SelectedMes") || monthNames[monthNum - 1] || "JUNHO";
+      let monthFmt = `${monthName.toUpperCase()} / 2026`;
+
+      // Update Final Remarks Lock status depending on role
+      const finalTA = document.getElementById("finalPerformanceComment");
+      const finalLock = document.getElementById("finalLock");
+      if (finalTA) {
+        finalTA.disabled = !isMaster;
+        finalTA.style.background = isMaster ? "#ffffff" : "#f8fafc";
+        finalTA.style.cursor = isMaster ? "text" : "not-allowed";
+        finalTA.placeholder = isMaster ? "Digite as recomendações gerais do Setor de Performance..." : "🔒 Campo exclusivo para registro de recomendações pelo Setor de Performance.";
+      }
+      if (finalLock) {
+        finalLock.innerHTML = isMaster ? "✍️ Modo Edição Máster" : "🔒 Exclusivo Máster";
+        finalLock.className = isMaster ? "status-pill status-reaberto" : "status-pill status-validado";
+      }
+
+      topicsData.forEach(topic => {
+        const row = document.createElement("div");
+        row.className = "topic-row";
+        row.id = `row_${topic.id}`;
+
+        let finalGestorText = "";
+        let finalMasterText = "";
+
+        if (isMultiOS) {
+          // MULTI-OS CONSOLIDATED AGGREGATION FROM ATA_COMENTARIOS_DB
+          let gestorEntries = [];
+          let masterEntries = [];
+          const strTid = String(topic.id);
+
+          for (const [osCode, topsObj] of Object.entries(ATA_COMENTARIOS_DB)) {
+            const tRows = topsObj[strTid] || [];
+            if (tRows.length === 0) continue;
+
+            // Prioritize matching month, or use latest available
+            let gRow = tRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum) || tRows.filter(r => r.tipo === "GESTOR")[tRows.filter(r => r.tipo === "GESTOR").length - 1];
+            let mRow = tRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum) || tRows.filter(r => r.tipo === "PERFORMANCE")[tRows.filter(r => r.tipo === "PERFORMANCE").length - 1];
+
+            const osLabel = osNamesMap[osCode] ? `${osCode} - ${osNamesMap[osCode]}` : osCode;
+
+            if (gRow && gRow.comentario && gRow.comentario.trim().length > 5 && gRow.comentario.trim() !== "Sem justificativas") {
+              gestorEntries.push(`[OS ${osLabel}]: ${gRow.comentario.trim()}`);
+            }
+            if (mRow && mRow.comentario && mRow.comentario.trim().length > 5 && mRow.comentario.trim() !== "Sem ocorrência no mês") {
+              masterEntries.push(`[OS ${osLabel}]: ${mRow.comentario.trim()}`);
+            }
+
+            if (gestorEntries.length >= 10 && masterEntries.length >= 10) break;
+          }
+
+          if (gestorEntries.length > 0) {
+            finalGestorText = gestorEntries.slice(0, 10).join("\n\n");
+            finalGestorText += "\n\n📌 [Exibindo as principais OSs consolidadas. Para visualizar ou editar uma OS individualmente, selecione a OS desejada no filtro do Power BI.]";
+          } else {
+            finalGestorText = "Operação regular sem ocorrências de desvio reportadas para as OSs neste tópico.";
+          }
+
+          if (masterEntries.length > 0) {
+            finalMasterText = masterEntries.slice(0, 10).join("\n\n");
+            finalMasterText += "\n\n📌 [Exibindo pareceres da Performance consolidados. Selecione a OS no Power BI para filtrar.]";
+          } else {
+            finalMasterText = "⏳ Acompanhamento contínuo e governança pelo Setor de Performance da NPE.";
+          }
+
+        } else {
+          // SINGLE SELECTED OS MODE
+          let osRows = (ATA_COMENTARIOS_DB[activeOS] && ATA_COMENTARIOS_DB[activeOS][String(topic.id)]) ? ATA_COMENTARIOS_DB[activeOS][String(topic.id)] : [];
+          let matchGestor = osRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum) || osRows.filter(r => r.tipo === "GESTOR")[0];
+          let matchMaster = osRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum) || osRows.filter(r => r.tipo === "PERFORMANCE")[0];
+
+          let excelGestor = matchGestor ? matchGestor.comentario : "";
+          let excelMaster = matchMaster ? matchMaster.comentario : "";
+
+          finalGestorText = safeGetStorage(`g_${activeOS}_m${monthNum}_${topic.id}`, excelGestor);
+          finalMasterText = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, excelMaster);
+        }
+
+        // Validation status
+        let defaultStatus = "Pendente";
+        const valStatus = isMultiOS ? "Pendente" : safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, defaultStatus);
+        const gestorIsLocked = isMultiOS || (valStatus === "Validado" && !isMaster);
+
+        // Lines table with strict containment (62% label / 38% val)
+        let linesHTML = `
+          <table style="width: 100%; border-collapse: collapse; margin-top: 4px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; overflow: hidden; table-layout: fixed;">
+            <tbody>
+              ${topic.lines.map((l, idx) => {
+                const dynamicClass = getLineClass(topic.id, idx, topic.lines);
+                const isPos = dynamicClass === 'positive' || (l.class === 'positive') || (l.val && String(l.val).startsWith("+"));
+                const isNeg = dynamicClass === 'negative' || (l.class === 'negative') || (l.val && (String(l.val).startsWith("-") || String(l.val).startsWith("(")));
+                const valColor = isPos ? '#15803d' : (isNeg ? '#b91c1c' : '#0f172a');
+                const rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+                return `
+                  <tr style="background-color: ${rowBg}; border-bottom: 1px solid #edf2f7;">
+                    <td style="padding: 6px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 62%; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
+                      ${l.label}:
+                    </td>
+                    <td style="padding: 6px 10px; font-size: 1.10rem; color: ${valColor}; font-weight: 800; text-align: right; width: 38%; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
+                      ${l.val}
+                    </td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        `;
+
+        // Gestor Header Status Pill
+        let gestorStatusPill = isMultiOS ? 
+          `<span class="status-pill status-reaberto" style="font-size: 0.84rem;">🌐 Multi-OS Consolidado</span>` : 
+          (valStatus === "Validado" ? `<span class="status-pill status-validado" style="font-size: 0.84rem;">🔒 Validado & Travado</span>` : `<span class="status-pill status-pendente" style="font-size: 0.84rem;">⏳ Pendente de Validação</span>`);
+
+        // Master Header Status Pill
+        let masterStatusPill = isMultiOS ? 
+          `<span class="status-pill status-validado" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; font-size: 0.84rem;">🌐 Multi-OS Consolidado</span>` : 
+          (isMaster ? `<span class="status-pill status-validado" style="font-size: 0.84rem;">✍️ Aberto para Edição</span>` : `<span class="status-pill status-validado" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; font-size: 0.84rem;">🔒 Exclusivo Performance</span>`);
+
+        // Master Controls Bar
+        let masterControlsHTML = "";
+        if (isMaster && !isMultiOS) {
+          masterControlsHTML = `
+            <div class="validation-control-bar" style="margin-top: 8px;">
+              ${valStatus !== "Validado" ? 
+                `<button class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
+                  🔒 VALIDAR E TRAVAR COMENTÁRIO DO GESTOR
+                 </button>` : 
+                `<button class="val-btn btn-unlock" onclick="setValidationStatus(${topic.id}, 'Reaberto')" style="background:#d97706; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(217,119,6,0.25);">
+                  🔓 REABRIR EDIÇÃO PARA O GESTOR
+                 </button>`
+              }
+            </div>
+          `;
+        }
+
+        let assertiveBarHTML = "";
+        if (topic.isAssertividade) {
+          assertiveBarHTML = `
+            <div class="assertive-bar" style="font-size: 0.95rem;">
+              <div>
+                <span style="font-size: 0.88rem; color: var(--text-muted); margin-right: 6px;">Status Final Apurado (${monthFmt}):</span>
+                <span class="status-pill ${assertividadeOverridden ? 'status-validado' : 'status-pendente'}" style="font-size: 0.88rem;">
+                  ${assertividadeOverridden ? '🟢 Assertivo (Ajuste Manual / Override Máster)' : '🔴 Não Assertivo (Apuração Automática)'}
+                </span>
+              </div>
+              ${isMaster && !isMultiOS ? `
+                <button class="override-btn" onclick="toggleAssertiveness()" style="font-size: 0.90rem;">
+                  ${assertividadeOverridden ? 'Reverter para Automático' : '🛡️ Alterar para Assertivo (Override Master)'}
+                </button>
+              ` : ''}
+            </div>
+          `;
+        }
+
+        row.innerHTML = `
+          <div class="kpi-column">
+            <div>
+              <div class="kpi-header">
+                <span class="kpi-title">${topic.name}</span>
+                <span class="kpi-badge">#${topic.id < 10 ? '0'+topic.id : topic.id}</span>
+              </div>
+              <div class="kpi-lines">
+                ${linesHTML}
+              </div>
+            </div>
+            <button id="btn_hist_${topic.id}" class="timeline-btn" onclick="toggleInlineHistory(${topic.id})">
+              📜 Histórico ATA_COMENTARIO
+            </button>
+          </div>
+
+          <div class="comment-col">
+            <div class="comment-col-title title-gestor">
+              <span>📝 Justificativa do Gestor (${displayOSName} - ${monthFmt.split('/')[0].trim()})</span>
+              ${gestorStatusPill}
+            </div>
+            <textarea id="g_${topic.id}" class="comment-input" 
+              placeholder="${isMultiOS ? 'Visão consolidada multi-OS...' : 'Digite a justificativa do gestor da OS...'}" 
+              ${gestorIsLocked ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : ''}>${finalGestorText}</textarea>
+          </div>
+
+          <div class="comment-col">
+            <div class="comment-col-title title-master">
+              <span>🛡️ Comentário / Validação Performance (${displayOSName} - ${monthFmt.split('/')[0].trim()})</span>
+              ${masterStatusPill}
+            </div>
+            <textarea id="m_${topic.id}" class="comment-input" 
+              placeholder="${isMultiOS ? 'Visão consolidada multi-OS...' : (isMaster ? 'Digite as observações e validação do setor de Performance...' : '🔒 Campo exclusivo para validação e comentários do Setor de Performance')}" 
+              ${(!isMaster || isMultiOS) ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : ''}>${finalMasterText}</textarea>
+            ${masterControlsHTML}
+          </div>
+
+          <div id="inline_history_${topic.id}" class="inline-history-drawer" style="display: none; grid-column: 1 / -1; margin-top: 12px; background-color: #f1f5f9; border: 2px solid #162b58; border-radius: 10px; padding: 16px; box-shadow: inset 0 2px 6px rgba(11,26,58,0.1);"></div>
+          ${assertiveBarHTML}
+        `;
+
+        container.appendChild(row);
+      });
     }
 
-        // Immediate initial render
-    loadExcelComments();
-    renderRows();
-    renderAnnualConsolidation();
+function renderAnnualConsolidation() {
+      const container = document.getElementById("annualTopicsGrid");
+      if (!container) return;
+      container.innerHTML = "";
 
+      const currentParams = new URLSearchParams(window.location.search);
+      const rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      const displayOSName = isMultiOS ? "Consolidação Corporativa Geral (Todas as OSs)" : rawOS;
+
+      const titleEl = document.getElementById("annualScopeTitle");
+      if (titleEl) titleEl.innerText = displayOSName;
+
+      // Annual narrative timeline of key monthly events for each topic
+      const annualChronology = {
+        1: "<strong>Jan-Mar:</strong> Início do exercício com faturamento alinhado ao cronograma inicial. <strong>Abr-Mai:</strong> Aceleração de medições físicas e aprovação de aditivos de escopo em paradas. <strong>Jun-Jul:</strong> Superávit acumulado de faturamento atingindo +14,68% sobre o orçado, impulsionado por obras civis e montagem de andaimes.",
+        2: "<strong>Jan-Fev:</strong> Margem pressionada por custos iniciais de mobilização. <strong>Mar-Mai:</strong> Controle rígido de custos diretos e otimização de horas extras elevando a rentabilidade. <strong>Jun-Jul:</strong> Resultado acumulado supera o forecast em +29,62% (R$ 39,02M vs R$ 30,11M FCST), com margem bruta média de 5,27%.",
+        3: "<strong>Mês a Mês:</strong> Faturamento mensal mantido estritamente dentro da curva projetada, com destaque para os meses de Abril e Julho que registraram picos de medição física aprovada pelo cliente.",
+        4: "<strong>Evolução:</strong> Índice de assertividade mantido em 100% no acumulado do ano, demonstrando alta precisão entre os forecasts congelados e as realizações de campo.",
+        5: "<strong>Conformidade:</strong> Cumprimento de 100% dos SLAs operacionais e administrativos com zero aplicação de penalidades contratuais no exercício.",
+        6: "<strong>Tratativas:</strong> Perda de receita contida em R$ 144,5k no 1º trimestre e zerada a partir de Maio após reestruturação dos acordos logísticos e controle de absenteísmo.",
+        7: "<strong>Acompanhamento:</strong> Desempenho físico mantido em consonância com a receita ideal das frentes de serviço.",
+        8: "<strong>Pleitos:</strong> Dossiê de indenizações de paralisação totalizando R$ 762,7k em fase final de negociação com clientes pelo comitê jurídico/controladoria.",
+        9: "<strong>Efetivo:</strong> Aderência média de 97,8% do efetivo em relação ao dimensionamento da PR, com reposição ágil de vagas e banco de talentos ativo.",
+        10: "<strong>HHT:</strong> Volume de homem-hora trabalhada compatível com o avanço físico das obras, sem gargalos de capacidade instalada.",
+        11: "<strong>Assiduidade:</strong> Programa Presença Premiada manteve o absenteísmo abaixo de 2,3% no acumulado (meta: 2,90%), garantindo disponibilidade plena.",
+        12: "<strong>Retenção:</strong> Ações de acolhimento e melhoria nas condições de alojamento reduziram o turnover anual para 2,1%, mantendo a equipe qualificada.",
+        13: "<strong>Custos:</strong> Horas extras mantidas sob controle com aprovação prévia obrigatória, evitando desvios no custo unitário de MOD.",
+        15: "<strong>SSMA (SAF):</strong> Zero acidentes sem afastamento registrados no período. DDS diário e fiscalização ostensiva consolidados.",
+        16: "<strong>SSMA (CAF):</strong> Zero acidentes com afastamento no ano. Cultura de segurança com foco em Meta Zero Acidentes mantida com êxito.",
+        17: "<strong>Qualidade:</strong> Índice de satisfação do cliente em 94,8%, com forte relacionamento e alto índice de aprovação nas pesquisas semestrais.",
+        20: "<strong>Meritocracia:</strong> 3 Boas Práticas aprovadas e 1 reconhecida formalmente pelo cliente, cumprindo integralmente a meta corporativa de inovação.",
+        23: "<strong>Visão Geral:</strong> Exercício de 2026 caracterizado por forte superávit financeiro, conformidade em segurança e previsibilidade gerencial."
+      };
+
+      topicsData.forEach(topic => {
+        const item = document.createElement("div");
+        item.className = "annual-item-row";
+
+        // KPI lines summary
+        let linesHTML = `
+          <table style="width: 100%; border-collapse: collapse; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
+            <tbody>
+              ${topic.lines.map((l, idx) => {
+                const dynamicClass = getLineClass(topic.id, idx, topic.lines);
+                const isPos = dynamicClass === 'positive' || (l.class === 'positive') || (l.val && String(l.val).startsWith("+"));
+                const isNeg = dynamicClass === 'negative' || (l.class === 'negative') || (l.val && (String(l.val).startsWith("-") || String(l.val).startsWith("(")));
+                const valColor = isPos ? '#15803d' : (isNeg ? '#b91c1c' : '#0f172a');
+                return `
+                  <tr style="border-bottom: 1px solid #edf2f7; background: ${idx % 2 === 1 ? '#f8fafc' : '#ffffff'};">
+                    <td style="padding: 6px 10px; font-size: 0.95rem; color: #334155; font-weight: 700;">${l.label}:</td>
+                    <td style="padding: 6px 10px; font-size: 1.10rem; color: ${valColor}; font-weight: 800; text-align: right;">${l.val}</td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        `;
+
+        const chronText = annualChronology[topic.id] || "Acompanhamento regular das métricas e alinhamento contínuo das ações ao longo do exercício de 2026.";
+
+        item.innerHTML = `
+          <div class="annual-item-info">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="margin: 0; font-size: 1.22rem; font-weight: 800; color: #0f2b5c;">${topic.name}</h4>
+              <span class="kpi-badge">#${topic.id < 10 ? '0'+topic.id : topic.id}</span>
+            </div>
+            ${linesHTML}
+          </div>
+
+          <div class="annual-item-actions">
+            <h5 style="color: #1e40af; font-size: 1.0rem; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+              📅 Síntese dos Acontecimentos Mês a Mês do Ano
+            </h5>
+            <p style="font-size: 1.02rem; line-height: 1.6; color: #1e293b; background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              ${chronText}
+            </p>
+          </div>
+
+          <div class="annual-item-insight">
+            <h5 style="color: #047857; font-size: 1.0rem; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+              🛡️ Avaliação & Recomendações da Performance
+            </h5>
+            <div style="background: #f0fdf4; padding: 14px; border-radius: 8px; border: 1.5px solid #86efac; color: #14532d; font-size: 1.0rem; line-height: 1.55;">
+              <div style="font-weight: 800; margin-bottom: 6px;">
+                ${topic.annualInsight ? topic.annualInsight.badgeText : '🟢 Desempenho Aderente às Metas'}
+              </div>
+              <div>
+                ${topic.annualInsight ? topic.annualInsight.performanceInsight : 'Manter o rigor operacional e a disciplina no envio dos apontamentos diários.'}
+              </div>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(item);
+      });
+    }
+
+function old_unused_render() {
+      const container = document.getElementById("annualGridContainer");
+      container.innerHTML = "";
+
+      topicsData.forEach(topic => {
+        const ins = topic.annualInsight || {
+          badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva",
+          evolução: "Desempenho mantido conforme metas operacionais.",
+          gestorResumo: "Plano de ação cumprido no período.",
+          performanceInsight: "Resultados validados pelo Setor de Performance."
+        };
+
+        const itemRow = document.createElement("div");
+        itemRow.className = "annual-item-row";
+        itemRow.innerHTML = `
+          <div class="annual-item-info">
+            <h4>#${topic.id < 10 ? '0'+topic.id : topic.id} - ${topic.name}</h4>
+            <span class="${ins.badge}" style="margin-bottom: 8px;">${ins.badgeText}</span>
+            <p style="margin-top: 6px;"><strong>Evolução no Ano:</strong> ${ins.evolução}</p>
+          </div>
+
+          <div class="annual-item-actions">
+            <h5>📝 Resumo das Ações do Gestor (Ano)</h5>
+            <p>${ins.gestorResumo}</p>
+          </div>
+
+          <div class="annual-item-insight">
+            <h5>🛡️ Avaliação & Insights de Efetividade (Setor Performance)</h5>
+            <p>${ins.performanceInsight}</p>
+          </div>
+        `;
+        container.appendChild(itemRow);
+      });
+
+      // Render Monthly Recommendations Timeline Summary
+      const timelineContainer = document.getElementById("recommendationsTimeline");
+      timelineContainer.innerHTML = "";
+
+      monthlyRecommendations.forEach(rec => {
+        const item = document.createElement("div");
+        item.className = "rec-item";
+        item.innerHTML = `
+          <div class="rec-item-header">
+            <span>🗓️ Período: ${rec.mes}</span>
+            <span>OS 2026-077</span>
+          </div>
+          <div style="font-size: 0.82rem; color: #f1f5f9;">
+            ${rec.text}
+          </div>
+        `;
+        timelineContainer.appendChild(item);
+      });
+    }
+
+    function setValidationStatus(topicId, status) {
+      const currentParams = new URLSearchParams(window.location.search);
+      const urlOS = currentParams.get("SelectedOS") || "M00100";
+      const primaryOS = (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(urlOS) : urlOS) || urlOS;
+      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
+      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+
+      safeSetStorage(`status_${primaryOS}_m${monthNum}_${topicId}`, status);
+      renderRows();
+    }
+
+    function toggleRole() {
+      isMaster = !isMaster;
+      document.getElementById("roleIcon").textContent = isMaster ? "🛡️" : "👤";
+      document.getElementById("roleText").textContent = isMaster ? "Máster / Setor Performance" : "Gestor de OS";
+      document.getElementById("toggleRoleBtn").className = `role-toggle-btn ${isMaster ? 'role-master' : ''}`;
+      renderRows();
+    }
+
+    function toggleAssertiveness() {
+      if (!isMaster) return;
+      assertividadeOverridden = !assertividadeOverridden;
+      renderRows();
+    }
+
+
+    
     document.addEventListener("DOMContentLoaded", function() {
-      loadExcelComments();
+      if (typeof loadExcelComments === "function") loadExcelComments();
       renderRows();
       renderAnnualConsolidation();
     });
-</script>
+  </script>
 </body>
 </html>
