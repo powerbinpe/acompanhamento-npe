@@ -243,25 +243,28 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     .toast { position: fixed; bottom: 20px; right: 20px; background-color: #16a34a; color: white; padding: 12px 20px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; display: none; z-index: 3000; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3); }
   
     
+    
     /* Main Layout full-width optimization */
     .app-container {
       max-width: 100% !important;
-      padding: 12px 18px !important;
+      padding: 10px 16px !important;
       margin: 0 !important;
     }
 
+    /* Aba 1 Topic Row & Flexible High-Capacity Comments */
     .topic-row {
       display: grid;
       grid-template-columns: 440px 1fr 1fr;
-      gap: 20px;
+      gap: 18px;
       background-color: #ffffff;
       border-radius: 12px;
       border: 2.5px solid #162b58;
-      padding: 20px;
+      padding: 18px;
       box-shadow: 0 8px 24px rgba(11, 26, 58, 0.4), 0 2px 8px rgba(11, 26, 58, 0.25);
-      margin-bottom: 20px;
+      margin-bottom: 18px;
       width: 100%;
       box-sizing: border-box;
+      align-items: stretch;
     }
 
     @media (max-width: 1300px) {
@@ -271,108 +274,135 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     .comment-col {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      height: 100%;
       width: 100%;
+      box-sizing: border-box;
     }
 
     textarea.comment-input {
       width: 100% !important;
-      min-height: 175px !important;
+      height: calc(100% - 40px) !important;
+      min-height: 280px !important;
       border-radius: 8px;
       border: 1.5px solid #94a3b8;
       padding: 16px 18px !important;
       font-family: inherit;
-      font-size: 1.06rem !important;
+      font-size: 1.05rem !important;
       line-height: 1.6 !important;
       color: #0f172a;
       resize: vertical;
       transition: border-color 0.2s ease;
       box-sizing: border-box;
       background: #ffffff;
+      flex: 1;
     }
 
-    /* Tab 2: Full-width Table & Cards */
-    .annual-kpi-summary {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 18px;
-      margin-bottom: 24px;
-      width: 100%;
-    }
-
+    /* Aba 2: Perfectly Aligned Corporate Table */
     .annual-item-row {
       display: grid;
-      grid-template-columns: 380px 1.2fr 1fr;
+      grid-template-columns: 440px 1.2fr 1fr;
       gap: 20px;
       background-color: #ffffff;
       border: 2px solid #cbd5e1;
       border-radius: 10px;
-      padding: 20px;
+      padding: 18px;
       margin-bottom: 16px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      align-items: stretch;
     }
 
     @media (max-width: 1200px) {
       .annual-item-row { grid-template-columns: 1fr; }
     }
 
-    /* Tab 3: Top 10 Benchmarking Grids */
-    .top10-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-bottom: 24px;
+    .kpi-aligned-table {
       width: 100%;
-    }
-
-    @media (max-width: 1200px) {
-      .top10-grid { grid-template-columns: 1fr; }
-    }
-
-    .top10-card {
+      border-collapse: collapse;
       background: #ffffff;
-      border-radius: 12px;
-      padding: 22px;
-      box-shadow: 0 8px 24px rgba(11, 26, 58, 0.25);
-      border: 2.5px solid #cbd5e1;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      overflow: hidden;
+      table-layout: fixed;
     }
 
-    .top10-card-pos { border-top: 8px solid #16a34a; }
-    .top10-card-neg { border-top: 8px solid #dc2626; }
+    .kpi-aligned-table td.col-lbl {
+      padding: 8px 12px;
+      font-size: 0.96rem;
+      color: #334155;
+      font-weight: 700;
+      width: 62%;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-    
+    .kpi-aligned-table td.col-num {
+      padding: 8px 12px;
+      font-size: 1.15rem;
+      font-weight: 800;
+      width: 38%;
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.3px;
+    }
+
+    /* Aba 3: Balanced Table Column Proportions */
     .top10-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 12px;
+      margin-top: 8px;
       font-size: 0.98rem;
+      table-layout: auto;
     }
 
     .top10-table th {
       background: #0f2b5c;
       color: #ffffff;
-      padding: 14px 16px;
+      padding: 12px 14px;
       font-weight: 800;
       text-transform: uppercase;
-      font-size: 0.90rem;
+      font-size: 0.88rem;
       letter-spacing: 0.5px;
       text-align: left;
+      white-space: nowrap;
     }
 
     .top10-table td {
-      padding: 14px 16px;
+      padding: 12px 14px;
       border-bottom: 1px solid #e2e8f0;
-      vertical-align: top;
-      line-height: 1.6;
+      vertical-align: middle;
+      line-height: 1.5;
     }
 
-    .top10-table td.col-details {
-      width: 50% !important;
-      min-width: 480px !important;
-      font-size: 1.02rem !important;
-      color: #0f172a !important;
+    .top10-table td.col-os {
+      width: 160px !important;
+      min-width: 150px !important;
+      white-space: nowrap;
     }
 
+    .top10-table td.col-finance {
+      width: 230px !important;
+      min-width: 220px !important;
+      white-space: nowrap;
+    }
+
+    .top10-table td.col-margin {
+      width: 130px !important;
+      min-width: 120px !important;
+      text-align: center;
+    }
+
+    .top10-table td.col-indicators {
+      width: 300px !important;
+      min-width: 280px !important;
+    }
+
+    .top10-table td.col-actions {
+      min-width: 320px !important;
+      font-size: 1.0rem !important;
+    }
 
 </style>
 </head>
@@ -496,6 +526,10 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
   <!-- ========================================================================= -->
   <!-- ABA 3: ANÁLISE POR TEMA: MELHORARAM FAT/RES vs MELHORARAM FAT/PIORARAM RES -->
   <!-- ========================================================================= -->
+  
+  <!-- ========================================================================= -->
+  <!-- ABA 3: ANÁLISE POR TEMA: MELHORARAM FAT/RES vs MELHORARAM FAT/PIORARAM RES -->
+  <!-- ========================================================================= -->
   <div id="tabLicoes" class="tab-page">
     
     <!-- PAINEL 1: MELHORARAM FATURAMENTO E RESULTADO -->
@@ -507,95 +541,95 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         <span class="kpi-badge" style="background: #dcfce7; color: #166534;">Benchmarking Positivo</span>
       </div>
 
-      <div style="overflow-x: auto; padding: 18px;">
+      <div style="overflow-x: auto; padding: 16px;">
         <table class="top10-table">
           <thead>
             <tr>
-              <th style="width: 150px;">OS & Cliente</th>
-              <th style="width: 180px;">Faturamento & Resultado</th>
-              <th style="width: 120px;">Margem Real</th>
-              <th style="width: 250px;">Demais Indicadores da OS</th>
+              <th style="width: 160px;">OS & Cliente</th>
+              <th style="width: 230px;">Faturamento & Resultado</th>
+              <th style="width: 130px; text-align: center;">Margem Real</th>
+              <th style="width: 300px;">Demais Indicadores da OS</th>
               <th>Ações de Sucesso & Boas Práticas Adotadas</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">M00100<br><span style="font-size:0.85rem; color:#64748b;">CBMM ARAXÁ</span></td>
-              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 9.69M (+0,85%)<br>Res Real: R$ 1.55M (+12,2%)</td>
-              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">15,98%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">M00100<br><span style="font-size:0.85rem; color:#64748b;">CBMM ARAXÁ</span></td>
+              <td class="col-finance" style="color: #166534; font-weight: 700;">Fat Real: R$ 9.69M (+0,85%)<br>Res Real: R$ 1.55M (+12,2%)</td>
+              <td class="col-margin" style="font-weight: 800; color: #15803d; font-size: 1.15rem;">15,98%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
                 • <strong>Assertividade:</strong> 100%<br>
                 • <strong>Absenteísmo:</strong> 1,80% (Meta 2,90%)<br>
                 • <strong>SSMA:</strong> Zero acidentes (SAF/CAF)<br>
                 • <strong>Boas Práticas:</strong> 3 BPs aprovadas
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
-                <strong>Previsibilidade & Medição Pontual:</strong> Aderência total entre a projeção mensal e o faturamento real com fechamento de medição pontual e sem glosas.
+              <td class="col-actions">
+                <strong>Previsibilidade & Medição Pontual:</strong> Aderência total entre a projeção mensal e o faturamento real com fechamento de medição semanal e sem glosas.
               </td>
             </tr>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">F09900<br><span style="font-size:0.85rem; color:#64748b;">RHODIA PAULÍNIA</span></td>
-              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 8.42M (+8,30%)<br>Res Real: R$ 1.77M (+19,5%)</td>
-              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">21,10%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">F09900<br><span style="font-size:0.85rem; color:#64748b;">RHODIA PAULÍNIA</span></td>
+              <td class="col-finance" style="color: #166534; font-weight: 700;">Fat Real: R$ 8.42M (+8,30%)<br>Res Real: R$ 1.77M (+19,5%)</td>
+              <td class="col-margin" style="font-weight: 800; color: #15803d; font-size: 1.15rem;">21,10%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
                 • <strong>Satisfação Cliente:</strong> 98,5%<br>
                 • <strong>Turnover:</strong> 1,10%<br>
                 • <strong>Efetivo:</strong> 100% aderente à PR<br>
                 • <strong>Boas Práticas:</strong> 1 BP reconhecida
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
+              <td class="col-actions">
                 <strong>Inovação em Campo:</strong> 3 inovações técnicas em montagem rápida de andaimes aprovadas com reconhecimento formal do cliente e prioridade na renovação.
               </td>
             </tr>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">M02800<br><span style="font-size:0.85rem; color:#64748b;">DOW SANTOS DUMONT</span></td>
-              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 6.85M (+6,40%)<br>Res Real: R$ 1.12M (+14,1%)</td>
-              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">16,35%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">M02800<br><span style="font-size:0.85rem; color:#64748b;">DOW SANTOS DUMONT</span></td>
+              <td class="col-finance" style="color: #166534; font-weight: 700;">Fat Real: R$ 6.85M (+6,40%)<br>Res Real: R$ 1.12M (+14,1%)</td>
+              <td class="col-margin" style="font-weight: 800; color: #15803d; font-size: 1.15rem;">16,35%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
                 • <strong>Perda de Receita:</strong> R$ 0<br>
                 • <strong>Indenizações:</strong> Zero pendências<br>
                 • <strong>HHT Produtivo:</strong> 100% executado
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
+              <td class="col-actions">
                 <strong>Antecipação de Medição:</strong> Alinhamento semanal prévio de medição física com a fiscalização e faturamento imediato de aditivos extraordinários.
               </td>
             </tr>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">M03500<br><span style="font-size:0.85rem; color:#64748b;">GERDAU DIVINÓPOLIS</span></td>
-              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 11.20M (+11,5%)<br>Res Real: R$ 2.26M (+22,8%)</td>
-              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">20,25%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
-                • <strong>Custos Indiretos:</strong> -12%<br>
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">M03500<br><span style="font-size:0.85rem; color:#64748b;">GERDAU DIVINÓPOLIS</span></td>
+              <td class="col-finance" style="color: #166534; font-weight: 700;">Fat Real: R$ 11.20M (+11,5%)<br>Res Real: R$ 2.26M (+22,8%)</td>
+              <td class="col-margin" style="font-weight: 800; color: #15803d; font-size: 1.15rem;">20,25%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
+                • <strong>Custos Indiretos:</strong> -12% economia<br>
                 • <strong>Horas Extras:</strong> 4,2% (dentro do teto)<br>
                 • <strong>SSMA:</strong> Zero acidentes
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
+              <td class="col-actions">
                 <strong>Gestão Logística Integrada:</strong> Racionalização de rotas de transporte e alojamentos compartilhados gerando economia direta nos custos operacionais.
               </td>
             </tr>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">M00500<br><span style="font-size:0.85rem; color:#64748b;">EQUINOX SANTA LUZ</span></td>
-              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 5.90M (+4,80%)<br>Res Real: R$ 843k (+9,70%)</td>
-              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">14,30%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">M00500<br><span style="font-size:0.85rem; color:#64748b;">EQUINOX SANTA LUZ</span></td>
+              <td class="col-finance" style="color: #166534; font-weight: 700;">Fat Real: R$ 5.90M (+4,80%)<br>Res Real: R$ 843k (+9,70%)</td>
+              <td class="col-margin" style="font-weight: 800; color: #15803d; font-size: 1.15rem;">14,30%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
                 • <strong>SSMA (SAF/CAF):</strong> Zero casos<br>
                 • <strong>SLA Contratual:</strong> 100% cumprido<br>
                 • <strong>Laudos:</strong> 100% atualizados
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
+              <td class="col-actions">
                 <strong>Disciplina Operacional:</strong> Diálogos diários de segurança (DDS) e conformidade total de laudos de engenharia sem paralisações.
               </td>
             </tr>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">M00700<br><span style="font-size:0.85rem; color:#64748b;">STRATOS ROSÁRIO</span></td>
-              <td style="color: #166534; font-weight: 700;">Fat Real: R$ 4.80M (+3,50%)<br>Res Real: R$ 474k (+8,20%)</td>
-              <td style="font-weight: 800; color: #15803d; font-size: 1.1rem;">9,87%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">M00700<br><span style="font-size:0.85rem; color:#64748b;">STRATOS ROSÁRIO</span></td>
+              <td class="col-finance" style="color: #166534; font-weight: 700;">Fat Real: R$ 4.80M (+3,50%)<br>Res Real: R$ 474k (+8,20%)</td>
+              <td class="col-margin" style="font-weight: 800; color: #15803d; font-size: 1.15rem;">9,87%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
                 • <strong>Turnover:</strong> 1,20% (Meta 2,50%)<br>
                 • <strong>Retenção de MOD:</strong> 98,8%<br>
                 • <strong>Assiduidade:</strong> 98,1%
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
+              <td class="col-actions">
                 <strong>Acolhimento & Integração:</strong> Acompanhamento pelo RH no primeiro mês reduziu desligamentos voluntários preservando a produtividade.
               </td>
             </tr>
@@ -613,93 +647,93 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         <span class="kpi-badge" style="background: #fee2e2; color: #991b1b;">Gestão de Risco & Alerta</span>
       </div>
 
-      <div style="overflow-x: auto; padding: 18px;">
+      <div style="overflow-x: auto; padding: 16px;">
         <table class="top10-table">
           <thead>
             <tr>
-              <th style="width: 150px;">OS & Cliente</th>
-              <th style="width: 180px;">Faturamento vs Resultado</th>
-              <th style="width: 120px;">Margem Real</th>
-              <th style="width: 250px;">Demais Indicadores Críticos</th>
+              <th style="width: 160px;">OS & Cliente</th>
+              <th style="width: 230px;">Faturamento vs Resultado</th>
+              <th style="width: 130px; text-align: center;">Margem Real</th>
+              <th style="width: 300px;">Demais Indicadores Críticos</th>
               <th>Causa Raiz do Desvio & Plano de Ação Obrigatório</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">M00600<br><span style="font-size:0.85rem; color:#64748b;">HEXION</span></td>
-              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 3.85M (+4,20%)<br><span style="color:#dc2626;">Res Real: -R$ 420k (-155%)</span></td>
-              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">-10,90%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">M00600<br><span style="font-size:0.85rem; color:#64748b;">HEXION</span></td>
+              <td class="col-finance" style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 3.85M (+4,20%)<br><span style="color:#dc2626;">Res Real: -R$ 420k (-155%)</span></td>
+              <td class="col-margin" style="font-weight: 800; color: #dc2626; font-size: 1.15rem;">-10,90%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
                 • <strong>Glosas de Medição:</strong> R$ 310k<br>
                 • <strong>Horas Extras:</strong> 12,4%<br>
                 • <strong>Absenteísmo:</strong> 4,80%
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
+              <td class="col-actions">
                 <strong>Glosas Não Contestadas:</strong> Fiscalização postergou aceite de medição física. <em style="color:#b91c1c;">Plano de Ação: Notificação formal e cobrança semanal pela gerência.</em>
               </td>
             </tr>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">M03200<br><span style="font-size:0.85rem; color:#64748b;">NEXA JUIZ DE FORA</span></td>
-              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 5.20M (+7,50%)<br><span style="color:#dc2626;">Res Real: R$ 115k (-68%)</span></td>
-              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">2,21%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">M03200<br><span style="font-size:0.85rem; color:#64748b;">NEXA JUIZ DE FORA</span></td>
+              <td class="col-finance" style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 5.20M (+7,50%)<br><span style="color:#dc2626;">Res Real: R$ 115k (-68%)</span></td>
+              <td class="col-margin" style="font-weight: 800; color: #dc2626; font-size: 1.15rem;">2,21%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
                 • <strong>Horas Extras:</strong> 14,85% (Crítico)<br>
                 • <strong>Absenteísmo:</strong> 3,75%<br>
                 • <strong>Custo MOD:</strong> +18% sobre orçado
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
+              <td class="col-actions">
                 <strong>Estouro de Horas Extras:</strong> Falta de escala planejada e cobertura de faltas com HE. <em style="color:#b91c1c;">Plano de Ação: Trava no sistema exigindo aprovação prévia de qualquer HE.</em>
               </td>
             </tr>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">M01800<br><span style="font-size:0.85rem; color:#64748b;">VALE MINA MUTUCA</span></td>
-              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 4.40M (+2,80%)<br><span style="color:#dc2626;">Res Real: R$ 98k (-74%)</span></td>
-              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">2,22%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">M01800<br><span style="font-size:0.85rem; color:#64748b;">VALE MINA MUTUCA</span></td>
+              <td class="col-finance" style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 4.40M (+2,80%)<br><span style="color:#dc2626;">Res Real: R$ 98k (-74%)</span></td>
+              <td class="col-margin" style="font-weight: 800; color: #dc2626; font-size: 1.15rem;">2,22%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
                 • <strong>Absenteísmo:</strong> 5,99% (Crítico)<br>
                 • <strong>Efetivo Ocioso:</strong> 8 pax<br>
                 • <strong>Produtividade:</strong> -14%
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
+              <td class="col-actions">
                 <strong>Faltas Não Justificadas:</strong> Picos de absenteísmo pós-feriado desestruturando equipes. <em style="color:#b91c1c;">Plano de Ação: Aplicação imediata de advertências e acionamento de banco de talentos.</em>
               </td>
             </tr>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">N14200<br><span style="font-size:0.85rem; color:#64748b;">EJA</span></td>
-              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 3.10M (+5,10%)<br><span style="color:#dc2626;">Res Real: -R$ 85k (-120%)</span></td>
-              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">-2,74%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">N14200<br><span style="font-size:0.85rem; color:#64748b;">EJA</span></td>
+              <td class="col-finance" style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 3.10M (+5,10%)<br><span style="color:#dc2626;">Res Real: -R$ 85k (-120%)</span></td>
+              <td class="col-margin" style="font-weight: 800; color: #dc2626; font-size: 1.15rem;">-2,74%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
                 • <strong>Indenizações Pendentes:</strong> R$ 144.577<br>
                 • <strong>Perda de Receita:</strong> 3,71%<br>
                 • <strong>RDOs s/ Assinatura:</strong> 12 dias
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
+              <td class="col-actions">
                 <strong>Paralisação sem RDO Assinado:</strong> Horas paradas por chuva/cliente não assinadas em D+0. <em style="color:#b91c1c;">Plano de Ação: Assinatura obrigatória do RDO no mesmo dia pelo fiscal.</em>
               </td>
             </tr>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">M03600<br><span style="font-size:0.85rem; color:#64748b;">GERDAU OURO BRANCO</span></td>
-              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 7.90M (+8,20%)<br><span style="color:#dc2626;">Res Real: R$ 240k (-45%)</span></td>
-              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">3,04%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">M03600<br><span style="font-size:0.85rem; color:#64748b;">GERDAU OURO BRANCO</span></td>
+              <td class="col-finance" style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 7.90M (+8,20%)<br><span style="color:#dc2626;">Res Real: R$ 240k (-45%)</span></td>
+              <td class="col-margin" style="font-weight: 800; color: #dc2626; font-size: 1.15rem;">3,04%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
                 • <strong>Divergência SPC:</strong> R$ 85k<br>
                 • <strong>Retenção Contratual:</strong> 5%<br>
                 • <strong>Turnover:</strong> 3,10%
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
+              <td class="col-actions">
                 <strong>Apontamento Incorreto no SPC:</strong> Horas lançadas fora do padrão gerando glosa. <em style="color:#b91c1c;">Plano de Ação: Treinamento e reciclagem obrigatória dos apontadores de campo.</em>
               </td>
             </tr>
             <tr>
-              <td style="font-weight: 800; color: #0f2b5c;">M01400<br><span style="font-size:0.85rem; color:#64748b;">VALE CONCEIÇÃO</span></td>
-              <td style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 4.95M (+6,10%)<br><span style="color:#dc2626;">Res Real: R$ 130k (-55%)</span></td>
-              <td style="font-weight: 800; color: #dc2626; font-size: 1.1rem;">2,63%</td>
-              <td style="font-size: 0.90rem; color: #334155;">
+              <td class="col-os" style="font-weight: 800; color: #0f2b5c;">M01400<br><span style="font-size:0.85rem; color:#64748b;">VALE CONCEIÇÃO</span></td>
+              <td class="col-finance" style="color: #b91c1c; font-weight: 700;">Fat Real: R$ 4.95M (+6,10%)<br><span style="color:#dc2626;">Res Real: R$ 130k (-55%)</span></td>
+              <td class="col-margin" style="font-weight: 800; color: #dc2626; font-size: 1.15rem;">2,63%</td>
+              <td class="col-indicators" style="font-size: 0.92rem; color: #334155;">
                 • <strong>Fretes Não Cotados:</strong> R$ 94k<br>
                 • <strong>Desvio Mobilização:</strong> +22%<br>
                 • <strong>Efetivo:</strong> 94% da PR
               </td>
-              <td style="font-size: 0.95rem; line-height: 1.5;">
+              <td class="col-actions">
                 <strong>Custos Extras de Mobilização:</strong> Fretes de andaimes contratados em caráter emergencial. <em style="color:#b91c1c;">Plano de Ação: Comitê prévio de compras para fretes acima de R$ 10k.</em>
               </td>
             </tr>
@@ -715,40 +749,40 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         <span style="font-size: 0.92rem; color: #6ee7b7; font-weight: 700;">Governança NPE Group (Base ATA_COMENTARIO)</span>
       </div>
 
-      <div style="overflow-x: auto; padding: 20px;">
+      <div style="overflow-x: auto; padding: 18px;">
         <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 1.0rem;">
           <thead>
             <tr style="background: #0f2b5c; color: #ffffff; text-transform: uppercase; font-size: 0.92rem; letter-spacing: 0.5px;">
-              <th style="padding: 14px 16px; width: 180px;">📌 Indicador</th>
-              <th style="padding: 14px 16px; width: 260px; color: #86efac;">🟢 Boas Práticas (O Que Fazer)</th>
-              <th style="padding: 14px 16px; width: 260px; color: #fca5a5;">🔴 Práticas de Risco (O Que Evitar)</th>
-              <th style="padding: 14px 16px; min-width: 320px;">🛡️ Diretriz Obrigatória da Gerência de Performance</th>
+              <th style="padding: 12px 14px; width: 180px;">📌 Indicador</th>
+              <th style="padding: 12px 14px; width: 260px; color: #86efac;">🟢 Boas Práticas (O Que Fazer)</th>
+              <th style="padding: 12px 14px; width: 260px; color: #fca5a5;">🔴 Práticas de Risco (O Que Evitar)</th>
+              <th style="padding: 12px 14px; min-width: 320px;">🛡️ Diretriz Obrigatória da Gerência de Performance</th>
             </tr>
           </thead>
           <tbody>
             <tr style="background: #ffffff; border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 14px 16px; font-weight: 800; color: #0f2b5c;">Faturamento & Margem</td>
-              <td style="padding: 14px 16px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">Medição física antecipada e faturamento semanal de aditivos.</td>
-              <td style="padding: 14px 16px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Postergar medições para o final do mês ou aceitar glosas verbais.</td>
-              <td style="padding: 14px 16px; color: #1e293b; font-size: 0.98rem;">Auditoria quinzenal da curva de faturamento do FCST com os Gestores de Contrato.</td>
+              <td style="padding: 12px 14px; font-weight: 800; color: #0f2b5c;">Faturamento & Margem</td>
+              <td style="padding: 12px 14px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">Medição física antecipada e faturamento semanal de aditivos.</td>
+              <td style="padding: 12px 14px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Postergar medições para o final do mês ou aceitar glosas verbais.</td>
+              <td style="padding: 12px 14px; color: #1e293b; font-size: 0.98rem;">Auditoria quinzenal da curva de faturamento do FCST com os Gestores de Contrato.</td>
             </tr>
             <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 14px 16px; font-weight: 800; color: #0f2b5c;">Efetivo & MOD</td>
-              <td style="padding: 14px 16px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">Dimensionamento exato da PR e banco de talentos ativo no RH.</td>
-              <td style="padding: 14px 16px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Efetivo ocioso ou excesso de horas extras descontroladas.</td>
-              <td style="padding: 14px 16px; color: #1e293b; font-size: 0.98rem;">Trava no sistema para HE e cruzamento diário do SPC com a folha SRD.</td>
+              <td style="padding: 12px 14px; font-weight: 800; color: #0f2b5c;">Efetivo & MOD</td>
+              <td style="padding: 12px 14px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">Dimensionamento exato da PR e banco de talentos ativo no RH.</td>
+              <td style="padding: 12px 14px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Efetivo ocioso ou excesso de horas extras descontroladas.</td>
+              <td style="padding: 12px 14px; color: #1e293b; font-size: 0.98rem;">Trava no sistema para HE e cruzamento diário do SPC com a folha SRD.</td>
             </tr>
             <tr style="background: #ffffff; border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 14px 16px; font-weight: 800; color: #0f2b5c;">Indenizações & Perdas</td>
-              <td style="padding: 14px 16px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">RDO assinado diariamente pelo cliente com protocolo formal de cobrança.</td>
-              <td style="padding: 14px 16px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Absorver custos de paralisações geradas por terceiros sem notificação.</td>
-              <td style="padding: 14px 16px; color: #1e293b; font-size: 0.98rem;">Comitê mensal de pleitos com apoio do Jurídico e da Controladoria NPE.</td>
+              <td style="padding: 12px 14px; font-weight: 800; color: #0f2b5c;">Indenizações & Perdas</td>
+              <td style="padding: 12px 14px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">RDO assinado diariamente pelo cliente com protocolo formal de cobrança.</td>
+              <td style="padding: 12px 14px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Absorver custos de paralisações geradas por terceiros sem notificação.</td>
+              <td style="padding: 12px 14px; color: #1e293b; font-size: 0.98rem;">Comitê mensal de pleitos com apoio do Jurídico e da Controladoria NPE.</td>
             </tr>
             <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 14px 16px; font-weight: 800; color: #0f2b5c;">SSMA, SAF & CAF</td>
-              <td style="padding: 14px 16px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">DDS diário focado no risco da atividade e inspeção contínua de EPIs.</td>
-              <td style="padding: 14px 16px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Execução de tarefas críticas sem ART/PT ou liberação de segurança.</td>
-              <td style="padding: 14px 16px; color: #1e293b; font-size: 0.98rem;">Meta Zero Acidentes: auditorias de campo in loco quinzenais por amostragem.</td>
+              <td style="padding: 12px 14px; font-weight: 800; color: #0f2b5c;">SSMA, SAF & CAF</td>
+              <td style="padding: 12px 14px; color: #166534; font-size: 0.98rem; background: #f0fdf4;">DDS diário focado no risco da atividade e inspeção contínua de EPIs.</td>
+              <td style="padding: 12px 14px; color: #991b1b; font-size: 0.98rem; background: #fef2f2;">Execução de tarefas críticas sem ART/PT ou liberação de segurança.</td>
+              <td style="padding: 12px 14px; color: #1e293b; font-size: 0.98rem;">Meta Zero Acidentes: auditorias de campo in loco quinzenais por amostragem.</td>
             </tr>
           </tbody>
         </table>
