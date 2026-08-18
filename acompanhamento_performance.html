@@ -87,77 +87,79 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
     /* Monthly Grid */
     .topics-table { display: flex; flex-direction: column; gap: 16px; }
-    .topic-row { display: grid; grid-template-columns: 430px 1fr 1fr; gap: 18px; background-color: #ffffff; border-radius: 12px; border: 2.5px solid #162b58; padding: 18px; box-shadow: 0 8px 24px rgba(11, 26, 58, 0.4), 0 2px 8px rgba(11, 26, 58, 0.25); margin-bottom: 18px; }
+    
+    .topic-row {
+      display: grid;
+      grid-template-columns: 440px 1fr 1fr;
+      gap: 16px;
+      background-color: #ffffff;
+      border-radius: 12px;
+      border: 2px solid #162b58;
+      padding: 16px;
+      box-shadow: 0 4px 16px rgba(11, 26, 58, 0.15);
+      margin-bottom: 18px;
+      width: 100%;
+      box-sizing: border-box;
+      align-items: stretch;
+      overflow: hidden;
+      position: relative;
+    }
 
-    @media (max-width: 1200px) { .topic-row { display: grid; grid-template-columns: 430px 1fr 1fr; gap: 18px; background-color: #ffffff; border-radius: 12px; border: 2.5px solid #162b58; padding: 18px; box-shadow: 0 8px 24px rgba(11, 26, 58, 0.4), 0 2px 8px rgba(11, 26, 58, 0.25); margin-bottom: 18px; } }
+    @media (max-width: 1300px) {
+      .topic-row { grid-template-columns: 1fr; }
+    }
 
     .kpi-column {
-      background-color: #f8fafc; border: 1.5px solid #162b58;
-      border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 440px;
+      box-sizing: border-box;
+      overflow: hidden;
     }
 
-    .kpi-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; }
-    .kpi-title { font-size: 1.22rem; font-weight: 800; color: #1e3a8a; }
-    .kpi-badge { font-size: 0.92rem; background-color: #dbeafe; color: #1e40af; padding: 4px 10px; border-radius: 6px; font-weight: 800; }
-    .kpi-lines { 
-      display: flex; 
-      flex-direction: column; 
-      gap: 3px; 
-      font-size: 0.83rem; 
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
+    .kpi-column table {
+      width: 100% !important;
+      table-layout: fixed !important;
+      box-sizing: border-box !important;
+      border-collapse: collapse !important;
+    }
+
+    .kpi-column td {
+      box-sizing: border-box !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+      white-space: normal !important;
+    }
+
+    .comment-col {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    textarea.comment-input {
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 220px !important;
       border-radius: 8px;
-      padding: 4px;
+      border: 1.5px solid #94a3b8;
+      padding: 14px 16px !important;
+      font-family: inherit;
+      font-size: 1.02rem !important;
+      line-height: 1.6 !important;
+      color: #0f172a;
+      resize: vertical;
+      transition: border-color 0.2s ease;
+      box-sizing: border-box;
+      background: #ffffff;
+      flex: 1;
     }
-    .kpi-line { 
-      display: grid; 
-      grid-template-columns: 1fr 130px; 
-      align-items: center; 
-      padding: 4px 8px; 
-      border-radius: 6px;
-      transition: background-color 0.15s ease;
-    }
-    .kpi-line:nth-child(even) { 
-      background-color: #f8fafc; 
-    }
-    .kpi-line:hover {
-      background-color: #eff6ff;
-    }
-    .kpi-line .label { 
-      color: #475569; 
-      font-weight: 600; 
-      font-size: 0.80rem; 
-      white-space: nowrap; 
-      overflow: hidden; 
-      text-overflow: ellipsis; 
-    }
-    .kpi-line .val { 
-      font-weight: 800; 
-      color: #0f172a; 
-      font-size: 0.85rem; 
-      text-align: right; 
-      font-variant-numeric: tabular-nums; 
-      font-feature-settings: "tnum"; 
-      white-space: nowrap;
-      padding-right: 2px;
-    }
-    .kpi-line .positive { color: #15803d !important; font-weight: 800; }
-    .kpi-line .negative { color: #b91c1c !important; font-weight: 800; }
 
-    .timeline-btn { background-color: #f1f5f9; border: 1.5px solid #94a3b8; color: #1e3a8a; padding: 10px 14px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; }
-    .timeline-btn:hover { background-color: #dbeafe; }
-
-    .comment-col { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-    .comment-col-title { font-size: 1.05rem; font-weight: 800; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; }
-    .title-gestor { color: #1e40af; }
-    .title-master { color: #047857; }
-
-    .status-pill { font-size: 0.88rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; }
-    .status-pendente { background-color: #fef3c7; color: #b45309; border: 1.5px solid #fde68a; }
-    .status-validado { background-color: #dcfce7; color: #15803d; border: 1.5px solid #86efac; }
-    .status-reaberto { background-color: #dbeafe; color: #1e40af; border: 1.5px solid #93c5fd; }
-
-    textarea.comment-input { width: 100%; min-height: 125px; border-radius: 8px; border: 1.5px solid #94a3b8; padding: 14px 16px; font-family: inherit; font-size: 1.05rem; line-height: 1.55; color: #0f172a; resize: vertical; transition: border-color 0.2s ease; box-sizing: border-box; background: #ffffff; }
     textarea.comment-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
     textarea.comment-input:disabled { opacity: 0.7; cursor: not-allowed; background-color: #f1f5f9; border-color: #cbd5e1; }
 
@@ -252,23 +254,50 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     }
 
     /* Aba 1 Topic Row & Flexible High-Capacity Comments */
+    
     .topic-row {
       display: grid;
       grid-template-columns: 440px 1fr 1fr;
-      gap: 18px;
+      gap: 16px;
       background-color: #ffffff;
       border-radius: 12px;
-      border: 2.5px solid #162b58;
-      padding: 18px;
-      box-shadow: 0 8px 24px rgba(11, 26, 58, 0.4), 0 2px 8px rgba(11, 26, 58, 0.25);
+      border: 2px solid #162b58;
+      padding: 16px;
+      box-shadow: 0 4px 16px rgba(11, 26, 58, 0.15);
       margin-bottom: 18px;
       width: 100%;
       box-sizing: border-box;
       align-items: stretch;
+      overflow: hidden;
+      position: relative;
     }
 
     @media (max-width: 1300px) {
       .topic-row { grid-template-columns: 1fr; }
+    }
+
+    .kpi-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 440px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    .kpi-column table {
+      width: 100% !important;
+      table-layout: fixed !important;
+      box-sizing: border-box !important;
+      border-collapse: collapse !important;
+    }
+
+    .kpi-column td {
+      box-sizing: border-box !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+      white-space: normal !important;
     }
 
     .comment-col {
@@ -277,17 +306,18 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       height: 100%;
       width: 100%;
       box-sizing: border-box;
+      overflow: hidden;
     }
 
     textarea.comment-input {
       width: 100% !important;
-      height: calc(100% - 40px) !important;
-      min-height: 280px !important;
+      height: 100% !important;
+      min-height: 220px !important;
       border-radius: 8px;
       border: 1.5px solid #94a3b8;
-      padding: 16px 18px !important;
+      padding: 14px 16px !important;
       font-family: inherit;
-      font-size: 1.05rem !important;
+      font-size: 1.02rem !important;
       line-height: 1.6 !important;
       color: #0f172a;
       resize: vertical;
@@ -296,6 +326,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       background: #ffffff;
       flex: 1;
     }
+
 
     /* Aba 2: Perfectly Aligned Corporate Table */
     .annual-item-row {
@@ -879,14 +910,13 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     // Topics Definition
             const topicsData = [
       {
-        id: 1,
-        name: "Faturamento Ano",
+        id: 1, name: "Faturamento Ano",
         lines: [
           { label: "Faturamento Executivo Ano", val: "R$ 645.759.632" },
-          { label: "Faturamento FCST Ano", val: "R$ 645.759.632" },
+          { label: "Faturamento FCST Ano", val: "R$ 678.924.150" },
           { label: "Faturamento Real Ano", val: "R$ 740.570.832" },
-          { label: "Diferença Faturamento Ano", val: "+R$ 94.811.200", class: "positive" },
-          { label: "Diferença Faturamento Ano (%)", val: "+14,68%", class: "positive" }
+          { label: "Diferença Faturamento Ano", val: "+R$ 61.646.682", class: "positive" },
+          { label: "Diferença Faturamento Ano (%)", val: "+9,08%", class: "positive" }
         ],
         annualInsight: {
           badgeText: "🟢 Faturamento em Superávit (+14,68%)",
@@ -894,17 +924,16 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         }
       },
       {
-        id: 2,
-        name: "Resultado Ano",
+        id: 2, name: "Resultado Ano",
         lines: [
           { label: "Resultado Executivo Ano", val: "R$ 30.110.075" },
-          { label: "Resultado FCST Ano", val: "R$ 30.110.075" },
+          { label: "Resultado FCST Ano", val: "R$ 34.250.800" },
           { label: "Resultado Real Ano", val: "R$ 39.027.280" },
-          { label: "Diferença Resultado Ano", val: "+R$ 8.917.205", class: "positive" },
+          { label: "Diferença Resultado Ano", val: "+R$ 4.776.480", class: "positive" },
           { label: "Margem Executivo Ano (%)", val: "4,66%" },
-          { label: "Margem FCST Ano (%)", val: "4,66%" },
+          { label: "Margem FCST Ano (%)", val: "5,05%" },
           { label: "Margem Real Ano (%)", val: "5,27%" },
-          { label: "Diferença Margem Ano (%)", val: "+0,61%", class: "positive" }
+          { label: "Diferença Margem Ano (%)", val: "+0,22%", class: "positive" }
         ],
         annualInsight: {
           badgeText: "🟢 Rentabilidade em Alta (+29,62%)",
@@ -1228,21 +1257,21 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         // Multi-OS Mode: ALWAYS display official consolidated corporate annual totals
         topicsData[0].lines = [
           { label: "Faturamento Executivo Ano", val: "R$ 645.759.632" },
-          { label: "Faturamento FCST Ano", val: "R$ 645.759.632" },
+          { label: "Faturamento FCST Ano", val: "R$ 678.924.150" },
           { label: "Faturamento Real Ano", val: "R$ 740.570.832" },
-          { label: "Diferença Faturamento Ano", val: "+R$ 94.811.200", class: "positive" },
-          { label: "Diferença Faturamento Ano (%)", val: "+14,68%", class: "positive" }
+          { label: "Diferença Faturamento Ano", val: "+R$ 61.646.682", class: "positive" },
+          { label: "Diferença Faturamento Ano (%)", val: "+9,08%", class: "positive" }
         ];
 
         topicsData[1].lines = [
           { label: "Resultado Executivo Ano", val: "R$ 30.110.075" },
-          { label: "Resultado FCST Ano", val: "R$ 30.110.075" },
+          { label: "Resultado FCST Ano", val: "R$ 34.250.800" },
           { label: "Resultado Real Ano", val: "R$ 39.027.280" },
-          { label: "Diferença Resultado Ano", val: "+R$ 8.917.205", class: "positive" },
+          { label: "Diferença Resultado Ano", val: "+R$ 4.776.480", class: "positive" },
           { label: "Margem Executivo Ano (%)", val: "4,66%" },
-          { label: "Margem FCST Ano (%)", val: "4,66%" },
+          { label: "Margem FCST Ano (%)", val: "5,05%" },
           { label: "Margem Real Ano (%)", val: "5,27%" },
-          { label: "Diferença Margem Ano (%)", val: "+0,61%", class: "positive" }
+          { label: "Diferença Margem Ano (%)", val: "+0,22%", class: "positive" }
         ];
       } else {
         // Single OS Mode: Display specific OS numbers from Power BI measures
@@ -1349,6 +1378,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       return raw.includes(numStr) || raw.includes(currentName) || raw.includes(currentShort) || raw.includes(String(monthNum));
     }
 
+    
     function renderRows() {
       const container = document.getElementById("topicsContainer");
       if (!container) return;
@@ -1433,25 +1463,22 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           let gestorEntries = [];
           let masterEntries = [];
 
-          // Collect comments across all 46 OSs for this topic
+          // Collect comments across all OSs for this topic
           for (const [osCode, topicsObj] of Object.entries(db)) {
             const topicRows = topicsObj[topic.id] || [];
             if (topicRows.length === 0) continue;
 
-            // Find matching row for the month (or closest available)
-            let matchRow = topicRows.find(r => r.mes === monthNum) || topicRows[topicRows.length - 1];
+            // Prioritize matching month, or use latest recorded comment
+            let gRow = topicRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum) || topicRows.filter(r => r.tipo === "GESTOR")[topicRows.filter(r => r.tipo === "GESTOR").length - 1];
+            let mRow = topicRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum) || topicRows.filter(r => r.tipo === "PERFORMANCE")[topicRows.filter(r => r.tipo === "PERFORMANCE").length - 1];
 
-            if (matchRow) {
-              const osLabel = osNamesMap[osCode] ? `${osCode} - ${osNamesMap[osCode]}` : osCode;
-              const coment = matchRow.comentario ? matchRow.comentario.trim() : "";
+            const osLabel = osNamesMap[osCode] ? `${osCode} - ${osNamesMap[osCode]}` : osCode;
 
-              if (coment && coment.length > 5 && coment !== "Sem justificativas") {
-                if (matchRow.tipo === "GESTOR") {
-                  gestorEntries.push(`[OS ${osLabel}]: ${coment}`);
-                } else if (matchRow.tipo === "PERFORMANCE") {
-                  masterEntries.push(`[OS ${osLabel}]: ${coment}`);
-                }
-              }
+            if (gRow && gRow.comentario && gRow.comentario.trim().length > 5 && gRow.comentario.trim() !== "Sem justificativas") {
+              gestorEntries.push(`[OS ${osLabel}]: ${gRow.comentario.trim()}`);
+            }
+            if (mRow && mRow.comentario && mRow.comentario.trim().length > 5 && mRow.comentario.trim() !== "Sem ocorrência no mês") {
+              masterEntries.push(`[OS ${osLabel}]: ${mRow.comentario.trim()}`);
             }
 
             if (gestorEntries.length >= 10 && masterEntries.length >= 10) break;
@@ -1459,14 +1486,14 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
           if (gestorEntries.length > 0) {
             finalGestorText = gestorEntries.slice(0, 10).join("\n\n");
-            finalGestorText += "\n\n📌 [Exibindo as principais 10 OSs consolidadas. Para visualizar ou editar uma OS individualmente, selecione a OS desejada no filtro do Power BI.]";
+            finalGestorText += "\n\n📌 [Exibindo as principais OSs consolidadas. Para visualizar ou editar uma OS individualmente, selecione a OS desejada no filtro do Power BI.]";
           } else {
-            finalGestorText = "Operação regular sem desvios registrados para as OSs no ciclo consolidado.";
+            finalGestorText = "Operação regular sem ocorrências de desvio reportadas para as OSs neste tópico.";
           }
 
           if (masterEntries.length > 0) {
             finalMasterText = masterEntries.slice(0, 10).join("\n\n");
-            finalMasterText += "\n\n📌 [Exibindo os pareceres da Performance das principais OSs consolidadas. Selecione a OS no Power BI para filtrar.]";
+            finalMasterText += "\n\n📌 [Exibindo pareceres da Performance consolidados. Selecione a OS no Power BI para filtrar.]";
           } else {
             finalMasterText = "⏳ Acompanhamento contínuo e governança pelo Setor de Performance da NPE.";
           }
@@ -1490,9 +1517,9 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         const valStatus = isMultiOS ? "Pendente" : safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, defaultStatus);
         const gestorIsLocked = isMultiOS || (valStatus === "Validado" && !isMaster);
 
-        // Lines table with 25-30% larger fonts
+        // Lines table with strict width containment (60% label / 40% val)
         let linesHTML = `
-          <table style="width: 100%; border-collapse: collapse; margin-top: 4px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+          <table style="width: 100%; border-collapse: collapse; margin-top: 4px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden; table-layout: fixed;">
             <tbody>
               ${topic.lines.map((l, idx) => {
                 const dynamicClass = getLineClass(topic.id, idx, topic.lines);
@@ -1502,10 +1529,10 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
                 const rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
                 return `
                   <tr style="background-color: ${rowBg}; border-bottom: 1px solid #edf2f7;">
-                    <td style="padding: 6px 10px; font-size: 0.98rem; color: #334155; font-weight: 700; text-align: left; white-space: nowrap;">
+                    <td style="padding: 6px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 62%; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
                       ${l.label}:
                     </td>
-                    <td style="padding: 6px 10px; font-size: 1.15rem; color: ${valColor}; font-weight: 800; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
+                    <td style="padding: 6px 10px; font-size: 1.10rem; color: ${valColor}; font-weight: 800; text-align: right; width: 38%; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
                       ${l.val}
                     </td>
                   </tr>
