@@ -1648,9 +1648,9 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
             const tRows = topsObj[strTid] || [];
             if (tRows.length === 0) continue;
 
-            // Prioritize matching month, or use latest available
-            let gRow = tRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum) || tRows.filter(r => r.tipo === "GESTOR")[tRows.filter(r => r.tipo === "GESTOR").length - 1];
-            let mRow = tRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum) || tRows.filter(r => r.tipo === "PERFORMANCE")[tRows.filter(r => r.tipo === "PERFORMANCE").length - 1];
+            // STRICT MATCH ONLY BY SELECTED MONTH (Never pull from another month)
+            let gRow = tRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum);
+            let mRow = tRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum);
 
             const osLabel = osNamesMap[osCode] ? `${osCode} - ${osNamesMap[osCode]}` : osCode;
 
@@ -1666,23 +1666,23 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
           if (gestorEntries.length > 0) {
             finalGestorText = gestorEntries.slice(0, 10).join("\n\n");
-            finalGestorText += "\n\n📌 [Exibindo as principais OSs consolidadas. Para visualizar ou editar uma OS individualmente, selecione a OS desejada no filtro do Power BI.]";
+            finalGestorText += "\n\n📌 [Exibindo as justificativas registradas para as OSs em " + monthName + ". Selecione uma OS no Power BI para filtrar.]";
           } else {
-            finalGestorText = "Operação regular sem ocorrências de desvio reportadas para as OSs neste tópico.";
+            finalGestorText = "Sem justificativas registradas para as OSs no mês de " + monthName + ".";
           }
 
           if (masterEntries.length > 0) {
             finalMasterText = masterEntries.slice(0, 10).join("\n\n");
-            finalMasterText += "\n\n📌 [Exibindo pareceres da Performance consolidados. Selecione a OS no Power BI para filtrar.]";
+            finalMasterText += "\n\n📌 [Exibindo pareceres da Performance registrados em " + monthName + ". Selecione uma OS no Power BI para filtrar.]";
           } else {
-            finalMasterText = "⏳ Acompanhamento contínuo e governança pelo Setor de Performance da NPE.";
+            finalMasterText = "Acompanhamento contínuo e governança pelo Setor de Performance da NPE (" + monthName + ").";
           }
 
         } else {
-          // SINGLE SELECTED OS MODE
+          // SINGLE SELECTED OS MODE - STRICT MATCH ONLY BY SELECTED MONTH
           let osRows = (ATA_COMENTARIOS_DB[activeOS] && ATA_COMENTARIOS_DB[activeOS][String(topic.id)]) ? ATA_COMENTARIOS_DB[activeOS][String(topic.id)] : [];
-          let matchGestor = osRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum) || osRows.filter(r => r.tipo === "GESTOR")[0];
-          let matchMaster = osRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum) || osRows.filter(r => r.tipo === "PERFORMANCE")[0];
+          let matchGestor = osRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum);
+          let matchMaster = osRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum);
 
           let excelGestor = matchGestor ? matchGestor.comentario : "";
           let excelMaster = matchMaster ? matchMaster.comentario : "";
