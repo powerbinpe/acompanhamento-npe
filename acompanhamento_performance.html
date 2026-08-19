@@ -1421,79 +1421,78 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     
     function toggleInlineHistory(topicId) {
       const drawer = document.getElementById(`inline_history_${topicId}`);
-      const btn = document.getElementById(`btn_hist_${topicId}`);
       if (!drawer) return;
 
       if (drawer.style.display === "block") {
         drawer.style.display = "none";
-        if (btn) btn.innerHTML = "📜 Histórico ATA_COMENTARIO";
         return;
       }
 
       drawer.style.display = "block";
-      if (btn) btn.innerHTML = "🔼 Ocultar Histórico";
 
       const currentParams = new URLSearchParams(window.location.search);
       const rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
-      const isMultiOS = (!rawOS || rawOS === "TODAS_OS" || rawOS === "TODAS" || rawOS.includes("Todas"));
-      const activeOS = isMultiOS ? "TODAS" : extractPrimaryOSCode(rawOS);
-
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      const activeOS = isMultiOS ? "M00100" : ((typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(rawOS) : rawOS) || rawOS);
+      const db = ATA_COMENTARIOS_DB;
       const strTid = String(topicId);
-      const db = (typeof ATA_COMENTARIOS_DB !== "undefined" && ATA_COMENTARIOS_DB) ? ATA_COMENTARIOS_DB : {};
-      const topicObj = (typeof topicsData !== "undefined") ? topicsData.find(t => t.id === topicId) : null;
-      const topicName = topicObj ? topicObj.name : `Tópico #${topicId}`;
 
-      // Read real DAX metrics passed dynamically in URL
-      const daxFatReal = currentParams.get("H_FatReal") ? currentParams.get("H_FatReal").split("|").map(v => parseFloat(v)) : null;
-      const daxFatFcst = currentParams.get("H_FatFcst") ? currentParams.get("H_FatFcst").split("|").map(v => parseFloat(v)) : null;
-      const daxResReal = currentParams.get("H_ResReal") ? currentParams.get("H_ResReal").split("|").map(v => parseFloat(v)) : null;
-      const daxResFcst = currentParams.get("H_ResFcst") ? currentParams.get("H_ResFcst").split("|").map(v => parseFloat(v)) : null;
+      // Historical metrics arrays passed from Power BI DAX
+      const rawHFatReal = currentParams.get("H_FatReal") || "";
+      const rawHFatFcst = currentParams.get("H_FatFcst") || "";
+      const rawHResReal = currentParams.get("H_ResReal") || "";
+      const rawHResFcst = currentParams.get("H_ResFcst") || "";
 
-      const mainFatRealAno = currentParams.get("FatRealAno") || "R$ 740.570.832";
-      const mainFatFcstAno = currentParams.get("FatFcstAno") || "R$ 678.924.150";
-      const mainResRealAno = currentParams.get("ResRealAno") || "R$ 39.027.280";
-      const mainResFcstAno = currentParams.get("ResFcstAno") || "R$ 34.250.800";
+      const daxFatReal = rawHFatReal ? rawHFatReal.split("|").map(v => parseFloat(v)) : [];
+      const daxFatFcst = rawHFatFcst ? rawHFatFcst.split("|").map(v => parseFloat(v)) : [];
+      const daxResReal = rawHResReal ? rawHResReal.split("|").map(v => parseFloat(v)) : [];
+      const daxResFcst = rawHResFcst ? rawHResFcst.split("|").map(v => parseFloat(v)) : [];
 
-      const monthsList = [
-        { num: 1, name: "JANEIRO / 2026", fcst_label: "FCST 01 Ano" },
-        { num: 2, name: "FEVEREIRO / 2026", fcst_label: "FCST 02 Ano" },
-        { num: 3, name: "MARÇO / 2026", fcst_label: "FCST 03 Ano" },
-        { num: 4, name: "ABRIL / 2026", fcst_label: "FCST 04 Ano" },
-        { num: 5, name: "MAIO / 2026", fcst_label: "FCST 05 Ano" },
-        { num: 6, name: "JUNHO / 2026", fcst_label: "FCST 06 Ano" }
+      // Main active cycle metrics
+      const mainFatRealAno = currentParams.get("FatRealAno") || "R$ 704.520.935";
+      const mainFatFcstAno = currentParams.get("FatFcstAno") || "R$ 643.370.735";
+      const mainResRealAno = currentParams.get("ResRealAno") || "R$ 22.129.042";
+      const mainResFcstAno = currentParams.get("ResFcstAno") || "R$ 13.680.517";
+
+      // Official cycles based on user specification (FCST 03 to FCST 07)
+      const historicalCycles = [
+        { num: 1, name: "JANEIRO / 2026", fcst_label: "Executivo Inicial", idx: 0 },
+        { num: 2, name: "FEVEREIRO / 2026", fcst_label: "FCST 02", idx: 1 },
+        { num: 3, name: "MARÇO / 2026", fcst_label: "FCST 03", idx: 2 },
+        { num: 4, name: "ABRIL / 2026", fcst_label: "FCST 04", idx: 3 },
+        { num: 5, name: "MAIO / 2026", fcst_label: "FCST 05", idx: 4 },
+        { num: 6, name: "JUNHO / 2026", fcst_label: "FCST 06", idx: 5 },
+        { num: 7, name: "JULHO / 2026", fcst_label: "FCST 07", idx: 6 }
       ];
 
-      let isAnnualTopic = (topicId === 1 || topicId === 2);
-      let colHeaderReal = isAnnualTopic ? "Projeção Real Ano" : "Valor Real (Mês)";
-      let colHeaderFcst = isAnnualTopic ? "FCST do Ciclo (Ano)" : "Meta / FCST (Mês)";
+      const topicName = topicsData.find(t => t.id === topicId)?.name || "Indicador";
 
       let html = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:2.5px solid #0f2b5c; padding-bottom:10px;">
-          <h4 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">
-            📜 Histórico Cronológico de Ciclos: ${topicName}
-            <span style="font-size:0.88rem; font-weight:700; color:#1e40af; background:#dbeafe; padding:3px 10px; border-radius:6px;">
-              ${isMultiOS ? '🌐 Visão Corporativa Consolidada Mês a Mês (Todas as OSs)' : `📌 OS ${activeOS} - Histórico Mês a Mês`}
-            </span>
-          </h4>
-          <button onclick="toggleInlineHistory(${topicId})" style="background:#0f2b5c; color:#ffffff; border:none; border-radius:6px; padding:6px 14px; font-weight:800; cursor:pointer; font-size:0.88rem;">✖ Fechar</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:2px solid #cbd5e1; padding-bottom:8px;">
+          <span style="font-size:1.05rem; font-weight:800; color:#0f2b5c;">
+            📜 Histórico Cronológico de Ciclos: ${topicName} <span style="font-size:0.85rem; font-weight:600; color:#2563eb;">${isMultiOS ? '🌐 Visão Corporativa Consolidada Mês a Mês (Todas as OSs)' : `🏢 OS ${activeOS} - Histórico`}</span>
+          </span>
+          <button onclick="toggleInlineHistory(${topicId})" style="background:#0f2b5c; color:#ffffff; border:none; padding:4px 12px; border-radius:6px; font-weight:700; cursor:pointer; font-size:0.80rem;">
+            ✕ Fechar
+          </button>
         </div>
         <div style="overflow-x:auto;">
-          <table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.95rem; border:2px solid #cbd5e1; border-radius:8px; overflow:hidden;">
+          <table style="width:100%; border-collapse:collapse; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; overflow:hidden;">
             <thead>
-              <tr style="background:#0f2b5c; color:#ffffff; text-transform:uppercase; font-size:0.86rem; letter-spacing:0.5px;">
-                <th style="padding:12px 14px; text-align:left; width:160px;">🗓️ Mês Apurado</th>
-                <th style="padding:12px 14px; text-align:right; width:160px;">${colHeaderReal}</th>
-                <th style="padding:12px 14px; text-align:right; width:160px;">${colHeaderFcst}</th>
-                <th style="padding:12px 14px; text-align:right; width:170px;">Diferença</th>
-                <th style="padding:12px 14px; text-align:left; min-width:320px;">📝 Justificativas das OSs do Mês</th>
-                <th style="padding:12px 14px; text-align:left; min-width:280px;">🛡️ Pareceres da Performance</th>
-                <th style="padding:12px 14px; text-align:center; width:130px;">Validação</th>
+              <tr style="background:#0f2b5c; color:#ffffff; font-size:0.82rem; text-transform:uppercase; letter-spacing:0.5px;">
+                <th style="padding:10px 14px; text-align:left; width:130px;">🗓️ Mês Apurado</th>
+                <th style="padding:10px 14px; text-align:right; width:150px;">Projeção Real Ano</th>
+                <th style="padding:10px 14px; text-align:right; width:150px;">FCST do Ciclo (Ano)</th>
+                <th style="padding:10px 14px; text-align:right; width:150px;">Diferença</th>
+                <th style="padding:10px 14px; text-align:left;">📝 Justificativas das OSs do Mês</th>
+                <th style="padding:10px 14px; text-align:left;">🛡️ Pareceres da Performance</th>
+                <th style="padding:10px 14px; text-align:center; width:120px;">Validação</th>
               </tr>
             </thead>
             <tbody>
       `;
 
-      monthsList.forEach((m, idx) => {
+      historicalCycles.forEach((m, idx) => {
         let valRealNum = 0;
         let valFcstNum = 0;
         let valRealStr = "-";
@@ -1501,19 +1500,19 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         let diffStr = "-";
         let isPos = true;
 
-        // Dynamic DAX evaluation
-        if (topicId === 1 && daxFatReal && daxFatFcst && !isNaN(daxFatReal[idx]) && daxFatReal[idx] > 0) {
+        // Dynamic DAX evaluation from arrays or direct values
+        if (topicId === 1 && daxFatReal && daxFatReal.length > idx && !isNaN(daxFatReal[idx]) && daxFatReal[idx] > 0) {
           valRealNum = daxFatReal[idx];
-          valFcstNum = daxFatFcst[idx];
+          valFcstNum = (daxFatFcst && daxFatFcst.length > idx && !isNaN(daxFatFcst[idx])) ? daxFatFcst[idx] : valRealNum;
           valRealStr = "R$ " + Math.round(valRealNum).toLocaleString('pt-BR');
           valFcstStr = "R$ " + Math.round(valFcstNum).toLocaleString('pt-BR');
-        } else if (topicId === 2 && daxResReal && daxResFcst && !isNaN(daxResReal[idx]) && daxResReal[idx] !== 0) {
+        } else if (topicId === 2 && daxResReal && daxResReal.length > idx && !isNaN(daxResReal[idx]) && daxResReal[idx] !== 0) {
           valRealNum = daxResReal[idx];
-          valFcstNum = daxResFcst[idx];
+          valFcstNum = (daxResFcst && daxResFcst.length > idx && !isNaN(daxResFcst[idx])) ? daxResFcst[idx] : valRealNum;
           valRealStr = "R$ " + Math.round(valRealNum).toLocaleString('pt-BR');
           valFcstStr = "R$ " + Math.round(valFcstNum).toLocaleString('pt-BR');
         } else if (m.num === 6) {
-          // Fallback to active month real metrics passed from Power BI
+          // Current active month
           if (topicId === 1) {
             valRealStr = mainFatRealAno;
             valFcstStr = mainFatFcstAno;
@@ -1526,7 +1525,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           }
         } else {
           valRealStr = "Apurado no ciclo";
-          valFcstStr = "FCST 0" + m.num;
+          valFcstStr = m.fcst_label;
         }
 
         if (valRealNum > 0 && valFcstNum > 0) {
@@ -1558,7 +1557,6 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
             if (mRow && mRow.comentario && mRow.comentario.trim().length > 5 && mRow.comentario.trim() !== "Sem ocorrência no mês") {
               masterEntriesThisMonth.push(`<div style="margin-bottom:8px; line-height:1.5;"><strong style="color:#064e3b;">[OS ${osLabel}]:</strong> ${mRow.comentario.trim()}</div>`);
             } else if (gRow && gRow.comentario && gRow.comentario.trim().length > 5) {
-              // Contextual governance statement for that specific OS
               masterEntriesThisMonth.push(`<div style="margin-bottom:8px; line-height:1.5;"><strong style="color:#064e3b;">[OS ${osLabel}]:</strong> Acompanhamento regular de custos e validação de medições físicas pelo Setor de Performance.</div>`);
             }
 
