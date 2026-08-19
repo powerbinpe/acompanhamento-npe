@@ -1261,44 +1261,30 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       if (sumMarg) sumMarg.innerText = isMultiOS ? "5,27%" : (params.get("MargReal") || "5,27%");
       if (sumAssert) sumAssert.innerText = params.get("AssertivAcum") || "100,00%";
 
-      // Update Topic 1 and Topic 2 KPI lines based on scope
-      if (isMultiOS) {
-        // Multi-OS Mode: ALWAYS display official consolidated corporate annual totals
-        topicsData[0].lines = [
-          { label: "Faturamento Executivo Ano", val: "R$ 645.759.632" },
-          { label: "Faturamento FCST Ano", val: "R$ 678.924.150" },
-          { label: "Faturamento Real Ano", val: "R$ 740.570.832" },
-          { label: "Diferença Faturamento Ano", val: "+R$ 61.646.682", class: "positive" },
-          { label: "Diferença Faturamento Ano (%)", val: "+9,08%", class: "positive" }
-        ];
+      // Update Summary Cards dynamically
+      const activeFatAno = params.get("FatRealAno") || "704.520.935";
+      const activeResAno = params.get("ResRealAno") || "22.129.042";
+      const activeMargAno = params.get("MargReal") || "3,14%";
+      if (sumFat) sumFat.innerText = activeFatAno === "-" ? "-" : `R$ ${activeFatAno}`;
+      if (sumRes) sumRes.innerText = activeResAno === "-" ? "-" : `R$ ${activeResAno}`;
+      if (sumMarg) sumMarg.innerText = activeMargAno;
 
-        topicsData[1].lines = [
-          { label: "Resultado Executivo Ano", val: "R$ 30.110.075" },
-          { label: "Resultado FCST Ano", val: "R$ 34.250.800" },
-          { label: "Resultado Real Ano", val: "R$ 39.027.280" },
-          { label: "Diferença Resultado Ano", val: "+R$ 4.776.480", class: "positive" },
-          { label: "Margem Executivo Ano (%)", val: "4,66%" },
-          { label: "Margem FCST Ano (%)", val: "5,05%" },
-          { label: "Margem Real Ano (%)", val: "5,27%" },
-          { label: "Diferença Margem Ano (%)", val: "+0,22%", class: "positive" }
-        ];
-      } else {
-        // Single OS Mode: Display specific OS numbers from Power BI measures
-        if (params.get("FatExecAno")) topicsData[0].lines[0].val = params.get("FatExecAno");
-        if (params.get("FatFcstAno")) topicsData[0].lines[1].val = params.get("FatFcstAno");
-        if (params.get("FatRealAno")) topicsData[0].lines[2].val = params.get("FatRealAno");
-        if (params.get("FatDifAno")) topicsData[0].lines[3].val = params.get("FatDifAno");
-        if (params.get("FatPctAno")) topicsData[0].lines[4].val = params.get("FatPctAno");
+      // Topic 1: Faturamento Ano (100% Dynamic from Power BI measures)
+      if (params.get("FatExecAno")) topicsData[0].lines[0].val = (params.get("FatExecAno") === "-" ? "-" : "R$ " + params.get("FatExecAno"));
+      if (params.get("FatFcstAno")) topicsData[0].lines[1].val = (params.get("FatFcstAno") === "-" ? "-" : "R$ " + params.get("FatFcstAno"));
+      if (params.get("FatRealAno")) topicsData[0].lines[2].val = (params.get("FatRealAno") === "-" ? "-" : "R$ " + params.get("FatRealAno"));
+      if (params.get("FatDifAno"))  topicsData[0].lines[3].val = (params.get("FatDifAno") === "-" ? "-" : (params.get("FatDifAno").startsWith("-") || params.get("FatDifAno").startsWith("(") ? "" : "+") + "R$ " + params.get("FatDifAno"));
+      if (params.get("FatPctAno"))  topicsData[0].lines[4].val = params.get("FatPctAno");
 
-        if (params.get("ResExecAno")) topicsData[1].lines[0].val = params.get("ResExecAno");
-        if (params.get("ResFcstAno")) topicsData[1].lines[1].val = params.get("ResFcstAno");
-        if (params.get("ResRealAno")) topicsData[1].lines[2].val = params.get("ResRealAno");
-        if (params.get("ResDifAno")) topicsData[1].lines[3].val = params.get("ResDifAno");
-        if (params.get("MargExec")) topicsData[1].lines[4].val = params.get("MargExec");
-        if (params.get("MargFcstAno")) topicsData[1].lines[5].val = params.get("MargFcstAno");
-        if (params.get("MargReal")) topicsData[1].lines[6].val = params.get("MargReal");
-        if (params.get("MargDifAno")) topicsData[1].lines[7].val = params.get("MargDifAno");
-      }
+      // Topic 2: Resultado Ano (100% Dynamic from Power BI measures)
+      if (params.get("ResExecAno"))  topicsData[1].lines[0].val = (params.get("ResExecAno") === "-" ? "-" : "R$ " + params.get("ResExecAno"));
+      if (params.get("ResFcstAno"))  topicsData[1].lines[1].val = (params.get("ResFcstAno") === "-" ? "-" : "R$ " + params.get("ResFcstAno"));
+      if (params.get("ResRealAno"))  topicsData[1].lines[2].val = (params.get("ResRealAno") === "-" ? "-" : "R$ " + params.get("ResRealAno"));
+      if (params.get("ResDifAno"))   topicsData[1].lines[3].val = (params.get("ResDifAno") === "-" ? "-" : (params.get("ResDifAno").startsWith("-") || params.get("ResDifAno").startsWith("(") ? "" : "+") + "R$ " + params.get("ResDifAno"));
+      if (params.get("MargExec"))    topicsData[1].lines[4].val = params.get("MargExec");
+      if (params.get("MargFcstAno")) topicsData[1].lines[5].val = params.get("MargFcstAno");
+      if (params.get("MargReal"))    topicsData[1].lines[6].val = params.get("MargReal");
+      if (params.get("MargDifAno"))  topicsData[1].lines[7].val = params.get("MargDifAno");
 
       // Topic 3: Faturamento Mês
       if (params.get("FatFcstMes")) topicsData[2].lines[0].val = params.get("FatFcstMes");
