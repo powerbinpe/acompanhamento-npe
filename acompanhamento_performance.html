@@ -1107,7 +1107,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
             {
         id: 15, name: "SAF",
         lines: [
-          { label: "Ocorrências SAF (_mQUANT_SAF_TOTAL)", val: "0 casos", class: "positive" }
+          { label: "Ocorrências SAF", val: "0 casos", class: "positive" }
         ],
         annualInsight: {
           badge: "badge-efetiva", badgeText: "🟢 Excelência em Segurança",
@@ -1119,7 +1119,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
             {
         id: 16, name: "CAF",
         lines: [
-          { label: "Ocorrências CAF (_mQUANT_CAF_TOTAL)", val: "0 casos", class: "positive" }
+          { label: "Ocorrências CAF", val: "0 casos", class: "positive" }
         ],
         annualInsight: {
           badge: "badge-efetiva", badgeText: "🟢 Trataiva Concluída",
@@ -1712,30 +1712,47 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         const valStatus = isMultiOS ? "Pendente" : safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, defaultStatus);
         const gestorIsLocked = isMultiOS || (valStatus === "Validado" && !isMaster);
 
-        // Lines table with strict containment (62% label / 38% val)
-        let linesHTML = `
-          <table style="width: 100%; border-collapse: collapse; margin-top: 4px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; overflow: hidden; table-layout: fixed;">
-            <tbody>
-              ${topic.lines.map((l, idx) => {
-                const dynamicClass = getLineClass(topic.id, idx, topic.lines);
-                const isPos = dynamicClass === 'positive' || (l.class === 'positive') || (l.val && String(l.val).startsWith("+"));
-                const isNeg = dynamicClass === 'negative' || (l.class === 'negative') || (l.val && (String(l.val).startsWith("-") || String(l.val).startsWith("(")));
-                const valColor = isPos ? '#15803d' : (isNeg ? '#b91c1c' : '#0f172a');
-                const rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
-                return `
-                  <tr style="background-color: ${rowBg}; border-bottom: 1px solid #edf2f7;">
-                    <td style="padding: 6px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 62%; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
-                      ${l.label}:
-                    </td>
-                    <td style="padding: 6px 10px; font-size: 1.10rem; color: ${valColor}; font-weight: 800; text-align: right; width: 38%; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
-                      ${l.val}
-                    </td>
-                  </tr>
-                `;
-              }).join("")}
-            </tbody>
-          </table>
-        `;
+        // Lines table / control box with corporate borders
+        let linesHTML = '';
+        if (topic.onlyComments || (topic.lines.length === 1 && topic.lines[0].label === "Tipo de Controle")) {
+          linesHTML = `
+            <div style="width: 100%; box-sizing: border-box; margin-top: 6px; background: #f8fafc; border: 2px solid #0f2b5c; border-radius: 8px; padding: 12px 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);">
+              <div style="font-size: 0.82rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">
+                Tipo de Controle:
+              </div>
+              <div style="font-size: 0.98rem; font-weight: 700; color: #0f2b5c; display: flex; align-items: center; gap: 6px; line-height: 1.4;">
+                📝 Acompanhamento via Comentários da OS
+              </div>
+            </div>
+          `;
+        } else {
+          linesHTML = `
+            <div style="border: 2px solid #0f2b5c; border-radius: 8px; overflow: hidden; margin-top: 6px; box-shadow: 0 1px 3px rgba(15,43,92,0.08);">
+              <table style="width: 100%; border-collapse: collapse; background: #ffffff; table-layout: fixed;">
+                <tbody>
+                  ${topic.lines.map((l, idx) => {
+                    const dynamicClass = getLineClass(topic.id, idx, topic.lines);
+                    const isPos = dynamicClass === 'positive' || (l.class === 'positive') || (l.val && String(l.val).startsWith("+"));
+                    const isNeg = dynamicClass === 'negative' || (l.class === 'negative') || (l.val && (String(l.val).startsWith("-") || String(l.val).startsWith("(")));
+                    const valColor = isPos ? '#15803d' : (isNeg ? '#b91c1c' : '#0f172a');
+                    const rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+                    const isLast = idx === topic.lines.length - 1;
+                    return `
+                      <tr style="background-color: ${rowBg}; border-bottom: ${isLast ? 'none' : '1.5px solid #cbd5e1'};">
+                        <td style="padding: 7px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 60%; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
+                          ${l.label}:
+                        </td>
+                        <td style="padding: 7px 10px; font-size: 1.10rem; color: ${valColor}; font-weight: 800; text-align: right; width: 40%; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
+                          ${l.val}
+                        </td>
+                      </tr>
+                    `;
+                  }).join("")}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
 
         // Gestor Header Status Pill
         let gestorStatusPill = isMultiOS ? 
