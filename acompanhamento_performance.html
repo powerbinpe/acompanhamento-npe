@@ -1933,6 +1933,121 @@ function renderAnnualConsolidation() {
       renderRows();
       renderAnnualConsolidation();
     });
+
+    // Toast Notification System
+    function showToast(message, isError = false) {
+      let toast = document.getElementById("pbiAppToast");
+      if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "pbiAppToast";
+        toast.style.position = "fixed";
+        toast.style.top = "20px";
+        toast.style.right = "25px";
+        toast.style.zIndex = "999999";
+        toast.style.padding = "14px 22px";
+        toast.style.borderRadius = "8px";
+        toast.style.fontSize = "1.02rem";
+        toast.style.fontWeight = "700";
+        toast.style.boxShadow = "0 6px 20px rgba(0,0,0,0.3)";
+        toast.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+        document.body.appendChild(toast);
+      }
+      toast.style.background = isError ? "#b91c1c" : "#15803d";
+      toast.style.color = "#ffffff";
+      toast.style.border = isError ? "2px solid #ef4444" : "2px solid #86efac";
+      toast.innerText = message;
+      toast.style.opacity = "1";
+      toast.style.transform = "translateY(0)";
+      
+      clearTimeout(window._toastTimeout);
+      window._toastTimeout = setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-15px)";
+      }, 3500);
+    }
+
+    // Role Toggle Function
+    function toggleRole() {
+      isMaster = !isMaster;
+      const roleText = document.getElementById("roleText");
+      const roleIcon = document.getElementById("roleIcon");
+      const toggleBtn = document.getElementById("toggleRoleBtn");
+      
+      if (isMaster) {
+        if (roleText) roleText.innerText = "Máster Performance";
+        if (roleIcon) roleIcon.innerText = "🛡️";
+        if (toggleBtn) toggleBtn.style.background = "#0284c7";
+      } else {
+        if (roleText) roleText.innerText = "Gestor de OS";
+        if (roleIcon) roleIcon.innerText = "👤";
+        if (toggleBtn) toggleBtn.style.background = "#1e40af";
+      }
+      renderRows();
+      showToast(isMaster ? "Perfil alterado para: Máster / Setor Performance" : "Perfil alterado para: Gestor de OS");
+    }
+
+    // Validation Status Handler
+    function setValidationStatus(topicId, status) {
+      const params = new URLSearchParams(window.location.search);
+      const activeOS = params.get("SelectedOS") || "M00100";
+      const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
+      
+      safeSetStorage(`status_${activeOS}_m${monthNum}_${topicId}`, status);
+      renderRows();
+      showToast(`Status do Tópico #${topicId} alterado para: ${status}!`);
+    }
+
+    // Assertiveness Override Handler
+    function toggleAssertiveness() {
+      const params = new URLSearchParams(window.location.search);
+      const activeOS = params.get("SelectedOS") || "M00100";
+      const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
+      const currentOverride = safeGetStorage(`assertiv_override_${activeOS}_m${monthNum}`, false);
+      
+      safeSetStorage(`assertiv_override_${activeOS}_m${monthNum}`, !currentOverride);
+      renderRows();
+      showToast(!currentOverride ? "Assertividade alterada para Assertivo (Override Master)!" : "Assertividade revertida para apuração automática!");
+    }
+
+    // Save All Comments Function
+    function saveAllComments() {
+      const params = new URLSearchParams(window.location.search);
+      const rawOS = params.get("SelectedOS") || "TODAS_OS";
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
+      const monthName = params.get("SelectedMes") || "JULHO";
+
+      if (isMultiOS) {
+        showToast("⚠️ Para salvar comentários, selecione uma OS específica no filtro do Power BI!", true);
+        return;
+      }
+
+      const activeOS = rawOS;
+      let countSaved = 0;
+
+      topicsData.forEach(topic => {
+        const gEl = document.getElementById(`g_${topic.id}`);
+        if (gEl && !gEl.disabled) {
+          safeSetStorage(`g_${activeOS}_m${monthNum}_${topic.id}`, gEl.value);
+          countSaved++;
+        }
+
+        const mEl = document.getElementById(`m_${topic.id}`);
+        if (mEl && !mEl.disabled) {
+          safeSetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, mEl.value);
+          countSaved++;
+        }
+      });
+
+      const finalRecomEl = document.getElementById("finalPerformanceComment");
+      if (finalRecomEl && !finalRecomEl.disabled) {
+        safeSetStorage(`final_m_${activeOS}_m${monthNum}`, finalRecomEl.value);
+        countSaved++;
+      }
+
+      showToast(`💾 Comentários da OS ${activeOS} (${monthName}) salvos com sucesso! (${countSaved} campos atualizados)`);
+    }
+
   </script>
 </body>
 </html>
