@@ -1527,20 +1527,35 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       const l = lines[lineIdx];
       if (l.class) return l.class;
 
+      // Topic 4 (Assertividade)
+      if (topicId === 4) {
+        if (lineIdx === 5) { // Diferença na Margem (%)
+          let valNum = parseFloat(String(l.val || '').replace('%', '').replace(',', '.').replace('+', '').trim());
+          if (!isNaN(valNum)) {
+            let absV = Math.abs(valNum);
+            return absV <= 5.0 ? 'positive' : (absV > 10.0 ? 'negative' : 'warning');
+          }
+        }
+        if (lineIdx === 6) { // Assertividade Calculada
+          let s = String(l.val || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          return (s.includes('nao') || s.includes('inassert')) ? 'negative' : 'positive';
+        }
+      }
+
       // Topic 11 (Absenteísmo) and Topic 12 (TurnOver)
       if ((topicId === 11 || topicId === 12) && lineIdx === 0 && lines.length >= 2) {
-        let valNum = parseFloat(String(l.val || '').replace('%', '').replace(',', '.'));
-        let metaNum = parseFloat(String(lines[1].val || '').replace('%', '').replace(',', '.'));
+        let valNum = parseFloat(String(l.val || '').replace('%', '').replace(',', '.').trim());
+        let metaNum = parseFloat(String(lines[1].val || '').replace('%', '').replace(',', '.').trim());
         if (!isNaN(valNum) && !isNaN(metaNum)) {
           return valNum <= metaNum ? 'positive' : 'negative';
         }
       }
 
       // Topic 17 (Satisfação do Cliente)
-      if (topicId === 17 && lineIdx === 0 && lines.length >= 2) {
-        let valNum = parseFloat(String(l.val || '').replace('%', '').replace(',', '.'));
-        let metaNum = parseFloat(String(lines[1].val || '').replace('%', '').replace(',', '.'));
-        if (!isNaN(valNum) && !isNaN(metaNum)) {
+      if (topicId === 17 && lineIdx === 0) {
+        let valNum = parseFloat(String(l.val || '').replace('%', '').replace(',', '.').trim());
+        let metaNum = lines.length >= 2 ? parseFloat(String(lines[1].val || '').replace('%', '').replace(',', '.').trim()) : 82.5;
+        if (!isNaN(valNum)) {
           return valNum >= metaNum ? 'positive' : 'negative';
         }
       }
@@ -2202,9 +2217,10 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
                 <tbody>
                   ${topic.lines.map((l, idx) => {
                     const dynamicClass = getLineClass(topic.id, idx, topic.lines);
-                    const isPos = dynamicClass === 'positive' || (l.class === 'positive') || (l.val && String(l.val).startsWith("+"));
+                    const isPos = dynamicClass === 'positive' || (l.class === 'positive') || (l.val && String(l.val).startsWith("+") && dynamicClass !== 'negative' && dynamicClass !== 'warning');
                     const isNeg = dynamicClass === 'negative' || (l.class === 'negative') || (l.val && (String(l.val).startsWith("-") || String(l.val).startsWith("(")));
-                    const valColor = isPos ? '#15803d' : (isNeg ? '#b91c1c' : '#0f172a');
+                    const isWarn = dynamicClass === 'warning';
+                    const valColor = isPos ? '#15803d' : (isNeg ? '#b91c1c' : (isWarn ? '#d97706' : '#0f172a'));
                     const rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
                     const isLast = idx === topic.lines.length - 1;
                     return `
