@@ -1878,17 +1878,45 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
         let assertiveBarHTML = "";
         if (topic.isAssertividade) {
+          // 1. Get automatic calculated value
+          const autoAssertive = (topic.lines && topic.lines[6] && topic.lines[6].val) ? topic.lines[6].val : (currentParams.get("AssertivMes") || "Assertivo");
+          
+          // 2. Get manual override from storage
+          const overrideVal = safeGetStorage(`assertiv_override_${activeOS}_m${monthNum}`, "AUTOMATICO");
+          const isOverridden = (overrideVal && overrideVal !== "AUTOMATICO");
+          
+          // 3. Determine final status to display
+          let finalStatusDisplay = isOverridden ? overrideVal : autoAssertive;
+          let isPositive = finalStatusDisplay.toLowerCase().includes("assertivo") && !finalStatusDisplay.toLowerCase().includes("não") && !finalStatusDisplay.toLowerCase().includes("meio");
+          let isMedium = finalStatusDisplay.toLowerCase().includes("meio");
+          
+          let pillClass = isPositive ? "status-validado" : (isMedium ? "status-reaberto" : "status-pendente");
+          let icon = isPositive ? "🟢" : (isMedium ? "🟡" : "🔴");
+          let originText = isOverridden ? " (Ajuste Manual / Override Máster)" : " (Apuração Automática)";
+          
+          // 4. Action button text for Master
+          let nextActionLabel = "";
+          if (isOverridden) {
+            nextActionLabel = "🔄 Reverter para Apuração Automática";
+          } else {
+            if (isPositive) {
+              nextActionLabel = "🔴 Alterar para Não Assertivo (Override Máster)";
+            } else {
+              nextActionLabel = "🛡️ Alterar para Assertivo (Override Máster)";
+            }
+          }
+
           assertiveBarHTML = `
             <div class="assertive-bar" style="font-size: 0.95rem;">
-              <div>
-                <span style="font-size: 0.88rem; color: var(--text-muted); margin-right: 6px;">Status Final Apurado (${monthFmt}):</span>
-                <span class="status-pill ${assertividadeOverridden ? 'status-validado' : 'status-pendente'}" style="font-size: 0.88rem;">
-                  ${assertividadeOverridden ? '🟢 Assertivo (Ajuste Manual / Override Máster)' : '🔴 Não Assertivo (Apuração Automática)'}
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.88rem; color: var(--text-muted); font-weight: 600;">Status Final Apurado (${monthFmt}):</span>
+                <span class="status-pill ${pillClass}" style="font-size: 0.88rem; font-weight: 700;">
+                  ${icon} ${finalStatusDisplay}${originText}
                 </span>
               </div>
               ${isMaster && !isMultiOS ? `
-                <button class="override-btn" onclick="toggleAssertiveness()" style="font-size: 0.90rem;">
-                  ${assertividadeOverridden ? 'Reverter para Automático' : '🛡️ Alterar para Assertivo (Override Master)'}
+                <button class="override-btn" onclick="toggleAssertiveness()" style="font-size: 0.90rem; cursor: pointer; padding: 6px 14px; font-weight: 700; border-radius: 6px; background: ${isOverridden ? '#475569' : '#d97706'}; color: #ffffff; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+                  ${nextActionLabel}
                 </button>
               ` : ''}
             </div>
@@ -2138,16 +2166,39 @@ function renderAnnualConsolidation() {
     }
 
     // Assertiveness Override Handler
+    window.toggleAssertiveness = toggleAssertiveness;
     function toggleAssertiveness() {
       const params = new URLSearchParams(window.location.search);
       const rawOS = params.get("SelectedOS") || "M00100";
       const activeOS = extractPrimaryOSCode(rawOS);
       const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
-      const currentOverride = safeGetStorage(`assertiv_override_${activeOS}_m${monthNum}`, false);
+      const monthName = params.get("SelectedMes") || "JULHO";
       
-      safeSetStorage(`assertiv_override_${activeOS}_m${monthNum}`, !currentOverride);
+      const currentAuto = params.get("AssertivMes") || "Assertivo";
+      const currentOverride = safeGetStorage(`assertiv_override_${activeOS}_m${monthNum}`, "AUTOMATICO");
+      
+      let newOverride = "AUTOMATICO";
+      if (currentOverride === "AUTOMATICO") {
+        if (currentAuto.toLowerCase().includes("assertivo") && !currentAuto.toLowerCase().includes("não") && !currentAuto.toLowerCase().includes("meio")) {
+          newOverride = "Não Assertivo";
+        } else {
+          newOverride = "Assertivo";
+        }
+      } else {
+        newOverride = "AUTOMATICO";
+      }
+      
+      safeSetStorage(`assertiv_override_${activeOS}_m${monthNum}`, newOverride);
+      
+      // Auto-persist to backend
+      try {
+        const payload = {};
+        payload[`assertiv_override_${activeOS}_m${monthNum}`] = newOverride;
+        saveCommentsToCloud(activeOS, monthNum, monthName, payload);
+      } catch (e) {}
+      
       renderRows();
-      showToast(!currentOverride ? "Assertividade alterada para Assertivo (Override Master)!" : "Assertividade revertida para apuração automática!");
+      showToast(newOverride !== "AUTOMATICO" ? `🛡️ Assertividade ajustada manualmente para "${newOverride}"!` : "🔄 Assertividade revertida para a Apuração Automática!");
     }
 
     // Auto-Save single field on input
