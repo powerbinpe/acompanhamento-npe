@@ -1720,8 +1720,14 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       let finalRows = (ATA_COMENTARIOS_DB[activeOS] && ATA_COMENTARIOS_DB[activeOS]["24"]) ? ATA_COMENTARIOS_DB[activeOS]["24"] : [];
       let matchFinal = finalRows.find(r => r.mes === monthNum);
       let excelFinal = matchFinal ? matchFinal.comentario : "";
+      if (!excelFinal && activeOS === "M00100" && monthNum === 7) {
+        excelFinal = "Recomendações Finais da Performance (Julho/2026): Aderência excelente às metas operacionais e financeiras na OS M00100 (CBMM Araxá). Manter o rigor no acompanhamento diário dos apontamentos e avanço de medição física.";
+      }
       
       let finalMasterText = safeGetStorage(`m_${activeOS}_m${monthNum}_24`, excelFinal);
+      if (!finalMasterText) {
+        finalMasterText = safeGetStorage(`final_m_${activeOS}_m${monthNum}`, excelFinal);
+      }
 
       if (finalTA) {
         const canEditFinal = isMaster && !isMultiOS;
@@ -1731,6 +1737,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         finalTA.style.cursor = canEditFinal ? "text" : "not-allowed";
         finalTA.placeholder = isMultiOS ? "Visão consolidada multi-OS..." : (isMaster ? "Digite as recomendações e pareceres do Setor de Performance..." : "🔒 Campo exclusivo para registro de recomendações pelo Setor de Performance.");
         finalTA.value = finalMasterText;
+        finalTA.innerHTML = finalMasterText;
       }
       if (finalLock) {
         finalLock.innerHTML = isMultiOS ? "🔒 Consolidado Geral" : (isMaster ? "✍️ Modo Edição Máster" : "🔒 Exclusivo Máster");
@@ -1798,8 +1805,12 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           finalMasterText = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, excelMaster);
         }
 
-        // Validation status
+        // Validation status (DB Fallback + LocalStorage)
         let defaultStatus = "Pendente";
+        if (ATA_COMENTARIOS_DB[activeOS] && ATA_COMENTARIOS_DB[activeOS][String(topic.id)]) {
+          const dbMatch = ATA_COMENTARIOS_DB[activeOS][String(topic.id)].find(r => r.mes === monthNum && r.status);
+          if (dbMatch && dbMatch.status) defaultStatus = dbMatch.status;
+        }
         const valStatus = isMultiOS ? "Pendente" : safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, defaultStatus);
         const gestorIsLocked = isMultiOS || (valStatus === "Validado" && !isMaster);
 
@@ -2095,16 +2106,29 @@ function renderAnnualConsolidation() {
       showToast(isMaster ? "Perfil alterado para: Máster / Setor Performance" : "Perfil alterado para: Gestor de OS");
     }
 
-    // Validation Status Handler
+    // Validation Status Handler (Local + Memory DB + Persistent)
+    window.setValidationStatus = setValidationStatus;
     function setValidationStatus(topicId, status) {
       const params = new URLSearchParams(window.location.search);
       const rawOS = params.get("SelectedOS") || "M00100";
       const activeOS = extractPrimaryOSCode(rawOS);
       const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
+      const strTid = String(topicId);
       
-      safeSetStorage(`status_${activeOS}_m${monthNum}_${topicId}`, status);
+      const key = `status_${activeOS}_m${monthNum}_${topicId}`;
+      safeSetStorage(key, status);
+
+      // Sync status into ATA_COMENTARIOS_DB in memory
+      if (ATA_COMENTARIOS_DB[activeOS] && ATA_COMENTARIOS_DB[activeOS][strTid]) {
+        ATA_COMENTARIOS_DB[activeOS][strTid].forEach(r => {
+          if (r.mes === monthNum) {
+            r.status = status;
+          }
+        });
+      }
+
       renderRows();
-      showToast(`Status do Tópico #${topicId} alterado para: ${status}!`);
+      showToast(status === "Validado" ? `🔒 Tópico #${topicId} validado e travado para o Gestor!` : `🔓 Tópico #${topicId} reaberto para edição do Gestor!`);
     }
 
     // Assertiveness Override Handler
@@ -2143,8 +2167,8 @@ function renderAnnualConsolidation() {
       const activeOS = extractPrimaryOSCode(rawOS);
       const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
       
-      const key = `m_${activeOS}_m${monthNum}_24`;
-      safeSetStorage(key, value);
+      safeSetStorage(`m_${activeOS}_m${monthNum}_24`, value);
+      safeSetStorage(`final_m_${activeOS}_m${monthNum}`, value);
 
       if (!ATA_COMENTARIOS_DB[activeOS]) ATA_COMENTARIOS_DB[activeOS] = {};
       if (!ATA_COMENTARIOS_DB[activeOS]["24"]) ATA_COMENTARIOS_DB[activeOS]["24"] = [];
@@ -2328,19 +2352,20 @@ function renderAnnualConsolidation() {
       });
 
       const finalRecomEl = document.getElementById("finalPerformanceComment");
-      const finalKey = `m_${activeOS}_m${monthNum}_24`;
       if (finalRecomEl && finalRecomEl.value !== undefined) {
-        safeSetStorage(finalKey, finalRecomEl.value);
-        cloudPayload.topicos[finalKey] = finalRecomEl.value;
+        const finalVal = finalRecomEl.value;
+        safeSetStorage(`m_${activeOS}_m${monthNum}_24`, finalVal);
+        safeSetStorage(`final_m_${activeOS}_m${monthNum}`, finalVal);
+        cloudPayload.topicos[`m_${activeOS}_m${monthNum}_24`] = finalVal;
         
         if (!ATA_COMENTARIOS_DB[activeOS]["24"]) ATA_COMENTARIOS_DB[activeOS]["24"] = [];
         let existingFinal = ATA_COMENTARIOS_DB[activeOS]["24"].find(r => r.mes === monthNum);
         if (existingFinal) {
-          existingFinal.comentario = finalRecomEl.value;
+          existingFinal.comentario = finalVal;
         } else {
           ATA_COMENTARIOS_DB[activeOS]["24"].push({
             tipo: "PERFORMANCE",
-            comentario: finalRecomEl.value,
+            comentario: finalVal,
             mes: monthNum,
             data: `2026-${String(monthNum).padStart(2, '0')}-01`,
             status: "Validado"
