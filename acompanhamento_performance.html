@@ -1527,13 +1527,12 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       const l = lines[lineIdx];
       if (l.class) return l.class;
 
-      // Topic 4 (Assertividade)
+      // Topic 4 (Assertividade: estritamente +/- 5%)
       if (topicId === 4) {
         if (lineIdx === 5) { // Diferença na Margem (%)
           let valNum = parseFloat(String(l.val || '').replace('%', '').replace(',', '.').replace('+', '').trim());
           if (!isNaN(valNum)) {
-            let absV = Math.abs(valNum);
-            return absV <= 5.0 ? 'positive' : (absV > 10.0 ? 'negative' : 'warning');
+            return Math.abs(valNum) <= 5.0 ? 'positive' : 'negative';
           }
         }
         if (lineIdx === 6) { // Assertividade Calculada
@@ -1625,10 +1624,13 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       const topicName = topicObj.name;
 
       if (topicId === 17) { // SATISFAÇÃO DO CLIENTE É 100% ANUAL
+        const satMetaCurrent = currentParams.get("SatMetaVal") || "82,50%";
+        const satValCurrent = (currentParams.get("SatClienteVal") && currentParams.get("SatClienteVal") !== "0,00%") ? currentParams.get("SatClienteVal") : "93,30%";
+        
         const annualSatData = [
           { ano: "Ano 2024", sat: "92,10%", meta: "80,00%", status: "🟢 Meta Atingida", gestor: "Devido às restrições do cliente quanto a pesquisas de satisfação formais no complexo, a equipe implantou avaliação contínua dos atendimentos.", master: "Índice apurado em conformidade com as diretrizes da NPE.", val: "Homologado" },
           { ano: "Ano 2025", sat: "93,30%", meta: "82,50%", status: "🟢 Meta Atingida", gestor: "Pesquisa anual com avaliação positiva em todas as frentes de manutenção e serviços da unidade.", master: "Sem inconformidades técnicas e alta aprovação pelo cliente.", val: "Homologado" },
-          { ano: "Ano 2026 (Vigente)", sat: "93,30%", meta: "82,50%", status: "🟢 Meta Atingida", gestor: "Acompanhamento operacional constante para manutenção do padrão de excelência no contrato CBMM Araxá.", master: "Avaliação positiva da Performance. Desempenho mantido acima da meta anual corporativa.", val: "Homologado" }
+          { ano: "Ano 2026 (Vigente)", sat: satValCurrent, meta: satMetaCurrent, status: "🟢 Meta Atingida", gestor: "Acompanhamento operacional constante para manutenção do padrão de excelência no contrato CBMM Araxá.", master: "Avaliação positiva da Performance. Desempenho mantido acima da meta anual corporativa (" + satMetaCurrent + ").", val: "Homologado" }
         ];
 
         let satHeadersHTML = `
@@ -1915,17 +1917,14 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           let mFcstStr = numMFcst.toFixed(2).replace('.', ',') + '%';
           let difMargStr = (numDifMarg >= 0 ? '+' : '') + numDifMarg.toFixed(2).replace('.', ',') + '%';
           
-          // Regra de tolerância: <= 5% (Verde/Assertivo), > 10% (Vermelho/Não Assertivo), 5% a 10% (Amarelo/Meio Assertivo)
+          // Regra oficial: até 5% para mais ou para menos é Assertivo, passou de 5% é Não Assertivo
           let absDif = Math.abs(numDifMarg);
           let isAssertivo = absDif <= 5.0;
-          let isMeio = absDif > 5.0 && absDif <= 10.0;
-          let isNaoAssertivo = absDif > 10.0;
           
-          let difColor = isAssertivo ? '#15803d' : (isMeio ? '#d97706' : '#b91c1c');
+          let difColor = isAssertivo ? '#15803d' : '#b91c1c';
           let statusBadge = isAssertivo ? 
             `<span class="kpi-badge" style="background:#dcfce7; color:#166534; font-size:0.78rem; font-weight:800; padding:3px 8px; border-radius:6px;">🟢 Assertivo</span>` : 
-            (isMeio ? `<span class="kpi-badge" style="background:#fef3c7; color:#92400e; font-size:0.78rem; font-weight:800; padding:3px 8px; border-radius:6px;">🟡 Meio Assertivo</span>` : 
-            `<span class="kpi-badge" style="background:#fee2e2; color:#991b1b; font-size:0.78rem; font-weight:800; padding:3px 8px; border-radius:6px;">🔴 Não Assertivo</span>`);
+            `<span class="kpi-badge" style="background:#fee2e2; color:#991b1b; font-size:0.78rem; font-weight:800; padding:3px 8px; border-radius:6px;">🔴 Não Assertivo</span>`;
 
           cellsHTML = `
             <td style="padding:10px 14px; text-align:right; font-weight:700; color:#334155; white-space:nowrap;">R$ ${Math.round(rFcst).toLocaleString('pt-BR')}</td>
@@ -2278,8 +2277,6 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           let calculatedStatus = "Assertivo";
           if (normAuto.includes("nao assertivo") || normAuto.includes("inassertivo")) {
             calculatedStatus = "Não Assertivo";
-          } else if (normAuto.includes("meio")) {
-            calculatedStatus = "Meio Assertivo";
           }
 
           let savedOverride = safeGetStorage(`assertiv_override_${activeOS}_m${monthNum}`, "AUTOMATICO");
