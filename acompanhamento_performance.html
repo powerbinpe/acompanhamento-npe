@@ -1004,7 +1004,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       }
     }
 
-    let isMaster = safeGetStorage("npe_active_role", "GESTOR") === "MASTER";
+    let isMaster = false;
     let assertividadeOverridden = false;
 
     // Topics Definition
@@ -1717,10 +1717,17 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       const finalTA = document.getElementById("finalPerformanceComment");
       const finalLock = document.getElementById("finalLock");
       
-      let defaultFinalComment = (activeOS === "M00100" && monthNum === 7) ? 
-        "Recomendações Finais da Performance (Julho/2026): Aderência excelente às metas operacionais e financeiras na OS M00100 (CBMM Araxá). Manter o rigor no acompanhamento diário dos apontamentos e avanço de medição física." : "";
+      let dbFinalComment = "";
+      if (ATA_COMENTARIOS_DB[activeOS] && ATA_COMENTARIOS_DB[activeOS]["final_recom"]) {
+        const matchEntry = ATA_COMENTARIOS_DB[activeOS]["final_recom"].find(r => r.mes === monthNum);
+        if (matchEntry && matchEntry.comentario) dbFinalComment = matchEntry.comentario;
+      }
+      if (!dbFinalComment && activeOS === "M00100" && monthNum === 7) {
+        dbFinalComment = "Recomendações Finais da Performance (Julho/2026): Aderência excelente às metas operacionais e financeiras na OS M00100 (CBMM Araxá). Manter o rigor no acompanhamento diário dos apontamentos e avanço de medição física.";
+      }
       
-      const finalSavedValue = safeGetStorage(`final_m_${activeOS}_m${monthNum}`, defaultFinalComment);
+      const finalSavedValue = safeGetStorage(`final_m_${activeOS}_m${monthNum}`, dbFinalComment);
+      const effectiveFinalText = (finalSavedValue !== undefined && finalSavedValue !== null && finalSavedValue !== "") ? finalSavedValue : dbFinalComment;
 
       if (finalTA) {
         const canEditFinal = isMaster && !isMultiOS;
@@ -1729,7 +1736,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         finalTA.style.color = "#0f172a";
         finalTA.style.cursor = canEditFinal ? "text" : "not-allowed";
         finalTA.placeholder = isMultiOS ? "Visão consolidada multi-OS..." : (isMaster ? "Digite as recomendações e pareceres do Setor de Performance..." : "🔒 Campo exclusivo para registro de recomendações pelo Setor de Performance.");
-        finalTA.value = (finalSavedValue !== undefined && finalSavedValue !== null) ? finalSavedValue : defaultFinalComment;
+        finalTA.value = effectiveFinalText;
       }
       if (finalLock) {
         finalLock.innerHTML = isMultiOS ? "🔒 Consolidado Geral" : (isMaster ? "✍️ Modo Edição Máster" : "🔒 Exclusivo Máster");
@@ -2263,12 +2270,30 @@ function renderAnnualConsolidation() {
         topicos: {}
       };
 
+      if (!ATA_COMENTARIOS_DB[activeOS]) ATA_COMENTARIOS_DB[activeOS] = {};
+
       topicsData.forEach(topic => {
         const gEl = document.getElementById(`g_${topic.id}`);
         const gKey = `g_${activeOS}_m${monthNum}_${topic.id}`;
         if (gEl && gEl.value !== undefined) {
           safeSetStorage(gKey, gEl.value);
           cloudPayload.topicos[gKey] = gEl.value;
+          
+          // Sync Gestor into ATA_COMENTARIOS_DB
+          const strTid = String(topic.id);
+          if (!ATA_COMENTARIOS_DB[activeOS][strTid]) ATA_COMENTARIOS_DB[activeOS][strTid] = [];
+          const existingG = ATA_COMENTARIOS_DB[activeOS][strTid].find(r => r.tipo === "GESTOR" && r.mes === monthNum);
+          if (existingG) {
+            existingG.comentario = gEl.value;
+          } else {
+            ATA_COMENTARIOS_DB[activeOS][strTid].push({
+              tipo: "GESTOR",
+              comentario: gEl.value,
+              mes: monthNum,
+              data: `2026-${String(monthNum).padStart(2, '0')}-01`,
+              status: "Validado"
+            });
+          }
           countSaved++;
         }
 
@@ -2277,6 +2302,22 @@ function renderAnnualConsolidation() {
         if (mEl && mEl.value !== undefined) {
           safeSetStorage(mKey, mEl.value);
           cloudPayload.topicos[mKey] = mEl.value;
+          
+          // Sync Master into ATA_COMENTARIOS_DB
+          const strTid = String(topic.id);
+          if (!ATA_COMENTARIOS_DB[activeOS][strTid]) ATA_COMENTARIOS_DB[activeOS][strTid] = [];
+          const existingM = ATA_COMENTARIOS_DB[activeOS][strTid].find(r => r.tipo === "PERFORMANCE" && r.mes === monthNum);
+          if (existingM) {
+            existingM.comentario = mEl.value;
+          } else {
+            ATA_COMENTARIOS_DB[activeOS][strTid].push({
+              tipo: "PERFORMANCE",
+              comentario: mEl.value,
+              mes: monthNum,
+              data: `2026-${String(monthNum).padStart(2, '0')}-01`,
+              status: "Validado"
+            });
+          }
           countSaved++;
         }
       });
@@ -2286,6 +2327,20 @@ function renderAnnualConsolidation() {
       if (finalRecomEl && finalRecomEl.value !== undefined) {
         safeSetStorage(finalKey, finalRecomEl.value);
         cloudPayload.topicos[finalKey] = finalRecomEl.value;
+        
+        // Sync Final Recommendations into ATA_COMENTARIOS_DB
+        if (!ATA_COMENTARIOS_DB[activeOS]["final_recom"]) ATA_COMENTARIOS_DB[activeOS]["final_recom"] = [];
+        const existingFinal = ATA_COMENTARIOS_DB[activeOS]["final_recom"].find(r => r.mes === monthNum);
+        if (existingFinal) {
+          existingFinal.comentario = finalRecomEl.value;
+        } else {
+          ATA_COMENTARIOS_DB[activeOS]["final_recom"].push({
+            tipo: "PERFORMANCE",
+            comentario: finalRecomEl.value,
+            mes: monthNum,
+            data: `2026-${String(monthNum).padStart(2, '0')}-01`
+          });
+        }
         countSaved++;
       }
 
