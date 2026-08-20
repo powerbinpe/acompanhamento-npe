@@ -502,7 +502,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           <span>🛡️ Comentários e Recomendações do Setor de Performance (Ciclo Atual)</span>
           <span class="status-pill" id="finalLock" style="background: #e0f2fe; color: #0369a1; border: 1.5px solid #7dd3fc; font-weight: 700; font-size: 0.78rem; padding: 3px 8px; border-radius: 6px;">🔒 Exclusivo Máster</span>
         </div>
-        <textarea id="finalPerformanceComment" class="comment-input" style="min-height: 95px;" placeholder="Digite as recomendações e diretrizes estratégicas do Setor de Performance..." oninput="handleFinalCommentInput(this.value)"></textarea>
+        <textarea id="finalPerformanceComment" class="comment-input" style="min-height: 95px;" placeholder="🔒 Campo exclusivo para registro de recomendações pelo Setor de Performance." oninput="handleFinalCommentInput(this.value)"></textarea>
       </div>
       <div id="inline_history_recom" class="inline-history-drawer" style="display: none; grid-column: 1 / -1; margin-top: 12px; background-color: #f1f5f9; border: 2px solid #162b58; border-radius: 10px; padding: 14px 16px; box-shadow: inset 0 2px 6px rgba(11,26,58,0.1);">
       </div>
@@ -891,6 +891,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     // MULTI-TIER PERSISTENT STORAGE ENGINE (IndexedDB + Cookies + LocalStorage)
     // =========================================================================
     window._GLOBAL_COMM_STORAGE = window._GLOBAL_COMM_STORAGE || {};
+
     
     // Cookie helpers (works even when localStorage is partitioned)
     function setCookie(name, value, days = 365) {
@@ -1712,25 +1713,27 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       let monthName = currentParams.get("SelectedMes") || monthNames[monthNum - 1] || "JUNHO";
       let monthFmt = `${monthName.toUpperCase()} / 2026`;
 
-      // Update Final Remarks and populate persisted/default value
+      // Update Final Remarks and populate persisted/default value with strict permissions
       const finalTA = document.getElementById("finalPerformanceComment");
       const finalLock = document.getElementById("finalLock");
       
-      let defaultFinalComment = "";
-      if (activeOS === "M00100" && monthNum === 7) {
-        defaultFinalComment = "Recomendações Finais da Performance (Julho/2026): Aderência excelente às metas operacionais e financeiras na OS M00100 (CBMM Araxá). Manter o rigor no acompanhamento diário dos apontamentos e avanço de medição física.";
-      } else {
-        defaultFinalComment = `Recomendações e Parecer Consolidado do Setor de Performance para ${displayOSName} referente a ${monthName}/2026: Governança contínua e disciplina na execução das metas contratuais.`;
-      }
-
+      let defaultFinalComment = (activeOS === "M00100" && monthNum === 7) ? 
+        "Recomendações Finais da Performance (Julho/2026): Aderência excelente às metas operacionais e financeiras na OS M00100 (CBMM Araxá). Manter o rigor no acompanhamento diário dos apontamentos e avanço de medição física." : "";
+      
       const finalSavedValue = safeGetStorage(`final_m_${activeOS}_m${monthNum}`, defaultFinalComment);
 
       if (finalTA) {
-        finalTA.disabled = isMultiOS;
-        finalTA.style.background = isMultiOS ? "#f8fafc" : "#ffffff";
-        finalTA.style.cursor = isMultiOS ? "not-allowed" : "text";
-        finalTA.placeholder = isMultiOS ? "Visão consolidada multi-OS..." : "Digite as recomendações e diretrizes estratégicas do Setor de Performance...";
-        finalTA.value = finalSavedValue;
+        const canEditFinal = isMaster && !isMultiOS;
+        finalTA.disabled = !canEditFinal;
+        finalTA.style.background = canEditFinal ? "#ffffff" : "#f8fafc";
+        finalTA.style.color = "#0f172a";
+        finalTA.style.cursor = canEditFinal ? "text" : "not-allowed";
+        finalTA.placeholder = isMultiOS ? "Visão consolidada multi-OS..." : (isMaster ? "Digite as recomendações e pareceres do Setor de Performance..." : "🔒 Campo exclusivo para registro de recomendações pelo Setor de Performance.");
+        finalTA.value = (finalSavedValue !== undefined && finalSavedValue !== null) ? finalSavedValue : defaultFinalComment;
+      }
+      if (finalLock) {
+        finalLock.innerHTML = isMultiOS ? "🔒 Consolidado Geral" : (isMaster ? "✍️ Modo Edição Máster" : "🔒 Exclusivo Máster");
+        finalLock.className = isMaster ? "status-pill status-reaberto" : "status-pill status-validado";
       }
       if (finalLock) {
         finalLock.innerHTML = isMultiOS ? "🔒 Consolidado Geral" : (isMaster ? "🛡️ Validação Máster Ativa" : "✍️ Registro de Recomendações");
@@ -1924,7 +1927,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
             </div>
             <textarea id="m_${topic.id}" class="comment-input" oninput="handleCommentInput('m', ${topic.id}, this.value)" 
               placeholder="${isMultiOS ? 'Visão consolidada multi-OS...' : (isMaster ? 'Digite as observações e validação do setor de Performance...' : '🔒 Campo exclusivo para validação e comentários do Setor de Performance')}" 
-              ${isMultiOS ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : ''}>${finalMasterText}</textarea>
+              ${(!isMaster || isMultiOS) ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : 'style="background:#ffffff; color:#0f172a; cursor:text;"'}>${finalMasterText}</textarea>
             ${masterControlsHTML}
           </div>
 
