@@ -2022,6 +2022,7 @@ function renderAnnualConsolidation() {
       if (typeof loadExcelComments === "function") loadExcelComments();
       renderRows();
       renderAnnualConsolidation();
+      loadCommentsFromCloud();
     });
 
     // Toast Notification System
@@ -2115,14 +2116,102 @@ function renderAnnualConsolidation() {
       safeSetStorage(key, value);
     }
 
-    // Save All Comments Function
+    
+    // =========================================================================
+    // HYBRID BACKEND & CLOUD PERSISTENCE (Local API -> ATA_COMENTARIO_LOAD.csv + Cloud KV)
+    // =========================================================================
+    async function loadCommentsFromCloud() {
+      const params = new URLSearchParams(window.location.search);
+      const rawOS = params.get("SelectedOS") || "TODAS_OS";
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      const activeOS = isMultiOS ? "TODAS_OS" : extractPrimaryOSCode(rawOS);
+      const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
+
+      // 1. Try Local Backend API (directly reads ATA_COMENTARIO_LOAD.csv)
+      try {
+        const localResp = await fetch(`http://localhost:8080/api/get_comments?os=${activeOS}&mes=${monthNum}`, { method: "GET" });
+        if (localResp.ok) {
+          const localData = await localResp.json();
+          if (localData && typeof localData === 'object' && Object.keys(localData).length > 0) {
+            Object.entries(localData).forEach(([k, v]) => {
+              window._GLOBAL_COMM_STORAGE[k] = v;
+            });
+            renderRows();
+            console.log("Loaded comments directly from ATA_COMENTARIO_LOAD.csv for", activeOS);
+            return;
+          }
+        }
+      } catch (e) {
+        console.log("Local API not reached, trying Cloud KV...");
+      }
+
+      // 2. Try Cloud KV Database
+      try {
+        const cloudResp = await fetch(`https://kvdb.io/NPE_PERFORMANCE_2026/comm_${activeOS}_m${monthNum}`, { method: "GET" });
+        if (cloudResp.ok) {
+          const cloudData = await cloudResp.json();
+          if (cloudData && typeof cloudData === 'object') {
+            Object.entries(cloudData).forEach(([k, v]) => {
+              window._GLOBAL_COMM_STORAGE[k] = v;
+            });
+            renderRows();
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function saveCommentsToCloud(activeOS, monthNum, monthName, payload) {
+      let savedLocal = false;
+      let savedCloud = false;
+
+      // 1. Save directly into ATA_COMENTARIO_LOAD.csv via Local API
+      try {
+        const localResp = await fetch("http://localhost:8080/api/save_comment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            os: activeOS,
+            mes: monthNum,
+            topicos: payload
+          })
+        });
+        if (localResp.ok) {
+          savedLocal = true;
+        }
+      } catch (e) {
+        console.warn("Local CSV save:", e);
+      }
+
+      // 2. Save into Cloud KV
+      try {
+        const cloudResp = await fetch(`https://kvdb.io/NPE_PERFORMANCE_2026/comm_${activeOS}_m${monthNum}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (cloudResp.ok) {
+          savedCloud = true;
+        }
+      } catch (e) {}
+
+      if (savedLocal) {
+        showToast(`💾 Comentários da OS ${activeOS} gravados na tabela ATA_COMENTARIO com sucesso!`);
+      } else if (savedCloud) {
+        showToast(`☁️ Comentários da OS ${activeOS} sincronizados em nuvem com sucesso!`);
+      } else {
+        showToast(`💾 Comentários da OS ${activeOS} salvos no dispositivo!`);
+      }
+    }
+
+    // Save All Comments Function (Local + Cloud API Sync)
     window.saveAllComments = saveAllComments;
-    function saveAllComments() {
+    async function saveAllComments() {
       const params = new URLSearchParams(window.location.search);
       const rawOS = params.get("SelectedOS") || "TODAS_OS";
       const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
       const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
       const monthName = params.get("SelectedMes") || "JULHO";
+      const userEmail = params.get("UserEmail") || "gestor@npegroup.com.br";
 
       if (isMultiOS) {
         showToast("⚠️ Para salvar comentários, selecione uma OS específica no filtro do Power BI!", true);
@@ -2131,28 +2220,43 @@ function renderAnnualConsolidation() {
 
       const activeOS = extractPrimaryOSCode(rawOS);
       let countSaved = 0;
+      const cloudPayload = {
+        os: activeOS,
+        mes: monthNum,
+        mesNome: monthName,
+        salvoPor: userEmail,
+        dataHora: new Date().toISOString(),
+        topicos: {}
+      };
 
       topicsData.forEach(topic => {
         const gEl = document.getElementById(`g_${topic.id}`);
+        const gKey = `g_${activeOS}_m${monthNum}_${topic.id}`;
         if (gEl && !gEl.disabled) {
-          safeSetStorage(`g_${activeOS}_m${monthNum}_${topic.id}`, gEl.value);
+          safeSetStorage(gKey, gEl.value);
+          cloudPayload.topicos[gKey] = gEl.value;
           countSaved++;
         }
 
         const mEl = document.getElementById(`m_${topic.id}`);
+        const mKey = `m_${activeOS}_m${monthNum}_${topic.id}`;
         if (mEl && !mEl.disabled) {
-          safeSetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, mEl.value);
+          safeSetStorage(mKey, mEl.value);
+          cloudPayload.topicos[mKey] = mEl.value;
           countSaved++;
         }
       });
 
       const finalRecomEl = document.getElementById("finalPerformanceComment");
+      const finalKey = `final_m_${activeOS}_m${monthNum}`;
       if (finalRecomEl && !finalRecomEl.disabled) {
-        safeSetStorage(`final_m_${activeOS}_m${monthNum}`, finalRecomEl.value);
+        safeSetStorage(finalKey, finalRecomEl.value);
+        cloudPayload.topicos[finalKey] = finalRecomEl.value;
         countSaved++;
       }
 
-      showToast(`💾 Comentários da OS ${activeOS} (${monthName}) salvos com sucesso! (${countSaved} campos atualizados)`);
+      showToast(`💾 Gravando comentários da OS ${activeOS}...`);
+      await saveCommentsToCloud(activeOS, monthNum, monthName, cloudPayload.topicos);
     }
 
   </script>
