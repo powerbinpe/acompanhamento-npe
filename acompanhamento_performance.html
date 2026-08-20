@@ -887,37 +887,120 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
   <script>
 
-    // Multi-Layer Safe Storage (LocalStorage + SessionStorage + Global Memory)
+    // =========================================================================
+    // MULTI-TIER PERSISTENT STORAGE ENGINE (IndexedDB + Cookies + LocalStorage)
+    // =========================================================================
     window._GLOBAL_COMM_STORAGE = window._GLOBAL_COMM_STORAGE || {};
+    
+    // Cookie helpers (works even when localStorage is partitioned)
+    function setCookie(name, value, days = 365) {
+      try {
+        const expires = new Date(Date.now() + days * 864e5).toUTCString();
+        document.cookie = encodeURIComponent(name) + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/; SameSite=None; Secure';
+      } catch (e) {}
+    }
 
+    function getCookie(name) {
+      try {
+        const match = document.cookie.match(new RegExp('(^|;\s*)(' + encodeURIComponent(name) + ')=([^;]*)'));
+        return match ? decodeURIComponent(match[3]) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // IndexedDB initialization for bulletproof persistence
+    let idbDatabase = null;
+    function initIndexedDB() {
+      try {
+        if (!window.indexedDB) return;
+        const req = indexedDB.open("NPE_PerformanceDB", 2);
+        req.onupgradeneeded = function(e) {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains("commentsStore")) {
+            db.createObjectStore("commentsStore", { keyPath: "key" });
+          }
+        };
+        req.onsuccess = function(e) {
+          idbDatabase = e.target.result;
+          const tx = idbDatabase.transaction("commentsStore", "readonly");
+          const store = tx.objectStore("commentsStore");
+          const getAllReq = store.getAll();
+          getAllReq.onsuccess = function() {
+            if (getAllReq.result && Array.isArray(getAllReq.result)) {
+              getAllReq.result.forEach(item => {
+                window._GLOBAL_COMM_STORAGE[item.key] = item.value;
+              });
+              renderRows();
+            }
+          };
+        };
+      } catch (e) {
+        console.warn("IndexedDB not active:", e);
+      }
+    }
+    initIndexedDB();
+
+    window.safeGetStorage = safeGetStorage;
     function safeGetStorage(key, fallback) {
+      // 1. Check Global Memory
+      if (window._GLOBAL_COMM_STORAGE[key] !== undefined && window._GLOBAL_COMM_STORAGE[key] !== null) {
+        return window._GLOBAL_COMM_STORAGE[key];
+      }
+      // 2. Check LocalStorage
       try {
         if (window.localStorage) {
           const val = window.localStorage.getItem(key);
-          if (val !== null && val !== undefined) return val;
+          if (val !== null && val !== undefined) {
+            window._GLOBAL_COMM_STORAGE[key] = val;
+            return val;
+          }
         }
       } catch (e) {}
+      // 3. Check SessionStorage
       try {
         if (window.sessionStorage) {
           const sVal = window.sessionStorage.getItem(key);
-          if (sVal !== null && sVal !== undefined) return sVal;
+          if (sVal !== null && sVal !== undefined) {
+            window._GLOBAL_COMM_STORAGE[key] = sVal;
+            return sVal;
+          }
         }
       } catch (e) {}
-      return window._GLOBAL_COMM_STORAGE[key] !== undefined ? window._GLOBAL_COMM_STORAGE[key] : fallback;
+      // 4. Check Cookie
+      const cVal = getCookie(key);
+      if (cVal !== null && cVal !== undefined) {
+        window._GLOBAL_COMM_STORAGE[key] = cVal;
+        return cVal;
+      }
+      return fallback;
     }
 
+    window.safeSetStorage = safeSetStorage;
     function safeSetStorage(key, value) {
       window._GLOBAL_COMM_STORAGE[key] = value;
+      // 1. Save to LocalStorage
       try {
         if (window.localStorage) {
           window.localStorage.setItem(key, value);
         }
       } catch (e) {}
+      // 2. Save to SessionStorage
       try {
         if (window.sessionStorage) {
           window.sessionStorage.setItem(key, value);
         }
       } catch (e) {}
+      // 3. Save to Cookie
+      setCookie(key, value, 365);
+      // 4. Save to IndexedDB
+      if (idbDatabase) {
+        try {
+          const tx = idbDatabase.transaction("commentsStore", "readwrite");
+          const store = tx.objectStore("commentsStore");
+          store.put({ key: key, value: value, updatedAt: new Date().toISOString() });
+        } catch (e) {}
+      }
     }
 
     let isMaster = false;
@@ -2033,6 +2116,7 @@ function renderAnnualConsolidation() {
     }
 
     // Save All Comments Function
+    window.saveAllComments = saveAllComments;
     function saveAllComments() {
       const params = new URLSearchParams(window.location.search);
       const rawOS = params.get("SelectedOS") || "TODAS_OS";
