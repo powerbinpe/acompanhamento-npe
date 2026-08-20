@@ -95,7 +95,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     /* Main Layout with Bold Corporate Borders */
     .topic-row {
       display: grid;
-      grid-template-columns: 530px 1.35fr 0.85fr;
+      grid-template-columns: 600px 1.65fr 0.75fr;
       gap: 18px;
       background-color: #ffffff;
       border-radius: 12px;
@@ -118,7 +118,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       flex-direction: column;
       justify-content: space-between;
       width: 100%;
-      max-width: 530px;
+      max-width: 600px;
       box-sizing: border-box;
       overflow: hidden;
     }
@@ -290,7 +290,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       flex-direction: column;
       justify-content: space-between;
       width: 100%;
-      max-width: 530px;
+      max-width: 600px;
       box-sizing: border-box;
       overflow: hidden;
     }
@@ -1334,6 +1334,21 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     }
 
             
+        function formatPercentStrict(raw) {
+      if (!raw || raw === "-" || raw === "0" || raw === "0,00%" || raw === "0.00%") return raw || "-";
+      let s = String(raw).trim();
+      if (s.endsWith("%")) return s;
+      let cleanNum = parseFloat(s.replace(",", "."));
+      if (!isNaN(cleanNum)) {
+        // If between -1 and 1 (like 0.588115), multiply by 100
+        if (Math.abs(cleanNum) <= 1.0 && cleanNum !== 0) {
+          cleanNum = cleanNum * 100;
+        }
+        return (cleanNum >= 0 ? "" : "") + cleanNum.toFixed(2).replace(".", ",") + "%";
+      }
+      return s;
+    }
+
     function updateFromURLParams() {
       const params = new URLSearchParams(window.location.search);
       const rawOS = params.get("SelectedOS") || "TODAS_OS";
@@ -1378,7 +1393,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       if (params.get("FatFcstAno")) topicsData[0].lines[1].val = (params.get("FatFcstAno") === "-" ? "-" : "R$ " + params.get("FatFcstAno"));
       if (params.get("FatRealAno")) topicsData[0].lines[2].val = (params.get("FatRealAno") === "-" ? "-" : "R$ " + params.get("FatRealAno"));
       if (params.get("FatDifAno"))  topicsData[0].lines[3].val = (params.get("FatDifAno") === "-" ? "-" : (params.get("FatDifAno").startsWith("-") || params.get("FatDifAno").startsWith("(") ? "" : "+") + "R$ " + params.get("FatDifAno"));
-      if (params.get("FatPctAno"))  topicsData[0].lines[4].val = params.get("FatPctAno");
+      if (params.get("FatPctAno"))  topicsData[0].lines[4].val = formatPercentStrict(params.get("FatPctAno"));
 
       // Topic 2: Resultado Ano (100% Dynamic from Power BI measures)
       if (params.get("ResExecAno"))  topicsData[1].lines[0].val = (params.get("ResExecAno") === "-" ? "-" : "R$ " + params.get("ResExecAno"));
@@ -1394,7 +1409,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       if (params.get("FatFcstMes")) topicsData[2].lines[0].val = params.get("FatFcstMes");
       if (params.get("FatRealMes")) topicsData[2].lines[1].val = params.get("FatRealMes");
       if (params.get("FatMesDif")) topicsData[2].lines[2].val = params.get("FatMesDif");
-      if (params.get("FatMesPct")) topicsData[2].lines[3].val = params.get("FatMesPct");
+      if (params.get("FatMesPct")) topicsData[2].lines[3].val = formatPercentStrict(params.get("FatMesPct"));
 
       // Topic 4: Assertividade
       if (params.get("ResFcstProj")) topicsData[3].lines[0].val = params.get("ResFcstProj");
@@ -1408,7 +1423,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
       // Topic 6: Perda de Receita
       if (params.get("PerdaMes")) topicsData[5].lines[0].val = params.get("PerdaMes");
-      if (params.get("PerdaPct")) topicsData[5].lines[1].val = params.get("PerdaPct");
+      if (params.get("PerdaPct")) topicsData[5].lines[1].val = formatPercentStrict(params.get("PerdaPct"));
       if (params.get("PerdaAcum")) topicsData[5].lines[2].val = params.get("PerdaAcum");
 
       // Topic 8: Indenização
@@ -1855,7 +1870,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
                         <td style="padding: 7px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 60%; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
                           ${l.label}:
                         </td>
-                        <td style="padding: 7px 12px; font-size: 1.12rem; color: ${valColor}; font-weight: 800; text-align: right; width: 38%; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
+                        <td style="padding: 7px 12px; font-size: clamp(0.92rem, 1.05vw, 1.12rem); color: ${valColor}; font-weight: 800; text-align: right; width: 38%; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
                           ${l.val}
                         </td>
                       </tr>
