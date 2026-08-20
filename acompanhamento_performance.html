@@ -1003,7 +1003,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       }
     }
 
-    let isMaster = false;
+    let isMaster = safeGetStorage("npe_active_role", "GESTOR") === "MASTER";
     let assertividadeOverridden = false;
 
     // Topics Definition
@@ -1339,6 +1339,12 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       if (osEl) osEl.innerText = isMultiOS ? "Todas as OSs (Consolidação Geral NPE)" : (params.get("SelectedOS") || "M00100");
       if (mesEl) mesEl.innerText = params.get("SelectedMes") || "JUNHO";
       if (roleEl) roleEl.innerText = isMaster ? "Máster / Setor Performance" : "Gestor de OS";
+      const roleText = document.getElementById("roleText");
+      const roleIcon = document.getElementById("roleIcon");
+      const toggleBtn = document.getElementById("toggleRoleBtn");
+      if (roleText) roleText.innerText = isMaster ? "Máster Performance" : "Gestor de OS";
+      if (roleIcon) roleIcon.innerText = isMaster ? "🛡️" : "👤";
+      if (toggleBtn) toggleBtn.style.background = isMaster ? "#0284c7" : "#1e40af";
 
       // Summary Cards on Tab 2
       const sumFat = document.getElementById("sumFatAno");
@@ -2057,9 +2063,10 @@ function renderAnnualConsolidation() {
       }, 3500);
     }
 
-    // Role Toggle Function
+    // Role Toggle Function (Persisted across filter changes)
     function toggleRole() {
       isMaster = !isMaster;
+      safeSetStorage("npe_active_role", isMaster ? "MASTER" : "GESTOR");
       const roleText = document.getElementById("roleText");
       const roleIcon = document.getElementById("roleIcon");
       const toggleBtn = document.getElementById("toggleRoleBtn");
@@ -2232,7 +2239,7 @@ function renderAnnualConsolidation() {
       topicsData.forEach(topic => {
         const gEl = document.getElementById(`g_${topic.id}`);
         const gKey = `g_${activeOS}_m${monthNum}_${topic.id}`;
-        if (gEl && !gEl.disabled) {
+        if (gEl && gEl.value !== undefined) {
           safeSetStorage(gKey, gEl.value);
           cloudPayload.topicos[gKey] = gEl.value;
           countSaved++;
@@ -2240,7 +2247,7 @@ function renderAnnualConsolidation() {
 
         const mEl = document.getElementById(`m_${topic.id}`);
         const mKey = `m_${activeOS}_m${monthNum}_${topic.id}`;
-        if (mEl && !mEl.disabled) {
+        if (mEl && mEl.value !== undefined) {
           safeSetStorage(mKey, mEl.value);
           cloudPayload.topicos[mKey] = mEl.value;
           countSaved++;
@@ -2249,7 +2256,7 @@ function renderAnnualConsolidation() {
 
       const finalRecomEl = document.getElementById("finalPerformanceComment");
       const finalKey = `final_m_${activeOS}_m${monthNum}`;
-      if (finalRecomEl && !finalRecomEl.disabled) {
+      if (finalRecomEl && finalRecomEl.value !== undefined) {
         safeSetStorage(finalKey, finalRecomEl.value);
         cloudPayload.topicos[finalKey] = finalRecomEl.value;
         countSaved++;
