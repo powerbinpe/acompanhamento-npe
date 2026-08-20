@@ -1609,6 +1609,63 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       const topicObj = topicsData.find(t => t.id === topicId) || { name: "Indicador", lines: [] };
       const topicName = topicObj.name;
 
+      if (topicId === 17) { // SATISFAÇÃO DO CLIENTE É 100% ANUAL
+        const annualSatData = [
+          { ano: "Ano 2024", sat: "92,10%", meta: "80,00%", status: "🟢 Meta Atingida", gestor: "Devido às restrições do cliente quanto a pesquisas de satisfação formais no complexo, a equipe implantou avaliação contínua dos atendimentos.", master: "Índice apurado em conformidade com as diretrizes da NPE.", val: "Homologado" },
+          { ano: "Ano 2025", sat: "93,30%", meta: "82,50%", status: "🟢 Meta Atingida", gestor: "Pesquisa anual com avaliação positiva em todas as frentes de manutenção e serviços da unidade.", master: "Sem inconformidades técnicas e alta aprovação pelo cliente.", val: "Homologado" },
+          { ano: "Ano 2026 (Vigente)", sat: "93,30%", meta: "82,50%", status: "🟢 Meta Atingida", gestor: "Acompanhamento operacional constante para manutenção do padrão de excelência no contrato CBMM Araxá.", master: "Avaliação positiva da Performance. Desempenho mantido acima da meta anual corporativa.", val: "Homologado" }
+        ];
+
+        let satHeadersHTML = `
+          <th style="padding:10px 14px; text-align:left; width:150px;">🗓️ Exercício / Ano</th>
+          <th style="padding:10px 14px; text-align:right; width:160px;">Satisfação do Cliente</th>
+          <th style="padding:10px 14px; text-align:right; width:150px;">Meta Corporativa Anual</th>
+          <th style="padding:10px 14px; text-align:center; width:140px;">Status Apurado</th>
+          <th style="padding:10px 14px; text-align:left;">📝 Acompanhamento do Gestor da OS</th>
+          <th style="padding:10px 14px; text-align:left;">🛡️ Pareceres da Performance</th>
+          <th style="padding:10px 14px; text-align:center; width:110px;">Validação</th>
+        `;
+
+        let satRowsHTML = "";
+        annualSatData.forEach((row, sIdx) => {
+          satRowsHTML += `
+            <tr style="background:${sIdx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom:1px solid #e2e8f0; vertical-align:middle;">
+              <td style="padding:12px 14px; font-weight:800; color:#0f2b5c; white-space:nowrap;">🗓️ ${row.ano}</td>
+              <td style="padding:12px 14px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${row.sat}</td>
+              <td style="padding:12px 14px; text-align:right; font-weight:700; color:#475569; white-space:nowrap;">${row.meta}</td>
+              <td style="padding:12px 14px; text-align:center; white-space:nowrap;"><span class="kpi-badge" style="background:#dcfce7; color:#166534; font-size:0.78rem; font-weight:800; padding:3px 8px; border-radius:6px;">${row.status}</span></td>
+              <td style="padding:12px 14px; color:#1e293b; font-size:0.90rem; line-height:1.5; border-left:2px solid #bfdbfe;">${row.gestor}</td>
+              <td style="padding:12px 14px; color:#064e3b; font-size:0.90rem; line-height:1.5; border-left:2px solid #a7f3d0;">${row.master}</td>
+              <td style="padding:12px 14px; text-align:center; white-space:nowrap;"><span class="status-pill status-validado" style="font-size:0.76rem; padding:3px 8px;">🔒 Homologado</span></td>
+            </tr>
+          `;
+        });
+
+        drawer.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:2px solid #cbd5e1; padding-bottom:8px;">
+            <span style="font-size:1.05rem; font-weight:800; color:#0f2b5c;">
+              📜 Histórico Anual Consolidado: #17 Satisfação do Cliente <span style="font-size:0.85rem; font-weight:600; color:#2563eb;">🏢 OS ${activeOS} - Histórico por Exercício</span>
+            </span>
+            <button onclick="toggleInlineHistory(17)" style="background:#0f2b5c; color:#ffffff; border:none; padding:4px 12px; border-radius:6px; font-weight:700; cursor:pointer; font-size:0.80rem;">
+              ✕ Fechar
+            </button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; overflow:hidden;">
+              <thead>
+                <tr style="background:#0f2b5c; color:#ffffff; font-size:0.82rem; text-transform:uppercase; letter-spacing:0.5px;">
+                  ${satHeadersHTML}
+                </tr>
+              </thead>
+              <tbody>
+                ${satRowsHTML}
+              </tbody>
+            </table>
+          </div>
+        `;
+        return;
+      }
+
       // Determine Table Headers based on Topic Type
       let headersHTML = "";
       if (topicId === 1) { // Faturamento Ano
@@ -1645,17 +1702,18 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           <th style="padding:10px 14px; text-align:left;">🛡️ Pareceres da Performance</th>
           <th style="padding:10px 14px; text-align:center; width:110px;">Validação</th>
         `;
-      } else if (topicId === 4) { // Assertividade
+      } else if (topicId === 4) { // Assertividade (com Diferença da Margem calculada)
         headersHTML = `
-          <th style="padding:10px 14px; text-align:left; width:130px;">🗓️ Mês Apurado</th>
-          <th style="padding:10px 14px; text-align:right; width:140px;">Resultado FCST Projetado</th>
-          <th style="padding:10px 14px; text-align:right; width:140px;">Resultado Real Mês</th>
-          <th style="padding:10px 14px; text-align:right; width:120px;">Margem FCST</th>
-          <th style="padding:10px 14px; text-align:right; width:120px;">Margem Real</th>
-          <th style="padding:10px 14px; text-align:center; width:130px;">Status Apurado</th>
+          <th style="padding:10px 14px; text-align:left; width:120px;">🗓️ Mês Apurado</th>
+          <th style="padding:10px 14px; text-align:right; width:130px;">Resultado FCST Projetado</th>
+          <th style="padding:10px 14px; text-align:right; width:130px;">Resultado Real Mês</th>
+          <th style="padding:10px 14px; text-align:right; width:100px;">Margem FCST</th>
+          <th style="padding:10px 14px; text-align:right; width:100px;">Margem Real</th>
+          <th style="padding:10px 14px; text-align:right; width:130px;">Diferença da Margem (%)</th>
+          <th style="padding:10px 14px; text-align:center; width:125px;">Status Apurado</th>
           <th style="padding:10px 14px; text-align:left;">📝 Justificativas do Gestor da OS</th>
           <th style="padding:10px 14px; text-align:left;">🛡️ Pareceres da Performance</th>
-          <th style="padding:10px 14px; text-align:center; width:110px;">Validação</th>
+          <th style="padding:10px 14px; text-align:center; width:100px;">Validação</th>
         `;
       } else if (topicId === 6) { // Perda de Receita
         headersHTML = `
@@ -1828,20 +1886,39 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
             <td style="padding:10px 14px; text-align:right; font-weight:800; color:${isPos ? '#15803d' : '#dc2626'}; white-space:nowrap;">${Math.round(fDiff).toLocaleString('pt-BR')}</td>
             <td style="padding:10px 14px; text-align:right; font-weight:800; color:${isPos ? '#15803d' : '#dc2626'}; white-space:nowrap;">${fPct}%</td>
           `;
-        } else if (topicId === 4) { // Assertividade
+        } else if (topicId === 4) { // Assertividade (Cálculo da Diferença de Margem e Status)
           let rFcst = (activeOS === "M00100" && m00100_history.res_fcst_mes[idx]) ? m00100_history.res_fcst_mes[idx] : 120500;
           let rReal = (activeOS === "M00100" && m00100_history.res_real_mes[idx]) ? m00100_history.res_real_mes[idx] : 325779;
           let fReal = (activeOS === "M00100" && m00100_history.fat_real_mes[idx]) ? m00100_history.fat_real_mes[idx] : 1742577;
           let fFcst = (activeOS === "M00100" && m00100_history.fat_fcst_mes[idx]) ? m00100_history.fat_fcst_mes[idx] : 1097261;
-          let mReal = fReal > 0 ? (rReal / fReal * 100).toFixed(2).replace('.', ',') + '%' : '0,00%';
-          let mFcst = fFcst > 0 ? (rFcst / fFcst * 100).toFixed(2).replace('.', ',') + '%' : '0,00%';
+          
+          let numMReal = fReal > 0 ? (rReal / fReal * 100) : 0;
+          let numMFcst = fFcst > 0 ? (rFcst / fFcst * 100) : 0;
+          let numDifMarg = numMReal - numMFcst;
+          
+          let mRealStr = numMReal.toFixed(2).replace('.', ',') + '%';
+          let mFcstStr = numMFcst.toFixed(2).replace('.', ',') + '%';
+          let difMargStr = (numDifMarg >= 0 ? '+' : '') + numDifMarg.toFixed(2).replace('.', ',') + '%';
+          
+          // Regra de tolerância: <= 5% (Verde/Assertivo), > 10% (Vermelho/Não Assertivo), 5% a 10% (Amarelo/Meio Assertivo)
+          let absDif = Math.abs(numDifMarg);
+          let isAssertivo = absDif <= 5.0;
+          let isMeio = absDif > 5.0 && absDif <= 10.0;
+          let isNaoAssertivo = absDif > 10.0;
+          
+          let difColor = isAssertivo ? '#15803d' : (isMeio ? '#d97706' : '#b91c1c');
+          let statusBadge = isAssertivo ? 
+            `<span class="kpi-badge" style="background:#dcfce7; color:#166534; font-size:0.78rem; font-weight:800; padding:3px 8px; border-radius:6px;">🟢 Assertivo</span>` : 
+            (isMeio ? `<span class="kpi-badge" style="background:#fef3c7; color:#92400e; font-size:0.78rem; font-weight:800; padding:3px 8px; border-radius:6px;">🟡 Meio Assertivo</span>` : 
+            `<span class="kpi-badge" style="background:#fee2e2; color:#991b1b; font-size:0.78rem; font-weight:800; padding:3px 8px; border-radius:6px;">🔴 Não Assertivo</span>`);
 
           cellsHTML = `
-            <td style="padding:10px 14px; text-align:right; font-weight:700; color:#334155; white-space:nowrap;">${Math.round(rFcst).toLocaleString('pt-BR')}</td>
-            <td style="padding:10px 14px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${Math.round(rReal).toLocaleString('pt-BR')}</td>
-            <td style="padding:10px 14px; text-align:right; font-weight:700; color:#475569; white-space:nowrap;">${mFcst}</td>
-            <td style="padding:10px 14px; text-align:right; font-weight:800; color:#0f2b5c; white-space:nowrap;">${mReal}</td>
-            <td style="padding:10px 14px; text-align:center; white-space:nowrap;"><span class="kpi-badge" style="background:#dcfce7; color:#166534; font-size:0.80rem;">🟢 Assertivo</span></td>
+            <td style="padding:10px 14px; text-align:right; font-weight:700; color:#334155; white-space:nowrap;">R$ ${Math.round(rFcst).toLocaleString('pt-BR')}</td>
+            <td style="padding:10px 14px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">R$ ${Math.round(rReal).toLocaleString('pt-BR')}</td>
+            <td style="padding:10px 14px; text-align:right; font-weight:700; color:#475569; white-space:nowrap;">${mFcstStr}</td>
+            <td style="padding:10px 14px; text-align:right; font-weight:800; color:#0f2b5c; white-space:nowrap;">${mRealStr}</td>
+            <td style="padding:10px 14px; text-align:right; font-weight:800; color:${difColor}; white-space:nowrap;">${difMargStr}</td>
+            <td style="padding:10px 14px; text-align:center; white-space:nowrap;">${statusBadge}</td>
           `;
         } else if (topicId === 6) { // Perda de Receita
           let pMes = (activeOS === "M00100") ? m00100_history.perda_mes[idx] : 0;
