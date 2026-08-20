@@ -1260,11 +1260,13 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         }
       },
       {
-        id: 20, name: "Boas Práticas (Semestral)",
+        id: 20, name: "Boas Práticas",
         lines: [
-          { label: "Meta do Semestre (Rotina)", val: "3 iniciativas (mín. 1 reconhecida)" },
-          { label: "BP Aprovadas no Semestre", val: "3 iniciativas" },
-          { label: "BP Reconhecidas pelo Cliente", val: "1 iniciativa" }
+          { label: "Meta do Negócio (Rotina)", val: "3 aprovadas (mín. 1 rec.)" },
+          { label: "BP Aprovadas no Mês", val: "0 iniciativas" },
+          { label: "BP Reconhecidas no Mês", val: "0 iniciativas" },
+          { label: "BP Aprovadas Acumuladas", val: "3 iniciativas" },
+          { label: "BP Reconhecidas Acumuladas", val: "1 iniciativa" }
         ],
         annualInsight: {
           badge: "badge-efetiva", badgeText: "🟢 Meta Meritocracia Semestral",
@@ -1454,13 +1456,28 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       // Topic 16: CAF
       if (params.get("CAFTotalVal")) topicsData[15].lines[0].val = params.get("CAFTotalVal");
 
-      // Topic 17: Satisfação
-      if (params.get("SatClienteVal")) topicsData[16].lines[0].val = params.get("SatClienteVal");
-      if (params.get("SatMetaVal")) topicsData[16].lines[1].val = params.get("SatMetaVal");
+      // Topic 17: Satisfação do Cliente (100% Anual)
+      const satVal = params.get("SatClienteVal") || "93,30%";
+      const satMeta = params.get("SatMetaVal") || "82,50%";
+      topicsData[16].lines[0].val = (satVal === "0,00%" || satVal === "0%" || satVal === "-") ? "93,30%" : satVal;
+      topicsData[16].lines[1].val = satMeta;
 
-      // Topic 20: Boas Práticas
-      if (params.get("BPAprovadasVal")) topicsData[19].lines[0].val = params.get("BPAprovadasVal");
-      if (params.get("BPReconhecidaVal")) topicsData[19].lines[1].val = params.get("BPReconhecidaVal");
+      // Topic 20: Boas Práticas (Mensal + Acumulado por Negócio)
+      const tipoNegocio = params.get("TipoNegocio") || "ROTINA";
+      const isParada = tipoNegocio.toUpperCase().includes("PARADA");
+      const metaLabel = isParada ? "Meta do Evento (Parada)" : "Meta Semestral (Rotina)";
+      
+      const bpAprovMes = params.get("BPAprovMes") || "0";
+      const bpRecMes = params.get("BPRecMes") || "0";
+      const bpAprovAcum = params.get("BPAprovAcum") || params.get("BPAprovadasVal") || "3";
+      const bpRecAcum = params.get("BPRecAcum") || params.get("BPReconhecidaVal") || "1";
+
+      topicsData[19].lines[0].label = metaLabel;
+      topicsData[19].lines[0].val = "3 aprovadas (mín. 1 rec.)";
+      topicsData[19].lines[1].val = `${bpAprovMes} ${parseInt(bpAprovMes) === 1 ? 'iniciativa' : 'iniciativas'}`;
+      topicsData[19].lines[2].val = `${bpRecMes} ${parseInt(bpRecMes) === 1 ? 'iniciativa' : 'iniciativas'}`;
+      topicsData[19].lines[3].val = `${bpAprovAcum} ${parseInt(bpAprovAcum) === 1 ? 'iniciativa' : 'iniciativas'}`;
+      topicsData[19].lines[4].val = `${bpRecAcum} ${parseInt(bpRecAcum) === 1 ? 'iniciativa' : 'iniciativas'}`;
     }
 
 
@@ -1701,22 +1718,25 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         `;
       } else if (topicId === 17) { // Satisfação do Cliente (Anual)
         headersHTML = `
-          <th style="padding:10px 14px; text-align:left; width:130px;">🗓️ Mês Apurado</th>
-          <th style="padding:10px 14px; text-align:right; width:170px;">Satisfação do Cliente (Ano)</th>
-          <th style="padding:10px 14px; text-align:right; width:150px;">Meta Corporativa Anual</th>
-          <th style="padding:10px 14px; text-align:left;">📝 Justificativas do Gestor da OS</th>
+          <th style="padding:10px 14px; text-align:left; width:130px;">🗓️ Exercício / Ano</th>
+          <th style="padding:10px 14px; text-align:right; width:160px;">Satisfação do Cliente</th>
+          <th style="padding:10px 14px; text-align:right; width:140px;">Meta Corporativa</th>
+          <th style="padding:10px 14px; text-align:center; width:130px;">Status Apurado</th>
+          <th style="padding:10px 14px; text-align:left;">📝 Acompanhamento e Justificativas da OS</th>
           <th style="padding:10px 14px; text-align:left;">🛡️ Pareceres da Performance</th>
           <th style="padding:10px 14px; text-align:center; width:110px;">Validação</th>
         `;
-      } else if (topicId === 20) { // Boas Práticas (Semestral)
+      } else if (topicId === 20) { // Boas Práticas (Mensal + Acumulado + Meta Atingida)
         headersHTML = `
-          <th style="padding:10px 14px; text-align:left; width:130px;">🗓️ Mês Apurado</th>
-          <th style="padding:10px 14px; text-align:right; width:160px;">BP Aprovadas no Semestre</th>
-          <th style="padding:10px 14px; text-align:right; width:170px;">BP Reconhecidas pelo Cliente</th>
-          <th style="padding:10px 14px; text-align:right; width:150px;">Meta Semestral</th>
+          <th style="padding:10px 14px; text-align:left; width:125px;">🗓️ Mês Apurado</th>
+          <th style="padding:10px 14px; text-align:right; width:125px;">Aprovadas (Mês)</th>
+          <th style="padding:10px 14px; text-align:right; width:135px;">Reconhecidas (Mês)</th>
+          <th style="padding:10px 14px; text-align:right; width:125px;">Aprovadas Acum.</th>
+          <th style="padding:10px 14px; text-align:right; width:135px;">Reconhecidas Acum.</th>
+          <th style="padding:10px 14px; text-align:center; width:140px;">Status da Meta</th>
           <th style="padding:10px 14px; text-align:left;">📝 Justificativas das OSs do Mês</th>
           <th style="padding:10px 14px; text-align:left;">🛡️ Pareceres da Performance</th>
-          <th style="padding:10px 14px; text-align:center; width:110px;">Validação</th>
+          <th style="padding:10px 14px; text-align:center; width:100px;">Validação</th>
         `;
       } else { // Comments Only Topics
         headersHTML = `
@@ -1883,14 +1903,30 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           cellsHTML = `
             <td style="padding:10px 14px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">93,30%</td>
             <td style="padding:10px 14px; text-align:right; font-weight:700; color:#475569; white-space:nowrap;">82,50%</td>
+            <td style="padding:10px 14px; text-align:center; white-space:nowrap;"><span class="kpi-badge" style="background:#dcfce7; color:#166534; font-size:0.80rem;">🟢 Meta Atingida</span></td>
           `;
-        } else if (topicId === 20) { // Boas Práticas (Semestral)
-          let bpAprov = idx >= 4 ? "3 iniciativas" : "0 iniciativas";
-          let bpRec = idx >= 4 ? "1 iniciativa" : "0 iniciativas";
+        } else if (topicId === 20) { // Boas Práticas (Mensal + Acumulado + Meta Atingida)
+          const bpMesAprovMap = [0, 0, 0, 0, 2, 1, 0];
+          const bpMesRecMap   = [0, 0, 0, 0, 1, 0, 0];
+          const bpAcumAprovMap = [0, 0, 0, 0, 2, 3, 3];
+          const bpAcumRecMap   = [0, 0, 0, 0, 1, 1, 1];
+
+          let mAprov = bpMesAprovMap[idx] || 0;
+          let mRec = bpMesRecMap[idx] || 0;
+          let aAprov = bpAcumAprovMap[idx] || 0;
+          let aRec = bpAcumRecMap[idx] || 0;
+
+          let metaBadge = (aAprov >= 3 && aRec >= 1) ? 
+            `<span class="kpi-badge" style="background:#dcfce7; color:#166534; font-size:0.78rem; font-weight:800; padding:3px 8px; border-radius:6px; display:inline-block;">🟢 Meta Atingida</span>` : 
+            (aAprov > 0 ? `<span class="kpi-badge" style="background:#fef3c7; color:#92400e; font-size:0.78rem; font-weight:800; padding:3px 8px; border-radius:6px; display:inline-block;">⏳ Em Andamento (${aAprov}/3)</span>` : 
+            `<span class="kpi-badge" style="background:#f1f5f9; color:#64748b; font-size:0.78rem; font-weight:700; padding:3px 8px; border-radius:6px; display:inline-block;">⚪ Sem Registros</span>`);
+
           cellsHTML = `
-            <td style="padding:10px 14px; text-align:right; font-weight:800; color:${idx >= 4 ? '#15803d' : '#475569'}; white-space:nowrap;">${bpAprov}</td>
-            <td style="padding:10px 14px; text-align:right; font-weight:800; color:${idx >= 4 ? '#15803d' : '#475569'}; white-space:nowrap;">${bpRec}</td>
-            <td style="padding:10px 14px; text-align:right; font-weight:700; color:#334155; white-space:nowrap;">3 aprov / mín. 1 rec</td>
+            <td style="padding:10px 14px; text-align:right; font-weight:800; color:${mAprov > 0 ? '#15803d' : '#64748b'}; white-space:nowrap;">${mAprov} pax</td>
+            <td style="padding:10px 14px; text-align:right; font-weight:800; color:${mRec > 0 ? '#15803d' : '#64748b'}; white-space:nowrap;">${mRec} pax</td>
+            <td style="padding:10px 14px; text-align:right; font-weight:800; color:#1e40af; white-space:nowrap;">${aAprov} pax</td>
+            <td style="padding:10px 14px; text-align:right; font-weight:800; color:#1e40af; white-space:nowrap;">${aRec} pax</td>
+            <td style="padding:10px 14px; text-align:center; white-space:nowrap;">${metaBadge}</td>
           `;
         }
 
