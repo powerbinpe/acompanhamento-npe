@@ -887,30 +887,37 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
   <script>
 
-    // Safe storage helper to prevent Power BI iFrame SecurityError exceptions
-    const memoryStorage = {};
+    // Multi-Layer Safe Storage (LocalStorage + SessionStorage + Global Memory)
+    window._GLOBAL_COMM_STORAGE = window._GLOBAL_COMM_STORAGE || {};
+
     function safeGetStorage(key, fallback) {
       try {
         if (window.localStorage) {
           const val = window.localStorage.getItem(key);
-          return val !== null ? val : fallback;
+          if (val !== null && val !== undefined) return val;
         }
-      } catch (e) {
-        console.warn("localStorage restricted, using memory storage:", e);
-      }
-      return memoryStorage[key] !== undefined ? memoryStorage[key] : fallback;
+      } catch (e) {}
+      try {
+        if (window.sessionStorage) {
+          const sVal = window.sessionStorage.getItem(key);
+          if (sVal !== null && sVal !== undefined) return sVal;
+        }
+      } catch (e) {}
+      return window._GLOBAL_COMM_STORAGE[key] !== undefined ? window._GLOBAL_COMM_STORAGE[key] : fallback;
     }
 
     function safeSetStorage(key, value) {
+      window._GLOBAL_COMM_STORAGE[key] = value;
       try {
         if (window.localStorage) {
           window.localStorage.setItem(key, value);
-          return;
         }
-      } catch (e) {
-        console.warn("localStorage restricted, saving to memory storage:", e);
-      }
-      memoryStorage[key] = value;
+      } catch (e) {}
+      try {
+        if (window.sessionStorage) {
+          window.sessionStorage.setItem(key, value);
+        }
+      } catch (e) {}
     }
 
     let isMaster = false;
@@ -1805,7 +1812,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
               <span>📝 Justificativa do Gestor (${displayOSName} - ${monthFmt.split('/')[0].trim()})</span>
               ${gestorStatusPill}
             </div>
-            <textarea id="g_${topic.id}" class="comment-input" 
+            <textarea id="g_${topic.id}" class="comment-input" oninput="handleCommentInput('g', ${topic.id}, this.value)" 
               placeholder="${isMultiOS ? 'Visão consolidada multi-OS...' : 'Digite a justificativa do gestor da OS...'}" 
               ${gestorIsLocked ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : ''}>${finalGestorText}</textarea>
           </div>
@@ -1815,7 +1822,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
               <span>🛡️ Comentário / Validação Performance (${displayOSName} - ${monthFmt.split('/')[0].trim()})</span>
               ${masterStatusPill}
             </div>
-            <textarea id="m_${topic.id}" class="comment-input" 
+            <textarea id="m_${topic.id}" class="comment-input" oninput="handleCommentInput('m', ${topic.id}, this.value)" 
               placeholder="${isMultiOS ? 'Visão consolidada multi-OS...' : (isMaster ? 'Digite as observações e validação do setor de Performance...' : '🔒 Campo exclusivo para validação e comentários do Setor de Performance')}" 
               ${(!isMaster || isMultiOS) ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : ''}>${finalMasterText}</textarea>
             ${masterControlsHTML}
@@ -1989,7 +1996,8 @@ function renderAnnualConsolidation() {
     // Validation Status Handler
     function setValidationStatus(topicId, status) {
       const params = new URLSearchParams(window.location.search);
-      const activeOS = params.get("SelectedOS") || "M00100";
+      const rawOS = params.get("SelectedOS") || "M00100";
+      const activeOS = extractPrimaryOSCode(rawOS);
       const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
       
       safeSetStorage(`status_${activeOS}_m${monthNum}_${topicId}`, status);
@@ -2000,13 +2008,28 @@ function renderAnnualConsolidation() {
     // Assertiveness Override Handler
     function toggleAssertiveness() {
       const params = new URLSearchParams(window.location.search);
-      const activeOS = params.get("SelectedOS") || "M00100";
+      const rawOS = params.get("SelectedOS") || "M00100";
+      const activeOS = extractPrimaryOSCode(rawOS);
       const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
       const currentOverride = safeGetStorage(`assertiv_override_${activeOS}_m${monthNum}`, false);
       
       safeSetStorage(`assertiv_override_${activeOS}_m${monthNum}`, !currentOverride);
       renderRows();
       showToast(!currentOverride ? "Assertividade alterada para Assertivo (Override Master)!" : "Assertividade revertida para apuração automática!");
+    }
+
+    // Auto-Save single field on input
+    function handleCommentInput(type, topicId, value) {
+      const params = new URLSearchParams(window.location.search);
+      const rawOS = params.get("SelectedOS") || "TODAS_OS";
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      if (isMultiOS) return;
+      
+      const activeOS = extractPrimaryOSCode(rawOS);
+      const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
+      
+      const key = `${type}_${activeOS}_m${monthNum}_${topicId}`;
+      safeSetStorage(key, value);
     }
 
     // Save All Comments Function
@@ -2022,7 +2045,7 @@ function renderAnnualConsolidation() {
         return;
       }
 
-      const activeOS = rawOS;
+      const activeOS = extractPrimaryOSCode(rawOS);
       let countSaved = 0;
 
       topicsData.forEach(topic => {
