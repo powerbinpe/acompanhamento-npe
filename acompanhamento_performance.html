@@ -1524,6 +1524,11 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
     
     
+    
+    // =========================================================================
+    // INLINE HISTORY DRAWER (MATCHED HEADERS & METRICS PER TOPIC)
+    // =========================================================================
+    window.toggleInlineHistory = toggleInlineHistory;
     function toggleInlineHistory(topicId) {
       const drawer = document.getElementById(`inline_history_${topicId}`);
       if (!drawer) return;
@@ -1684,7 +1689,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           <th style="padding:10px 14px; text-align:left;">🛡️ Pareceres da Performance</th>
           <th style="padding:10px 14px; text-align:center; width:110px;">Validação</th>
         `;
-      } else { // Comments Only Topics (#05, #07, #13, #14, #18, #19, #20, #21, #22, #23, #24)
+      } else { // Comments Only Topics
         headersHTML = `
           <th style="padding:10px 14px; text-align:left; width:140px;">🗓️ Mês Apurado</th>
           <th style="padding:10px 14px; text-align:left;">📝 Justificativas das OSs do Mês</th>
@@ -1908,6 +1913,305 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       `;
 
       drawer.innerHTML = html;
+    }
+
+    // =========================================================================
+    // RENDER TOPICS ROWS (23 TOPICS + TOPIC 24 FINAL RECOMMENDATION)
+    // =========================================================================
+    window.renderRows = renderRows;
+    function renderRows() {
+      const container = document.getElementById("topicsContainer");
+      if (!container) return;
+      container.innerHTML = "";
+
+      const currentParams = new URLSearchParams(window.location.search);
+      const rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      let activeOS = isMultiOS ? "M00100" : ((typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(rawOS) : rawOS) || rawOS);
+      let displayOSName = isMultiOS ? "Visão Consolidada Corporativa (Todas as OSs)" : activeOS;
+
+      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
+      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+      const monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+      let monthName = currentParams.get("SelectedMes") || monthNames[monthNum - 1] || "JULHO";
+      let monthFmt = `${monthName.toUpperCase()} / 2026`;
+
+      // Update Final Remarks (Topic #24)
+      const finalTA = document.getElementById("finalPerformanceComment");
+      const finalLock = document.getElementById("finalLock");
+      
+      let dbFinalEntry = (ATA_COMENTARIOS_DB[activeOS] && ATA_COMENTARIOS_DB[activeOS]["24"]) ? 
+        ATA_COMENTARIOS_DB[activeOS]["24"].find(r => r.mes === monthNum) : null;
+      let defaultFinal = dbFinalEntry ? dbFinalEntry.comentario : "";
+      if (!defaultFinal && activeOS === "M00100" && monthNum === 7) {
+        defaultFinal = "Recomendações Finais da Performance (Julho/2026): Aderência excelente às metas operacionais e financeiras na OS M00100 (CBMM Araxá). Manter o rigor no acompanhamento diário dos apontamentos e avanço de medição física.";
+      }
+      
+      let finalMasterText = safeGetStorage(`m_${activeOS}_m${monthNum}_24`, defaultFinal);
+
+      if (finalTA) {
+        const canEditFinal = isMaster && !isMultiOS;
+        finalTA.disabled = !canEditFinal;
+        finalTA.style.background = canEditFinal ? "#ffffff" : "#f8fafc";
+        finalTA.style.color = "#0f172a";
+        finalTA.style.cursor = canEditFinal ? "text" : "not-allowed";
+        finalTA.placeholder = isMultiOS ? "Visão consolidada multi-OS..." : (isMaster ? "Digite as recomendações e pareceres do Setor de Performance..." : "🔒 Campo exclusivo para registro de recomendações pelo Setor de Performance.");
+        finalTA.value = finalMasterText;
+      }
+      if (finalLock) {
+        finalLock.innerHTML = isMultiOS ? "🔒 Consolidado Geral" : (isMaster ? "✍️ Modo Edição Máster" : "🔒 Exclusivo Máster");
+        finalLock.className = isMaster ? "status-pill status-reaberto" : "status-pill status-validado";
+      }
+
+      const btnGenSum = document.getElementById("btnGenerateSummary");
+      if (btnGenSum) {
+        const canGenerate = isMaster && !isMultiOS;
+        btnGenSum.style.display = "inline-flex";
+        btnGenSum.disabled = !canGenerate;
+        btnGenSum.style.cursor = canGenerate ? "pointer" : "not-allowed";
+        btnGenSum.style.opacity = canGenerate ? "1" : "0.55";
+        btnGenSum.style.background = canGenerate ? "linear-gradient(135deg, #1e40af, #2563eb)" : "#94a3b8";
+        btnGenSum.title = canGenerate ? "Clique para gerar a síntese automática dos pareceres do Setor de Performance" : "Alterne para o perfil Máster Performance no topo para habilitar a geração do resumo";
+      }
+
+      topicsData.forEach(topic => {
+        const row = document.createElement("div");
+        row.className = "topic-row";
+        row.id = `row_${topic.id}`;
+
+        let finalGestorText = "";
+        let finalMasterText = "";
+
+        if (isMultiOS) {
+          let gestorEntries = [];
+          let masterEntries = [];
+          const strTid = String(topic.id);
+
+          for (const [osCode, topsObj] of Object.entries(ATA_COMENTARIOS_DB)) {
+            const tRows = topsObj[strTid] || [];
+            if (tRows.length === 0) continue;
+
+            const osLabel = (typeof osNamesMap !== "undefined" && osNamesMap[osCode]) ? `${osCode} - ${osNamesMap[osCode]}` : osCode;
+            const gRow = tRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum);
+            const mRow = tRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum);
+
+            if (gRow && gRow.comentario && gRow.comentario.trim().length > 5) {
+              gestorEntries.push(`[OS ${osLabel}]: ${gRow.comentario.trim()}`);
+            }
+            if (mRow && mRow.comentario && mRow.comentario.trim().length > 5) {
+              masterEntries.push(`[OS ${osLabel}]: ${mRow.comentario.trim()}`);
+            }
+          }
+
+          if (gestorEntries.length > 0) {
+            finalGestorText = gestorEntries.join("\n\n");
+            finalGestorText += "\n\n📌 [Exibindo justificativas consolidadas registradas em " + monthName + ". Selecione uma OS no Power BI para filtrar e editar.]";
+          } else {
+            finalGestorText = "Sem justificativas de desvios cadastradas pelas OSs para " + monthName + ".";
+          }
+
+          if (masterEntries.length > 0) {
+            finalMasterText = masterEntries.join("\n\n");
+            finalMasterText += "\n\n📌 [Exibindo pareceres da Performance registrados em " + monthName + ". Selecione uma OS no Power BI para filtrar.]";
+          } else {
+            finalMasterText = "Acompanhamento contínuo e governança pelo Setor de Performance da NPE (" + monthName + ").";
+          }
+
+        } else {
+          let osRows = (ATA_COMENTARIOS_DB[activeOS] && ATA_COMENTARIOS_DB[activeOS][String(topic.id)]) ? ATA_COMENTARIOS_DB[activeOS][String(topic.id)] : [];
+          let matchGestor = osRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum);
+          let matchMaster = osRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum);
+
+          let excelGestor = matchGestor ? matchGestor.comentario : "";
+          let excelMaster = matchMaster ? matchMaster.comentario : "";
+
+          finalGestorText = safeGetStorage(`g_${activeOS}_m${monthNum}_${topic.id}`, excelGestor);
+          finalMasterText = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, excelMaster);
+        }
+
+        let savedStatus = safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, "Pendente");
+        const valStatus = isMultiOS ? "Pendente" : savedStatus;
+        const gestorIsLocked = isMultiOS || (valStatus === "Validado" && !isMaster);
+
+        let linesHTML = '';
+        if (topic.onlyComments || (topic.lines.length === 1 && topic.lines[0].label === "Tipo de Controle")) {
+          linesHTML = `
+            <div style="width: 100%; box-sizing: border-box; margin-top: 6px; background: #f8fafc; border: 2px solid #0f2b5c; border-radius: 8px; padding: 12px 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);">
+              <div style="font-size: 0.82rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">
+                Tipo de Controle:
+              </div>
+              <div style="font-size: 0.98rem; font-weight: 700; color: #0f2b5c; display: flex; align-items: center; gap: 6px; line-height: 1.4;">
+                📝 Acompanhamento via Comentários da OS
+              </div>
+            </div>
+          `;
+        } else {
+          linesHTML = `
+            <div style="border: 2px solid #0f2b5c; border-radius: 8px; overflow: hidden; margin-top: 6px; box-shadow: 0 1px 3px rgba(15,43,92,0.08);">
+              <table style="width: 100%; border-collapse: collapse; background: #ffffff; table-layout: fixed;">
+                <tbody>
+                  ${topic.lines.map((l, idx) => {
+                    const dynamicClass = getLineClass(topic.id, idx, topic.lines);
+                    const isPos = dynamicClass === 'positive' || (l.class === 'positive') || (l.val && String(l.val).startsWith("+"));
+                    const isNeg = dynamicClass === 'negative' || (l.class === 'negative') || (l.val && (String(l.val).startsWith("-") || String(l.val).startsWith("(")));
+                    const valColor = isPos ? '#15803d' : (isNeg ? '#b91c1c' : '#0f172a');
+                    const rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+                    const isLast = idx === topic.lines.length - 1;
+                    return `
+                      <tr style="background-color: ${rowBg}; border-bottom: ${isLast ? 'none' : '1.5px solid #cbd5e1'};">
+                        <td style="padding: 7px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 60%; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
+                          ${l.label}:
+                        </td>
+                        <td style="padding: 7px 12px; font-size: clamp(0.92rem, 1.05vw, 1.12rem); color: ${valColor}; font-weight: 800; text-align: right; width: 38%; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
+                          ${l.val}
+                        </td>
+                      </tr>
+                    `;
+                  }).join("")}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+        let gestorStatusPill = isMultiOS ? 
+          `<span class="status-pill status-reaberto" style="font-size: 0.84rem;">🌐 Multi-OS Consolidado</span>` : 
+          (valStatus === "Validado" ? `<span class="status-pill status-validado" style="font-size: 0.84rem;">🔒 Validado & Travado</span>` : `<span class="status-pill status-pendente" style="font-size: 0.84rem;">⏳ Pendente de Validação</span>`);
+
+        let masterStatusPill = isMultiOS ? 
+          `<span class="status-pill status-validado" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; font-size: 0.84rem;">🌐 Multi-OS Consolidado</span>` : 
+          (isMaster ? `<span class="status-pill status-validado" style="font-size: 0.84rem;">✍️ Aberto para Edição</span>` : `<span class="status-pill status-validado" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; font-size: 0.84rem;">🔒 Exclusivo Performance</span>`);
+
+        let masterControlsHTML = "";
+        if (isMaster && !isMultiOS) {
+          masterControlsHTML = `
+            <div class="validation-control-bar" style="margin-top: 8px;">
+              ${valStatus !== "Validado" ? 
+                `<button class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
+                  🔒 VALIDAR E TRAVAR COMENTÁRIO DO GESTOR
+                 </button>` : 
+                `<button class="val-btn btn-unlock" onclick="setValidationStatus(${topic.id}, 'Reaberto')" style="background:#d97706; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(217,119,6,0.25);">
+                  🔓 REABRIR EDIÇÃO PARA O GESTOR
+                 </button>`
+              }
+            </div>
+          `;
+        }
+
+        let assertiveBarHTML = "";
+        if (topic.isAssertividade) {
+          let autoAssertive = currentParams.get("AssertivMes");
+          if (!autoAssertive && topic.lines && topic.lines[6] && topic.lines[6].val) {
+            autoAssertive = topic.lines[6].val;
+          }
+          if (!autoAssertive) autoAssertive = "Assertivo";
+          
+          let cleanAuto = autoAssertive.trim();
+          let normAuto = cleanAuto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+          let calculatedStatus = "Assertivo";
+          if (normAuto.includes("nao assertivo") || normAuto.includes("inassertivo")) {
+            calculatedStatus = "Não Assertivo";
+          } else if (normAuto.includes("meio")) {
+            calculatedStatus = "Meio Assertivo";
+          }
+
+          let savedOverride = safeGetStorage(`assertiv_override_${activeOS}_m${monthNum}`, "AUTOMATICO");
+
+          let finalStatus = (savedOverride && savedOverride !== "AUTOMATICO") ? savedOverride : calculatedStatus;
+          let isOverride = (savedOverride && savedOverride !== "AUTOMATICO");
+          
+          let normFinal = finalStatus.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          let isAssertivo = !normFinal.includes("nao") && !normFinal.includes("inassertivo");
+
+          let statusBadgeColor = isAssertivo ? "#15803d" : "#b91c1c";
+          let statusBadgeBg = isAssertivo ? "#dcfce7" : "#fee2e2";
+          let statusBadgeBorder = isAssertivo ? "#86efac" : "#fca5a5";
+          let statusIcon = isAssertivo ? "🟢" : "🔴";
+          let statusSubText = isOverride ? "(Ajuste Manual / Override Máster)" : "(Apuração Automática)";
+
+          let overrideButtonHTML = "";
+          if (isMaster) {
+            if (isOverride) {
+              overrideButtonHTML = `
+                <button class="override-btn" onclick="toggleAssertiveness('${finalStatus}')" style="background:#475569; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+                  🔄 Reverter para Apuração Automática (${calculatedStatus})
+                </button>
+              `;
+            } else {
+              overrideButtonHTML = `
+                <button class="override-btn" onclick="toggleAssertiveness('${finalStatus}')" style="background: linear-gradient(135deg, #d97706, #b45309);">
+                  🔴 Alterar para Não Assertivo (Override Máster)
+                </button>
+              `;
+            }
+          } else {
+            overrideButtonHTML = `
+              <button class="override-btn" disabled style="background:#cbd5e1; color:#64748b; cursor:not-allowed; border:1px solid #94a3b8;" title="Alterne para o perfil Máster Performance no topo para editar">
+                🔒 Override Exclusivo Máster
+              </button>
+            `;
+          }
+
+          assertiveBarHTML = `
+            <div class="assertive-bar" style="margin-top: 12px; border-left: 4px solid #1e40af;">
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span style="font-weight: 800; color: #0f2b5c; font-size: 0.95rem;">
+                  Status Final Apurado (${monthFmt}):
+                </span>
+                <span style="background: ${statusBadgeBg}; color: ${statusBadgeColor}; border: 1.5px solid ${statusBadgeBorder}; padding: 4px 12px; border-radius: 6px; font-weight: 800; font-size: 0.90rem; display: inline-flex; align-items: center; gap: 6px;">
+                  ${statusIcon} ${finalStatus} <span style="font-size: 0.78rem; font-weight: 600; opacity: 0.85;">${statusSubText}</span>
+                </span>
+              </div>
+              <div>
+                ${overrideButtonHTML}
+              </div>
+            </div>
+          `;
+        }
+
+        row.innerHTML = `
+          <div class="kpi-column">
+            <div>
+              <div class="topic-header" style="margin-bottom: 6px;">
+                <span class="topic-title">#${String(topic.id).padStart(2, '0')} ${topic.name}</span>
+              </div>
+              <div class="kpi-lines">
+                ${linesHTML}
+              </div>
+            </div>
+            <button id="btn_hist_${topic.id}" class="timeline-btn" onclick="toggleInlineHistory(${topic.id})">
+              📜 Histórico ATA_COMENTARIO
+            </button>
+          </div>
+
+          <div class="comment-col">
+            <div class="comment-col-title title-gestor">
+              <span>📝 Justificativa do Gestor (${displayOSName} - ${monthFmt.split('/')[0].trim()})</span>
+              ${gestorStatusPill}
+            </div>
+            <textarea id="g_${topic.id}" class="comment-input" oninput="handleCommentInput('g', ${topic.id}, this.value)" 
+              placeholder="${isMultiOS ? 'Visão consolidada multi-OS...' : 'Digite a justificativa do gestor da OS...'}" 
+              ${gestorIsLocked ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : ''}>${finalGestorText}</textarea>
+          </div>
+
+          <div class="comment-col">
+            <div class="comment-col-title title-master">
+              <span>🛡️ Comentário / Validação Performance (${displayOSName} - ${monthFmt.split('/')[0].trim()})</span>
+              ${masterStatusPill}
+            </div>
+            <textarea id="m_${topic.id}" class="comment-input" oninput="handleCommentInput('m', ${topic.id}, this.value)" 
+              placeholder="${isMultiOS ? 'Visão consolidada multi-OS...' : (isMaster ? 'Digite as observações e validação do setor de Performance...' : '🔒 Campo exclusivo para validação e comentários do Setor de Performance')}" 
+              ${(!isMaster || isMultiOS) ? 'disabled style="background:#f8fafc; color:#334155; cursor:not-allowed;"' : 'style="background:#ffffff; color:#0f172a; cursor:text;"'}>${finalMasterText}</textarea>
+            ${masterControlsHTML}
+          </div>
+
+          <div id="inline_history_${topic.id}" class="inline-history-drawer" style="display: none; grid-column: 1 / -1; margin-top: 12px; background-color: #f1f5f9; border: 2px solid #162b58; border-radius: 10px; padding: 16px; box-shadow: inset 0 2px 6px rgba(11,26,58,0.1);"></div>
+          ${assertiveBarHTML}
+        `;
+
+        container.appendChild(row);
+      });
     }
 
     function renderAnnualConsolidation() {
