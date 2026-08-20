@@ -95,7 +95,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     /* Main Layout with Bold Corporate Borders */
     .topic-row {
       display: grid;
-      grid-template-columns: 440px 1fr 1fr;
+      grid-template-columns: 530px 1.35fr 0.85fr;
       gap: 18px;
       background-color: #ffffff;
       border-radius: 12px;
@@ -118,7 +118,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       flex-direction: column;
       justify-content: space-between;
       width: 100%;
-      max-width: 440px;
+      max-width: 530px;
       box-sizing: border-box;
       overflow: hidden;
     }
@@ -290,7 +290,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       flex-direction: column;
       justify-content: space-between;
       width: 100%;
-      max-width: 440px;
+      max-width: 530px;
       box-sizing: border-box;
       overflow: hidden;
     }
@@ -498,11 +498,18 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         </button>
       </div>
       <div class="comment-col" style="grid-column: span 2;">
-        <div class="comment-col-title title-master">
-          <span>🛡️ Comentários e Recomendações do Setor de Performance (Ciclo Atual)</span>
-          <span class="status-pill" id="finalLock" style="background: #e0f2fe; color: #0369a1; border: 1.5px solid #7dd3fc; font-weight: 700; font-size: 0.78rem; padding: 3px 8px; border-radius: 6px;">🔒 Exclusivo Máster</span>
+        <div class="comment-col-title title-master" style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="display: flex; align-items: center; gap: 8px;">
+            🛡️ Comentários e Recomendações do Setor de Performance (Ciclo Atual)
+          </span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="btnGenerateSummary" onclick="generatePerformanceSummary()" style="background: linear-gradient(135deg, #1e40af, #2563eb); color: #ffffff; border: 1px solid #60a5fa; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(30,64,175,0.3); transition: all 0.2s;">
+              ✨ Gerar Resumo dos Pareceres da Performance
+            </button>
+            <span class="status-pill" id="finalLock" style="background: #e0f2fe; color: #0369a1; border: 1.5px solid #7dd3fc; font-weight: 700; font-size: 0.78rem; padding: 4px 10px; border-radius: 6px;">🔒 Exclusivo Máster</span>
+          </div>
         </div>
-        <textarea id="finalPerformanceComment" class="comment-input" style="min-height: 95px;" placeholder="🔒 Campo exclusivo para registro de recomendações pelo Setor de Performance." oninput="handleFinalCommentInput(this.value)"></textarea>
+        <textarea id="finalPerformanceComment" class="comment-input" style="min-height: 120px;" placeholder="🔒 Campo exclusivo para registro de recomendações pelo Setor de Performance." oninput="handleFinalCommentInput(this.value)"></textarea>
       </div>
       <div id="inline_history_recom" class="inline-history-drawer" style="display: none; grid-column: 1 / -1; margin-top: 12px; background-color: #f1f5f9; border: 2px solid #162b58; border-radius: 10px; padding: 14px 16px; box-shadow: inset 0 2px 6px rgba(11,26,58,0.1);">
       </div>
@@ -1837,7 +1844,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
                         <td style="padding: 7px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 60%; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
                           ${l.label}:
                         </td>
-                        <td style="padding: 7px 10px; font-size: 1.10rem; color: ${valColor}; font-weight: 800; text-align: right; width: 40%; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
+                        <td style="padding: 7px 12px; font-size: 1.12rem; color: ${valColor}; font-weight: 800; text-align: right; width: 38%; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
                           ${l.val}
                         </td>
                       </tr>
@@ -2328,6 +2335,74 @@ function renderAnnualConsolidation() {
     }
 
     // Save All Comments Function (Local + Cloud API Sync)
+    
+    // =========================================================================
+    // SÍNTESE EXCLUSIVA DOS PARECERES DO SETOR DE PERFORMANCE
+    // =========================================================================
+    window.generatePerformanceSummary = generatePerformanceSummary;
+    function generatePerformanceSummary() {
+      if (!isMaster) {
+        showToast("⚠️ Para gerar o resumo, alterne para o perfil Máster Performance no topo!", true);
+        return;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const rawOS = params.get("SelectedOS") || "TODAS_OS";
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      const activeOS = isMultiOS ? "M00100" : (extractPrimaryOSCode(rawOS) || rawOS);
+      const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
+      const monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+      const monthName = params.get("SelectedMes") || monthNames[monthNum - 1] || "JULHO";
+
+      const collectedMasterComments = [];
+
+      topicsData.forEach(topic => {
+        if (topic.id >= 24) return;
+        
+        let mText = "";
+        const mEl = document.getElementById(`m_${topic.id}`);
+        if (mEl && mEl.value && mEl.value.trim()) {
+          mText = mEl.value.trim();
+        } else {
+          let dbFallback = "";
+          if (ATA_COMENTARIOS_DB[activeOS] && ATA_COMENTARIOS_DB[activeOS][String(topic.id)]) {
+            const dbRow = ATA_COMENTARIOS_DB[activeOS][String(topic.id)].find(r => r.tipo === "PERFORMANCE" && r.mes === monthNum);
+            if (dbRow) dbFallback = dbRow.comentario || "";
+          }
+          mText = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, dbFallback).trim();
+        }
+
+        if (mText && mText.length > 5 && !mText.startsWith("🔒") && !mText.includes("Aguardando apontamento")) {
+          let cleanText = mText.replace(/^(Parecer da Performance:\s*|Observações da Performance:\s*|Análise Performance:\s*)/i, '').trim();
+          collectedMasterComments.push({
+            id: topic.id,
+            name: topic.name,
+            text: cleanText
+          });
+        }
+      });
+
+      if (collectedMasterComments.length === 0) {
+        showToast("ℹ️ Nenhum parecer registrado pelo Setor de Performance nos tópicos deste mês para sintetizar.", true);
+        return;
+      }
+
+      let summaryText = `📌 SÍNTESE EXECUTIVA DOS PARECERES DA PERFORMANCE (${monthName.toUpperCase()}/2026 - OS ${activeOS}):\n\n`;
+      
+      collectedMasterComments.forEach(item => {
+        summaryText += `• #${String(item.id).padStart(2, '0')} ${item.name}: ${item.text}\n`;
+      });
+
+      summaryText += `\n🎯 DIRETRIZES & RECOMENDAÇÕES FINAIS DA PERFORMANCE:\nManter o acompanhamento contínuo dos planos de ação com foco em conformidade operacional e previsibilidade financeira.`;
+
+      const finalTA = document.getElementById("finalPerformanceComment");
+      if (finalTA) {
+        finalTA.value = summaryText;
+        safeSetStorage(`m_${activeOS}_m${monthNum}_24`, summaryText);
+        showToast(`✨ Resumo de ${collectedMasterComments.length} pareceres da Performance gerado com sucesso! Edite ou complemente antes de salvar.`);
+      }
+    }
+
     window.saveAllComments = saveAllComments;
     async function saveAllComments() {
       const params = new URLSearchParams(window.location.search);
