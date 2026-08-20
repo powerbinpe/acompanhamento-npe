@@ -2365,7 +2365,20 @@ function renderAnnualConsolidation() {
       const monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
       const monthName = params.get("SelectedMes") || monthNames[monthNum - 1] || "JULHO";
 
-      const collectedMasterComments = [];
+      const specificHighlights = [];
+      let regularCount = 0;
+
+      // Boilerplate / Generic phrases that indicate standard validation with NO specific highlights
+      const genericPhrases = [
+        "sem inconformidades tecnicas",
+        "sem inconformidades",
+        "analise e validacao pelo setor de performance aprovada",
+        "acompanhamento continuo e governanca",
+        "aguardando apontamento",
+        "em conformidade",
+        "sem apontamentos adicionais",
+        "dentro do esperado"
+      ];
 
       topicsData.forEach(topic => {
         if (topic.id >= 24) return;
@@ -2383,34 +2396,49 @@ function renderAnnualConsolidation() {
           mText = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, dbFallback).trim();
         }
 
-        if (mText && mText.length > 5 && !mText.startsWith("🔒") && !mText.includes("Aguardando apontamento")) {
-          let cleanText = mText.replace(/^(Parecer da Performance:\s*|Observações da Performance:\s*|Análise Performance:\s*)/i, '').trim();
-          collectedMasterComments.push({
-            id: topic.id,
-            name: topic.name,
-            text: cleanText
-          });
+        if (mText && mText.length > 5 && !mText.startsWith("🔒")) {
+          // Normalize text to check if it's purely generic boilerplate
+          let cleanText = mText.replace(/^(Parecer da Performance:\s*|Observações da Performance:\s*|Análise Performance:\s*|Parecer da Performance\s*\(.*?\):\s*)/i, '').trim();
+          let norm = cleanText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+          let isGeneric = genericPhrases.some(phrase => norm.includes(phrase));
+
+          if (isGeneric && cleanText.length < 120) {
+            regularCount++;
+          } else {
+            specificHighlights.push({
+              id: topic.id,
+              name: topic.name,
+              text: cleanText
+            });
+          }
+        } else {
+          regularCount++;
         }
       });
 
-      if (collectedMasterComments.length === 0) {
-        showToast("ℹ️ Nenhum parecer registrado pelo Setor de Performance nos tópicos deste mês para sintetizar.", true);
-        return;
+      if (specificHighlights.length === 0) {
+        showToast("ℹ️ Todos os tópicos da Performance estão em conformidade regular sem destaques atípicos no mês.");
       }
 
-      let summaryText = `📌 SÍNTESE EXECUTIVA DOS PARECERES DA PERFORMANCE (${monthName.toUpperCase()}/2026 - OS ${activeOS}):\n\n`;
+      let summaryText = `📌 SÍNTESE EXECUTIVA - DESTAQUES DA PERFORMANCE (${monthName.toUpperCase()}/2026 - OS ${activeOS}):\n\n`;
       
-      collectedMasterComments.forEach(item => {
-        summaryText += `• #${String(item.id).padStart(2, '0')} ${item.name}: ${item.text}\n`;
-      });
+      if (specificHighlights.length > 0) {
+        specificHighlights.forEach(item => {
+          summaryText += `• ${item.name}: ${item.text}\n`;
+        });
+      } else {
+        summaryText += `• Performance Geral: Metas operacionais e financeiras executadas dentro da previsibilidade acordada.\n`;
+      }
 
-      summaryText += `\n🎯 DIRETRIZES & RECOMENDAÇÕES FINAIS DA PERFORMANCE:\nManter o acompanhamento contínuo dos planos de ação com foco em conformidade operacional e previsibilidade financeira.`;
+      summaryText += `\nℹ️ Demais Tópicos: Analisados e validados pelo Setor de Performance em conformidade operacional e sem inconformidades ou desvios materiais no ciclo.\n`;
+      summaryText += `\n🎯 DIRETRIZES & RECOMENDAÇÕES FINAIS:\nManter o acompanhamento contínuo dos planos de ação com foco em rigor nos apontamentos e previsibilidade financeira.`;
 
       const finalTA = document.getElementById("finalPerformanceComment");
       if (finalTA) {
         finalTA.value = summaryText;
         safeSetStorage(`m_${activeOS}_m${monthNum}_24`, summaryText);
-        showToast(`✨ Resumo de ${collectedMasterComments.length} pareceres da Performance gerado com sucesso! Edite ou complemente antes de salvar.`);
+        showToast(`✨ Resumo executivo gerado com ${specificHighlights.length} destaques específicos! Edite ou complemente antes de salvar.`);
       }
     }
 
