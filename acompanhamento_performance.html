@@ -1748,6 +1748,17 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         finalLock.className = isMaster ? "status-pill status-reaberto" : "status-pill status-validado";
       }
 
+      const btnGenSum = document.getElementById("btnGenerateSummary");
+      if (btnGenSum) {
+        const canGenerate = isMaster && !isMultiOS;
+        btnGenSum.style.display = "inline-flex";
+        btnGenSum.disabled = !canGenerate;
+        btnGenSum.style.cursor = canGenerate ? "pointer" : "not-allowed";
+        btnGenSum.style.opacity = canGenerate ? "1" : "0.55";
+        btnGenSum.style.background = canGenerate ? "linear-gradient(135deg, #1e40af, #2563eb)" : "#94a3b8";
+        btnGenSum.title = canGenerate ? "Clique para gerar a síntese automática dos pareceres do Setor de Performance" : "Alterne para o perfil Máster Performance no topo para habilitar a geração do resumo";
+      }
+
       topicsData.forEach(topic => {
         const row = document.createElement("div");
         row.className = "topic-row";
