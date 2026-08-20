@@ -1879,7 +1879,11 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         let assertiveBarHTML = "";
         if (topic.isAssertividade) {
           // 1. Get automatic calculated value
-          const autoAssertive = (topic.lines && topic.lines[6] && topic.lines[6].val) ? topic.lines[6].val : (currentParams.get("AssertivMes") || "Assertivo");
+          let autoAssertive = currentParams.get("AssertivMes");
+          if (!autoAssertive && topic.lines && topic.lines[6] && topic.lines[6].val) {
+            autoAssertive = topic.lines[6].val;
+          }
+          if (!autoAssertive) autoAssertive = "Assertivo";
           
           // 2. Get manual override from storage
           const overrideVal = safeGetStorage(`assertiv_override_${activeOS}_m${monthNum}`, "AUTOMATICO");
@@ -1887,14 +1891,15 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           
           // 3. Determine final status to display
           let finalStatusDisplay = isOverridden ? overrideVal : autoAssertive;
-          let isPositive = finalStatusDisplay.toLowerCase().includes("assertivo") && !finalStatusDisplay.toLowerCase().includes("não") && !finalStatusDisplay.toLowerCase().includes("meio");
-          let isMedium = finalStatusDisplay.toLowerCase().includes("meio");
+          let normLower = finalStatusDisplay.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          let isPositive = normLower.includes("assertivo") && !normLower.includes("nao") && !normLower.includes("meio");
+          let isMedium = normLower.includes("meio");
           
           let pillClass = isPositive ? "status-validado" : (isMedium ? "status-reaberto" : "status-pendente");
           let icon = isPositive ? "🟢" : (isMedium ? "🟡" : "🔴");
           let originText = isOverridden ? " (Ajuste Manual / Override Máster)" : " (Apuração Automática)";
           
-          // 4. Action button text for Master
+          // 4. Action button text for Master vs Gestor
           let nextActionLabel = "";
           if (isOverridden) {
             nextActionLabel = "🔄 Reverter para Apuração Automática";
@@ -1906,19 +1911,27 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
             }
           }
 
+          const canClickOverride = isMaster && !isMultiOS;
+
           assertiveBarHTML = `
-            <div class="assertive-bar" style="font-size: 0.95rem;">
+            <div class="assertive-bar" style="font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 2px solid #0f2b5c; border-radius: 8px; padding: 10px 16px; margin-top: 10px;">
               <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 0.88rem; color: var(--text-muted); font-weight: 600;">Status Final Apurado (${monthFmt}):</span>
-                <span class="status-pill ${pillClass}" style="font-size: 0.88rem; font-weight: 700;">
+                <span style="font-size: 0.90rem; color: #1e293b; font-weight: 700;">Status Final Apurado (${monthFmt}):</span>
+                <span class="status-pill ${pillClass}" style="font-size: 0.88rem; font-weight: 800; padding: 5px 12px;">
                   ${icon} ${finalStatusDisplay}${originText}
                 </span>
               </div>
-              ${isMaster && !isMultiOS ? `
-                <button class="override-btn" onclick="toggleAssertiveness()" style="font-size: 0.90rem; cursor: pointer; padding: 6px 14px; font-weight: 700; border-radius: 6px; background: ${isOverridden ? '#475569' : '#d97706'}; color: #ffffff; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
-                  ${nextActionLabel}
-                </button>
-              ` : ''}
+              <div>
+                ${canClickOverride ? `
+                  <button class="override-btn" onclick="toggleAssertiveness()" style="font-size: 0.88rem; cursor: pointer; padding: 7px 16px; font-weight: 700; border-radius: 6px; background: ${isOverridden ? '#475569' : '#d97706'}; color: #ffffff; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+                    ${nextActionLabel}
+                  </button>
+                ` : `
+                  <button disabled style="font-size: 0.84rem; cursor: not-allowed; padding: 6px 12px; font-weight: 600; border-radius: 6px; background: #e2e8f0; color: #64748b; border: 1px solid #cbd5e1;">
+                    🔒 Override Exclusivo Máster
+                  </button>
+                `}
+              </div>
             </div>
           `;
         }
