@@ -2100,13 +2100,14 @@ function renderAnnualConsolidation() {
       showToast(isMaster ? "Perfil alterado para: Máster / Setor Performance" : "Perfil alterado para: Gestor de OS");
     }
 
-    // Validation Status Handler (Local + Memory DB + Persistent)
+    // Validation Status Handler (Local + Memory DB + Persistent + Auto-sync)
     window.setValidationStatus = setValidationStatus;
-    function setValidationStatus(topicId, status) {
+    async function setValidationStatus(topicId, status) {
       const params = new URLSearchParams(window.location.search);
       const rawOS = params.get("SelectedOS") || "M00100";
       const activeOS = extractPrimaryOSCode(rawOS);
       const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
+      const monthName = params.get("SelectedMes") || "JULHO";
       const strTid = String(topicId);
       
       const key = `status_${activeOS}_m${monthNum}_${topicId}`;
@@ -2123,6 +2124,17 @@ function renderAnnualConsolidation() {
 
       renderRows();
       showToast(status === "Validado" ? `🔒 Tópico #${topicId} validado e travado para o Gestor!` : `🔓 Tópico #${topicId} reaberto para edição do Gestor!`);
+
+      // Auto-persist validation status directly to backend
+      try {
+        const payload = {};
+        payload[key] = status;
+        const gEl = document.getElementById(`g_${topicId}`);
+        const mEl = document.getElementById(`m_${topicId}`);
+        if (gEl && gEl.value) payload[`g_${activeOS}_m${monthNum}_${topicId}`] = gEl.value;
+        if (mEl && mEl.value) payload[`m_${activeOS}_m${monthNum}_${topicId}`] = mEl.value;
+        saveCommentsToCloud(activeOS, monthNum, monthName, payload);
+      } catch (e) {}
     }
 
     // Assertiveness Override Handler
@@ -2280,6 +2292,11 @@ function renderAnnualConsolidation() {
       if (!ATA_COMENTARIOS_DB[activeOS]) ATA_COMENTARIOS_DB[activeOS] = {};
 
       topicsData.forEach(topic => {
+        const strTid = String(topic.id);
+        const statusKey = `status_${activeOS}_m${monthNum}_${topic.id}`;
+        const currentValStatus = safeGetStorage(statusKey, "Pendente");
+        cloudPayload.topicos[statusKey] = currentValStatus;
+
         const gEl = document.getElementById(`g_${topic.id}`);
         const gKey = `g_${activeOS}_m${monthNum}_${topic.id}`;
         if (gEl && gEl.value !== undefined) {
@@ -2287,18 +2304,18 @@ function renderAnnualConsolidation() {
           cloudPayload.topicos[gKey] = gEl.value;
           
           // Sync Gestor into ATA_COMENTARIOS_DB
-          const strTid = String(topic.id);
           if (!ATA_COMENTARIOS_DB[activeOS][strTid]) ATA_COMENTARIOS_DB[activeOS][strTid] = [];
           const existingG = ATA_COMENTARIOS_DB[activeOS][strTid].find(r => r.tipo === "GESTOR" && r.mes === monthNum);
           if (existingG) {
             existingG.comentario = gEl.value;
+            existingG.status = currentValStatus;
           } else {
             ATA_COMENTARIOS_DB[activeOS][strTid].push({
               tipo: "GESTOR",
               comentario: gEl.value,
               mes: monthNum,
               data: `2026-${String(monthNum).padStart(2, '0')}-01`,
-              status: "Validado"
+              status: currentValStatus
             });
           }
           countSaved++;
@@ -2311,18 +2328,18 @@ function renderAnnualConsolidation() {
           cloudPayload.topicos[mKey] = mEl.value;
           
           // Sync Master into ATA_COMENTARIOS_DB
-          const strTid = String(topic.id);
           if (!ATA_COMENTARIOS_DB[activeOS][strTid]) ATA_COMENTARIOS_DB[activeOS][strTid] = [];
           const existingM = ATA_COMENTARIOS_DB[activeOS][strTid].find(r => r.tipo === "PERFORMANCE" && r.mes === monthNum);
           if (existingM) {
             existingM.comentario = mEl.value;
+            existingM.status = currentValStatus;
           } else {
             ATA_COMENTARIOS_DB[activeOS][strTid].push({
               tipo: "PERFORMANCE",
               comentario: mEl.value,
               mes: monthNum,
               data: `2026-${String(monthNum).padStart(2, '0')}-01`,
-              status: "Validado"
+              status: currentValStatus
             });
           }
           countSaved++;
