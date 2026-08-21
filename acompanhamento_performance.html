@@ -14,8 +14,8 @@
   <!-- ========================================================= -->
   <!-- MODAL: PAINEL DE PREENCHIMENTOS & MONITORAMENTO DE SLA -->
   <!-- ========================================================= -->
-  <div id="slaModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(11,26,58,0.85); backdrop-filter:blur(6px); z-index:99999; overflow-y:auto; padding:20px 10px; box-sizing:border-box;">
-    <div style="max-width:1400px; margin:20px auto; background:#ffffff; border:2.5px solid #0f2b5c; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.5); overflow:hidden; display:flex; flex-direction:column;">
+  <div id="slaModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(8px); z-index:999999; justify-content:center; align-items:center; padding:15px; box-sizing:border-box;" onclick="if(event.target===this) closeSlaModal();">
+    <div style="width:96vw; max-width:1500px; height:92vh; background:#ffffff; border:2.5px solid #0f2b5c; border-radius:14px; box-shadow:0 16px 48px rgba(0,0,0,0.6); display:flex; flex-direction:column; overflow:hidden;">
       
       <!-- Modal Header -->
       <div style="background:linear-gradient(135deg, #0f2b5c, #1e40af); padding:16px 24px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
@@ -93,8 +93,19 @@
         </div>
       </div>
 
-      <!-- Table Matrix (All 12 Months) -->
-      <div style="padding:16px 24px; overflow-x:auto; max-height:60vh;">
+      <!-- Search Bar & Filters inside Modal -->
+      <div style="padding:10px 24px; background:#ffffff; border-bottom:1.5px solid #cbd5e1; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="text" id="slaSearchInput" oninput="filterSlaTable()" placeholder="🔍 Filtrar OS por Código ou Descrição..." style="padding:7px 14px; border-radius:6px; border:1.5px solid #94a3b8; font-size:0.88rem; width:320px; color:#0f172a;" />
+          <span style="font-size:0.80rem; color:#64748b; font-weight:600;">(Exibe todas as OSs ativas com rolagem horizontal e vertical)</span>
+        </div>
+        <div style="font-size:0.82rem; color:#0f2b5c; font-weight:700;">
+          📌 Use o mouse ou teclado para rolar a matriz de meses
+        </div>
+      </div>
+
+      <!-- Table Matrix (All 12 Months) with Smooth Custom Scrollbar -->
+      <div style="padding:12px 24px; overflow:auto; flex:1; min-height:200px; background:#ffffff;">
         <table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.84rem; border:1.5px solid #cbd5e1; border-radius:8px;">
           <thead>
             <tr style="background:#0f2b5c; color:#ffffff; text-transform:uppercase; letter-spacing:0.5px; position:sticky; top:0; z-index:10;">
@@ -3236,41 +3247,330 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     /* ========================================================= */
     /* CATÁLOGO DE OSS ATIVAS (EM EXECUÇÃO E EM DESMOBILIZAÇÃO) */
     /* ========================================================= */
-    const ACTIVE_CONTRACTS_CATALOG = [
-      { code: "M00100", name: "CBMM ARAXÁ", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Carlos Eduardo" },
-      { code: "F09900", name: "NEXA VAZANTE", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Marcos Vinicius" },
-      { code: "M02800", name: "DOW SANTOS DUMONT", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rafael Souza" },
-      { code: "M00500", name: "VALE ITABIRA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Fernando Lima" },
-      { code: "M00600", name: "VALE BRUMADINHO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Fernando Lima" },
-      { code: "M00700", name: "VALE TIMBOPEBA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Lucas Martins" },
-      { code: "M01400", name: "VALE NOVA LIMA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Lucas Martins" },
-      { code: "M01800", name: "VALE MARIANA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Lucas Martins" },
-      { code: "M02000", name: "VALE VARGEM GRANDE", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Lucas Martins" },
-      { code: "M03000", name: "NEXA VAZANTE (CONTRATO 03)", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Marcos Vinicius" },
-      { code: "M03200", name: "NEXA JUIZ DE FORA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Marcos Vinicius" },
-      { code: "M03400", name: "CMOC CATALÃO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Julio Cesar" },
-      { code: "M03500", name: "GERDAU DIVINÓPOLIS", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rodrigo Costa" },
-      { code: "M03600", name: "GERDAU OURO BRANCO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rodrigo Costa" },
-      { code: "M03700", name: "GERDAU MINERAÇÃO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rodrigo Costa" },
-      { code: "M03800", name: "GERDAU MIGUEL BURNIER", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rodrigo Costa" },
-      { code: "M03900", name: "GERDAU BARÃO DE COCAIS", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rodrigo Costa" },
-      { code: "M04100", name: "ANGLO AMERICAN", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Guilherme Santos" },
-      { code: "M04600", name: "ARCELORMITTAL MONLEVADE", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Tiago Silva" },
-      { code: "M04700", name: "ARCELORMITTAL TUBARÃO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Tiago Silva" },
-      { code: "M04800", name: "CSN VOLTA REDONDA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Bruno Alcantara" },
-      { code: "M04900", name: "CSN MINERAÇÃO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Bruno Alcantara" },
-      { code: "M05400", name: "MOSAIC TAPIRA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Henrique Ramos" },
-      { code: "M05401", name: "MOSAIC CATALÃO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Henrique Ramos" },
-      { code: "M05500", name: "MOSAIC ARAXÁ", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Henrique Ramos" },
-      { code: "M05600", name: "MOSAIC UBERABA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Henrique Ramos" },
-      { code: "M05900", name: "KINROSS PARACATU", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Gustavo Nogueira" },
-      { code: "M07500", name: "VALE SOSSEGO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Marcelo Rocha" },
-      { code: "N14200", name: "EJA", estagio: "EM DESMOBILIZAÇÃO", negocio: "PARADA", gestor: "Leonardo Paiva" },
-      { code: "P00802", name: "SUZANO MUCURI", estagio: "EM EXECUÇÃO", negocio: "PARADA", gestor: "Leonardo Paiva" },
-      { code: "P00803", name: "SUZANO IMPERATRIZ", estagio: "EM EXECUÇÃO", negocio: "PARADA", gestor: "Leonardo Paiva" },
-      { code: "P01200", name: "EUROCHEM", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Daniel Faria" },
-      { code: "P01300", name: "YARA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Daniel Faria" }
-    ];
+        const ACTIVE_CONTRACTS_CATALOG = [
+      {
+            "code": "M00100",
+            "name": "M00100 - CBMM ARAXÁ",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Carlos Eduardo"
+      },
+      {
+            "code": "F09900",
+            "name": "F09900 - NEXA VAZANTE",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Marcos Vinicius"
+      },
+      {
+            "code": "M02800",
+            "name": "M02800 - DOW SANTOS DUMONT",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Rafael Souza"
+      },
+      {
+            "code": "M00500",
+            "name": "M00500 - VALE ITABIRA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Fernando Lima"
+      },
+      {
+            "code": "M00600",
+            "name": "M00600 - VALE BRUMADINHO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Fernando Lima"
+      },
+      {
+            "code": "M00700",
+            "name": "M00700 - VALE TIMBOPEBA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Lucas Martins"
+      },
+      {
+            "code": "M00900",
+            "name": "M00900 - VALE TUBARÃO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Lucas Martins"
+      },
+      {
+            "code": "M01010",
+            "name": "M01010 - VALE ITABIRITO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Lucas Martins"
+      },
+      {
+            "code": "M01012",
+            "name": "M01012 - VALE PICO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Lucas Martins"
+      },
+      {
+            "code": "M01200",
+            "name": "M01200 - VALE CARAJÁS",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Marcelo Rocha"
+      },
+      {
+            "code": "M01400",
+            "name": "M01400 - VALE NOVA LIMA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Lucas Martins"
+      },
+      {
+            "code": "M01500",
+            "name": "M01500 - VALE MORRO DO PILAR",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Fernando Lima"
+      },
+      {
+            "code": "M01600",
+            "name": "M01600 - VALE MUTUCA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Lucas Martins"
+      },
+      {
+            "code": "M01800",
+            "name": "M01800 - VALE MARIANA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Lucas Martins"
+      },
+      {
+            "code": "M01900",
+            "name": "M01900 - VALE CONGONHAS",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Lucas Martins"
+      },
+      {
+            "code": "M02000",
+            "name": "M02000 - VALE VARGEM GRANDE",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Lucas Martins"
+      },
+      {
+            "code": "M02200",
+            "name": "M02200 - VALE FABRICA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Fernando Lima"
+      },
+      {
+            "code": "M02300",
+            "name": "M02300 - VALE BRUCUTU",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Fernando Lima"
+      },
+      {
+            "code": "M02600",
+            "name": "M02600 - VALE CAUÊ",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Fernando Lima"
+      },
+      {
+            "code": "M02700",
+            "name": "M02700 - VALE CONCEIÇÃO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Fernando Lima"
+      },
+      {
+            "code": "M02900",
+            "name": "M02900 - VALE FAZENDÃO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Lucas Martins"
+      },
+      {
+            "code": "M03000",
+            "name": "M03000 - NEXA VAZANTE (CONTRATO 03)",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Marcos Vinicius"
+      },
+      {
+            "code": "M03100",
+            "name": "M03100 - NEXA AREAL",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Marcos Vinicius"
+      },
+      {
+            "code": "M03200",
+            "name": "M03200 - NEXA JUIZ DE FORA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Marcos Vinicius"
+      },
+      {
+            "code": "M03400",
+            "name": "M03400 - CMOC CATALÃO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Julio Cesar"
+      },
+      {
+            "code": "M03500",
+            "name": "M03500 - GERDAU DIVINÓPOLIS",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Rodrigo Costa"
+      },
+      {
+            "code": "M03600",
+            "name": "M03600 - GERDAU OURO BRANCO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Rodrigo Costa"
+      },
+      {
+            "code": "M03700",
+            "name": "M03700 - GERDAU MINERAÇÃO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Rodrigo Costa"
+      },
+      {
+            "code": "M03800",
+            "name": "M03800 - GERDAU MIGUEL BURNIER",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Rodrigo Costa"
+      },
+      {
+            "code": "M03900",
+            "name": "M03900 - GERDAU BARÃO DE COCAIS",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Rodrigo Costa"
+      },
+      {
+            "code": "M04100",
+            "name": "M04100 - ANGLO AMERICAN",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Guilherme Santos"
+      },
+      {
+            "code": "M04600",
+            "name": "M04600 - ARCELORMITTAL MONLEVADE",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Tiago Silva"
+      },
+      {
+            "code": "M04700",
+            "name": "M04700 - ARCELORMITTAL TUBARÃO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Tiago Silva"
+      },
+      {
+            "code": "M04800",
+            "name": "M04800 - CSN VOLTA REDONDA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Bruno Alcantara"
+      },
+      {
+            "code": "M04900",
+            "name": "M04900 - CSN MINERAÇÃO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Bruno Alcantara"
+      },
+      {
+            "code": "M05400",
+            "name": "M05400 - MOSAIC TAPIRA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Henrique Ramos"
+      },
+      {
+            "code": "M05401",
+            "name": "M05401 - MOSAIC CATALÃO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Henrique Ramos"
+      },
+      {
+            "code": "M05500",
+            "name": "M05500 - MOSAIC ARAXÁ",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Henrique Ramos"
+      },
+      {
+            "code": "M05600",
+            "name": "M05600 - MOSAIC UBERABA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Henrique Ramos"
+      },
+      {
+            "code": "M05900",
+            "name": "M05900 - KINROSS PARACATU",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Gustavo Nogueira"
+      },
+      {
+            "code": "M07500",
+            "name": "M07500 - VALE SOSSEGO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Marcelo Rocha"
+      },
+      {
+            "code": "N14200",
+            "name": "N14200 - EJA",
+            "estagio": "EM DESMOBILIZAÇÃO",
+            "negocio": "PARADA",
+            "gestor": "Leonardo Paiva"
+      },
+      {
+            "code": "P00802",
+            "name": "P00802 - SUZANO MUCURI",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "PARADA",
+            "gestor": "Leonardo Paiva"
+      },
+      {
+            "code": "P00803",
+            "name": "P00803 - SUZANO IMPERATRIZ",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "PARADA",
+            "gestor": "Leonardo Paiva"
+      },
+      {
+            "code": "P01200",
+            "name": "P01200 - EUROCHEM",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Daniel Faria"
+      },
+      {
+            "code": "P01300",
+            "name": "P01300 - YARA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "ROTINA",
+            "gestor": "Daniel Faria"
+      }
+];
 
     // Funções de Gestão de Prazos Limite (SLA)
     function getDefaultSlaDeadline(mNum) {
@@ -3351,18 +3651,33 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       renderTab4Scorecard();
     }
 
-    function openSlaModal() {
+        function openSlaModal() {
       const modal = document.getElementById("slaModal");
-      if (modal) {
-        modal.style.display = "block";
-        renderSlaDeadlineInput();
-        renderSlaModalMatrix();
+      if (!modal) return;
+
+      const isUserPerf = checkPerformanceAccess();
+      const ctrlBar = document.getElementById("slaMasterControlsBar");
+      if (ctrlBar) {
+        ctrlBar.style.display = isUserPerf ? "flex" : "none";
       }
+
+      modal.style.display = "flex";
+      renderSlaDeadlineInput();
+      renderSlaModalMatrix();
     }
 
     function closeSlaModal() {
       const modal = document.getElementById("slaModal");
       if (modal) modal.style.display = "none";
+    }
+
+    function filterSlaTable() {
+      const term = (document.getElementById("slaSearchInput").value || "").toLowerCase().trim();
+      const rows = document.querySelectorAll("#slaTableBody tr");
+      rows.forEach(r => {
+        const txt = r.innerText.toLowerCase();
+        r.style.display = txt.includes(term) ? "" : "none";
+      });
     }
 
     function renderSlaModalMatrix() {
