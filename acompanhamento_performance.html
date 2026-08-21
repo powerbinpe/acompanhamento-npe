@@ -14,33 +14,39 @@
   <!-- ========================================================= -->
   <!-- MODAL: PAINEL DE PREENCHIMENTOS & MONITORAMENTO DE SLA -->
   <!-- ========================================================= -->
-  <div id="slaModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(8px); z-index:999999; justify-content:center; align-items:center; padding:15px; box-sizing:border-box;" onclick="if(event.target===this) closeSlaModal();">
-    <div style="width:96vw; max-width:1500px; height:92vh; background:#ffffff; border:2.5px solid #0f2b5c; border-radius:14px; box-shadow:0 16px 48px rgba(0,0,0,0.6); display:flex; flex-direction:column; overflow:hidden;">
+    <!-- PAINEL DE SLA E CONFORMIDADE DE PREENCHIMENTOS (FULL WIDTH & STICKY CONTROLS) -->
+  <div id="slaModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.92); backdrop-filter:blur(6px); z-index:999999; flex-direction:column; overflow:hidden;" onclick="if(event.target===this) closeSlaModal();">
+    <div style="width:100%; height:100%; background:#ffffff; display:flex; flex-direction:column; overflow:hidden;">
       
-      <!-- Modal Header -->
-      <div style="background:linear-gradient(135deg, #0f2b5c, #1e40af); padding:16px 24px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
-        <div>
-          <h2 style="margin:0; font-size:1.25rem; font-weight:800; display:flex; align-items:center; gap:8px;">
-            📊 Painel de Conformidade de Preenchimentos & Gestão de SLA de Prazos
-          </h2>
-          <span style="font-size:0.85rem; color:#bfdbfe; font-weight:600;">
-            Acompanhamento de todas as OSs ativas (Em Execução e Em Desmobilização) • Exercício 2026
-          </span>
+      <!-- 1. Header do Painel SLA (Fixo no Topo) -->
+      <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); padding:12px 24px; display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #f59e0b; flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:1.35rem;">📊</span>
+          <div>
+            <h2 style="margin:0; font-size:1.15rem; color:#ffffff; font-weight:800; letter-spacing:0.3px;">
+              Painel de Conformidade de Preenchimentos & Gestão de SLA de Prazos
+            </h2>
+            <p style="margin:2px 0 0 0; font-size:0.78rem; color:#93c5fd;">
+              Acompanhamento oficial de todas as OSs ativas (Em Execução e Em Desmobilização) • Exercício 2026
+            </p>
+          </div>
         </div>
-        <button onclick="closeSlaModal()" style="background:#dc2626; color:#ffffff; border:none; border-radius:8px; padding:6px 14px; font-weight:800; cursor:pointer; font-size:0.90rem; box-shadow:0 2px 8px rgba(220,38,38,0.4);">
-          ✕ Fechar
+        <button onclick="closeSlaModal()" style="background:#ef4444; color:#ffffff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.88rem; box-shadow:0 3px 8px rgba(0,0,0,0.3); transition:all 0.2s ease; display:flex; align-items:center; gap:6px;">
+          ✕ Fechar Painel
         </button>
       </div>
 
-      <!-- SLA Deadline Controls for Masters -->
-      <div id="slaMasterControlsBar" style="background:#f8fafc; border-bottom:1.5px solid #cbd5e1; padding:14px 24px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;">
+      <!-- 2. Barra de Gestao de Prazos Master (Fixo no Topo - Visivel para o Master) -->
+      <div id="slaMasterControlsBar" style="background:#f8fafc; padding:8px 24px; border-bottom:1.5px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; flex-shrink:0;">
         <div style="display:flex; align-items:center; gap:10px;">
-          <span style="font-size:0.92rem; font-weight:800; color:#0f2b5c;">⏱️ Gestão de Prazos Limite (SLA):</span>
-          <span style="font-size:0.82rem; color:#475569;">Definido pelo Setor de Performance mês a mês</span>
+          <span style="font-size:0.84rem; font-weight:700; color:#0f2b5c; display:flex; align-items:center; gap:6px;">
+            🔒 <strong>Gestão de Prazos Limite (SLA):</strong>
+            <span style="font-weight:normal; color:#64748b;">Definido pelo Setor de Performance mês a mês</span>
+          </span>
         </div>
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-          <label style="font-size:0.85rem; font-weight:700; color:#1e293b;">Mês de Referência:</label>
-          <select id="slaMonthSelector" onchange="renderSlaDeadlineInput()" style="padding:6px 10px; border-radius:6px; border:1.5px solid #0f2b5c; font-weight:700; color:#0f2b5c;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <label style="font-size:0.82rem; font-weight:700; color:#334155;">Mês de Referência:</label>
+          <select id="slaTargetMonthSelect" onchange="onSlaMonthChange()" style="padding:6px 12px; border-radius:6px; border:1.5px solid #cbd5e1; font-size:0.82rem; font-weight:700; color:#0f2b5c; background:#ffffff;">
             <option value="1">JANEIRO</option>
             <option value="2">FEVEREIRO</option>
             <option value="3">MARÇO</option>
@@ -54,188 +60,85 @@
             <option value="11">NOVEMBRO</option>
             <option value="12">DEZEMBRO</option>
           </select>
-          
-          <label style="font-size:0.85rem; font-weight:700; color:#1e293b;">Data Limite (Prazo):</label>
-          <input type="date" id="slaDeadlineInput" onchange="saveSlaDeadline()" style="padding:5px 10px; border-radius:6px; border:1.5px solid #0f2b5c; font-weight:700; color:#0f2b5c;" />
-          
-          <button onclick="saveSlaDeadline()" style="background:#16a34a; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer;">
+
+          <label style="font-size:0.82rem; font-weight:700; color:#334155;">Data Limite (Prazo):</label>
+          <input type="date" id="slaTargetDeadlineInput" style="padding:5px 10px; border-radius:6px; border:1.5px solid #cbd5e1; font-size:0.82rem; font-weight:600; color:#0f2b5c;" />
+
+          <button onclick="saveSlaDeadlineForMonth()" style="background:#10b981; color:#ffffff; border:none; padding:6px 16px; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 5px rgba(16,185,129,0.25);">
             💾 Salvar Prazo
           </button>
         </div>
       </div>
 
-      <!-- KPI Summary Cards for SLA -->
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; padding:16px 24px; background:#f1f5f9; border-bottom:1.5px solid #cbd5e1;">
-        <div style="background:#ffffff; padding:12px 16px; border-radius:10px; border:1.5px solid #cbd5e1; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
-          <div style="font-size:0.80rem; font-weight:800; color:#475569; text-transform:uppercase;">Total de OSs Elegíveis</div>
-          <div id="slaKpiTotalOS" style="font-size:1.6rem; font-weight:900; color:#0f2b5c; margin-top:4px;">32 OSs</div>
-          <div style="font-size:0.75rem; color:#64748b;">Em Execução e Desmobilização</div>
+      <!-- 3. Indicadores / KPIs de Acompanhamento (Fixo no Topo) -->
+      <div style="background:#ffffff; padding:10px 24px; border-bottom:1.5px solid #e2e8f0; display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; flex-shrink:0;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #0f2b5c; border-radius:8px; padding:6px 12px;">
+          <div style="font-size:0.68rem; font-weight:700; color:#64748b; text-transform:uppercase;">TOTAL DE OSS ELEGÍVEIS</div>
+          <div id="slaKpiTotalOS" style="font-size:1.15rem; font-weight:800; color:#0f2b5c;">99 OSs</div>
+          <div style="font-size:0.68rem; color:#94a3b8;">Em Execução e Desmobilização</div>
         </div>
-        <div style="background:#ffffff; padding:12px 16px; border-radius:10px; border:1.5px solid #86efac; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
-          <div style="font-size:0.80rem; font-weight:800; color:#166534; text-transform:uppercase;">100% Concluídas (Ok)</div>
-          <div id="slaKpiOkCount" style="font-size:1.6rem; font-weight:900; color:#15803d; margin-top:4px;">28 OSs</div>
-          <div id="slaKpiOkPct" style="font-size:0.75rem; color:#166534; font-weight:700;">87,5% de preenchimento total</div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #10b981; border-radius:8px; padding:6px 12px;">
+          <div style="font-size:0.68rem; font-weight:700; color:#64748b; text-transform:uppercase;">100% CONCLUÍDAS (OK)</div>
+          <div id="slaKpiOkCount" style="font-size:1.15rem; font-weight:800; color:#10b981;">0 OSs</div>
+          <div id="slaKpiOkPct" style="font-size:0.68rem; color:#10b981; font-weight:700;">0.0% no mês</div>
         </div>
-        <div style="background:#ffffff; padding:12px 16px; border-radius:10px; border:1.5px solid #fde68a; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
-          <div style="font-size:0.80rem; font-weight:800; color:#92400e; text-transform:uppercase;">Preenchimento Parcial</div>
-          <div id="slaKpiParcialCount" style="font-size:1.6rem; font-weight:900; color:#d97706; margin-top:4px;">3 OSs</div>
-          <div style="font-size:0.75rem; color:#92400e; font-weight:700;">Campos incompletos</div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #f59e0b; border-radius:8px; padding:6px 12px;">
+          <div style="font-size:0.68rem; font-weight:700; color:#64748b; text-transform:uppercase;">PREENCHIMENTO PARCIAL</div>
+          <div id="slaKpiPartialCount" style="font-size:1.15rem; font-weight:800; color:#f59e0b;">0 OSs</div>
+          <div style="font-size:0.68rem; color:#f59e0b; font-weight:700;">Campos incompletos</div>
         </div>
-        <div style="background:#ffffff; padding:12px 16px; border-radius:10px; border:1.5px solid #fca5a5; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
-          <div style="font-size:0.80rem; font-weight:800; color:#991b1b; text-transform:uppercase;">Totalmente Pendentes</div>
-          <div id="slaKpiPendenteCount" style="font-size:1.6rem; font-weight:900; color:#b91c1c; margin-top:4px;">1 OS</div>
-          <div style="font-size:0.75rem; color:#991b1b; font-weight:700;">Sem registros no ciclo</div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #ef4444; border-radius:8px; padding:6px 12px;">
+          <div style="font-size:0.68rem; font-weight:700; color:#64748b; text-transform:uppercase;">TOTALMENTE PENDENTES</div>
+          <div id="slaKpiPendingCount" style="font-size:1.15rem; font-weight:800; color:#ef4444;">99 OSs</div>
+          <div style="font-size:0.68rem; color:#ef4444; font-weight:700;">Sem registros no ciclo</div>
         </div>
-        <div style="background:#ffffff; padding:12px 16px; border-radius:10px; border:1.5px solid #93c5fd; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
-          <div style="font-size:0.80rem; font-weight:800; color:#1e40af; text-transform:uppercase;">Entregas no Prazo (SLA)</div>
-          <div id="slaKpiOnTimePct" style="font-size:1.6rem; font-weight:900; color:#1e40af; margin-top:4px;">93,8%</div>
-          <div style="font-size:0.75rem; color:#1e40af; font-weight:700;">Dentro da data limite</div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #3b82f6; border-radius:8px; padding:6px 12px;">
+          <div style="font-size:0.68rem; font-weight:700; color:#64748b; text-transform:uppercase;">ENTREGAS NO PRAZO (SLA)</div>
+          <div id="slaKpiOnTimePct" style="font-size:1.15rem; font-weight:800; color:#3b82f6;">0.0%</div>
+          <div style="font-size:0.68rem; color:#3b82f6; font-weight:700;">Dentro da data limite</div>
         </div>
       </div>
 
-      <!-- Search Bar & Filters inside Modal -->
-      <div style="padding:10px 24px; background:#ffffff; border-bottom:1.5px solid #cbd5e1; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <!-- 4. Barra de Pesquisa e Filtros (Fixo no Topo) -->
+      <div style="padding:8px 24px; background:#ffffff; border-bottom:1.5px solid #cbd5e1; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; flex-shrink:0;">
         <div style="display:flex; align-items:center; gap:8px;">
-          <input type="text" id="slaSearchInput" oninput="filterSlaTable()" placeholder="🔍 Filtrar OS por Código ou Descrição..." style="padding:7px 14px; border-radius:6px; border:1.5px solid #94a3b8; font-size:0.88rem; width:320px; color:#0f172a;" />
-          <span style="font-size:0.80rem; color:#64748b; font-weight:600;">(Exibe todas as OSs ativas com rolagem horizontal e vertical)</span>
+          <input type="text" id="slaSearchInput" oninput="filterSlaTable()" placeholder="🔍 Filtrar OS por Código ou Descrição..." style="padding:6px 14px; border-radius:6px; border:1.5px solid #94a3b8; font-size:0.85rem; width:360px; color:#0f172a; outline:none;" />
+          <span style="font-size:0.78rem; color:#64748b; font-weight:600;">(Todas as 99 OSs ativas com rolagem infinita)</span>
         </div>
-        <div style="font-size:0.82rem; color:#0f2b5c; font-weight:700;">
-          📌 Use o mouse ou teclado para rolar a matriz de meses
+        <div style="font-size:0.80rem; color:#0f2b5c; font-weight:700;">
+          📌 Cabeçalho e colunas de Código e Descrição permanecem sempre fixos à vista
         </div>
       </div>
 
-      <!-- Table Matrix (All 12 Months) with Smooth Custom Scrollbar -->
-      <div style="padding:12px 24px; overflow:auto; flex:1; min-height:200px; background:#ffffff;">
-        <table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.84rem; border:1.5px solid #cbd5e1; border-radius:8px;">
+      <!-- 5. Tabela com Rolagem Infinita e Cabeçalhos / Colunas Fixas -->
+      <div id="slaTableScrollContainer" style="padding:0; overflow:auto; flex:1; background:#ffffff;">
+        <table style="width:100%; border-collapse:separate; border-spacing:0; font-size:0.78rem; text-align:center;">
           <thead>
-            <tr style="background:#0f2b5c; color:#ffffff; text-transform:uppercase; letter-spacing:0.5px; position:sticky; top:0; z-index:10;">
-              <th style="padding:10px 12px; text-align:left; width:80px;">Código</th>
-              <th style="padding:10px 12px; text-align:left; min-width:200px;">Descrição da OS Relacionada</th>
-              <th style="padding:10px 12px; text-align:center; width:120px;">Estágio</th>
-              <th style="padding:8px; text-align:center;">JAN</th>
-              <th style="padding:8px; text-align:center;">FEV</th>
-              <th style="padding:8px; text-align:center;">MAR</th>
-              <th style="padding:8px; text-align:center;">ABR</th>
-              <th style="padding:8px; text-align:center;">MAI</th>
-              <th style="padding:8px; text-align:center;">JUN</th>
-              <th style="padding:8px; text-align:center;">JUL</th>
-              <th style="padding:8px; text-align:center;">AGO</th>
-              <th style="padding:8px; text-align:center;">SET</th>
-              <th style="padding:8px; text-align:center;">OUT</th>
-              <th style="padding:8px; text-align:center;">NOV</th>
-              <th style="padding:8px; text-align:center;">DEZ</th>
-              <th style="padding:10px 12px; text-align:center; width:90px;">% Geral</th>
+            <tr style="background:#0f2b5c; color:#ffffff; font-weight:800; position:sticky; top:0; z-index:30;">
+              <th style="padding:10px 8px; border-bottom:2px solid #cbd5e1; min-width:85px; position:sticky; left:0; top:0; background:#0f2b5c; z-index:35; box-shadow: 2px 0 5px rgba(0,0,0,0.18);">CÓDIGO</th>
+              <th style="padding:10px 8px; border-bottom:2px solid #cbd5e1; min-width:260px; text-align:left; position:sticky; left:85px; top:0; background:#0f2b5c; z-index:35; box-shadow: 2px 0 5px rgba(0,0,0,0.18);">DESCRIÇÃO DA OS RELACIONADA</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:110px;">ESTÁGIO</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">JAN</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">FEV</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">MAR</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">ABR</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">MAI</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">JUN</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">JUL</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">AGO</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">SET</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">OUT</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">NOV</th>
+              <th style="padding:10px 6px; border-bottom:2px solid #cbd5e1; min-width:115px;">DEZ</th>
             </tr>
           </thead>
           <tbody id="slaTableBody">
-            <!-- Dynamic Rows rendered by JavaScript -->
+            <!-- Dynamic rows by JS -->
           </tbody>
         </table>
       </div>
 
-      <!-- Modal Footer -->
-      <div style="background:#f8fafc; border-top:1.5px solid #cbd5e1; padding:12px 24px; display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:0.80rem; color:#64748b; font-weight:600;">
-          💡 Dica: Usuários Máster podem clicar no badge de prazo de qualquer célula para alternar o status entre "No Prazo" e "Fora do Prazo".
-        </span>
-        <button onclick="closeSlaModal()" style="background:#0f2b5c; color:#ffffff; border:none; padding:8px 18px; border-radius:6px; font-weight:700; cursor:pointer;">
-          Fechar Painel
-        </button>
-      </div>
-
     </div>
-  </div>
-
-  <!-- ========================================================= -->
-  <!-- TAB 4: GESTÃO DE PONTUAÇÃO & RANKING DE OSS -->
-  <!-- ========================================================= -->
-  <div id="tabRanking" class="tab-page tab-content" style="display:none;">
-    
-    <!-- Tab 4 Hero Header -->
-    <div style="background:linear-gradient(135deg, #0f2b5c, #1e3a8a, #0b1a3a); border:2.5px solid #f59e0b; border-radius:14px; padding:24px 28px; margin-bottom:20px; box-shadow:0 8px 30px rgba(0,0,0,0.4); color:#ffffff; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-      <div>
-        <h1 style="margin:0; font-size:1.6rem; font-weight:900; color:#fef08a; display:flex; align-items:center; gap:10px;">
-          🏆 Gestão de Pontuação, Scorecard & Ranking Corporativo de OSs
-        </h1>
-        <p style="margin:6px 0 0 0; color:#cbd5e1; font-size:0.95rem;">
-          Avaliação multidimensional de governança, conformidade de prazos, resultados financeiros, pessoas e segurança
-        </p>
-      </div>
-      <div style="display:flex; gap:10px; align-items:center;">
-        <button onclick="openSlaModal()" style="background:#f59e0b; color:#0f2b5c; border:none; border-radius:8px; padding:9px 18px; font-weight:800; cursor:pointer; font-size:0.88rem; box-shadow:0 4px 12px rgba(245,158,11,0.35);">
-          📊 Matriz de Preenchimento & Prazos
-        </button>
-      </div>
-    </div>
-
-    <!-- Podium (Top 3 OSs of the Year) -->
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px; margin-bottom:24px;">
-      <!-- 2º Lugar (Prata) -->
-      <div style="background:linear-gradient(135deg, #ffffff, #f1f5f9); border:2px solid #94a3b8; border-radius:12px; padding:18px; text-align:center; box-shadow:0 6px 18px rgba(0,0,0,0.1); position:relative; overflow:hidden;">
-        <div style="font-size:2.4rem;">🥈</div>
-        <div style="font-size:1.1rem; font-weight:900; color:#334155; margin-top:4px;">2º LUGAR</div>
-        <div id="podium2Name" style="font-size:1.15rem; font-weight:800; color:#0f2b5c; margin:6px 0;">M02800 - DOW SANTOS DUMONT</div>
-        <div id="podium2Score" style="font-size:1.8rem; font-weight:900; color:#1e40af;">94.5 pts</div>
-        <div style="font-size:0.80rem; color:#64748b; font-weight:600;">100% entregas no prazo • Margem acima do FCST</div>
-      </div>
-      <!-- 1º Lugar (Ouro) -->
-      <div style="background:linear-gradient(135deg, #fffbeb, #fef3c7); border:2.5px solid #f59e0b; border-radius:14px; padding:22px 18px; text-align:center; box-shadow:0 10px 28px rgba(245,158,11,0.25); transform:scale(1.03); position:relative; overflow:hidden;">
-        <div style="font-size:3.0rem;">🥇</div>
-        <div style="font-size:1.25rem; font-weight:900; color:#92400e; margin-top:4px;">CAMPEÃ DE GOVERNANÇA</div>
-        <div id="podium1Name" style="font-size:1.35rem; font-weight:900; color:#0f2b5c; margin:6px 0;">M00100 - CBMM ARAXÁ</div>
-        <div id="podium1Score" style="font-size:2.3rem; font-weight:900; color:#15803d;">98.0 pts</div>
-        <div style="font-size:0.85rem; color:#92400e; font-weight:700;">Preenchimento exemplar • 100% no prazo • Zero acidentes</div>
-      </div>
-      <!-- 3º Lugar (Bronze) -->
-      <div style="background:linear-gradient(135deg, #ffffff, #fdf2f8); border:2px solid #d97706; border-radius:12px; padding:18px; text-align:center; box-shadow:0 6px 18px rgba(0,0,0,0.1); position:relative; overflow:hidden;">
-        <div style="font-size:2.4rem;">🥉</div>
-        <div style="font-size:1.1rem; font-weight:900; color:#b45309; margin-top:4px;">3º LUGAR</div>
-        <div id="podium3Name" style="font-size:1.15rem; font-weight:800; color:#0f2b5c; margin:6px 0;">F09900 - NEXA VAZANTE</div>
-        <div id="podium3Score" style="font-size:1.8rem; font-weight:900; color:#d97706;">91.0 pts</div>
-        <div style="font-size:0.80rem; color:#64748b; font-weight:600;">Alta pontualidade • Boas práticas homologadas</div>
-      </div>
-    </div>
-
-    <!-- Ranking Table & Scorecard Breakdown -->
-    <div style="background:#ffffff; border:2px solid #0f2b5c; border-radius:12px; padding:20px; box-shadow:0 8px 24px rgba(11,26,58,0.2);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
-        <div>
-          <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f2b5c;">
-            📋 Scorecard & Ranking Anual Consolidado (0 a 100 Pontos)
-          </h3>
-          <span style="font-size:0.82rem; color:#64748b;">
-            Governança & Prazo (30p) + Financeiro & Assertividade (30p) + Gestão de Pessoas (20p) + SSMA & Inovação (20p)
-          </span>
-        </div>
-        <div style="display:flex; gap:10px; align-items:center;">
-          <input type="text" id="rankingSearchInput" oninput="filterRankingTable()" placeholder="🔍 Buscar OS ou Unidade..." style="padding:6px 12px; border-radius:6px; border:1.5px solid #cbd5e1; font-size:0.85rem;" />
-        </div>
-      </div>
-
-      <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.86rem; border:1.5px solid #cbd5e1; border-radius:8px; overflow:hidden;">
-          <thead>
-            <tr style="background:#0f2b5c; color:#ffffff; text-transform:uppercase; letter-spacing:0.5px;">
-              <th style="padding:10px 12px; text-align:center; width:60px;">Pos.</th>
-              <th style="padding:10px 12px; text-align:left; width:90px;">Código</th>
-              <th style="padding:10px 12px; text-align:left; min-width:200px;">Unidade / Descrição OS</th>
-              <th style="padding:10px 12px; text-align:center; width:100px;">Negócio</th>
-              <th style="padding:10px 12px; text-align:right; width:110px;">Governança (30p)</th>
-              <th style="padding:10px 12px; text-align:right; width:110px;">Financeiro (30p)</th>
-              <th style="padding:10px 12px; text-align:right; width:100px;">Pessoas (20p)</th>
-              <th style="padding:10px 12px; text-align:right; width:100px;">SSMA (20p)</th>
-              <th style="padding:10px 12px; text-align:right; width:110px;">Pontos Mês</th>
-              <th style="padding:10px 12px; text-align:right; width:120px;">Pontos Acum.</th>
-              <th style="padding:10px 12px; text-align:center; width:130px;">Classificação</th>
-            </tr>
-          </thead>
-          <tbody id="rankingTableBody">
-            <!-- Dynamic Rows rendered by JavaScript -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-
   </div>
 
 
@@ -309,6 +212,9 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
     /* Navbar */
     .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 9999;
       display: flex; justify-content: space-between; align-items: center;
       background: #112244;
       padding: 10px 16px; border-radius: 12px; border: 2px solid #2a3e6a;
