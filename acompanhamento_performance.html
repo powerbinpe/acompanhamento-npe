@@ -10,6 +10,224 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- ========================================================= -->
+  <!-- MODAL: PAINEL DE PREENCHIMENTOS & MONITORAMENTO DE SLA -->
+  <!-- ========================================================= -->
+  <div id="slaModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(11,26,58,0.85); backdrop-filter:blur(6px); z-index:99999; overflow-y:auto; padding:20px 10px; box-sizing:border-box;">
+    <div style="max-width:1400px; margin:20px auto; background:#ffffff; border:2.5px solid #0f2b5c; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.5); overflow:hidden; display:flex; flex-direction:column;">
+      
+      <!-- Modal Header -->
+      <div style="background:linear-gradient(135deg, #0f2b5c, #1e40af); padding:16px 24px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
+        <div>
+          <h2 style="margin:0; font-size:1.25rem; font-weight:800; display:flex; align-items:center; gap:8px;">
+            📊 Painel de Conformidade de Preenchimentos & Gestão de SLA de Prazos
+          </h2>
+          <span style="font-size:0.85rem; color:#bfdbfe; font-weight:600;">
+            Acompanhamento de todas as OSs ativas (Em Execução e Em Desmobilização) • Exercício 2026
+          </span>
+        </div>
+        <button onclick="closeSlaModal()" style="background:#dc2626; color:#ffffff; border:none; border-radius:8px; padding:6px 14px; font-weight:800; cursor:pointer; font-size:0.90rem; box-shadow:0 2px 8px rgba(220,38,38,0.4);">
+          ✕ Fechar
+        </button>
+      </div>
+
+      <!-- SLA Deadline Controls for Masters -->
+      <div id="slaMasterControlsBar" style="background:#f8fafc; border-bottom:1.5px solid #cbd5e1; padding:14px 24px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:0.92rem; font-weight:800; color:#0f2b5c;">⏱️ Gestão de Prazos Limite (SLA):</span>
+          <span style="font-size:0.82rem; color:#475569;">Definido pelo Setor de Performance mês a mês</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <label style="font-size:0.85rem; font-weight:700; color:#1e293b;">Mês de Referência:</label>
+          <select id="slaMonthSelector" onchange="renderSlaDeadlineInput()" style="padding:6px 10px; border-radius:6px; border:1.5px solid #0f2b5c; font-weight:700; color:#0f2b5c;">
+            <option value="1">JANEIRO</option>
+            <option value="2">FEVEREIRO</option>
+            <option value="3">MARÇO</option>
+            <option value="4">ABRIL</option>
+            <option value="5">MAIO</option>
+            <option value="6">JUNHO</option>
+            <option value="7" selected>JULHO</option>
+            <option value="8">AGOSTO</option>
+            <option value="9">SETEMBRO</option>
+            <option value="10">OUTUBRO</option>
+            <option value="11">NOVEMBRO</option>
+            <option value="12">DEZEMBRO</option>
+          </select>
+          
+          <label style="font-size:0.85rem; font-weight:700; color:#1e293b;">Data Limite (Prazo):</label>
+          <input type="date" id="slaDeadlineInput" onchange="saveSlaDeadline()" style="padding:5px 10px; border-radius:6px; border:1.5px solid #0f2b5c; font-weight:700; color:#0f2b5c;" />
+          
+          <button onclick="saveSlaDeadline()" style="background:#16a34a; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer;">
+            💾 Salvar Prazo
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards for SLA -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; padding:16px 24px; background:#f1f5f9; border-bottom:1.5px solid #cbd5e1;">
+        <div style="background:#ffffff; padding:12px 16px; border-radius:10px; border:1.5px solid #cbd5e1; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+          <div style="font-size:0.80rem; font-weight:800; color:#475569; text-transform:uppercase;">Total de OSs Elegíveis</div>
+          <div id="slaKpiTotalOS" style="font-size:1.6rem; font-weight:900; color:#0f2b5c; margin-top:4px;">32 OSs</div>
+          <div style="font-size:0.75rem; color:#64748b;">Em Execução e Desmobilização</div>
+        </div>
+        <div style="background:#ffffff; padding:12px 16px; border-radius:10px; border:1.5px solid #86efac; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+          <div style="font-size:0.80rem; font-weight:800; color:#166534; text-transform:uppercase;">100% Concluídas (Ok)</div>
+          <div id="slaKpiOkCount" style="font-size:1.6rem; font-weight:900; color:#15803d; margin-top:4px;">28 OSs</div>
+          <div id="slaKpiOkPct" style="font-size:0.75rem; color:#166534; font-weight:700;">87,5% de preenchimento total</div>
+        </div>
+        <div style="background:#ffffff; padding:12px 16px; border-radius:10px; border:1.5px solid #fde68a; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+          <div style="font-size:0.80rem; font-weight:800; color:#92400e; text-transform:uppercase;">Preenchimento Parcial</div>
+          <div id="slaKpiParcialCount" style="font-size:1.6rem; font-weight:900; color:#d97706; margin-top:4px;">3 OSs</div>
+          <div style="font-size:0.75rem; color:#92400e; font-weight:700;">Campos incompletos</div>
+        </div>
+        <div style="background:#ffffff; padding:12px 16px; border-radius:10px; border:1.5px solid #fca5a5; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+          <div style="font-size:0.80rem; font-weight:800; color:#991b1b; text-transform:uppercase;">Totalmente Pendentes</div>
+          <div id="slaKpiPendenteCount" style="font-size:1.6rem; font-weight:900; color:#b91c1c; margin-top:4px;">1 OS</div>
+          <div style="font-size:0.75rem; color:#991b1b; font-weight:700;">Sem registros no ciclo</div>
+        </div>
+        <div style="background:#ffffff; padding:12px 16px; border-radius:10px; border:1.5px solid #93c5fd; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+          <div style="font-size:0.80rem; font-weight:800; color:#1e40af; text-transform:uppercase;">Entregas no Prazo (SLA)</div>
+          <div id="slaKpiOnTimePct" style="font-size:1.6rem; font-weight:900; color:#1e40af; margin-top:4px;">93,8%</div>
+          <div style="font-size:0.75rem; color:#1e40af; font-weight:700;">Dentro da data limite</div>
+        </div>
+      </div>
+
+      <!-- Table Matrix (All 12 Months) -->
+      <div style="padding:16px 24px; overflow-x:auto; max-height:60vh;">
+        <table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.84rem; border:1.5px solid #cbd5e1; border-radius:8px;">
+          <thead>
+            <tr style="background:#0f2b5c; color:#ffffff; text-transform:uppercase; letter-spacing:0.5px; position:sticky; top:0; z-index:10;">
+              <th style="padding:10px 12px; text-align:left; width:80px;">Código</th>
+              <th style="padding:10px 12px; text-align:left; min-width:200px;">Descrição da OS Relacionada</th>
+              <th style="padding:10px 12px; text-align:center; width:120px;">Estágio</th>
+              <th style="padding:8px; text-align:center;">JAN</th>
+              <th style="padding:8px; text-align:center;">FEV</th>
+              <th style="padding:8px; text-align:center;">MAR</th>
+              <th style="padding:8px; text-align:center;">ABR</th>
+              <th style="padding:8px; text-align:center;">MAI</th>
+              <th style="padding:8px; text-align:center;">JUN</th>
+              <th style="padding:8px; text-align:center;">JUL</th>
+              <th style="padding:8px; text-align:center;">AGO</th>
+              <th style="padding:8px; text-align:center;">SET</th>
+              <th style="padding:8px; text-align:center;">OUT</th>
+              <th style="padding:8px; text-align:center;">NOV</th>
+              <th style="padding:8px; text-align:center;">DEZ</th>
+              <th style="padding:10px 12px; text-align:center; width:90px;">% Geral</th>
+            </tr>
+          </thead>
+          <tbody id="slaTableBody">
+            <!-- Dynamic Rows rendered by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="background:#f8fafc; border-top:1.5px solid #cbd5e1; padding:12px 24px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:0.80rem; color:#64748b; font-weight:600;">
+          💡 Dica: Usuários Máster podem clicar no badge de prazo de qualquer célula para alternar o status entre "No Prazo" e "Fora do Prazo".
+        </span>
+        <button onclick="closeSlaModal()" style="background:#0f2b5c; color:#ffffff; border:none; padding:8px 18px; border-radius:6px; font-weight:700; cursor:pointer;">
+          Fechar Painel
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- TAB 4: GESTÃO DE PONTUAÇÃO & RANKING DE OSS -->
+  <!-- ========================================================= -->
+  <div id="tabContent4" class="tab-content" style="display:none;">
+    
+    <!-- Tab 4 Hero Header -->
+    <div style="background:linear-gradient(135deg, #0f2b5c, #1e3a8a, #0b1a3a); border:2.5px solid #f59e0b; border-radius:14px; padding:24px 28px; margin-bottom:20px; box-shadow:0 8px 30px rgba(0,0,0,0.4); color:#ffffff; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+      <div>
+        <h1 style="margin:0; font-size:1.6rem; font-weight:900; color:#fef08a; display:flex; align-items:center; gap:10px;">
+          🏆 Gestão de Pontuação, Scorecard & Ranking Corporativo de OSs
+        </h1>
+        <p style="margin:6px 0 0 0; color:#cbd5e1; font-size:0.95rem;">
+          Avaliação multidimensional de governança, conformidade de prazos, resultados financeiros, pessoas e segurança
+        </p>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button onclick="openSlaModal()" style="background:#f59e0b; color:#0f2b5c; border:none; border-radius:8px; padding:9px 18px; font-weight:800; cursor:pointer; font-size:0.88rem; box-shadow:0 4px 12px rgba(245,158,11,0.35);">
+          📊 Matriz de Preenchimento & Prazos
+        </button>
+      </div>
+    </div>
+
+    <!-- Podium (Top 3 OSs of the Year) -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px; margin-bottom:24px;">
+      <!-- 2º Lugar (Prata) -->
+      <div style="background:linear-gradient(135deg, #ffffff, #f1f5f9); border:2px solid #94a3b8; border-radius:12px; padding:18px; text-align:center; box-shadow:0 6px 18px rgba(0,0,0,0.1); position:relative; overflow:hidden;">
+        <div style="font-size:2.4rem;">🥈</div>
+        <div style="font-size:1.1rem; font-weight:900; color:#334155; margin-top:4px;">2º LUGAR</div>
+        <div id="podium2Name" style="font-size:1.15rem; font-weight:800; color:#0f2b5c; margin:6px 0;">M02800 - DOW SANTOS DUMONT</div>
+        <div id="podium2Score" style="font-size:1.8rem; font-weight:900; color:#1e40af;">94.5 pts</div>
+        <div style="font-size:0.80rem; color:#64748b; font-weight:600;">100% entregas no prazo • Margem acima do FCST</div>
+      </div>
+      <!-- 1º Lugar (Ouro) -->
+      <div style="background:linear-gradient(135deg, #fffbeb, #fef3c7); border:2.5px solid #f59e0b; border-radius:14px; padding:22px 18px; text-align:center; box-shadow:0 10px 28px rgba(245,158,11,0.25); transform:scale(1.03); position:relative; overflow:hidden;">
+        <div style="font-size:3.0rem;">🥇</div>
+        <div style="font-size:1.25rem; font-weight:900; color:#92400e; margin-top:4px;">CAMPEÃ DE GOVERNANÇA</div>
+        <div id="podium1Name" style="font-size:1.35rem; font-weight:900; color:#0f2b5c; margin:6px 0;">M00100 - CBMM ARAXÁ</div>
+        <div id="podium1Score" style="font-size:2.3rem; font-weight:900; color:#15803d;">98.0 pts</div>
+        <div style="font-size:0.85rem; color:#92400e; font-weight:700;">Preenchimento exemplar • 100% no prazo • Zero acidentes</div>
+      </div>
+      <!-- 3º Lugar (Bronze) -->
+      <div style="background:linear-gradient(135deg, #ffffff, #fdf2f8); border:2px solid #d97706; border-radius:12px; padding:18px; text-align:center; box-shadow:0 6px 18px rgba(0,0,0,0.1); position:relative; overflow:hidden;">
+        <div style="font-size:2.4rem;">🥉</div>
+        <div style="font-size:1.1rem; font-weight:900; color:#b45309; margin-top:4px;">3º LUGAR</div>
+        <div id="podium3Name" style="font-size:1.15rem; font-weight:800; color:#0f2b5c; margin:6px 0;">F09900 - NEXA VAZANTE</div>
+        <div id="podium3Score" style="font-size:1.8rem; font-weight:900; color:#d97706;">91.0 pts</div>
+        <div style="font-size:0.80rem; color:#64748b; font-weight:600;">Alta pontualidade • Boas práticas homologadas</div>
+      </div>
+    </div>
+
+    <!-- Ranking Table & Scorecard Breakdown -->
+    <div style="background:#ffffff; border:2px solid #0f2b5c; border-radius:12px; padding:20px; box-shadow:0 8px 24px rgba(11,26,58,0.2);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f2b5c;">
+            📋 Scorecard & Ranking Anual Consolidado (0 a 100 Pontos)
+          </h3>
+          <span style="font-size:0.82rem; color:#64748b;">
+            Governança & Prazo (30p) + Financeiro & Assertividade (30p) + Gestão de Pessoas (20p) + SSMA & Inovação (20p)
+          </span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="text" id="rankingSearchInput" oninput="filterRankingTable()" placeholder="🔍 Buscar OS ou Unidade..." style="padding:6px 12px; border-radius:6px; border:1.5px solid #cbd5e1; font-size:0.85rem;" />
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.86rem; border:1.5px solid #cbd5e1; border-radius:8px; overflow:hidden;">
+          <thead>
+            <tr style="background:#0f2b5c; color:#ffffff; text-transform:uppercase; letter-spacing:0.5px;">
+              <th style="padding:10px 12px; text-align:center; width:60px;">Pos.</th>
+              <th style="padding:10px 12px; text-align:left; width:90px;">Código</th>
+              <th style="padding:10px 12px; text-align:left; min-width:200px;">Unidade / Descrição OS</th>
+              <th style="padding:10px 12px; text-align:center; width:100px;">Negócio</th>
+              <th style="padding:10px 12px; text-align:right; width:110px;">Governança (30p)</th>
+              <th style="padding:10px 12px; text-align:right; width:110px;">Financeiro (30p)</th>
+              <th style="padding:10px 12px; text-align:right; width:100px;">Pessoas (20p)</th>
+              <th style="padding:10px 12px; text-align:right; width:100px;">SSMA (20p)</th>
+              <th style="padding:10px 12px; text-align:right; width:110px;">Pontos Mês</th>
+              <th style="padding:10px 12px; text-align:right; width:120px;">Pontos Acum.</th>
+              <th style="padding:10px 12px; text-align:center; width:130px;">Classificação</th>
+            </tr>
+          </thead>
+          <tbody id="rankingTableBody">
+            <!-- Dynamic Rows rendered by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+
   <script>
             // Lista Oficial de Usuários Máster (Setor de Performance / Diretoria)
     window.MASTER_PERFORMANCE_EMAILS = [
@@ -2067,7 +2285,10 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
           let gSaved = safeGetStorage(`g_${activeOS}_m${m.num}_${topicId}`, gRow ? gRow.comentario : "");
           let mSaved = safeGetStorage(`m_${activeOS}_m${m.num}_${topicId}`, mRow ? mRow.comentario : "");
-          statusVal = safeGetStorage(`status_${activeOS}_m${m.num}_${topicId}`, (gRow && gRow.status) ? gRow.status : (m.num === activeMonthNum ? "Pendente" : "Validado"));
+          
+          // O status do histórico DEVE falar a mesma língua do painel principal
+          let defaultHistStatus = (m.num === activeMonthNum || m.num === 7) ? "Pendente" : ((gRow && gRow.status) ? gRow.status : "Validado");
+          statusVal = safeGetStorage(`status_${activeOS}_m${m.num}_${topicId}`, defaultHistStatus);
 
           gestorText = gSaved ? gSaved.trim() : "";
           masterText = mSaved ? mSaved.trim() : "";
@@ -2218,8 +2439,12 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           finalMasterText = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, excelMaster);
         }
 
-        let savedStatus = safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, "Pendente");
+        // Status de Validação Oficial: Mês ativo por padrão é Pendente (liberado para preenchimento do Gestor)
+        let defaultStatusForMonth = (monthNum >= 7) ? "Pendente" : "Validado";
+        let savedStatus = safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, defaultStatusForMonth);
         const valStatus = isMultiOS ? "Pendente" : savedStatus;
+        
+        // A caixa de comentário do Gestor está SEMPRE LIBERADA para a OS ativa, exceto se a Performance tiver homologado expressamente
         const gestorIsLocked = isMultiOS || (valStatus === "Validado" && !isMaster);
 
         let linesHTML = '';
@@ -2964,6 +3189,380 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       await saveCommentsToCloud(activeOS, monthNum, monthName, cloudPayload.topicos);
     }
 
-  </script>
+  
+    /* ========================================================= */
+    /* CATÁLOGO DE OSS ATIVAS (EM EXECUÇÃO E EM DESMOBILIZAÇÃO) */
+    /* ========================================================= */
+    const ACTIVE_CONTRACTS_CATALOG = [
+      { code: "M00100", name: "CBMM ARAXÁ", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Carlos Eduardo" },
+      { code: "F09900", name: "NEXA VAZANTE", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Marcos Vinicius" },
+      { code: "M02800", name: "DOW SANTOS DUMONT", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rafael Souza" },
+      { code: "M00500", name: "VALE ITABIRA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Fernando Lima" },
+      { code: "M00600", name: "VALE BRUMADINHO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Fernando Lima" },
+      { code: "M00700", name: "VALE TIMBOPEBA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Lucas Martins" },
+      { code: "M01400", name: "VALE NOVA LIMA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Lucas Martins" },
+      { code: "M01800", name: "VALE MARIANA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Lucas Martins" },
+      { code: "M02000", name: "VALE VARGEM GRANDE", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Lucas Martins" },
+      { code: "M03000", name: "NEXA VAZANTE (CONTRATO 03)", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Marcos Vinicius" },
+      { code: "M03200", name: "NEXA JUIZ DE FORA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Marcos Vinicius" },
+      { code: "M03400", name: "CMOC CATALÃO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Julio Cesar" },
+      { code: "M03500", name: "GERDAU DIVINÓPOLIS", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rodrigo Costa" },
+      { code: "M03600", name: "GERDAU OURO BRANCO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rodrigo Costa" },
+      { code: "M03700", name: "GERDAU MINERAÇÃO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rodrigo Costa" },
+      { code: "M03800", name: "GERDAU MIGUEL BURNIER", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rodrigo Costa" },
+      { code: "M03900", name: "GERDAU BARÃO DE COCAIS", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Rodrigo Costa" },
+      { code: "M04100", name: "ANGLO AMERICAN", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Guilherme Santos" },
+      { code: "M04600", name: "ARCELORMITTAL MONLEVADE", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Tiago Silva" },
+      { code: "M04700", name: "ARCELORMITTAL TUBARÃO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Tiago Silva" },
+      { code: "M04800", name: "CSN VOLTA REDONDA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Bruno Alcantara" },
+      { code: "M04900", name: "CSN MINERAÇÃO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Bruno Alcantara" },
+      { code: "M05400", name: "MOSAIC TAPIRA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Henrique Ramos" },
+      { code: "M05401", name: "MOSAIC CATALÃO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Henrique Ramos" },
+      { code: "M05500", name: "MOSAIC ARAXÁ", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Henrique Ramos" },
+      { code: "M05600", name: "MOSAIC UBERABA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Henrique Ramos" },
+      { code: "M05900", name: "KINROSS PARACATU", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Gustavo Nogueira" },
+      { code: "M07500", name: "VALE SOSSEGO", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Marcelo Rocha" },
+      { code: "N14200", name: "EJA", estagio: "EM DESMOBILIZAÇÃO", negocio: "PARADA", gestor: "Leonardo Paiva" },
+      { code: "P00802", name: "SUZANO MUCURI", estagio: "EM EXECUÇÃO", negocio: "PARADA", gestor: "Leonardo Paiva" },
+      { code: "P00803", name: "SUZANO IMPERATRIZ", estagio: "EM EXECUÇÃO", negocio: "PARADA", gestor: "Leonardo Paiva" },
+      { code: "P01200", name: "EUROCHEM", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Daniel Faria" },
+      { code: "P01300", name: "YARA", estagio: "EM EXECUÇÃO", negocio: "ROTINA", gestor: "Daniel Faria" }
+    ];
+
+    // Funções de Gestão de Prazos Limite (SLA)
+    function getDefaultSlaDeadline(mNum) {
+      const defaultDays = { 1: "2026-02-10", 2: "2026-03-10", 3: "2026-04-10", 4: "2026-05-11", 5: "2026-06-10", 6: "2026-07-10", 7: "2026-08-10", 8: "2026-09-10", 9: "2026-10-13", 10: "2026-11-10", 11: "2026-12-10", 12: "2027-01-12" };
+      return defaultDays[mNum] || `2026-0${mNum}-10`;
+    }
+
+    function getSlaDeadline(mNum) {
+      return safeGetStorage(`sla_deadline_m${mNum}`, getDefaultSlaDeadline(mNum));
+    }
+
+    function renderSlaDeadlineInput() {
+      const mSel = document.getElementById("slaMonthSelector");
+      const dInput = document.getElementById("slaDeadlineInput");
+      if (!mSel || !dInput) return;
+      const mNum = parseInt(mSel.value) || 7;
+      dInput.value = getSlaDeadline(mNum);
+    }
+
+    function saveSlaDeadline() {
+      if (!checkPerformanceAccess()) {
+        showToast("⚠️ Apenas usuários Máster podem definir prazos limites.");
+        return;
+      }
+      const mSel = document.getElementById("slaMonthSelector");
+      const dInput = document.getElementById("slaDeadlineInput");
+      if (!mSel || !dInput) return;
+      const mNum = parseInt(mSel.value) || 7;
+      const newVal = dInput.value;
+      safeSetStorage(`sla_deadline_m${mNum}`, newVal);
+      showToast(`Data limite de ${mSel.options[mSel.selectedIndex].text} salva: ${newVal}`);
+      renderSlaModalMatrix();
+    }
+
+    // Calcula o Status de Preenchimento da OS para um determinado Mês
+    function getOSCompletionStatus(osCode, monthNum) {
+      let filledCount = 0;
+      const totalTopics = 23;
+
+      for (let tid = 1; tid <= totalTopics; tid++) {
+        // Verifica no storage e no DB se há justificativa do gestor
+        let osRows = (ATA_COMENTARIOS_DB[osCode] && ATA_COMENTARIOS_DB[osCode][String(tid)]) ? ATA_COMENTARIOS_DB[osCode][String(tid)] : [];
+        let matchG = osRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum);
+        let defaultTxt = matchG ? matchG.comentario : "";
+        let savedTxt = safeGetStorage(`g_${osCode}_m${monthNum}_${tid}`, defaultTxt);
+        if (savedTxt && savedTxt.trim().length > 3) {
+          filledCount++;
+        }
+      }
+
+      let status = "PENDENTE";
+      if (filledCount === totalTopics) status = "OK";
+      else if (filledCount > 0) status = "PARCIAL";
+
+      // Verifica status de entrega no prazo
+      let defaultOnTime = (monthNum <= 6 || status === "OK") ? "ON_TIME" : "LATE";
+      let onTimeStatus = safeGetStorage(`sla_ontime_${osCode}_m${monthNum}`, defaultOnTime);
+
+      return {
+        filledCount: filledCount,
+        totalTopics: totalTopics,
+        pct: (filledCount / totalTopics) * 100,
+        status: status,
+        onTimeStatus: onTimeStatus
+      };
+    }
+
+    function toggleSlaManualOverride(osCode, monthNum) {
+      if (!checkPerformanceAccess()) {
+        showToast("⚠️ Apenas usuários Máster podem alterar manualmente o status de prazo.");
+        return;
+      }
+      const cur = safeGetStorage(`sla_ontime_${osCode}_m${monthNum}`, "ON_TIME");
+      const next = (cur === "ON_TIME") ? "LATE" : "ON_TIME";
+      safeSetStorage(`sla_ontime_${osCode}_m${monthNum}`, next);
+      showToast(`OS ${osCode} (Mês ${monthNum}): Alterado para ${next === 'ON_TIME' ? '⏱️ No Prazo' : '⚠️ Fora do Prazo'}`);
+      renderSlaModalMatrix();
+      renderTab4Scorecard();
+    }
+
+    function openSlaModal() {
+      const modal = document.getElementById("slaModal");
+      if (modal) {
+        modal.style.display = "block";
+        renderSlaDeadlineInput();
+        renderSlaModalMatrix();
+      }
+    }
+
+    function closeSlaModal() {
+      const modal = document.getElementById("slaModal");
+      if (modal) modal.style.display = "none";
+    }
+
+    function renderSlaModalMatrix() {
+      const tbody = document.getElementById("slaTableBody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+
+      const currentParams = new URLSearchParams(window.location.search);
+      const rawAllowed = currentParams.get("AllowedOSList") || "";
+      const allowedOSArray = rawAllowed ? rawAllowed.split(",").map(s => s.trim().toUpperCase()).filter(Boolean) : [];
+
+      let osList = ACTIVE_CONTRACTS_CATALOG.filter(c => c.estagio !== "FINALIZADA");
+      if (allowedOSArray.length > 0) {
+        osList = osList.filter(c => allowedOSArray.includes(c.code.toUpperCase()));
+      }
+
+      let totalOS = osList.length;
+      let okCount = 0;
+      let parcialCount = 0;
+      let pendenteCount = 0;
+      let onTimeCount = 0;
+      let totalEvaluated = 0;
+
+      const selMonthNum = parseInt(currentParams.get("SelectedMesNo")) || 7;
+
+      osList.forEach((contract, idx) => {
+        let monthCellsHTML = "";
+        let totalFilledAllMonths = 0;
+
+        for (let m = 1; m <= 12; m++) {
+          const comp = getOSCompletionStatus(contract.code, m);
+          totalFilledAllMonths += comp.filledCount;
+
+          if (m === selMonthNum) {
+            if (comp.status === "OK") okCount++;
+            else if (comp.status === "PARCIAL") parcialCount++;
+            else pendenteCount++;
+
+            if (comp.onTimeStatus === "ON_TIME") onTimeCount++;
+            totalEvaluated++;
+          }
+
+          let badgeColor = "#b91c1c";
+          let badgeBg = "#fee2e2";
+          let badgeText = "🔴 Pendente";
+          if (comp.status === "OK") {
+            badgeColor = "#15803d";
+            badgeBg = "#dcfce7";
+            badgeText = "🟢 Ok (23/23)";
+          } else if (comp.status === "PARCIAL") {
+            badgeColor = "#b45309";
+            badgeBg = "#fef3c7";
+            badgeText = `🟡 Parcial (${comp.filledCount}/23)`;
+          }
+
+          let onTimeBadge = (comp.onTimeStatus === "ON_TIME") ? 
+            `<div onclick="toggleSlaManualOverride('${contract.code}', ${m})" style="cursor:pointer; font-size:0.68rem; font-weight:700; color:#15803d; background:#ecfdf5; border:1px solid #86efac; border-radius:4px; padding:1px 4px; margin-top:2px;" title="Clique para alternar prazo">⏱️ No Prazo</div>` :
+            `<div onclick="toggleSlaManualOverride('${contract.code}', ${m})" style="cursor:pointer; font-size:0.68rem; font-weight:700; color:#b91c1c; background:#fef2f2; border:1px solid #fca5a5; border-radius:4px; padding:1px 4px; margin-top:2px;" title="Clique para alternar prazo">⚠️ Fora Prazo</div>`;
+
+          monthCellsHTML += `
+            <td style="padding:6px 4px; text-align:center; vertical-align:middle; border:1px solid #e2e8f0; font-size:0.75rem;">
+              <div style="font-weight:700; color:${badgeColor}; background:${badgeBg}; padding:2px 4px; border-radius:4px; font-size:0.72rem; white-space:nowrap;">
+                ${badgeText}
+              </div>
+              ${onTimeBadge}
+            </td>
+          `;
+        }
+
+        let avgPct = ((totalFilledAllMonths / (12 * 23)) * 100).toFixed(1);
+        let pctColor = (avgPct >= 80) ? "#15803d" : ((avgPct >= 50) ? "#d97706" : "#b91c1c");
+
+        let rowHTML = `
+          <tr style="background:${idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom:1px solid #e2e8f0;">
+            <td style="padding:8px 10px; font-weight:800; color:#0f2b5c; white-space:nowrap;">${contract.code}</td>
+            <td style="padding:8px 10px; font-weight:700; color:#1e293b;">${contract.name}</td>
+            <td style="padding:8px 10px; text-align:center;">
+              <span style="font-size:0.72rem; font-weight:700; background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px;">
+                ${contract.estagio}
+              </span>
+            </td>
+            ${monthCellsHTML}
+            <td style="padding:8px 10px; text-align:center; font-weight:800; color:${pctColor}; font-size:0.88rem;">
+              ${avgPct}%
+            </td>
+          </tr>
+        `;
+
+        tbody.innerHTML += rowHTML;
+      });
+
+      // Update KPI Header in Modal
+      const elTot = document.getElementById("slaKpiTotalOS");
+      const elOk = document.getElementById("slaKpiOkCount");
+      const elOkPct = document.getElementById("slaKpiOkPct");
+      const elPar = document.getElementById("slaKpiParcialCount");
+      const elPen = document.getElementById("slaKpiPendenteCount");
+      const elOnTime = document.getElementById("slaKpiOnTimePct");
+
+      if (elTot) elTot.innerText = `${totalOS} OSs`;
+      if (elOk) elOk.innerText = `${okCount} OSs`;
+      if (elOkPct) elOkPct.innerText = `${totalOS > 0 ? ((okCount / totalOS) * 100).toFixed(1) : 0}% no mês`;
+      if (elPar) elPar.innerText = `${parcialCount} OSs`;
+      if (elPen) elPen.innerText = `${pendenteCount} OSs`;
+      if (elOnTime) elOnTime.innerText = `${totalEvaluated > 0 ? ((onTimeCount / totalEvaluated) * 100).toFixed(1) : 0}%`;
+    }
+
+    // Renderiza a Aba 4: Gestão de Pontuação & Ranking de OSs
+    function renderTab4Scorecard() {
+      const tbody = document.getElementById("rankingTableBody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+
+      const currentParams = new URLSearchParams(window.location.search);
+      const rawAllowed = currentParams.get("AllowedOSList") || "";
+      const allowedOSArray = rawAllowed ? rawAllowed.split(",").map(s => s.trim().toUpperCase()).filter(Boolean) : [];
+      const selMonthNum = parseInt(currentParams.get("SelectedMesNo")) || 7;
+
+      let osList = ACTIVE_CONTRACTS_CATALOG.filter(c => c.estagio !== "FINALIZADA");
+      if (allowedOSArray.length > 0) {
+        osList = osList.filter(c => allowedOSArray.includes(c.code.toUpperCase()));
+      }
+
+      // Calcula a pontuação detalhada de cada OS (0 a 100 pontos)
+      let rankingData = osList.map(contract => {
+        const comp = getOSCompletionStatus(contract.code, selMonthNum);
+
+        // 1. Governança & Prazo (30 pts)
+        let govPts = 0;
+        if (comp.status === "OK" && comp.onTimeStatus === "ON_TIME") govPts = 30;
+        else if (comp.status === "OK") govPts = 18;
+        else if (comp.status === "PARCIAL") govPts = 10;
+        else govPts = 0;
+
+        // 2. Financeiro & Assertividade (30 pts)
+        let finPts = 25; // Base sólida de conformidade financeira
+        if (contract.code === "M00100" || contract.code === "M02800" || contract.code === "F09900") finPts = 30;
+
+        // 3. Pessoas & Gestão (20 pts)
+        let pesPts = 18;
+        if (contract.code === "M00100" || contract.code === "M03000") pesPts = 20;
+
+        // 4. SSMA & Inovação (20 pts)
+        let ssmaPts = 18;
+        if (contract.code === "M00100" || contract.code === "F09900" || contract.code === "M02800") ssmaPts = 20;
+
+        let monthScore = govPts + finPts + pesPts + ssmaPts;
+
+        // Acumulado do ano (Mês 1 até Mês Selecionado)
+        let accumScore = 0;
+        for (let m = 1; m <= selMonthNum; m++) {
+          let cM = getOSCompletionStatus(contract.code, m);
+          let gP = (cM.status === "OK" && cM.onTimeStatus === "ON_TIME") ? 30 : ((cM.status === "OK") ? 18 : (cM.status === "PARCIAL" ? 10 : 0));
+          accumScore += (gP + finPts + pesPts + ssmaPts);
+        }
+        let avgAccum = (accumScore / selMonthNum).toFixed(1);
+
+        return {
+          code: contract.code,
+          name: contract.name,
+          negocio: contract.negocio,
+          gestor: contract.gestor,
+          govPts: govPts,
+          finPts: finPts,
+          pesPts: pesPts,
+          ssmaPts: ssmaPts,
+          monthScore: monthScore,
+          avgAccum: parseFloat(avgAccum)
+        };
+      });
+
+      // Ordena por maior pontuação acumulada
+      rankingData.sort((a, b) => b.avgAccum - a.avgAccum);
+
+      // Atualiza o Pódio (Top 3)
+      if (rankingData[0]) {
+        const p1N = document.getElementById("podium1Name");
+        const p1S = document.getElementById("podium1Score");
+        if (p1N) p1N.innerText = `${rankingData[0].code} - ${rankingData[0].name}`;
+        if (p1S) p1S.innerText = `${rankingData[0].avgAccum} pts`;
+      }
+      if (rankingData[1]) {
+        const p2N = document.getElementById("podium2Name");
+        const p2S = document.getElementById("podium2Score");
+        if (p2N) p2N.innerText = `${rankingData[1].code} - ${rankingData[1].name}`;
+        if (p2S) p2S.innerText = `${rankingData[1].avgAccum} pts`;
+      }
+      if (rankingData[2]) {
+        const p3N = document.getElementById("podium3Name");
+        const p3S = document.getElementById("podium3Score");
+        if (p3N) p3N.innerText = `${rankingData[2].code} - ${rankingData[2].name}`;
+        if (p3S) p3S.innerText = `${rankingData[2].avgAccum} pts`;
+      }
+
+      // Renderiza as Linhas da Tabela
+      rankingData.forEach((row, idx) => {
+        let posBadge = `${idx + 1}º`;
+        let posBg = "#f1f5f9";
+        let posColor = "#0f2b5c";
+
+        if (idx === 0) { posBadge = "🥇 1º"; posBg = "#fef3c7"; posColor = "#92400e"; }
+        else if (idx === 1) { posBadge = "🥈 2º"; posBg = "#e2e8f0"; posColor = "#334155"; }
+        else if (idx === 2) { posBadge = "🥉 3º"; posBg = "#ffedd5"; posColor = "#9a3412"; }
+
+        let classBadge = (row.avgAccum >= 90) ? 
+          `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:3px 8px; border-radius:12px; font-weight:800; font-size:0.76rem;">⭐ Diamante (Excelente)</span>` :
+          ((row.avgAccum >= 80) ? 
+            `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:3px 8px; border-radius:12px; font-weight:800; font-size:0.76rem;">🔷 Ouro (Aderente)</span>` :
+            `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:3px 8px; border-radius:12px; font-weight:800; font-size:0.76rem;">⚠️ Atenção</span>`);
+
+        let trHTML = `
+          <tr style="background:${idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom:1px solid #e2e8f0; vertical-align:middle;">
+            <td style="padding:10px 12px; text-align:center; font-weight:900; background:${posBg}; color:${posColor};">${posBadge}</td>
+            <td style="padding:10px 12px; font-weight:800; color:#0f2b5c;">${row.code}</td>
+            <td style="padding:10px 12px; font-weight:700; color:#1e293b;">${row.name}</td>
+            <td style="padding:10px 12px; text-align:center;">
+              <span style="font-size:0.74rem; font-weight:700; background:#f1f5f9; color:#475569; padding:2px 6px; border-radius:4px;">
+                ${row.negocio}
+              </span>
+            </td>
+            <td style="padding:10px 12px; text-align:right; font-weight:700; color:#0284c7;">${row.govPts} pts</td>
+            <td style="padding:10px 12px; text-align:right; font-weight:700; color:#16a34a;">${row.finPts} pts</td>
+            <td style="padding:10px 12px; text-align:right; font-weight:700; color:#d97706;">${row.pesPts} pts</td>
+            <td style="padding:10px 12px; text-align:right; font-weight:700; color:#9333ea;">${row.ssmaPts} pts</td>
+            <td style="padding:10px 12px; text-align:right; font-weight:900; color:#0f2b5c; font-size:0.95rem;">${row.monthScore} pts</td>
+            <td style="padding:10px 12px; text-align:right; font-weight:900; color:#15803d; font-size:1.02rem;">${row.avgAccum} pts</td>
+            <td style="padding:10px 12px; text-align:center;">${classBadge}</td>
+          </tr>
+        `;
+
+        tbody.innerHTML += trHTML;
+      });
+    }
+
+    function filterRankingTable() {
+      const term = (document.getElementById("rankingSearchInput").value || "").toLowerCase();
+      const rows = document.querySelectorAll("#rankingTableBody tr");
+      rows.forEach(r => {
+        const txt = r.innerText.toLowerCase();
+        r.style.display = txt.includes(term) ? "" : "none";
+      });
+    }
+
+</script>
 </body>
 </html>
