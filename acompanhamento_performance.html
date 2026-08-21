@@ -41,7 +41,7 @@
       </div>
 
       <!-- 2. Barra de Gestao de Prazos Master (Fixo no Topo - Visivel para o Master) -->
-      <div id="slaMasterControlsBar" style="background:#f8fafc; padding:8px 24px; border-bottom:1.5px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; flex-shrink:0;">
+      <div id="slaMasterControlsBar" style="display:none; background:#f8fafc; padding:8px 24px; border-bottom:1.5px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; flex-shrink:0;">
         <div style="display:flex; align-items:center; gap:10px;">
           <span style="font-size:0.84rem; font-weight:700; color:#0f2b5c; display:flex; align-items:center; gap:6px;">
             🔒 <strong>Gestão de Prazos Limite (SLA):</strong>
@@ -1146,6 +1146,8 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
   </div>
 
   <script>
+    var currentRoleSimulated = null;
+
 
     // =========================================================================
     // MULTI-TIER PERSISTENT STORAGE ENGINE (IndexedDB + Cookies + LocalStorage)
