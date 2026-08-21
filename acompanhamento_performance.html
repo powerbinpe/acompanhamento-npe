@@ -1595,7 +1595,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         tabId = tabMap[tabId] || 'tabMensal';
       }
 
-      sessionStorage.setItem('pbi_active_tab', tabId);
+      safeSetSession('pbi_active_tab', tabId);
 
       document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
       
@@ -2778,6 +2778,11 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     }
 
     document.addEventListener("DOMContentLoaded", function() {
+      // Inicializar seguranca de perfil
+      if (typeof isMaster === 'undefined') { window.isMaster = checkPerformanceAccess(); }
+      var savedTab = null;
+      try { savedTab = sessionStorage.getItem('pbi_active_tab'); } catch(e) {}
+      if (savedTab) switchTab(savedTab);
       if (typeof updateFromURLParams === "function") updateFromURLParams();
       if (typeof loadExcelComments === "function") loadExcelComments();
       renderRows();
@@ -4024,21 +4029,36 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       const modal = document.getElementById("slaModal");
       if (!modal) return;
 
-      const isUserPerf = checkPerformanceAccess();
       const ctrlBar = document.getElementById("slaMasterControlsBar");
       if (ctrlBar) {
-        ctrlBar.style.display = isUserPerf ? "flex" : "none";
+        ctrlBar.style.display = (typeof isMaster !== 'undefined' && isMaster === true) ? "flex" : "none";
       }
 
+      const deadlineInput = document.getElementById("slaTargetDeadlineInput");
+      const monthSelect = document.getElementById("slaTargetMonthSelect");
+      const isMasterActive = (typeof isMaster !== 'undefined' && isMaster === true);
+      if (deadlineInput) deadlineInput.disabled = !isMasterActive;
+      if (monthSelect) monthSelect.disabled = !isMasterActive;
+
       modal.style.display = "flex";
-      renderSlaDeadlineInput();
-      renderSlaModalMatrix();
+      if (typeof renderSlaDeadlineInput === "function") renderSlaDeadlineInput();
+      if (typeof renderSlaModalMatrix === "function") renderSlaModalMatrix();
     }
 
     function closeSlaModal() {
       const modal = document.getElementById("slaModal");
-      if (modal) modal.style.display = "none";
+      if (modal) { modal.style.display = "none"; }
     }
+
+    // Fechar modal com ESC
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape") {
+        var modal = document.getElementById("slaModal");
+        if (modal && modal.style.display !== "none") {
+          modal.style.display = "none";
+        }
+      }
+    });
 
     function filterSlaTable() {
       const term = (document.getElementById("slaSearchInput").value || "").toLowerCase().trim();
