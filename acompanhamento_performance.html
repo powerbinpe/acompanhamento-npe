@@ -1595,7 +1595,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         tabId = tabMap[tabId] || 'tabMensal';
       }
 
-      safeSetSession('pbi_active_tab', tabId);
+      safeSetStorage('pbi_active_tab', tabId);
 
       document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
       
@@ -2779,7 +2779,10 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
     document.addEventListener("DOMContentLoaded", function() {
       // Inicializar seguranca de perfil
-      if (typeof isMaster === 'undefined') { window.isMaster = checkPerformanceAccess(); }
+      isMaster = checkPerformanceAccess();
+      var savedRole = safeGetStorage('npe_active_role', null);
+      if (savedRole === 'GESTOR') isMaster = false;
+      if (savedRole === 'MASTER' && checkPerformanceAccess()) isMaster = true;
       var savedTab = null;
       try { savedTab = sessionStorage.getItem('pbi_active_tab'); } catch(e) {}
       if (savedTab) switchTab(savedTab);
