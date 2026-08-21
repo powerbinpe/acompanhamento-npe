@@ -696,6 +696,25 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     }
 
 
+
+    /* Modal and Matrix Custom Scrollbars */
+    #slaModal ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    #slaModal ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 6px;
+    }
+    #slaModal ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 6px;
+      border: 2px solid #f1f5f9;
+    }
+    #slaModal ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
 </style>
 </head>
 <body>
@@ -3247,328 +3266,699 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     /* ========================================================= */
     /* CATÁLOGO DE OSS ATIVAS (EM EXECUÇÃO E EM DESMOBILIZAÇÃO) */
     /* ========================================================= */
-        const ACTIVE_CONTRACTS_CATALOG = [
+            const ACTIVE_CONTRACTS_CATALOG = [
       {
-            "code": "M00100",
-            "name": "M00100 - CBMM ARAXÁ",
+            "code": "C95000",
+            "name": "C95000 - CREDITOS TRIBUTARIOS",
             "estagio": "EM EXECUÇÃO",
-            "negocio": "ROTINA",
-            "gestor": "Carlos Eduardo"
+            "negocio": "CREDITOS TRIBUTARIOS",
+            "gestor": "SHEYLA MARTINS"
       },
       {
             "code": "F09900",
-            "name": "F09900 - NEXA VAZANTE",
-            "estagio": "EM EXECUÇÃO",
+            "name": "F09900 - RHODIA",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Marcos Vinicius"
+            "gestor": "HERISON SOARES"
       },
       {
-            "code": "M02800",
-            "name": "M02800 - DOW SANTOS DUMONT",
+            "code": "F95000",
+            "name": "F95000 - CREDITOS TRIBUTARIOS",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "CREDITOS TRIBUTARIOS",
+            "gestor": "SHEYLA MARTINS"
+      },
+      {
+            "code": "J95000",
+            "name": "J95000 - CREDITOS TRIBUTARIOS",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "CREDITOS TRIBUTARIOS",
+            "gestor": "SHEYLA MARTINS"
+      },
+      {
+            "code": "M00100",
+            "name": "M00100 - CBMM - ARAXA",
             "estagio": "EM EXECUÇÃO",
             "negocio": "ROTINA",
-            "gestor": "Rafael Souza"
+            "gestor": "SEM INFORMAÇÂO"
+      },
+      {
+            "code": "M00101",
+            "name": "M00101 - CBMM - PARADA - ARAXA",
+            "estagio": "NOVA",
+            "negocio": "ROTINA",
+            "gestor": "CARLOS CASTILHO"
+      },
+      {
+            "code": "M00200",
+            "name": "M00200 - YARA - PAULINIA",
+            "estagio": "DEMOBILIZACAO",
+            "negocio": "ROTINA",
+            "gestor": "AILSON MOTA"
       },
       {
             "code": "M00500",
-            "name": "M00500 - VALE ITABIRA",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M00500 - CMOC - SANTALUZ",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Fernando Lima"
+            "gestor": "ORLANDO FILHO"
       },
       {
             "code": "M00600",
-            "name": "M00600 - VALE BRUMADINHO",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M00600 - HEXION - CURITIBA",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Fernando Lima"
+            "gestor": "CLERTON ARAUJO"
       },
       {
             "code": "M00700",
-            "name": "M00700 - VALE TIMBOPEBA",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M00700 - STRATOS - ROSARIO DO CATETE",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Lucas Martins"
+            "gestor": "ANDRE SILVA"
       },
       {
             "code": "M00900",
-            "name": "M00900 - VALE TUBARÃO",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M00900 - DOW - BREU BRANCO",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Lucas Martins"
+            "gestor": "FRANCISCO ANTUNES"
+      },
+      {
+            "code": "M01009",
+            "name": "M01009 - BRASKEM - PIT STOP PVC",
+            "estagio": "DEMOBILIZACAO",
+            "negocio": "PARADA",
+            "gestor": "CHRISTIANO MARQUES"
       },
       {
             "code": "M01010",
-            "name": "M01010 - VALE ITABIRITO",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "ROTINA",
-            "gestor": "Lucas Martins"
+            "name": "M01010 - BRASKEM - PARADA CALDEIRA GV5301D",
+            "estagio": "DEMOBILIZACAO",
+            "negocio": "PARADA",
+            "gestor": "CARLOS MONTEIRO"
+      },
+      {
+            "code": "M01011",
+            "name": "M01011 - BRASKEM - FORNO - PMP BA4109",
+            "estagio": "DEMOBILIZACAO",
+            "negocio": "PARADA",
+            "gestor": "CARLOS MONTEIRO"
       },
       {
             "code": "M01012",
-            "name": "M01012 - VALE PICO",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "ROTINA",
-            "gestor": "Lucas Martins"
+            "name": "M01012 - BRASKEM - PARADA IM C4 2026 -BA",
+            "estagio": "DEMOBILIZACAO",
+            "negocio": "PARADA",
+            "gestor": "CHRISTIANO MARQUES"
+      },
+      {
+            "code": "M01013",
+            "name": "M01013 - BRASKEM - SERVICOS EVENTUAIS",
+            "estagio": "NOVA",
+            "negocio": "PARADA",
+            "gestor": "CARLOS MONTEIRO"
       },
       {
             "code": "M01200",
-            "name": "M01200 - VALE CARAJÁS",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M01200 - GALVANI - LUIS EDUARDO - BA",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Marcelo Rocha"
+            "gestor": "FELIPE SILVA"
       },
       {
             "code": "M01400",
-            "name": "M01400 - VALE NOVA LIMA",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M01400 - VALE - CONCEICAO",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Lucas Martins"
+            "gestor": "FRANCISCO PINTO"
       },
       {
             "code": "M01500",
-            "name": "M01500 - VALE MORRO DO PILAR",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M01500 - VALE - BRUCUTU",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Fernando Lima"
+            "gestor": "ALEXSANDRO TOMAZ"
       },
       {
             "code": "M01600",
-            "name": "M01600 - VALE MUTUCA",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M01600 - VALE - TIMBOPEBA",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Lucas Martins"
+            "gestor": "SILVIO CASSIMIRO"
       },
       {
             "code": "M01800",
-            "name": "M01800 - VALE MARIANA",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M01800 - VALE - MINA MUTUCA",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Lucas Martins"
+            "gestor": "FERNANDO LIMA"
       },
       {
             "code": "M01900",
-            "name": "M01900 - VALE CONGONHAS",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M01900 - VALE - PARAOPEBAS",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Lucas Martins"
+            "gestor": "FERNANDO LIMA"
       },
       {
             "code": "M02000",
-            "name": "M02000 - VALE VARGEM GRANDE",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M02000 - VALE - VARGEM GRANDE - INTEGRIDADE",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Lucas Martins"
+            "gestor": "ENRICO FERNANDES"
+      },
+      {
+            "code": "M02001",
+            "name": "M02000 - VALE - VARGEM GRANDE - INTEGRIDADE",
+            "estagio": "EXECUCAO",
+            "negocio": "ROTINA",
+            "gestor": "ENRICO FERNANDES"
       },
       {
             "code": "M02200",
-            "name": "M02200 - VALE FABRICA",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M02200 - VALE - SALOBO - PA",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Fernando Lima"
+            "gestor": "ARTUR FONSECA"
       },
       {
             "code": "M02300",
-            "name": "M02300 - VALE BRUCUTU",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M02300 - VALE - ACG MINA BRUCUTU",
+            "estagio": "NOVA",
             "negocio": "ROTINA",
-            "gestor": "Fernando Lima"
+            "gestor": "HENRIQUE QUEIROZ"
+      },
+      {
+            "code": "M02500",
+            "name": "M02500 - OFICINA DIAS DAVILA",
+            "estagio": "EXECUCAO",
+            "negocio": "OFICINA",
+            "gestor": "THELMO ANTONIO"
       },
       {
             "code": "M02600",
-            "name": "M02600 - VALE CAUÊ",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M02600 - STRATOS - REC ESTRUTU - ROSARIO DO CATET",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Fernando Lima"
+            "gestor": "ALESSANDRO SILVA"
       },
       {
             "code": "M02700",
-            "name": "M02700 - VALE CONCEIÇÃO",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M02700 - NITROQUIMICA",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Fernando Lima"
+            "gestor": "RICARDO ALBUQUERQUE"
+      },
+      {
+            "code": "M02800",
+            "name": "M02800 - DOW - SANTOS DUMONT",
+            "estagio": "EXECUCAO",
+            "negocio": "ROTINA",
+            "gestor": "DOUGLAS FERREIRA"
       },
       {
             "code": "M02900",
-            "name": "M02900 - VALE FAZENDÃO",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M02900 - OLIN",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Lucas Martins"
+            "gestor": "RICARDO ALBUQUERQUE"
       },
       {
             "code": "M03000",
-            "name": "M03000 - NEXA VAZANTE (CONTRATO 03)",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M03000 - NEXA - VAZANTE",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Marcos Vinicius"
+            "gestor": "ADAN COSTA"
       },
       {
             "code": "M03100",
-            "name": "M03100 - NEXA AREAL",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M03100 - NEXA - TRES MARIAS",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Marcos Vinicius"
+            "gestor": "LUIZ LACERDA"
       },
       {
             "code": "M03200",
-            "name": "M03200 - NEXA JUIZ DE FORA",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M03200 - NEXA - JUIZ DE FORA",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Marcos Vinicius"
+            "gestor": "FELIPE SANTOS"
+      },
+      {
+            "code": "M03300",
+            "name": "M03300 - DOW - ARATU",
+            "estagio": "EXECUCAO",
+            "negocio": "ROTINA",
+            "gestor": "CARLOS BOMFIM"
       },
       {
             "code": "M03400",
-            "name": "M03400 - CMOC CATALÃO",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M03400 - EQUINOX - BARROCAS",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Julio Cesar"
+            "gestor": "ORLANDO FILHO"
       },
       {
             "code": "M03500",
-            "name": "M03500 - GERDAU DIVINÓPOLIS",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M03500 - GERDAU - DIVINOPOLIS - MG",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Rodrigo Costa"
+            "gestor": "VITOR JURDI"
       },
       {
             "code": "M03600",
-            "name": "M03600 - GERDAU OURO BRANCO",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M03600 - GERDAU - OURO BRANCO - MG",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Rodrigo Costa"
+            "gestor": "DOUGLAS ALBUQUERQUE"
       },
       {
             "code": "M03700",
-            "name": "M03700 - GERDAU MINERAÇÃO",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M03700 - GERDAU - MINERACAO - MG",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Rodrigo Costa"
+            "gestor": "DIOGO PEREIRA"
       },
       {
             "code": "M03800",
-            "name": "M03800 - GERDAU MIGUEL BURNIER",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M03800 - VOPAK - ARATU",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Rodrigo Costa"
+            "gestor": "CARLOS BOMFIM"
       },
       {
             "code": "M03900",
-            "name": "M03900 - GERDAU BARÃO DE COCAIS",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M03900 - VOPAK - ALEMOA",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Rodrigo Costa"
+            "gestor": "RICARDO ALBUQUERQUE"
       },
       {
             "code": "M04100",
-            "name": "M04100 - ANGLO AMERICAN",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M04100 - PAN AMERICAN",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Guilherme Santos"
+            "gestor": "FELIPE SILVA"
       },
       {
             "code": "M04600",
-            "name": "M04600 - ARCELORMITTAL MONLEVADE",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "ROTINA",
-            "gestor": "Tiago Silva"
+            "name": "M04600 - CSN - COCALZINHO",
+            "estagio": "EXECUCAO",
+            "negocio": "PARADA",
+            "gestor": "ROGEL NETO"
+      },
+      {
+            "code": "M04601",
+            "name": "M04601 - CSN - PARADA - COCALZINHO",
+            "estagio": "EXECUCAO",
+            "negocio": "PARADA",
+            "gestor": "ROGEL NETO"
       },
       {
             "code": "M04700",
-            "name": "M04700 - ARCELORMITTAL TUBARÃO",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "ROTINA",
-            "gestor": "Tiago Silva"
+            "name": "M04700 - CSN - CANDEIAS",
+            "estagio": "EXECUCAO",
+            "negocio": "PARADA",
+            "gestor": "ROGEL NETO"
+      },
+      {
+            "code": "M04701",
+            "name": "M04701 - CSN - PARADA - CANDEIAS",
+            "estagio": "EXECUCAO",
+            "negocio": "PARADA",
+            "gestor": "ROGEL NETO"
       },
       {
             "code": "M04800",
-            "name": "M04800 - CSN VOLTA REDONDA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "ROTINA",
-            "gestor": "Bruno Alcantara"
+            "name": "M04800 - CSN - CAAPORA",
+            "estagio": "EXECUCAO",
+            "negocio": "PARADA",
+            "gestor": "ROGEL NETO"
+      },
+      {
+            "code": "M04801",
+            "name": "M04801 - CSN - PARADA - CAAPORA",
+            "estagio": "EXECUCAO",
+            "negocio": "PARADA",
+            "gestor": "ROGEL NETO"
       },
       {
             "code": "M04900",
-            "name": "M04900 - CSN MINERAÇÃO",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M04900 - CSN - ALHANDRA",
+            "estagio": "EXECUCAO",
+            "negocio": "PARADA",
+            "gestor": "ROGEL NETO"
+      },
+      {
+            "code": "M04901",
+            "name": "M04901 - CSN - PARADA - ALHANDRA",
+            "estagio": "EXECUCAO",
+            "negocio": "PARADA",
+            "gestor": "ROGEL NETO"
+      },
+      {
+            "code": "M05100",
+            "name": "M05100 - CBMM - ARAXA",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Bruno Alcantara"
+            "gestor": "ADRIEDSON CUNHA"
+      },
+      {
+            "code": "M05200",
+            "name": "M05200 - ACELEN - TANQUES CANDEIAS",
+            "estagio": "EXECUCAO",
+            "negocio": "ROTINA",
+            "gestor": "ROGEL NETO"
+      },
+      {
+            "code": "M05300",
+            "name": "M05300 - STRATOS - APOIO ADM - ROSARIO DO CATETE",
+            "estagio": "EXECUCAO",
+            "negocio": "ROTINA",
+            "gestor": "ANDRE SILVA"
       },
       {
             "code": "M05400",
-            "name": "M05400 - MOSAIC TAPIRA",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M05400 - CMOC - CUBATAO",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Henrique Ramos"
+            "gestor": "DENIS FONSECA"
       },
       {
             "code": "M05401",
-            "name": "M05401 - MOSAIC CATALÃO",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M05401 - CMOC - ANDAIME - CUBATAO",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Henrique Ramos"
+            "gestor": "DENIS FONSECA"
+      },
+      {
+            "code": "M05402",
+            "name": "M05402 - CMOC - PARADA ACIDOS - CUBATAO",
+            "estagio": "NOVA",
+            "negocio": "ROTINA",
+            "gestor": "DENIS FONSECA"
       },
       {
             "code": "M05500",
-            "name": "M05500 - MOSAIC ARAXÁ",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M05500 - CMOC - CUBATAO",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Henrique Ramos"
+            "gestor": "DENIS FONSECA"
       },
       {
-            "code": "M05600",
-            "name": "M05600 - MOSAIC UBERABA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "ROTINA",
-            "gestor": "Henrique Ramos"
+            "code": "M05700",
+            "name": "M05700 - ACELEN - PARADA U29A",
+            "estagio": "NOVA",
+            "negocio": "PARADA",
+            "gestor": "ROGEL NETO"
       },
       {
             "code": "M05900",
-            "name": "M05900 - KINROSS PARACATU",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M05900 - VALE - ACG - FLOTACAO - BRUCUTU",
+            "estagio": "NOVA",
             "negocio": "ROTINA",
-            "gestor": "Gustavo Nogueira"
+            "gestor": "HENRIQUE QUEIROZ"
       },
       {
             "code": "M07500",
-            "name": "M07500 - VALE SOSSEGO",
-            "estagio": "EM EXECUÇÃO",
+            "name": "M07500 - PAN AMERICAN - REC ESTR - JACOBINA",
+            "estagio": "NOVA",
             "negocio": "ROTINA",
-            "gestor": "Marcelo Rocha"
+            "gestor": "ALESSANDRO SILVA"
       },
       {
-            "code": "N14200",
-            "name": "N14200 - EJA",
-            "estagio": "EM DESMOBILIZAÇÃO",
-            "negocio": "PARADA",
-            "gestor": "Leonardo Paiva"
-      },
-      {
-            "code": "P00802",
-            "name": "P00802 - SUZANO MUCURI",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "PARADA",
-            "gestor": "Leonardo Paiva"
-      },
-      {
-            "code": "P00803",
-            "name": "P00803 - SUZANO IMPERATRIZ",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "PARADA",
-            "gestor": "Leonardo Paiva"
-      },
-      {
-            "code": "P01200",
-            "name": "P01200 - EUROCHEM",
-            "estagio": "EM EXECUÇÃO",
+            "code": "M90000",
+            "name": "F90000 - SUPERINTENDENCIA MANUTENCAO",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Daniel Faria"
+            "gestor": "CIDINEY ARAUJO"
       },
       {
-            "code": "P01300",
-            "name": "P01300 - YARA",
-            "estagio": "EM EXECUÇÃO",
+            "code": "M90001",
+            "name": "F90001 - GERENCIA NORTE",
+            "estagio": "EXECUCAO",
             "negocio": "ROTINA",
-            "gestor": "Daniel Faria"
+            "gestor": "FRANCISCO ANTUNES"
+      },
+      {
+            "code": "M90002",
+            "name": "F90002 - GERENCIA NORDESTE",
+            "estagio": "EXECUCAO",
+            "negocio": "ROTINA",
+            "gestor": "MATHEUS QUEIROZ"
+      },
+      {
+            "code": "M90003",
+            "name": "M90003 - GERENCIA TRIANGULO MINEIRO",
+            "estagio": "EXECUCAO",
+            "negocio": "ROTINA",
+            "gestor": "ANDERSON MOREIRA"
+      },
+      {
+            "code": "M90004",
+            "name": "F90004 - GERENCIA MINAS SUL",
+            "estagio": "EXECUCAO",
+            "negocio": "ROTINA",
+            "gestor": "REGINALDO SOUSA"
+      },
+      {
+            "code": "M90005",
+            "name": "M90005 - GERENCIA MINAS SUDESTE",
+            "estagio": "EXECUCAO",
+            "negocio": "ROTINA",
+            "gestor": "SIDLEY BARCELLOS"
+      },
+      {
+            "code": "M90006",
+            "name": "F90006 - GERENCIA SUL/SUDESTE",
+            "estagio": "EXECUCAO",
+            "negocio": "ROTINA",
+            "gestor": "DAVI BARBOZA"
+      },
+      {
+            "code": "M90007",
+            "name": "M90007 - SUPERINTENDENCIA MANUTENCAO 2",
+            "estagio": "EXECUCAO",
+            "negocio": "ROTINA",
+            "gestor": "FLAVIO FERREIRA"
+      },
+      {
+            "code": "M90100",
+            "name": "M90100 - SUPERINTENDENCIA PARADAS 1",
+            "estagio": "EXECUCAO",
+            "negocio": "PARADA",
+            "gestor": "GILMAR SILVA"
+      },
+      {
+            "code": "M90101",
+            "name": "F90101 - GERENCIA PARADAS 1",
+            "estagio": "EXECUCAO",
+            "negocio": "PARADA",
+            "gestor": "DIEGO LOPES"
+      },
+      {
+            "code": "M90200",
+            "name": "F90200 - SUPERINTENDENCIA PARADAS 2",
+            "estagio": "EXECUCAO",
+            "negocio": "PARADA",
+            "gestor": "NESTOR OGASAWARA"
+      },
+      {
+            "code": "M95000",
+            "name": "M95000 - CREDITOS TRIBUTARIOS",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "CREDITOS TRIBUTARIOS",
+            "gestor": "SHEYLA MARTINS"
+      },
+      {
+            "code": "N00400",
+            "name": "N00400 - RHODIA - CAPEX - PAULINIA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N00700",
+            "name": "N00700 - OLIN",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N00900",
+            "name": "N00900 - YARA - PAULINIA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N01500",
+            "name": "N01500 - VALE - CONCEICAO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N01700",
+            "name": "N01700 - VALE - ACG MINA BRUCUTU",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N01900",
+            "name": "N01900 - VALE - PCM - TIMBOPEBA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N02200",
+            "name": "N02200 - GALVANI FOSNOR – PARADA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N02500",
+            "name": "N02500 - VOPAK - ALEMOA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N03800",
+            "name": "N03800 - NPE SERVICE",
+            "estagio": "EXECUCAO",
+            "negocio": "LOCACOES",
+            "gestor": "EDIVALTER JUNIOR"
+      },
+      {
+            "code": "N04400",
+            "name": "N04400 - VOPAK - ARATU",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N06000",
+            "name": "N06000 - NITROQUIMICA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N06400",
+            "name": "N06400 - MOSAIC - ROSARIO DO CATETE",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N07000",
+            "name": "N07000 - DOW - ARATU",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N07600",
+            "name": "N07600 - HEXION - CURITIBA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N07800",
+            "name": "N07800 - ALFA ENGENHARIA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "EDIVALTER JUNIOR"
+      },
+      {
+            "code": "N08000",
+            "name": "N08000 - EQUINOX - BARROCAS",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N08800",
+            "name": "N08800 - BRASKEM - PGM AREA FRIA - CAMACARI",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N09100",
+            "name": "N09100 - EJA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N09300",
+            "name": "N09300 - CMOC - PARADA - CUBATAO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N10300",
+            "name": "N10300 - CBMM - ARAXA",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N10400",
+            "name": "N10400 - ACELEN - CAPEX - F4201D - CANDEIAS",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N10600",
+            "name": "N10600 - EQUINOX - PEAD - SANTA LUZ",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N10700",
+            "name": "N10700 - MOSAIC - REC ESTRUTU - ROSARIO DO CATETE",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N12100",
+            "name": "N12100 - GERDAU - PARADA - DIVINOPOLIS - MG",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N12300",
+            "name": "N12300 - GERDAU - PARADA 1 E 4 - OURO BRANCO - MG",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N12400",
+            "name": "N12400 - GERDAU - MINERACAO - MG",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
+      },
+      {
+            "code": "N12700",
+            "name": "N12700 - DOW - BREU BRANCO",
+            "estagio": "EM EXECUÇÃO",
+            "negocio": "LOCACOES",
+            "gestor": "THAIS CARVALHO"
       }
 ];
 
