@@ -41,7 +41,7 @@
       </div>
 
       <!-- 2. Barra de Gestao de Prazos Master (Fixo no Topo - Visivel para o Master) -->
-      <div id="slaMasterControlsBar" style="display:none; background:#f8fafc; padding:8px 24px; border-bottom:1.5px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; flex-shrink:0;">
+      <div id="slaMasterControlsBar" style="display:none; background:#f8fafc; padding:8px 24px; border-bottom:1.5px solid #e2e8f0; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; flex-shrink:0;">
         <div style="display:flex; align-items:center; gap:10px;">
           <span style="font-size:0.84rem; font-weight:700; color:#0f2b5c; display:flex; align-items:center; gap:6px;">
             🔒 <strong>Gestão de Prazos Limite (SLA):</strong>
@@ -117,7 +117,7 @@
       <!-- 5. Tabela com Rolagem Infinita e Cabeçalhos / Colunas Fixas -->
       <div id="slaTableScrollContainer" style="padding:0; overflow:auto; flex:1; background:#ffffff;">
         <table style="width:100%; border-collapse:separate; border-spacing:0; font-size:0.78rem; text-align:center;">
-          <thead>
+          <thead id="slaTableHead">
             <tr style="background:#0f2b5c; color:#ffffff; font-weight:800; position:sticky; top:0; z-index:30;">
               <th style="padding:10px 8px; border-bottom:2px solid #cbd5e1; min-width:85px; position:sticky; left:0; top:0; background:#0f2b5c; z-index:35; box-shadow: 2px 0 5px rgba(0,0,0,0.18);">CÓDIGO</th>
               <th style="padding:10px 8px; border-bottom:2px solid #cbd5e1; min-width:260px; text-align:left; position:sticky; left:85px; top:0; background:#0f2b5c; z-index:35; box-shadow: 2px 0 5px rgba(0,0,0,0.18);">DESCRIÇÃO DA OS RELACIONADA</th>
@@ -2788,6 +2788,66 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       renderRows();
       renderAnnualConsolidation();
       loadCommentsFromCloud();
+
+      // ===== EVENT LISTENERS ROBUSTOS (substituem onclick inline) =====
+      // Tab navigation
+      var tabBtns = document.querySelectorAll(".tab-btn");
+      var tabIds = ['tabMensal', 'tabConsolidacao', 'tabLicoes', 'tabRanking'];
+      tabBtns.forEach(function(btn, idx) {
+        btn.addEventListener("click", function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          switchTab(tabIds[idx]);
+        });
+      });
+
+      // Close SLA modal button
+      var closeBtn = document.querySelector("#slaModal button[style*='ef4444']");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeSlaModal();
+        });
+      }
+
+      // Close SLA modal by clicking overlay
+      var slaModal = document.getElementById("slaModal");
+      if (slaModal) {
+        slaModal.addEventListener("click", function(e) {
+          if (e.target === slaModal) closeSlaModal();
+        });
+      }
+
+      // Open SLA modal button
+      var openSlaBtn = document.getElementById("btnOpenSlaModal");
+      if (openSlaBtn) {
+        openSlaBtn.addEventListener("click", function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          openSlaModal();
+        });
+      }
+
+      // Toggle role button
+      var toggleBtn = document.getElementById("toggleRoleBtn");
+      if (toggleBtn) {
+        toggleBtn.addEventListener("click", function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleRole();
+        });
+      }
+
+      // Save comments button
+      var saveBtns = document.querySelectorAll(".save-btn");
+      saveBtns.forEach(function(btn) {
+        btn.addEventListener("click", function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          saveAllComments();
+        });
+      });
     });
 
     // Toast Notification System
@@ -4087,31 +4147,42 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       let okCount = 0;
       let parcialCount = 0;
       let pendenteCount = 0;
-      let onTimeCount = 0;
-      let totalEvaluated = 0;
 
       const selMonthNum = parseInt(currentParams.get("SelectedMesNo")) || 7;
+      const monthNames = ["","Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
-      osList.forEach((contract, idx) => {
-        let monthCellsHTML = "";
-        let totalFilledAllMonths = 0;
+      // Atualizar cabeçalho da tabela para mostrar apenas meses até o selecionado
+      var thead = document.getElementById("slaTableHead");
+      if (thead) {
+        var headerRow = "<tr style='background:#0f2b5c; color:#ffffff; font-size:0.78rem; text-transform:uppercase;'>";
+        headerRow += "<th style='padding:10px 8px; position:sticky; left:0; background:#0f2b5c; z-index:2; min-width:100px;'>OS</th>";
+        headerRow += "<th style='padding:10px 8px; min-width:120px;'>Cliente</th>";
+        headerRow += "<th style='padding:10px 8px; min-width:80px;'>Estágio</th>";
+        for (var h = 1; h <= selMonthNum; h++) {
+          headerRow += "<th style='padding:10px 6px; min-width:90px; text-align:center;'>" + monthNames[h] + "</th>";
+        }
+        headerRow += "<th style='padding:10px 8px; min-width:80px; text-align:center;'>Status</th>";
+        headerRow += "</tr>";
+        thead.innerHTML = headerRow;
+      }
 
-        for (let m = 1; m <= 12; m++) {
-          const comp = getOSCompletionStatus(contract.code, m);
+      osList.forEach(function(contract, idx) {
+        var monthCellsHTML = "";
+        var totalFilledAllMonths = 0;
+
+        for (var m = 1; m <= selMonthNum; m++) {
+          var comp = getOSCompletionStatus(contract.code, m);
           totalFilledAllMonths += comp.filledCount;
 
           if (m === selMonthNum) {
             if (comp.status === "OK") okCount++;
             else if (comp.status === "PARCIAL") parcialCount++;
             else pendenteCount++;
-
-            if (comp.onTimeStatus === "ON_TIME") onTimeCount++;
-            totalEvaluated++;
           }
 
-          let badgeColor = "#b91c1c";
-          let badgeBg = "#fee2e2";
-          let badgeText = "🔴 Pendente";
+          var badgeColor = "#64748b";
+          var badgeBg = "#f1f5f9";
+          var badgeText = "—";
           if (comp.status === "OK") {
             badgeColor = "#15803d";
             badgeBg = "#dcfce7";
@@ -4119,61 +4190,65 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           } else if (comp.status === "PARCIAL") {
             badgeColor = "#b45309";
             badgeBg = "#fef3c7";
-            badgeText = `🟡 Parcial (${comp.filledCount}/23)`;
+            badgeText = "🟡 Parcial (" + comp.filledCount + "/23)";
+          } else if (comp.filledCount === 0) {
+            badgeColor = "#b91c1c";
+            badgeBg = "#fee2e2";
+            badgeText = "🔴 Pendente";
+          } else {
+            badgeColor = "#b91c1c";
+            badgeBg = "#fee2e2";
+            badgeText = "🔴 Pendente";
           }
 
-          let onTimeBadge = (comp.onTimeStatus === "ON_TIME") ? 
-            `<div onclick="toggleSlaManualOverride('${contract.code}', ${m})" style="cursor:pointer; font-size:0.68rem; font-weight:700; color:#15803d; background:#ecfdf5; border:1px solid #86efac; border-radius:4px; padding:1px 4px; margin-top:2px;" title="Clique para alternar prazo">⏱️ No Prazo</div>` :
-            `<div onclick="toggleSlaManualOverride('${contract.code}', ${m})" style="cursor:pointer; font-size:0.68rem; font-weight:700; color:#b91c1c; background:#fef2f2; border:1px solid #fca5a5; border-radius:4px; padding:1px 4px; margin-top:2px;" title="Clique para alternar prazo">⚠️ Fora Prazo</div>`;
-
-          monthCellsHTML += `
-            <td style="padding:6px 4px; text-align:center; vertical-align:middle; border:1px solid #e2e8f0; font-size:0.75rem;">
-              <div style="font-weight:700; color:${badgeColor}; background:${badgeBg}; padding:2px 4px; border-radius:4px; font-size:0.72rem; white-space:nowrap;">
-                ${badgeText}
-              </div>
-              ${onTimeBadge}
-            </td>
-          `;
+          monthCellsHTML += '<td style="padding:6px 4px; text-align:center; vertical-align:middle; border:1px solid #e2e8f0; font-size:0.75rem;">';
+          monthCellsHTML += '<div style="font-weight:700; color:' + badgeColor + '; background:' + badgeBg + '; padding:2px 4px; border-radius:4px; font-size:0.72rem; white-space:nowrap;">';
+          monthCellsHTML += badgeText;
+          monthCellsHTML += '</div>';
+          monthCellsHTML += '</td>';
         }
 
-        let avgPct = ((totalFilledAllMonths / (12 * 23)) * 100).toFixed(1);
-        let pctColor = (avgPct >= 80) ? "#15803d" : ((avgPct >= 50) ? "#d97706" : "#b91c1c");
+        var statusGeral = "🔴 Pendente";
+        var statusColor = "#b91c1c";
+        var statusBg = "#fee2e2";
+        if (totalFilledAllMonths >= (selMonthNum * 23)) {
+          statusGeral = "🟢 Completo";
+          statusColor = "#15803d";
+          statusBg = "#dcfce7";
+        } else if (totalFilledAllMonths > 0) {
+          statusGeral = "🟡 Parcial";
+          statusColor = "#b45309";
+          statusBg = "#fef3c7";
+        }
 
-        let rowHTML = `
-          <tr style="background:${idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom:1px solid #e2e8f0;">
-            <td style="padding:8px 10px; font-weight:800; color:#0f2b5c; white-space:nowrap;">${contract.code}</td>
-            <td style="padding:8px 10px; font-weight:700; color:#1e293b;">${contract.name}</td>
-            <td style="padding:8px 10px; text-align:center;">
-              <span style="font-size:0.72rem; font-weight:700; background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px;">
-                ${contract.estagio}
-              </span>
-            </td>
-            ${monthCellsHTML}
-            <td style="padding:8px 10px; text-align:center; font-weight:800; color:${pctColor}; font-size:0.88rem;">
-              ${avgPct}%
-            </td>
-          </tr>
-        `;
+        var rowBg = (idx % 2 === 0) ? "#ffffff" : "#f8fafc";
+        var estagioColor = (contract.estagio === "EM EXECUÇÃO" || contract.estagio === "EM EXECUCAO") ? "#166534" : "#b45309";
 
-        tbody.innerHTML += rowHTML;
+        tbody.innerHTML += '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' +
+          '<td style="padding:8px; font-weight:800; color:#0f2b5c; font-size:0.85rem; position:sticky; left:0; background:' + rowBg + '; z-index:1; border-right:2px solid #e2e8f0;">' + contract.code + '</td>' +
+          '<td style="padding:8px; font-size:0.82rem; color:#334155;">' + (contract.cliente || "—") + '</td>' +
+          '<td style="padding:8px; font-size:0.78rem; font-weight:700; color:' + estagioColor + ';">' + (contract.estagio || "—") + '</td>' +
+          monthCellsHTML +
+          '<td style="padding:8px; text-align:center;"><div style="font-weight:700; color:' + statusColor + '; background:' + statusBg + '; padding:3px 6px; border-radius:4px; font-size:0.75rem;">' + statusGeral + '</div></td>' +
+          '</tr>';
       });
 
-      // Update KPI Header in Modal
-      const elTot = document.getElementById("slaKpiTotalOS");
-      const elOk = document.getElementById("slaKpiOkCount");
-      const elOkPct = document.getElementById("slaKpiOkPct");
-      const elPar = document.getElementById("slaKpiParcialCount");
-      const elPen = document.getElementById("slaKpiPendenteCount");
-      const elOnTime = document.getElementById("slaKpiOnTimePct");
-
-      if (elTot) elTot.innerText = `${totalOS} OSs`;
-      if (elOk) elOk.innerText = `${okCount} OSs`;
-      if (elOkPct) elOkPct.innerText = `${totalOS > 0 ? ((okCount / totalOS) * 100).toFixed(1) : 0}% no mês`;
-      if (elPar) elPar.innerText = `${parcialCount} OSs`;
-      if (elPen) elPen.innerText = `${pendenteCount} OSs`;
-      if (elOnTime) elOnTime.innerText = `${totalEvaluated > 0 ? ((onTimeCount / totalEvaluated) * 100).toFixed(1) : 0}%`;
+      // Atualizar KPIs
+      var elTotal = document.getElementById("slaKpiTotal");
+      var elOk = document.getElementById("slaKpiOk");
+      var elOkPct = document.getElementById("slaKpiOkPct");
+      var elPar = document.getElementById("slaKpiParcial");
+      var elPen = document.getElementById("slaKpiPendente");
+      var elOnTime = document.getElementById("slaKpiOnTime");
+      if (elTotal) elTotal.innerText = totalOS + " OSs";
+      if (elOk) elOk.innerText = okCount + " OSs";
+      if (elOkPct) elOkPct.innerText = (totalOS > 0 ? ((okCount / totalOS) * 100).toFixed(1) : 0) + "% no mes";
+      if (elPar) elPar.innerText = parcialCount + " OSs";
+      if (elPen) elPen.innerText = pendenteCount + " OSs";
+      if (elOnTime) elOnTime.innerText = "—";
     }
 
+    
     // Renderiza a Aba 4: Gestão de Pontuação & Ranking de OSs
     function renderTab4Scorecard() {
       const tbody = document.getElementById("rankingTableBody");
