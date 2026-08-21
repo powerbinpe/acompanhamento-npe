@@ -14,7 +14,73 @@
   <!-- ========================================================= -->
   <!-- MODAL: PAINEL DE PREENCHIMENTOS & MONITORAMENTO DE SLA -->
   <!-- ========================================================= -->
-    <!-- PAINEL DE SLA E CONFORMIDADE DE PREENCHIMENTOS (FULL WIDTH & STICKY CONTROLS) -->
+    
+  <!-- ABA 4: GESTÃO DE PONTUAÇÃO & RANKING DE OSS -->
+  <div id="tabRanking" class="tab-page tab-content" style="display:none; padding:24px; max-width:1450px; margin:0 auto;">
+    
+    <!-- Header da Aba 4 -->
+    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:20px 28px; color:#ffffff; margin-bottom:24px; border:2px solid #f59e0b; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+      <div>
+        <h2 style="margin:0; font-size:1.45rem; font-weight:800; display:flex; align-items:center; gap:10px;">
+          🏆 Gestão de Pontuação & Ranking de Performance das OSs
+        </h2>
+        <p style="margin:4px 0 0 0; font-size:0.86rem; color:#93c5fd;">
+          Avaliação multidimensional de 0 a 100 pontos: Governança & SLA (30 pts) • Financeiro & Margem (30 pts) • Pessoas (20 pts) • SSMA & Inovação (20 pts)
+        </p>
+      </div>
+      <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
+        <span style="font-size:0.75rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS AVALIADAS</span>
+        <div style="font-size:1.35rem; font-weight:800; color:#ffffff;">99 Contratos Ativos</div>
+      </div>
+    </div>
+
+    <!-- Pódio dos Vencedores (Top 3 OSs) -->
+    <div id="scorecardPodiumContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px; margin-bottom:28px;">
+      <!-- Podium cards rendered by JS -->
+    </div>
+
+    <!-- Tabela Geral de Ranking -->
+    <div style="background:#ffffff; border-radius:12px; border:1.5px solid #cbd5e1; box-shadow:0 6px 20px rgba(0,0,0,0.12); overflow:hidden;">
+      
+      <!-- Toolbar de Pesquisa -->
+      <div style="padding:14px 20px; background:#f8fafc; border-bottom:1.5px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="text" id="rankingSearchInput" oninput="filterRankingTable()" placeholder="🔍 Pesquisar OS no Ranking..." style="padding:8px 16px; border-radius:8px; border:1.5px solid #94a3b8; font-size:0.88rem; width:340px; color:#0f172a; outline:none;" />
+          <span style="font-size:0.80rem; color:#64748b; font-weight:600;">(Classificação consolidada do exercício 2026)</span>
+        </div>
+        <div style="font-size:0.82rem; color:#0f2b5c; font-weight:700;">
+          📊 Pontuação máxima: 100 pontos
+        </div>
+      </div>
+
+      <!-- Tabela de Classificação -->
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:center;">
+          <thead>
+            <tr style="background:#0f2b5c; color:#ffffff; font-weight:800;">
+              <th style="padding:12px 10px; width:70px;">POSIÇÃO</th>
+              <th style="padding:12px 10px; width:90px;">CÓDIGO</th>
+              <th style="padding:12px 12px; text-align:left;">DESCRIÇÃO DA OS</th>
+              <th style="padding:12px 10px; width:120px;">ESTÁGIO</th>
+              <th style="padding:12px 10px; width:130px; background:#1e3a8a;">GOVERNANÇA & SLA (30P)</th>
+              <th style="padding:12px 10px; width:130px; background:#1e3a8a;">FINANCEIRO (30P)</th>
+              <th style="padding:12px 10px; width:120px; background:#1e3a8a;">PESSOAS (20P)</th>
+              <th style="padding:12px 10px; width:120px; background:#1e3a8a;">SSMA (20P)</th>
+              <th style="padding:12px 12px; width:120px; background:#f59e0b; color:#0f172a; font-weight:900;">NOTA TOTAL</th>
+              <th style="padding:12px 10px; width:110px;">STATUS</th>
+            </tr>
+          </thead>
+          <tbody id="rankingTableBody">
+            <!-- Dynamic Ranking Rows by JS -->
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+
+<!-- PAINEL DE SLA E CONFORMIDADE DE PREENCHIMENTOS (FULL WIDTH & STICKY CONTROLS) -->
   <div id="slaModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.92); backdrop-filter:blur(6px); z-index:999999; flex-direction:column; overflow:hidden;" onclick="if(event.target===this) closeSlaModal();">
     <div style="width:100%; height:100%; background:#ffffff; display:flex; flex-direction:column; overflow:hidden;">
       
