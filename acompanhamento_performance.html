@@ -138,7 +138,7 @@
   <!-- ========================================================= -->
   <!-- TAB 4: GESTÃO DE PONTUAÇÃO & RANKING DE OSS -->
   <!-- ========================================================= -->
-  <div id="tabContent4" class="tab-content" style="display:none;">
+  <div id="tabRanking" class="tab-page tab-content" style="display:none;">
     
     <!-- Tab 4 Hero Header -->
     <div style="background:linear-gradient(135deg, #0f2b5c, #1e3a8a, #0b1a3a); border:2.5px solid #f59e0b; border-radius:14px; padding:24px 28px; margin-bottom:20px; box-shadow:0 8px 30px rgba(0,0,0,0.4); color:#ffffff; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
@@ -701,8 +701,14 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       <button class="tab-btn" onclick="switchTab('tabLicoes')">
         💡 Aba 3: Lições Aprendidas & Gestão de Risco
       </button>
+      <button class="tab-btn" onclick="switchTab('tabRanking')" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.3)); border-color: #f59e0b; color: #fef08a;">
+        🏆 Aba 4: Gestão de Pontuação & Ranking
+      </button>
     </div>
     <div class="controls">
+      <button id="btnOpenSlaModal" class="btn-sla-modal" onclick="openSlaModal()" style="background: linear-gradient(135deg, #1e3a8a, #0284c7); color: #ffffff; border: 1.5px solid #38bdf8; border-radius: 8px; padding: 7px 14px; font-size: 0.84rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(2,132,199,0.3);">
+        📊 Painel de Preenchimentos & SLA
+      </button>
       <button id="toggleRoleBtn" class="role-toggle-btn" onclick="toggleRole()">
         <span id="roleIcon">👤</span> <span id="roleText">Gestor de OS</span>
       </button>
@@ -1564,16 +1570,53 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
       document.querySelectorAll(".tab-page").forEach(page => page.classList.remove("active"));
 
-      if (tabId === 'tabMensal') {
+      if (tabId === 'tabMensal' || tabId === 1) {
         document.querySelectorAll(".tab-btn")[0].classList.add("active");
-        document.getElementById("tabMensal").classList.add("active");
-      } else if (tabId === 'tabConsolidacao') {
+        const p = document.getElementById("tabMensal") || document.getElementById("tabContent1");
+        if (p) p.classList.add("active");
+        if (p) p.style.display = "block";
+        const p2 = document.getElementById("tabConsolidacao") || document.getElementById("tabContent2");
+        if (p2) p2.style.display = "none";
+        const p3 = document.getElementById("tabLicoes") || document.getElementById("tabContent3");
+        if (p3) p3.style.display = "none";
+        const p4 = document.getElementById("tabRanking") || document.getElementById("tabContent4");
+        if (p4) p4.style.display = "none";
+      } else if (tabId === 'tabConsolidacao' || tabId === 2) {
         document.querySelectorAll(".tab-btn")[1].classList.add("active");
-        document.getElementById("tabConsolidacao").classList.add("active");
+        const p = document.getElementById("tabConsolidacao") || document.getElementById("tabContent2");
+        if (p) p.classList.add("active");
+        if (p) p.style.display = "block";
+        const p1 = document.getElementById("tabMensal") || document.getElementById("tabContent1");
+        if (p1) p1.style.display = "none";
+        const p3 = document.getElementById("tabLicoes") || document.getElementById("tabContent3");
+        if (p3) p3.style.display = "none";
+        const p4 = document.getElementById("tabRanking") || document.getElementById("tabContent4");
+        if (p4) p4.style.display = "none";
         renderAnnualConsolidation();
-      } else if (tabId === 'tabLicoes') {
+      } else if (tabId === 'tabLicoes' || tabId === 3) {
         document.querySelectorAll(".tab-btn")[2].classList.add("active");
-        document.getElementById("tabLicoes").classList.add("active");
+        const p = document.getElementById("tabLicoes") || document.getElementById("tabContent3");
+        if (p) p.classList.add("active");
+        if (p) p.style.display = "block";
+        const p1 = document.getElementById("tabMensal") || document.getElementById("tabContent1");
+        if (p1) p1.style.display = "none";
+        const p2 = document.getElementById("tabConsolidacao") || document.getElementById("tabContent2");
+        if (p2) p2.style.display = "none";
+        const p4 = document.getElementById("tabRanking") || document.getElementById("tabContent4");
+        if (p4) p4.style.display = "none";
+      } else if (tabId === 'tabRanking' || tabId === 4) {
+        const btns = document.querySelectorAll(".tab-btn");
+        if (btns[3]) btns[3].classList.add("active");
+        const p = document.getElementById("tabRanking") || document.getElementById("tabContent4");
+        if (p) p.classList.add("active");
+        if (p) p.style.display = "block";
+        const p1 = document.getElementById("tabMensal") || document.getElementById("tabContent1");
+        if (p1) p1.style.display = "none";
+        const p2 = document.getElementById("tabConsolidacao") || document.getElementById("tabContent2");
+        if (p2) p2.style.display = "none";
+        const p3 = document.getElementById("tabLicoes") || document.getElementById("tabContent3");
+        if (p3) p3.style.display = "none";
+        renderTab4Scorecard();
       }
     }
 
