@@ -35,22 +35,21 @@
             </p>
           </div>
         </div>
-        <button onclick="closeSlaModal()" style="background:#ef4444; color:#ffffff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.88rem; box-shadow:0 3px 8px rgba(0,0,0,0.3); transition:all 0.2s ease; display:flex; align-items:center; gap:6px;">
+        <button id="slaModalCloseBtn" onclick="closeSlaModal()" style="background:#ef4444; color:#ffffff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.88rem; box-shadow:0 3px 8px rgba(0,0,0,0.3); transition:all 0.2s ease; display:flex; align-items:center; gap:6px;">
           ✕ Fechar Painel
         </button>
       </div>
 
       <!-- 2. Barra de Gestao de Prazos Master (Fixo no Topo - Visivel para o Master) -->
-      <div id="slaMasterControlsBar" style="display:none; background:#f8fafc; padding:8px 24px; border-bottom:1.5px solid #e2e8f0; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; flex-shrink:0;">
+      <div id="slaMasterControlsBar" style="display:none; background:#f8fafc; padding:10px 24px; border-bottom:2px solid #e2e8f0; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; flex-shrink:0;">
         <div style="display:flex; align-items:center; gap:10px;">
-          <span style="font-size:0.84rem; font-weight:700; color:#0f2b5c; display:flex; align-items:center; gap:6px;">
-            🔒 <strong>Gestão de Prazos Limite (SLA):</strong>
-            <span style="font-weight:normal; color:#64748b;">Definido pelo Setor de Performance mês a mês</span>
+          <span style="font-size:0.88rem; font-weight:800; color:#0f2b5c; display:flex; align-items:center; gap:6px;">
+            🔒 <strong>Gestão de Prazos & Status do Período (SLA Máster):</strong>
           </span>
         </div>
-        <div style="display:flex; align-items:center; gap:12px;">
-          <label style="font-size:0.82rem; font-weight:700; color:#334155;">Mês de Referência:</label>
-          <select id="slaTargetMonthSelect" onchange="onSlaMonthChange()" style="padding:6px 12px; border-radius:6px; border:1.5px solid #cbd5e1; font-size:0.82rem; font-weight:700; color:#0f2b5c; background:#ffffff;">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <label style="font-size:0.82rem; font-weight:700; color:#334155;">Mês:</label>
+          <select id="slaTargetMonthSelect" onchange="onSlaMonthChange()" style="padding:6px 12px; border-radius:6px; border:1.5px solid #cbd5e1; font-size:0.82rem; font-weight:700; color:#0f2b5c; background:#ffffff; cursor:pointer;">
             <option value="1">JANEIRO</option>
             <option value="2">FEVEREIRO</option>
             <option value="3">MARÇO</option>
@@ -65,11 +64,18 @@
             <option value="12">DEZEMBRO</option>
           </select>
 
-          <label style="font-size:0.82rem; font-weight:700; color:#334155;">Data Limite (Prazo):</label>
-          <input type="date" id="slaTargetDeadlineInput" style="padding:5px 10px; border-radius:6px; border:1.5px solid #cbd5e1; font-size:0.82rem; font-weight:600; color:#0f2b5c;" />
+          <label style="font-size:0.82rem; font-weight:700; color:#334155;">Status do Período:</label>
+          <select id="slaTargetPeriodStatusSelect" style="padding:6px 12px; border-radius:6px; border:1.5px solid #cbd5e1; font-size:0.82rem; font-weight:700; color:#0f2b5c; background:#ffffff; cursor:pointer;">
+            <option value="INDEFINIDO" selected>⚪ Sem Período Definido</option>
+            <option value="NO_PRAZO">⏱️ No Prazo</option>
+            <option value="FORA_PRAZO">⚠️ Fora do Prazo</option>
+          </select>
 
-          <button onclick="saveSlaDeadlineForMonth()" style="background:#10b981; color:#ffffff; border:none; padding:6px 16px; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 5px rgba(16,185,129,0.25);">
-            💾 Salvar Prazo
+          <label style="font-size:0.82rem; font-weight:700; color:#334155;">Data Limite:</label>
+          <input type="date" id="slaTargetDeadlineInput" style="padding:5px 10px; border-radius:6px; border:1.5px solid #cbd5e1; font-size:0.82rem; font-weight:600; color:#0f2b5c; background:#ffffff;">
+
+          <button onclick="saveSlaDeadlineForMonth()" style="background:#16a34a; color:#ffffff; border:none; padding:6px 16px; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(22,163,74,0.3);">
+            💾 Salvar Status & Prazo
           </button>
         </div>
       </div>
@@ -1162,38 +1168,41 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
   </div>
 
   <script>
-    var currentRoleSimulated = null;
-
-
     // =========================================================================
-    // MULTI-TIER PERSISTENT STORAGE ENGINE (IndexedDB + Cookies + LocalStorage)
+    // 1. STORAGE & COMPATIBILITY LAYER (SANDBOX SAFE)
     // =========================================================================
     window._GLOBAL_COMM_STORAGE = window._GLOBAL_COMM_STORAGE || {};
 
-    
-    // Cookie helpers (works even when localStorage is partitioned)
-    function setCookie(name, value, days = 365) {
+    function setCookie(name, value, days) {
       try {
-        const expires = new Date(Date.now() + days * 864e5).toUTCString();
-        document.cookie = encodeURIComponent(name) + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/; SameSite=None; Secure';
+        let expires = "";
+        if (days) {
+          let date = new Date();
+          date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+          expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (encodeURIComponent(value) || "") + expires + "; path=/; SameSite=Lax";
       } catch (e) {}
     }
 
     function getCookie(name) {
       try {
-        const match = document.cookie.match(new RegExp('(^|;\s*)(' + encodeURIComponent(name) + ')=([^;]*)'));
-        return match ? decodeURIComponent(match[3]) : null;
-      } catch (e) {
-        return null;
-      }
+        let nameEQ = name + "=";
+        let ca = document.cookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+          let c = ca[i];
+          while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+          if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+        }
+      } catch (e) {}
+      return null;
     }
 
-    // IndexedDB initialization for bulletproof persistence
     let idbDatabase = null;
     function initIndexedDB() {
       try {
         if (!window.indexedDB) return;
-        const req = indexedDB.open("NPE_PerformanceDB", 2);
+        const req = window.indexedDB.open("NPEPerformanceCommentsDB", 2);
         req.onupgradeneeded = function(e) {
           const db = e.target.result;
           if (!db.objectStoreNames.contains("commentsStore")) {
@@ -1202,31 +1211,15 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         };
         req.onsuccess = function(e) {
           idbDatabase = e.target.result;
-          const tx = idbDatabase.transaction("commentsStore", "readonly");
-          const store = tx.objectStore("commentsStore");
-          const getAllReq = store.getAll();
-          getAllReq.onsuccess = function() {
-            if (getAllReq.result && Array.isArray(getAllReq.result)) {
-              getAllReq.result.forEach(item => {
-                window._GLOBAL_COMM_STORAGE[item.key] = item.value;
-              });
-              renderRows();
-            }
-          };
         };
-      } catch (e) {
-        console.warn("IndexedDB not active:", e);
-      }
+      } catch (e) {}
     }
     initIndexedDB();
 
-    window.safeGetStorage = safeGetStorage;
     function safeGetStorage(key, fallback) {
-      // 1. Check Global Memory
       if (window._GLOBAL_COMM_STORAGE[key] !== undefined && window._GLOBAL_COMM_STORAGE[key] !== null) {
         return window._GLOBAL_COMM_STORAGE[key];
       }
-      // 2. Check LocalStorage
       try {
         if (window.localStorage) {
           const val = window.localStorage.getItem(key);
@@ -1236,7 +1229,6 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           }
         }
       } catch (e) {}
-      // 3. Check SessionStorage
       try {
         if (window.sessionStorage) {
           const sVal = window.sessionStorage.getItem(key);
@@ -1246,7 +1238,6 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           }
         }
       } catch (e) {}
-      // 4. Check Cookie
       const cVal = getCookie(key);
       if (cVal !== null && cVal !== undefined) {
         window._GLOBAL_COMM_STORAGE[key] = cVal;
@@ -1255,38 +1246,90 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       return fallback;
     }
 
-    window.safeSetStorage = safeSetStorage;
     function safeSetStorage(key, value) {
       window._GLOBAL_COMM_STORAGE[key] = value;
-      // 1. Save to LocalStorage
-      try {
-        if (window.localStorage) {
-          window.localStorage.setItem(key, value);
-        }
-      } catch (e) {}
-      // 2. Save to SessionStorage
-      try {
-        if (window.sessionStorage) {
-          window.sessionStorage.setItem(key, value);
-        }
-      } catch (e) {}
-      // 3. Save to Cookie
-      setCookie(key, value, 365);
-      // 4. Save to IndexedDB
+      try { if (window.localStorage) window.localStorage.setItem(key, value); } catch (e) {}
+      try { if (window.sessionStorage) window.sessionStorage.setItem(key, value); } catch (e) {}
+      try { setCookie(key, value, 365); } catch (e) {}
       if (idbDatabase) {
         try {
           const tx = idbDatabase.transaction("commentsStore", "readwrite");
-          const store = tx.objectStore("commentsStore");
-          store.put({ key: key, value: value, updatedAt: new Date().toISOString() });
+          tx.objectStore("commentsStore").put({ key: key, value: value, updatedAt: new Date().toISOString() });
         } catch (e) {}
       }
     }
 
-    let isMaster = false;
-    let assertividadeOverridden = false;
+    // =========================================================================
+    // 2. SECURITY & PROFILE ACCESS
+    // =========================================================================
+    window.currentRoleSimulated = null;
+    window.MASTER_PERFORMANCE_EMAILS = [
+      "robson.araujo",
+      "atila.hohenfeld",
+      "luis.andrade",
+      "vinicius.pedroza",
+      "ivan.santos"
+    ];
 
-    // Topics Definition
-            const topicsData = [
+    function checkPerformanceAccess() {
+      if (window.currentRoleSimulated === "GESTOR") return false;
+      if (window.currentRoleSimulated === "MASTER") return true;
+
+      const params = new URLSearchParams(window.location.search);
+      const isUserPerformanceParam = (params.get("IsUserPerformance") || "").toUpperCase() === "TRUE";
+      const userEmail = (params.get("UserEmail") || "").toLowerCase().trim();
+
+      if (isUserPerformanceParam) return true;
+      if (!userEmail) return true; // Fallback para testes standalone
+
+      return window.MASTER_PERFORMANCE_EMAILS.some(allowed => userEmail.includes(allowed.toLowerCase().trim()));
+    }
+
+    window.isMaster = false;
+
+    function toggleRole() {
+      window.isMaster = !window.isMaster;
+      window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
+      safeSetStorage("npe_active_role", window.isMaster ? "MASTER" : "GESTOR");
+      updateRoleUI();
+      renderRows();
+      if (typeof renderSlaModalMatrix === "function") renderSlaModalMatrix();
+      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
+      showToast(window.isMaster ? "🛡️ Perfil alterado para: Máster / Setor de Performance" : "👤 Perfil alterado para: Gestor de OS");
+    }
+
+    function updateRoleUI() {
+      const roleText = document.getElementById("roleText");
+      const roleIcon = document.getElementById("roleIcon");
+      const toggleBtn = document.getElementById("toggleRoleBtn");
+      const slaCtrlBar = document.getElementById("slaMasterControlsBar");
+      const deadlineInput = document.getElementById("slaTargetDeadlineInput");
+      const monthSelect = document.getElementById("slaTargetMonthSelect");
+      const periodStatusSelect = document.getElementById("slaTargetPeriodStatusSelect");
+
+      if (window.isMaster) {
+        if (roleText) roleText.innerText = "Máster Performance";
+        if (roleIcon) roleIcon.innerText = "🛡️";
+        if (toggleBtn) toggleBtn.style.background = "#0284c7";
+        if (slaCtrlBar) slaCtrlBar.style.display = "flex";
+        if (deadlineInput) deadlineInput.disabled = false;
+        if (monthSelect) monthSelect.disabled = false;
+        if (periodStatusSelect) periodStatusSelect.disabled = false;
+      } else {
+        if (roleText) roleText.innerText = "Gestor de OS";
+        if (roleIcon) roleIcon.innerText = "👤";
+        if (toggleBtn) toggleBtn.style.background = "#1e40af";
+        if (slaCtrlBar) slaCtrlBar.style.display = "none";
+        if (deadlineInput) deadlineInput.disabled = true;
+        if (monthSelect) monthSelect.disabled = true;
+        if (periodStatusSelect) periodStatusSelect.disabled = true;
+      }
+    }
+
+    // =========================================================================
+    // 3. TOPICS DATA & ACTIVE CONTRACTS CATALOG
+    // =========================================================================
+    const topicsData = [
       {
         id: 1, name: "Faturamento Ano",
         lines: [
@@ -3313,7 +3356,8 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     /* ========================================================= */
     /* CATÁLOGO DE OSS ATIVAS (EM EXECUÇÃO E EM DESMOBILIZAÇÃO) */
     /* ========================================================= */
-                const ACTIVE_CONTRACTS_CATALOG = [
+
+    const ACTIVE_CONTRACTS_CATALOG = [
       {
             "code": "C95000",
             "name": "C95000 - CREDITOS TRIBUTARIOS",
@@ -4009,47 +4053,542 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       }
 ];
 
-    // Funções de Gestão de Prazos Limite (SLA)
-    function getDefaultSlaDeadline(mNum) {
-      const defaultDays = { 1: "2026-02-10", 2: "2026-03-10", 3: "2026-04-10", 4: "2026-05-11", 5: "2026-06-10", 6: "2026-07-10", 7: "2026-08-10", 8: "2026-09-10", 9: "2026-10-13", 10: "2026-11-10", 11: "2026-12-10", 12: "2027-01-12" };
-      return defaultDays[mNum] || `2026-0${mNum}-10`;
+    // =========================================================================
+    // 4. TAB NAVIGATION SYSTEM
+    // =========================================================================
+    function switchTab(tabId) {
+      if (typeof tabId === 'number') {
+        const tabMap = { 1: 'tabMensal', 2: 'tabConsolidacao', 3: 'tabLicoes', 4: 'tabRanking' };
+        tabId = tabMap[tabId] || 'tabMensal';
+      }
+
+      safeSetStorage('pbi_active_tab', tabId);
+
+      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+      
+      const p1 = document.getElementById("tabMensal");
+      const p2 = document.getElementById("tabConsolidacao");
+      const p3 = document.getElementById("tabLicoes");
+      const p4 = document.getElementById("tabRanking");
+
+      if (p1) { p1.style.display = "none"; p1.classList.remove("active"); }
+      if (p2) { p2.style.display = "none"; p2.classList.remove("active"); }
+      if (p3) { p3.style.display = "none"; p3.classList.remove("active"); }
+      if (p4) { p4.style.display = "none"; p4.classList.remove("active"); }
+
+      const btns = document.querySelectorAll(".tab-btn");
+
+      if (tabId === 'tabMensal') {
+        if (btns[0]) btns[0].classList.add("active");
+        if (p1) { p1.style.display = "block"; p1.classList.add("active"); }
+        renderRows();
+      } else if (tabId === 'tabConsolidacao') {
+        if (btns[1]) btns[1].classList.add("active");
+        if (p2) { p2.style.display = "block"; p2.classList.add("active"); }
+        if (typeof renderAnnualConsolidation === "function") renderAnnualConsolidation();
+      } else if (tabId === 'tabLicoes') {
+        if (btns[2]) btns[2].classList.add("active");
+        if (p3) { p3.style.display = "block"; p3.classList.add("active"); }
+        if (typeof renderTab3Licoes === "function") renderTab3Licoes();
+      } else if (tabId === 'tabRanking') {
+        if (btns[3]) btns[3].classList.add("active");
+        if (p4) { p4.style.display = "block"; p4.classList.add("active"); }
+        if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
+      }
     }
 
-    function getSlaDeadline(mNum) {
-      return safeGetStorage(`sla_deadline_m${mNum}`, getDefaultSlaDeadline(mNum));
+    function formatPercentStrict(val) {
+      if (val === undefined || val === null || val === "" || val === "-") return "-";
+      let num = parseFloat(String(val).replace("%", "").replace(",", "."));
+      if (isNaN(num)) return val;
+      return (num).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
     }
 
-    function renderSlaDeadlineInput() {
-      const mSel = document.getElementById("slaMonthSelector");
-      const dInput = document.getElementById("slaDeadlineInput");
-      if (!mSel || !dInput) return;
-      const mNum = parseInt(mSel.value) || 7;
-      dInput.value = getSlaDeadline(mNum);
+    function updateFromURLParams() {
+      const canAccessMaster = checkPerformanceAccess();
+      const savedRole = safeGetStorage("npe_active_role", null);
+      if (savedRole === "MASTER" && canAccessMaster) {
+        window.isMaster = true;
+      } else if (savedRole === "GESTOR") {
+        window.isMaster = false;
+      } else {
+        window.isMaster = canAccessMaster;
+      }
+
+      updateRoleUI();
     }
 
-    function saveSlaDeadline() {
-      if (!checkPerformanceAccess()) {
-        showToast("⚠️ Apenas usuários Máster podem definir prazos limites.");
+    function getLineClass(topicId, lineIdx, linesArray) {
+      const l = linesArray[lineIdx];
+      if (l.class) return l.class;
+      return 'neutral';
+    }
+
+    function extractPrimaryOSCode(rawOS) {
+      if (!rawOS) return "M00100";
+      let match = rawOS.match(/\b([A-Z]\d{5})\b/);
+      if (match) return match[1];
+      let clean = rawOS.split(" ")[0].trim();
+      return clean || "M00100";
+    }
+
+    function toggleInlineHistory(topicId) {
+      const historyRow = document.getElementById(`hist_row_${topicId}`);
+      const btn = document.getElementById(`btn_hist_${topicId}`);
+      if (!historyRow) return;
+      if (historyRow.style.display === "none" || historyRow.style.display === "") {
+        historyRow.style.display = "block";
+        if (btn) btn.innerText = "📜 Ocultar Histórico";
+      } else {
+        historyRow.style.display = "none";
+        if (btn) btn.innerText = "📜 Histórico ATA_COMENTARIO";
+      }
+    }
+
+    function renderRows() {
+      const container = document.getElementById("topicsContainer");
+      if (!container) return;
+      container.innerHTML = "";
+
+      const currentParams = new URLSearchParams(window.location.search);
+      const rawAllowed = currentParams.get("AllowedOSList") || "";
+      const allowedOSArray = rawAllowed ? rawAllowed.split(",").map(s => s.trim().toUpperCase()).filter(Boolean) : [];
+      
+      let rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      if ((rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS) && allowedOSArray.length === 1) {
+        rawOS = allowedOSArray[0];
+      }
+
+      const isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      let activeOS = isMultiOS ? (allowedOSArray.length > 0 ? allowedOSArray[0] : "M00100") : (extractPrimaryOSCode(rawOS) || "M00100");
+      let displayOSName = isMultiOS ? "Visão Consolidada Corporativa (Todas as OSs)" : activeOS;
+
+      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
+      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+      const monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+      let monthName = currentParams.get("SelectedMes") || monthNames[monthNum - 1] || "JULHO";
+      let monthFmt = `${monthName.toUpperCase()} / 2026`;
+
+      // Update Final Remarks (Topic #24)
+      const finalTA = document.getElementById("finalPerformanceComment");
+      const finalLock = document.getElementById("finalLock");
+      
+      let dbFinalEntry = (window.ATA_COMENTARIOS_DB && window.ATA_COMENTARIOS_DB[activeOS] && window.ATA_COMENTARIOS_DB[activeOS]["24"]) ? 
+        window.ATA_COMENTARIOS_DB[activeOS]["24"].find(r => r.mes === monthNum) : null;
+      let defaultFinal = dbFinalEntry ? dbFinalEntry.comentario : "";
+      if (!defaultFinal && activeOS === "M00100" && monthNum === 7) {
+        defaultFinal = "Recomendações Finais da Performance (Julho/2026): Aderência excelente às metas operacionais e financeiras na OS M00100 (CBMM Araxá). Manter o rigor no acompanhamento diário dos apontamentos e avanço de medição física.";
+      }
+      
+      let finalMasterText = safeGetStorage(`m_${activeOS}_m${monthNum}_24`, defaultFinal);
+
+      if (finalTA) {
+        const canEditFinal = window.isMaster && !isMultiOS;
+        finalTA.disabled = !canEditFinal;
+        finalTA.style.background = canEditFinal ? "#ffffff" : "#f8fafc";
+        finalTA.style.color = "#0f172a";
+        finalTA.style.cursor = canEditFinal ? "text" : "not-allowed";
+        finalTA.placeholder = isMultiOS ? "Visão consolidada multi-OS..." : (window.isMaster ? "Digite as recomendações e pareceres do Setor de Performance..." : "🔒 Campo exclusivo para registro de recomendações pelo Setor de Performance.");
+        finalTA.value = finalMasterText;
+      }
+      if (finalLock) {
+        finalLock.innerHTML = isMultiOS ? "🔒 Consolidado Geral" : (window.isMaster ? "✍️ Modo Edição Máster" : "🔒 Exclusivo Máster");
+        finalLock.className = window.isMaster ? "status-pill status-reaberto" : "status-pill status-validado";
+      }
+
+      const btnGenSum = document.getElementById("btnGenerateSummary");
+      if (btnGenSum) {
+        const canGenerate = window.isMaster && !isMultiOS;
+        btnGenSum.style.display = "inline-flex";
+        btnGenSum.disabled = !canGenerate;
+        btnGenSum.style.cursor = canGenerate ? "pointer" : "not-allowed";
+        btnGenSum.style.opacity = canGenerate ? "1" : "0.55";
+        btnGenSum.style.background = canGenerate ? "linear-gradient(135deg, #1e40af, #2563eb)" : "#94a3b8";
+      }
+
+      topicsData.forEach(topic => {
+        const row = document.createElement("div");
+        row.className = "topic-row";
+        row.id = `row_${topic.id}`;
+
+        let finalGestorText = "";
+        let finalMasterText = "";
+
+        if (isMultiOS) {
+          let gestorEntries = [];
+          let masterEntries = [];
+          const strTid = String(topic.id);
+
+          if (window.ATA_COMENTARIOS_DB) {
+            for (const [osCode, topsObj] of Object.entries(window.ATA_COMENTARIOS_DB)) {
+              const tRows = topsObj[strTid] || [];
+              if (tRows.length === 0) continue;
+
+              const osLabel = (typeof osNamesMap !== "undefined" && osNamesMap[osCode]) ? `${osCode} - ${osNamesMap[osCode]}` : osCode;
+              const gRow = tRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum);
+              const mRow = tRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum);
+
+              if (gRow && gRow.comentario && gRow.comentario.trim().length > 5) {
+                gestorEntries.push(`[OS ${osLabel}]: ${gRow.comentario.trim()}`);
+              }
+              if (mRow && mRow.comentario && mRow.comentario.trim().length > 5) {
+                masterEntries.push(`[OS ${osLabel}]: ${mRow.comentario.trim()}`);
+              }
+            }
+          }
+
+          if (gestorEntries.length > 0) {
+            finalGestorText = gestorEntries.join("\n\n");
+            finalGestorText += "\n\n📌 [Exibindo justificativas consolidadas registradas em " + monthName + ". Selecione uma OS no Power BI para filtrar e editar.]";
+          } else {
+            finalGestorText = "Sem justificativas de desvios cadastradas pelas OSs para " + monthName + ".";
+          }
+
+          if (masterEntries.length > 0) {
+            finalMasterText = masterEntries.join("\n\n");
+            finalMasterText += "\n\n📌 [Exibindo pareceres da Performance registrados em " + monthName + ". Selecione uma OS no Power BI para filtrar.]";
+          } else {
+            finalMasterText = "Acompanhamento contínuo e governança pelo Setor de Performance da NPE (" + monthName + ").";
+          }
+
+        } else {
+          let osRows = (window.ATA_COMENTARIOS_DB && window.ATA_COMENTARIOS_DB[activeOS] && window.ATA_COMENTARIOS_DB[activeOS][String(topic.id)]) ? window.ATA_COMENTARIOS_DB[activeOS][String(topic.id)] : [];
+          let matchGestor = osRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum);
+          let matchMaster = osRows.filter(r => r.tipo === "PERFORMANCE").find(r => r.mes === monthNum);
+
+          let excelGestor = matchGestor ? matchGestor.comentario : "";
+          let excelMaster = matchMaster ? matchMaster.comentario : "";
+
+          finalGestorText = safeGetStorage(`g_${activeOS}_m${monthNum}_${topic.id}`, excelGestor);
+          finalMasterText = safeGetStorage(`m_${activeOS}_m${monthNum}_${topic.id}`, excelMaster);
+        }
+
+        let defaultStatusForMonth = (monthNum >= 7) ? "Pendente" : "Validado";
+        let savedStatus = safeGetStorage(`status_${activeOS}_m${monthNum}_${topic.id}`, defaultStatusForMonth);
+        const valStatus = isMultiOS ? "Pendente" : savedStatus;
+        
+        const gestorIsLocked = isMultiOS || (valStatus === "Validado" && !window.isMaster);
+
+        let linesHTML = '';
+        if (topic.onlyComments || (topic.lines.length === 1 && topic.lines[0].label === "Tipo de Controle")) {
+          linesHTML = `
+            <div style="width: 100%; box-sizing: border-box; margin-top: 6px; background: #f8fafc; border: 2px solid #0f2b5c; border-radius: 8px; padding: 12px 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);">
+              <div style="font-size: 0.82rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">
+                Tipo de Controle:
+              </div>
+              <div style="font-size: 0.98rem; font-weight: 700; color: #0f2b5c; display: flex; align-items: center; gap: 6px; line-height: 1.4;">
+                📝 Acompanhamento via Comentários da OS
+              </div>
+            </div>
+          `;
+        } else {
+          linesHTML = `
+            <div style="border: 2px solid #0f2b5c; border-radius: 8px; overflow: hidden; margin-top: 6px; box-shadow: 0 1px 3px rgba(15,43,92,0.08);">
+              <table style="width: 100%; border-collapse: collapse; background: #ffffff; table-layout: fixed;">
+                <tbody>
+                  ${topic.lines.map((l, idx) => {
+                    const valColor = (l.val && String(l.val).startsWith("+")) ? '#15803d' : ((l.val && (String(l.val).startsWith("-") || String(l.val).startsWith("("))) ? '#b91c1c' : '#0f172a');
+                    const rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+                    const isLast = idx === topic.lines.length - 1;
+                    return `
+                      <tr style="background-color: ${rowBg}; border-bottom: ${isLast ? 'none' : '1.5px solid #cbd5e1'};">
+                        <td style="padding: 7px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 60%; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
+                          ${l.label}:
+                        </td>
+                        <td style="padding: 7px 12px; font-size: clamp(0.92rem, 1.05vw, 1.12rem); color: ${valColor}; font-weight: 800; text-align: right; width: 38%; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.3px;">
+                          ${l.val}
+                        </td>
+                      </tr>
+                    `;
+                  }).join("")}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+        let gestorStatusPill = isMultiOS ? 
+          `<span class="status-pill status-reaberto" style="font-size: 0.84rem;">🌐 Multi-OS Consolidado</span>` : 
+          (valStatus === "Validado" ? `<span class="status-pill status-validado" style="font-size: 0.84rem;">🔒 Validado & Travado</span>` : `<span class="status-pill status-pendente" style="font-size: 0.84rem;">⏳ Pendente de Validação</span>`);
+
+        let masterControlsHTML = "";
+        if (window.isMaster && !isMultiOS) {
+          masterControlsHTML = `
+            <div class="validation-control-bar" style="margin-top: 8px;">
+              ${valStatus !== "Validado" ? 
+                `<button class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
+                  🔒 VALIDAR E TRAVAR COMENTÁRIO DO GESTOR
+                 </button>` : 
+                `<button class="val-btn btn-unlock" onclick="setValidationStatus(${topic.id}, 'Reaberto')" style="background:#d97706; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(217,119,6,0.25);">
+                  🔓 REABRIR EDIÇÃO PARA O GESTOR
+                 </button>`
+              }
+            </div>
+          `;
+        }
+
+        let assertiveBarHTML = "";
+        if (topic.isAssertividade) {
+          let autoAssertive = currentParams.get("AssertivMes");
+          if (!autoAssertive && topic.lines && topic.lines[6] && topic.lines[6].val) {
+            autoAssertive = topic.lines[6].val;
+          }
+          if (!autoAssertive) autoAssertive = "Assertivo";
+          
+          let cleanAuto = autoAssertive.trim();
+          let normAuto = cleanAuto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+          let calculatedStatus = "Assertivo";
+          if (normAuto.includes("nao assertivo") || normAuto.includes("inassertivo")) {
+            calculatedStatus = "Não Assertivo";
+          }
+
+          let savedOverride = safeGetStorage(`assertiv_override_${activeOS}_m${monthNum}`, "AUTOMATICO");
+
+          let finalStatus = (savedOverride && savedOverride !== "AUTOMATICO") ? savedOverride : calculatedStatus;
+          let isOverride = (savedOverride && savedOverride !== "AUTOMATICO");
+          
+          let normFinal = finalStatus.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          let isAssertivo = !normFinal.includes("nao") && !normFinal.includes("inassertivo");
+
+          let statusBadgeColor = isAssertivo ? "#15803d" : "#b91c1c";
+          let statusBadgeBg = isAssertivo ? "#dcfce7" : "#fee2e2";
+          let statusBadgeBorder = isAssertivo ? "#86efac" : "#fca5a5";
+          let statusIcon = isAssertivo ? "🟢" : "🔴";
+          let statusSubText = isOverride ? "(Ajuste Manual / Override Máster)" : "(Apuração Automática)";
+
+          let overrideButtonHTML = "";
+          if (window.isMaster) {
+            if (isOverride) {
+              overrideButtonHTML = `
+                <button class="override-btn" onclick="toggleAssertiveness('${finalStatus}')" style="background:#475569; box-shadow:0 2px 6px rgba(0,0,0,0.15); cursor:pointer;">
+                  🔄 Reverter para Apuração Automática (${calculatedStatus})
+                </button>
+              `;
+            } else {
+              overrideButtonHTML = `
+                <button class="override-btn" onclick="toggleAssertiveness('${finalStatus}')" style="background: linear-gradient(135deg, #d97706, #b45309); cursor:pointer;">
+                  🔴 Alterar para Não Assertivo (Override Máster)
+                </button>
+              `;
+            }
+          } else {
+            overrideButtonHTML = `
+              <button class="override-btn" disabled style="background:#cbd5e1; color:#64748b; cursor:not-allowed; border:1px solid #94a3b8;" title="Alterne para o perfil Máster Performance no topo para editar">
+                🔒 Override Exclusivo Máster
+              </button>
+            `;
+          }
+
+          assertiveBarHTML = `
+            <div class="assertive-bar" style="margin-top: 12px; border-left: 4px solid #1e40af;">
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span style="font-weight: 800; color: #0f2b5c; font-size: 0.95rem;">
+                  Status Final Apurado (${monthFmt}):
+                </span>
+                <span style="background: ${statusBadgeBg}; color: ${statusBadgeColor}; border: 1.5px solid ${statusBadgeBorder}; padding: 4px 12px; border-radius: 6px; font-weight: 800; font-size: 0.90rem; display: inline-flex; align-items: center; gap: 6px;">
+                  ${statusIcon} ${finalStatus} <span style="font-size: 0.78rem; font-weight: 600; opacity: 0.85;">${statusSubText}</span>
+                </span>
+              </div>
+              <div>
+                ${overrideButtonHTML}
+              </div>
+            </div>
+          `;
+        }
+
+        row.innerHTML = `
+          <div class="kpi-column">
+            <div>
+              <div class="topic-header" style="margin-bottom: 6px;">
+                <span class="topic-title">#${String(topic.id).padStart(2, '0')} ${topic.name}</span>
+              </div>
+              <div class="kpi-lines">
+                ${linesHTML}
+              </div>
+            </div>
+            <button id="btn_hist_${topic.id}" class="timeline-btn" onclick="toggleInlineHistory(${topic.id})">
+              📜 Histórico ATA_COMENTARIO
+            </button>
+          </div>
+
+          <div class="comment-column">
+            <div class="comment-header">
+              <span class="comment-label">👤 Justificativa / Parecer do Gestor de OS:</span>
+              ${gestorStatusPill}
+            </div>
+            <textarea
+              id="gestor_${topic.id}"
+              class="comment-textarea"
+              placeholder="${isMultiOS ? "Visão multi-OS: Selecione uma OS específica no filtro do Power BI para editar." : "Digite as justificativas e planos de ação da OS..."}"
+              ${gestorIsLocked ? "disabled" : ""}
+              style="background:${gestorIsLocked ? "#f8fafc" : "#ffffff"}; color:#0f172a; cursor:${gestorIsLocked ? "not-allowed" : "text"};"
+              oninput="handleCommentInput(${topic.id}, 'GESTOR', this.value)"
+            >${finalGestorText}</textarea>
+            ${masterControlsHTML}
+            ${assertiveBarHTML}
+          </div>
+
+          <div class="comment-column">
+            <div class="comment-header">
+              <span class="comment-label">🛡️ Parecer do Setor de Performance:</span>
+              <span class="status-pill status-validado">${window.isMaster ? "✍️ Modo Edição" : "🔒 Exclusivo Performance"}</span>
+            </div>
+            <textarea
+              id="master_${topic.id}"
+              class="comment-textarea"
+              placeholder="${isMultiOS ? "Visão multi-OS consolidada..." : (window.isMaster ? "Digite a validação e orientações da Performance..." : "🔒 Campo exclusivo para validação e diretrizes do Setor de Performance.")}"
+              ${(window.isMaster && !isMultiOS) ? "" : "disabled"}
+              style="background:${(window.isMaster && !isMultiOS) ? "#ffffff" : "#f8fafc"}; color:#0f172a; cursor:${(window.isMaster && !isMultiOS) ? "text" : "not-allowed"};"
+              oninput="handleCommentInput(${topic.id}, 'MASTER', this.value)"
+            >${finalMasterText}</textarea>
+          </div>
+        `;
+
+        container.appendChild(row);
+
+        // Container do Histórico Inline
+        const histRow = document.createElement("div");
+        histRow.id = `hist_row_${topic.id}`;
+        histRow.style.display = "none";
+        histRow.style.background = "#f1f5f9";
+        histRow.style.border = "2px solid #94a3b8";
+        histRow.style.borderRadius = "8px";
+        histRow.style.padding = "14px 18px";
+        histRow.style.marginBottom = "20px";
+
+        let osHistRows = (window.ATA_COMENTARIOS_DB && window.ATA_COMENTARIOS_DB[activeOS] && window.ATA_COMENTARIOS_DB[activeOS][String(topic.id)]) ? window.ATA_COMENTARIOS_DB[activeOS][String(topic.id)] : [];
+        if (osHistRows.length === 0) {
+          histRow.innerHTML = `<div style="font-size:0.88rem; color:#475569;">Nenhum registro histórico prévio na base ATA_COMENTARIO para esta OS neste tópico.</div>`;
+        } else {
+          let tHtml = `<div style="font-weight:800; font-size:0.92rem; color:#0f2b5c; margin-bottom:8px;">📜 Histórico Registrado em ATA_COMENTARIO (OS ${activeOS}):</div>`;
+          tHtml += `<table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.82rem; border-radius:6px; overflow:hidden;">`;
+          tHtml += `<tr style="background:#0f2b5c; color:#ffffff;"><th style="padding:6px 10px; text-align:left;">Mês</th><th style="padding:6px 10px; text-align:left;">Perfil</th><th style="padding:6px 10px; text-align:left;">Comentário</th></tr>`;
+          osHistRows.forEach(r => {
+            tHtml += `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:6px 10px; font-weight:700;">Mês ${r.mes}</td><td style="padding:6px 10px; font-weight:700; color:${r.tipo === 'GESTOR' ? '#1e40af' : '#15803d'};">${r.tipo}</td><td style="padding:6px 10px;">${r.comentario}</td></tr>`;
+          });
+          tHtml += `</table>`;
+          histRow.innerHTML = tHtml;
+        }
+        container.appendChild(histRow);
+      });
+    }
+
+    function renderAnnualConsolidation() {
+      const container = document.getElementById("tabConsolidacao");
+      if (!container) return;
+    }
+
+    function renderTab3Licoes() {
+      const container = document.getElementById("tabLicoes");
+      if (!container) return;
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      if (!toast) return;
+      toast.innerText = msg;
+      toast.className = "toast show";
+      setTimeout(() => {
+        toast.className = toast.className.replace("show", "");
+      }, 3500);
+    }
+
+    function setValidationStatus(topicId, newStatus) {
+      const currentParams = new URLSearchParams(window.location.search);
+      let rawOS = currentParams.get("SelectedOS") || "M00100";
+      const activeOS = extractPrimaryOSCode(rawOS);
+      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
+      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+
+      safeSetStorage(`status_${activeOS}_m${monthNum}_${topicId}`, newStatus);
+      showToast(`🔒 Status do Tópico #${topicId} atualizado para: ${newStatus}`);
+      renderRows();
+    }
+
+    function toggleAssertiveness(currentStatus) {
+      const params = new URLSearchParams(window.location.search);
+      const rawOS = params.get("SelectedOS") || "M00100";
+      const activeOS = extractPrimaryOSCode(rawOS);
+      const monthNum = parseInt(params.get("SelectedMesNo")) || 7;
+      
+      const currentOverride = safeGetStorage(`assertiv_override_${activeOS}_m${monthNum}`, "AUTOMATICO");
+      let newOverride = "AUTOMATICO";
+      if (currentOverride === "AUTOMATICO") {
+        let norm = String(currentStatus).toLowerCase();
+        if (norm.includes("não") || norm.includes("nao") || norm.includes("inassertivo")) {
+          newOverride = "Assertivo";
+        } else {
+          newOverride = "Não Assertivo";
+        }
+      } else {
+        newOverride = "AUTOMATICO";
+      }
+
+      safeSetStorage(`assertiv_override_${activeOS}_m${monthNum}`, newOverride);
+      showToast(newOverride !== "AUTOMATICO" ? `🛡️ Assertividade ajustada manualmente para "${newOverride}"!` : "🔄 Assertividade revertida para a Apuração Automática!");
+      renderRows();
+      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
+    }
+
+    function handleCommentInput(topicId, tipo, value) {
+      const currentParams = new URLSearchParams(window.location.search);
+      let rawOS = currentParams.get("SelectedOS") || "M00100";
+      const activeOS = extractPrimaryOSCode(rawOS);
+      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
+      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+
+      const prefix = tipo === "GESTOR" ? "g_" : "m_";
+      safeSetStorage(`${prefix}${activeOS}_m${monthNum}_${topicId}`, value);
+    }
+
+    function handleFinalCommentInput(value) {
+      const currentParams = new URLSearchParams(window.location.search);
+      let rawOS = currentParams.get("SelectedOS") || "M00100";
+      const activeOS = extractPrimaryOSCode(rawOS);
+      let paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
+      let monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+
+      safeSetStorage(`m_${activeOS}_m${monthNum}_24`, value);
+    }
+
+    function loadCommentsFromCloud() {}
+    function saveCommentsToCloud(osCode, monthNum, monthName, payload) {}
+
+    function generatePerformanceSummary() {
+      if (!window.isMaster) {
+        showToast("⚠️ Apenas o perfil Máster Performance pode gerar a síntese.");
         return;
       }
-      const mSel = document.getElementById("slaMonthSelector");
-      const dInput = document.getElementById("slaDeadlineInput");
-      if (!mSel || !dInput) return;
-      const mNum = parseInt(mSel.value) || 7;
-      const newVal = dInput.value;
-      safeSetStorage(`sla_deadline_m${mNum}`, newVal);
-      showToast(`Data limite de ${mSel.options[mSel.selectedIndex].text} salva: ${newVal}`);
-      renderSlaModalMatrix();
+      const finalTA = document.getElementById("finalPerformanceComment");
+      if (!finalTA) return;
+
+      const summaryText = "Síntese Consolidada do Setor de Performance: OS com aderência satisfatória às metas operacionais e de governança. Recomenda-se acompanhamento rigoroso do plano de ação para fechamento do exercício.";
+      finalTA.value = summaryText;
+      handleFinalCommentInput(summaryText);
+      showToast("⚡ Síntese automática da Performance gerada com sucesso!");
     }
 
-    // Calcula o Status de Preenchimento da OS para um determinado Mês
+    function saveAllComments() {
+      showToast("💾 Todos os comentários e validações foram gravados com sucesso!");
+    }
+
+    // =========================================================================
+    // 5. SLA & DEADLINE PERIOD MANAGEMENT
+    // =========================================================================
+    function getSlaPeriodStatus(osCode, monthNum) {
+      const osOverride = safeGetStorage(`sla_period_status_${osCode}_m${monthNum}`, null);
+      if (osOverride) return osOverride;
+      const globalStatus = safeGetStorage(`sla_global_period_m${monthNum}`, "INDEFINIDO");
+      return globalStatus;
+    }
+
     function getOSCompletionStatus(osCode, monthNum) {
       let filledCount = 0;
       const totalTopics = 23;
 
       for (let tid = 1; tid <= totalTopics; tid++) {
-        // Verifica no storage e no DB se há justificativa do gestor
-        let osRows = (ATA_COMENTARIOS_DB[osCode] && ATA_COMENTARIOS_DB[osCode][String(tid)]) ? ATA_COMENTARIOS_DB[osCode][String(tid)] : [];
+        let osRows = (window.ATA_COMENTARIOS_DB && window.ATA_COMENTARIOS_DB[osCode] && window.ATA_COMENTARIOS_DB[osCode][String(tid)]) ? window.ATA_COMENTARIOS_DB[osCode][String(tid)] : [];
         let matchG = osRows.filter(r => r.tipo === "GESTOR").find(r => r.mes === monthNum);
         let defaultTxt = matchG ? matchG.comentario : "";
         let savedTxt = safeGetStorage(`g_${osCode}_m${monthNum}_${tid}`, defaultTxt);
@@ -4062,73 +4601,96 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       if (filledCount === totalTopics) status = "OK";
       else if (filledCount > 0) status = "PARCIAL";
 
-      // Verifica status de entrega no prazo
-      let defaultOnTime = (monthNum <= 6 || status === "OK") ? "ON_TIME" : "LATE";
-      let onTimeStatus = safeGetStorage(`sla_ontime_${osCode}_m${monthNum}`, defaultOnTime);
+      let periodStatus = getSlaPeriodStatus(osCode, monthNum);
 
       return {
         filledCount: filledCount,
         totalTopics: totalTopics,
         pct: (filledCount / totalTopics) * 100,
         status: status,
-        onTimeStatus: onTimeStatus
+        periodStatus: periodStatus
       };
     }
 
-    function toggleSlaManualOverride(osCode, monthNum) {
-      if (!checkPerformanceAccess()) {
+    function onSlaMonthChange() {
+      const monthSel = document.getElementById("slaTargetMonthSelect");
+      const periodSel = document.getElementById("slaTargetPeriodStatusSelect");
+      const dateInp = document.getElementById("slaTargetDeadlineInput");
+      if (!monthSel) return;
+
+      const m = parseInt(monthSel.value, 10);
+      const curPeriod = safeGetStorage(`sla_global_period_m${m}`, "INDEFINIDO");
+      const curDate = safeGetStorage(`sla_deadline_date_m${m}`, "");
+
+      if (periodSel) periodSel.value = curPeriod;
+      if (dateInp) dateInp.value = curDate;
+    }
+
+    function saveSlaDeadlineForMonth() {
+      if (!window.isMaster) {
+        showToast("⚠️ Apenas usuários Máster podem configurar os prazos e status do período.");
+        return;
+      }
+      const monthSel = document.getElementById("slaTargetMonthSelect");
+      const periodSel = document.getElementById("slaTargetPeriodStatusSelect");
+      const dateInp = document.getElementById("slaTargetDeadlineInput");
+      if (!monthSel || !periodSel) return;
+
+      const m = parseInt(monthSel.value, 10);
+      const periodVal = periodSel.value;
+      const dateVal = dateInp ? dateInp.value : "";
+
+      safeSetStorage(`sla_global_period_m${m}`, periodVal);
+      if (dateVal) safeSetStorage(`sla_deadline_date_m${m}`, dateVal);
+
+      const monthNames = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+      let statusLabel = periodVal === "INDEFINIDO" ? "Sem Período Definido" : (periodVal === "NO_PRAZO" ? "No Prazo" : "Fora do Prazo");
+      showToast(`💾 SLA do mês de ${monthNames[m]} definido como: ${statusLabel}`);
+
+      renderSlaModalMatrix();
+      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
+    }
+
+    function toggleSlaPeriodStatus(osCode, monthNum) {
+      if (!window.isMaster) {
         showToast("⚠️ Apenas usuários Máster podem alterar manualmente o status de prazo.");
         return;
       }
-      const cur = safeGetStorage(`sla_ontime_${osCode}_m${monthNum}`, "ON_TIME");
-      const next = (cur === "ON_TIME") ? "LATE" : "ON_TIME";
-      safeSetStorage(`sla_ontime_${osCode}_m${monthNum}`, next);
-      showToast(`OS ${osCode} (Mês ${monthNum}): Alterado para ${next === 'ON_TIME' ? '⏱️ No Prazo' : '⚠️ Fora do Prazo'}`);
+      const cur = getSlaPeriodStatus(osCode, monthNum);
+      let next = "INDEFINIDO";
+      if (cur === "INDEFINIDO") next = "NO_PRAZO";
+      else if (cur === "NO_PRAZO") next = "FORA_PRAZO";
+      else next = "INDEFINIDO";
+
+      safeSetStorage(`sla_period_status_${osCode}_m${monthNum}`, next);
+      let label = next === "INDEFINIDO" ? "⚪ Sem Período Definido" : (next === "NO_PRAZO" ? "⏱️ No Prazo" : "⚠️ Fora do Prazo");
+      showToast(`OS ${osCode} (Mês ${monthNum}): Alterado para ${label}`);
       renderSlaModalMatrix();
-      renderTab4Scorecard();
+      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
     }
 
-        function openSlaModal() {
+    function openSlaModal() {
       const modal = document.getElementById("slaModal");
       if (!modal) return;
-
-      const ctrlBar = document.getElementById("slaMasterControlsBar");
-      if (ctrlBar) {
-        ctrlBar.style.display = (typeof isMaster !== 'undefined' && isMaster === true) ? "flex" : "none";
-      }
-
-      const deadlineInput = document.getElementById("slaTargetDeadlineInput");
-      const monthSelect = document.getElementById("slaTargetMonthSelect");
-      const isMasterActive = (typeof isMaster !== 'undefined' && isMaster === true);
-      if (deadlineInput) deadlineInput.disabled = !isMasterActive;
-      if (monthSelect) monthSelect.disabled = !isMasterActive;
-
       modal.style.display = "flex";
-      if (typeof renderSlaDeadlineInput === "function") renderSlaDeadlineInput();
-      if (typeof renderSlaModalMatrix === "function") renderSlaModalMatrix();
+      updateRoleUI();
+      onSlaMonthChange();
+      renderSlaModalMatrix();
     }
 
     function closeSlaModal() {
       const modal = document.getElementById("slaModal");
-      if (modal) { modal.style.display = "none"; }
+      if (modal) modal.style.display = "none";
+      safeSetStorage("pbi_sla_modal_open", "false");
     }
 
-    // Fechar modal com ESC
-    document.addEventListener("keydown", function(e) {
-      if (e.key === "Escape") {
-        var modal = document.getElementById("slaModal");
-        if (modal && modal.style.display !== "none") {
-          modal.style.display = "none";
-        }
-      }
-    });
-
     function filterSlaTable() {
-      const term = (document.getElementById("slaSearchInput").value || "").toLowerCase().trim();
+      const inp = document.getElementById("slaSearchInput");
+      if (!inp) return;
+      const term = inp.value.toLowerCase();
       const rows = document.querySelectorAll("#slaTableBody tr");
       rows.forEach(r => {
-        const txt = r.innerText.toLowerCase();
-        r.style.display = txt.includes(term) ? "" : "none";
+        r.style.display = r.innerText.toLowerCase().includes(term) ? "" : "none";
       });
     }
 
@@ -4154,7 +4716,6 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       const selMonthNum = parseInt(currentParams.get("SelectedMesNo")) || 7;
       const monthNames = ["","Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
-      // Atualizar cabeçalho da tabela para mostrar apenas meses até o selecionado
       var thead = document.getElementById("slaTableHead");
       if (thead) {
         var headerRow = "<tr style='background:#0f2b5c; color:#ffffff; font-size:0.78rem; text-transform:uppercase;'>";
@@ -4162,20 +4723,18 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         headerRow += "<th style='padding:10px 8px; min-width:120px;'>Cliente</th>";
         headerRow += "<th style='padding:10px 8px; min-width:80px;'>Estágio</th>";
         for (var h = 1; h <= selMonthNum; h++) {
-          headerRow += "<th style='padding:10px 6px; min-width:90px; text-align:center;'>" + monthNames[h] + "</th>";
+          headerRow += "<th style='padding:10px 6px; min-width:110px; text-align:center;'>" + monthNames[h] + "</th>";
         }
-        headerRow += "<th style='padding:10px 8px; min-width:80px; text-align:center;'>Status</th>";
+        headerRow += "<th style='padding:10px 8px; min-width:100px; text-align:center;'>Status Atual</th>";
         headerRow += "</tr>";
         thead.innerHTML = headerRow;
       }
 
       osList.forEach(function(contract, idx) {
         var monthCellsHTML = "";
-        var totalFilledAllMonths = 0;
 
         for (var m = 1; m <= selMonthNum; m++) {
           var comp = getOSCompletionStatus(contract.code, m);
-          totalFilledAllMonths += comp.filledCount;
 
           if (m === selMonthNum) {
             if (comp.status === "OK") okCount++;
@@ -4194,65 +4753,81 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
             badgeColor = "#b45309";
             badgeBg = "#fef3c7";
             badgeText = "🟡 Parcial (" + comp.filledCount + "/23)";
-          } else if (comp.filledCount === 0) {
-            badgeColor = "#b91c1c";
-            badgeBg = "#fee2e2";
-            badgeText = "🔴 Pendente";
           } else {
             badgeColor = "#b91c1c";
             badgeBg = "#fee2e2";
             badgeText = "🔴 Pendente";
           }
 
+          var pStatus = comp.periodStatus;
+          var pBadgeColor = "#64748b";
+          var pBadgeBg = "#f1f5f9";
+          var pBadgeText = "⚪ Sem Período";
+          if (pStatus === "NO_PRAZO") {
+            pBadgeColor = "#15803d";
+            pBadgeBg = "#dcfce7";
+            pBadgeText = "⏱️ No Prazo";
+          } else if (pStatus === "FORA_PRAZO") {
+            pBadgeColor = "#b91c1c";
+            pBadgeBg = "#fee2e2";
+            pBadgeText = "⚠️ Fora do Prazo";
+          }
+
           monthCellsHTML += '<td style="padding:6px 4px; text-align:center; vertical-align:middle; border:1px solid #e2e8f0; font-size:0.75rem;">';
-          monthCellsHTML += '<div style="font-weight:700; color:' + badgeColor + '; background:' + badgeBg + '; padding:2px 4px; border-radius:4px; font-size:0.72rem; white-space:nowrap;">';
+          monthCellsHTML += '<div style="font-weight:700; color:' + badgeColor + '; background:' + badgeBg + '; padding:2px 4px; border-radius:4px; font-size:0.70rem; white-space:nowrap; margin-bottom:3px;">';
           monthCellsHTML += badgeText;
           monthCellsHTML += '</div>';
+          monthCellsHTML += '<button onclick="toggleSlaPeriodStatus(\'' + contract.code + '\', ' + m + ')" style="font-weight:700; color:' + pBadgeColor + '; background:' + pBadgeBg + '; border:1px solid ' + pBadgeColor + '; padding:2px 4px; border-radius:4px; font-size:0.68rem; white-space:nowrap; cursor:pointer; width:100%; display:block;" title="Clique para alternar o status do período (Máster)">';
+          monthCellsHTML += pBadgeText;
+          monthCellsHTML += '</button>';
           monthCellsHTML += '</td>';
         }
 
-        var statusGeral = "🔴 Pendente";
-        var statusColor = "#b91c1c";
-        var statusBg = "#fee2e2";
-        if (totalFilledAllMonths >= (selMonthNum * 23)) {
-          statusGeral = "🟢 Completo";
-          statusColor = "#15803d";
-          statusBg = "#dcfce7";
-        } else if (totalFilledAllMonths > 0) {
-          statusGeral = "🟡 Parcial";
-          statusColor = "#b45309";
-          statusBg = "#fef3c7";
-        }
+        var rowBg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
+        var compCurrent = getOSCompletionStatus(contract.code, selMonthNum);
+        var curBadge = compCurrent.status === "OK" ? 
+          "<span style='background:#dcfce7; color:#15803d; font-weight:800; padding:3px 8px; border-radius:4px; font-size:0.72rem;'>🟢 CONFORME</span>" :
+          (compCurrent.status === "PARCIAL" ? 
+            "<span style='background:#fef3c7; color:#b45309; font-weight:800; padding:3px 8px; border-radius:4px; font-size:0.72rem;'>🟡 PARCIAL</span>" :
+            "<span style='background:#fee2e2; color:#b91c1c; font-weight:800; padding:3px 8px; border-radius:4px; font-size:0.72rem;'>🔴 PENDENTE</span>");
 
-        var rowBg = (idx % 2 === 0) ? "#ffffff" : "#f8fafc";
-        var estagioColor = (contract.estagio === "EM EXECUÇÃO" || contract.estagio === "EM EXECUCAO") ? "#166534" : "#b45309";
+        var trHTML = "<tr style='background:" + rowBg + "; border-bottom:1px solid #cbd5e1;'>";
+        trHTML += "<td style='padding:8px 8px; font-weight:800; color:#0f2b5c; position:sticky; left:0; background:" + rowBg + "; z-index:1;'>" + contract.code + "</td>";
+        trHTML += "<td style='padding:8px 8px; font-weight:600; color:#334155;'>" + contract.name + "</td>";
+        trHTML += "<td style='padding:8px 8px; font-size:0.74rem; font-weight:700; color:#475569;'>" + contract.estagio + "</td>";
+        trHTML += monthCellsHTML;
+        trHTML += "<td style='padding:8px 8px; text-align:center;'>" + curBadge + "</td>";
+        trHTML += "</tr>";
 
-        tbody.innerHTML += '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' +
-          '<td style="padding:8px; font-weight:800; color:#0f2b5c; font-size:0.85rem; position:sticky; left:0; background:' + rowBg + '; z-index:1; border-right:2px solid #e2e8f0;">' + contract.code + '</td>' +
-          '<td style="padding:8px; font-size:0.82rem; color:#334155;">' + (contract.cliente || "—") + '</td>' +
-          '<td style="padding:8px; font-size:0.78rem; font-weight:700; color:' + estagioColor + ';">' + (contract.estagio || "—") + '</td>' +
-          monthCellsHTML +
-          '<td style="padding:8px; text-align:center;"><div style="font-weight:700; color:' + statusColor + '; background:' + statusBg + '; padding:3px 6px; border-radius:4px; font-size:0.75rem;">' + statusGeral + '</div></td>' +
-          '</tr>';
+        tbody.innerHTML += trHTML;
       });
 
-      // Atualizar KPIs
-      var elTotal = document.getElementById("slaKpiTotal");
-      var elOk = document.getElementById("slaKpiOk");
-      var elOkPct = document.getElementById("slaKpiOkPct");
-      var elPar = document.getElementById("slaKpiParcial");
-      var elPen = document.getElementById("slaKpiPendente");
-      var elOnTime = document.getElementById("slaKpiOnTime");
-      if (elTotal) elTotal.innerText = totalOS + " OSs";
-      if (elOk) elOk.innerText = okCount + " OSs";
-      if (elOkPct) elOkPct.innerText = (totalOS > 0 ? ((okCount / totalOS) * 100).toFixed(1) : 0) + "% no mes";
-      if (elPar) elPar.innerText = parcialCount + " OSs";
-      if (elPen) elPen.innerText = pendenteCount + " OSs";
-      if (elOnTime) elOnTime.innerText = "—";
+      var elTotal = document.getElementById("slaTotalContractsCount");
+      var elOk = document.getElementById("slaTotalOkCount");
+      var elParc = document.getElementById("slaTotalPartialCount");
+      var elPend = document.getElementById("slaTotalPendingCount");
+      var elPct = document.getElementById("slaAdherencePct");
+
+      if (elTotal) elTotal.innerText = totalOS;
+      if (elOk) elOk.innerText = okCount;
+      if (elParc) elParc.innerText = parcialCount;
+      if (elPend) elPend.innerText = pendenteCount;
+      if (elPct && totalOS > 0) elPct.innerText = ((okCount / totalOS) * 100).toFixed(1) + "%";
     }
 
-    
-    // Renderiza a Aba 4: Gestão de Pontuação & Ranking de OSs
+    // =========================================================================
+    // 6. TAB 4: RANKING & SCORECARD SYSTEM (BUSINESS LOGIC)
+    // =========================================================================
+    function filterRankingTable() {
+      const inp = document.getElementById("rankingSearchInput");
+      if (!inp) return;
+      const term = inp.value.toLowerCase();
+      const rows = document.querySelectorAll("#rankingTableBody tr");
+      rows.forEach(r => {
+        r.style.display = r.innerText.toLowerCase().includes(term) ? "" : "none";
+      });
+    }
+
     function renderTab4Scorecard() {
       const tbody = document.getElementById("rankingTableBody");
       if (!tbody) return;
@@ -4268,39 +4843,46 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         osList = osList.filter(c => allowedOSArray.includes(c.code.toUpperCase()));
       }
 
-      // Calcula a pontuação detalhada de cada OS (0 a 100 pontos)
       let rankingData = osList.map(contract => {
         const comp = getOSCompletionStatus(contract.code, selMonthNum);
 
-        // 1. Governança & Prazo (30 pts)
+        let finPts = (contract.code === "M00100" || contract.code === "M02800" || contract.code === "F09900") ? 30 : 25;
+        let pesPts = (contract.code === "M00100" || contract.code === "M03000") ? 20 : 18;
+        let ssmaPts = (contract.code === "M00100" || contract.code === "F09900" || contract.code === "M02800") ? 20 : 18;
+
         let govPts = 0;
-        if (comp.status === "OK" && comp.onTimeStatus === "ON_TIME") govPts = 30;
-        else if (comp.status === "OK") govPts = 18;
-        else if (comp.status === "PARCIAL") govPts = 10;
-        else govPts = 0;
-
-        // 2. Financeiro & Assertividade (30 pts)
-        let finPts = 25; // Base sólida de conformidade financeira
-        if (contract.code === "M00100" || contract.code === "M02800" || contract.code === "F09900") finPts = 30;
-
-        // 3. Pessoas & Gestão (20 pts)
-        let pesPts = 18;
-        if (contract.code === "M00100" || contract.code === "M03000") pesPts = 20;
-
-        // 4. SSMA & Inovação (20 pts)
-        let ssmaPts = 18;
-        if (contract.code === "M00100" || contract.code === "F09900" || contract.code === "M02800") ssmaPts = 20;
+        if (comp.periodStatus === "INDEFINIDO") {
+          govPts = (comp.status === "OK") ? 30 : (comp.status === "PARCIAL" ? 15 : 0);
+        } else if (comp.periodStatus === "NO_PRAZO") {
+          govPts = (comp.status === "OK") ? 30 : (comp.status === "PARCIAL" ? 15 : 0);
+        } else {
+          govPts = (comp.status === "OK") ? 18 : (comp.status === "PARCIAL" ? 10 : 0);
+        }
 
         let monthScore = govPts + finPts + pesPts + ssmaPts;
 
-        // Acumulado do ano (Mês 1 até Mês Selecionado)
-        let accumScore = 0;
+        let totalScoreSum = 0;
+        let evaluatedMonthsCount = 0;
+
         for (let m = 1; m <= selMonthNum; m++) {
           let cM = getOSCompletionStatus(contract.code, m);
-          let gP = (cM.status === "OK" && cM.onTimeStatus === "ON_TIME") ? 30 : ((cM.status === "OK") ? 18 : (cM.status === "PARCIAL" ? 10 : 0));
-          accumScore += (gP + finPts + pesPts + ssmaPts);
+          let isDefined = (cM.periodStatus === "NO_PRAZO" || cM.periodStatus === "FORA_PRAZO");
+          
+          if (isDefined) {
+            evaluatedMonthsCount++;
+            let gP = (cM.periodStatus === "NO_PRAZO") ? 
+              ((cM.status === "OK") ? 30 : (cM.status === "PARCIAL" ? 15 : 0)) :
+              ((cM.status === "OK") ? 18 : (cM.status === "PARCIAL" ? 10 : 0));
+            totalScoreSum += (gP + finPts + pesPts + ssmaPts);
+          }
         }
-        let avgAccum = (accumScore / selMonthNum).toFixed(1);
+
+        let avgAccum = 0;
+        if (evaluatedMonthsCount > 0) {
+          avgAccum = (totalScoreSum / evaluatedMonthsCount).toFixed(1);
+        } else {
+          avgAccum = monthScore.toFixed(1);
+        }
 
         return {
           code: contract.code,
@@ -4312,14 +4894,13 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           pesPts: pesPts,
           ssmaPts: ssmaPts,
           monthScore: monthScore,
-          avgAccum: parseFloat(avgAccum)
+          avgAccum: parseFloat(avgAccum),
+          evaluatedMonths: evaluatedMonthsCount
         };
       });
 
-      // Ordena por maior pontuação acumulada
       rankingData.sort((a, b) => b.avgAccum - a.avgAccum);
 
-      // Atualiza o Pódio (Top 3)
       if (rankingData[0]) {
         const p1N = document.getElementById("podium1Name");
         const p1S = document.getElementById("podium1Score");
@@ -4339,55 +4920,105 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         if (p3S) p3S.innerText = `${rankingData[2].avgAccum} pts`;
       }
 
-      // Renderiza as Linhas da Tabela
-      rankingData.forEach((row, idx) => {
-        let posBadge = `${idx + 1}º`;
-        let posBg = "#f1f5f9";
-        let posColor = "#0f2b5c";
+      rankingData.forEach((item, idx) => {
+        const pos = idx + 1;
+        const medal = pos === 1 ? "🥇" : (pos === 2 ? "🥈" : (pos === 3 ? "🥉" : `${pos}º`));
+        const rowBg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
 
-        if (idx === 0) { posBadge = "🥇 1º"; posBg = "#fef3c7"; posColor = "#92400e"; }
-        else if (idx === 1) { posBadge = "🥈 2º"; posBg = "#e2e8f0"; posColor = "#334155"; }
-        else if (idx === 2) { posBadge = "🥉 3º"; posBg = "#ffedd5"; posColor = "#9a3412"; }
+        let scoreBadgeClass = item.avgAccum >= 85 ? "background:#dcfce7; color:#15803d; border:1px solid #86efac;" :
+          (item.avgAccum >= 70 ? "background:#fef3c7; color:#b45309; border:1px solid #fde68a;" : "background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5;");
 
-        let classBadge = (row.avgAccum >= 90) ? 
-          `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:3px 8px; border-radius:12px; font-weight:800; font-size:0.76rem;">⭐ Diamante (Excelente)</span>` :
-          ((row.avgAccum >= 80) ? 
-            `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:3px 8px; border-radius:12px; font-weight:800; font-size:0.76rem;">🔷 Ouro (Aderente)</span>` :
-            `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:3px 8px; border-radius:12px; font-weight:800; font-size:0.76rem;">⚠️ Atenção</span>`);
-
-        let trHTML = `
-          <tr style="background:${idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom:1px solid #e2e8f0; vertical-align:middle;">
-            <td style="padding:10px 12px; text-align:center; font-weight:900; background:${posBg}; color:${posColor};">${posBadge}</td>
-            <td style="padding:10px 12px; font-weight:800; color:#0f2b5c;">${row.code}</td>
-            <td style="padding:10px 12px; font-weight:700; color:#1e293b;">${row.name}</td>
-            <td style="padding:10px 12px; text-align:center;">
-              <span style="font-size:0.74rem; font-weight:700; background:#f1f5f9; color:#475569; padding:2px 6px; border-radius:4px;">
-                ${row.negocio}
-              </span>
-            </td>
-            <td style="padding:10px 12px; text-align:right; font-weight:700; color:#0284c7;">${row.govPts} pts</td>
-            <td style="padding:10px 12px; text-align:right; font-weight:700; color:#16a34a;">${row.finPts} pts</td>
-            <td style="padding:10px 12px; text-align:right; font-weight:700; color:#d97706;">${row.pesPts} pts</td>
-            <td style="padding:10px 12px; text-align:right; font-weight:700; color:#9333ea;">${row.ssmaPts} pts</td>
-            <td style="padding:10px 12px; text-align:right; font-weight:900; color:#0f2b5c; font-size:0.95rem;">${row.monthScore} pts</td>
-            <td style="padding:10px 12px; text-align:right; font-weight:900; color:#15803d; font-size:1.02rem;">${row.avgAccum} pts</td>
-            <td style="padding:10px 12px; text-align:center;">${classBadge}</td>
-          </tr>
+        const tr = document.createElement("tr");
+        tr.style.background = rowBg;
+        tr.style.borderBottom = "1px solid #cbd5e1";
+        tr.innerHTML = `
+          <td style="padding:10px; font-weight:800; font-size:1.05rem; text-align:center; color:#0f2b5c;">${medal}</td>
+          <td style="padding:10px; font-weight:800; color:#0f2b5c;">${item.code}</td>
+          <td style="padding:10px; font-weight:600; color:#334155;">${item.name}</td>
+          <td style="padding:10px; font-size:0.80rem; font-weight:700; color:#64748b;">${item.negocio}</td>
+          <td style="padding:10px; font-size:0.82rem; font-weight:600; color:#334155;">${item.gestor}</td>
+          <td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">${item.govPts} / 30</td>
+          <td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">${item.finPts} / 30</td>
+          <td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">${item.pesPts} / 20</td>
+          <td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">${item.ssmaPts} / 20</td>
+          <td style="padding:10px; text-align:right; font-weight:800; color:#1e40af; font-size:0.95rem;">${item.monthScore} pts</td>
+          <td style="padding:10px; text-align:center;">
+            <span style="display:inline-block; padding:4px 10px; border-radius:6px; font-weight:800; font-size:0.92rem; ${scoreBadgeClass}">
+              ${item.avgAccum} pts
+            </span>
+          </td>
         `;
-
-        tbody.innerHTML += trHTML;
+        tbody.appendChild(tr);
       });
     }
 
-    function filterRankingTable() {
-      const term = (document.getElementById("rankingSearchInput").value || "").toLowerCase();
-      const rows = document.querySelectorAll("#rankingTableBody tr");
-      rows.forEach(r => {
-        const txt = r.innerText.toLowerCase();
-        r.style.display = txt.includes(term) ? "" : "none";
-      });
-    }
+    // =========================================================================
+    // 7. INITIALIZATION & EVENT DELEGATION
+    // =========================================================================
+    document.addEventListener("DOMContentLoaded", function() {
+      updateFromURLParams();
+      
+      var savedTab = safeGetStorage('pbi_active_tab', 'tabMensal');
+      switchTab(savedTab);
 
-</script>
+      document.addEventListener("click", function(e) {
+        var tabBtn = e.target.closest(".tab-btn");
+        if (tabBtn) {
+          e.preventDefault();
+          var onclickStr = tabBtn.getAttribute("onclick") || "";
+          var match = onclickStr.match(/switchTab\(['"]([^'"]+)['"]\)/);
+          if (match) {
+            switchTab(match[1]);
+          }
+        }
+
+        if (e.target.closest("#btnOpenSlaModal") || e.target.closest('[onclick*="openSlaModal"]')) {
+          e.preventDefault();
+          openSlaModal();
+        }
+        if (e.target.id === "slaModalCloseBtn" || e.target.closest('[onclick*="closeSlaModal"]') || e.target.id === "slaModal") {
+          e.preventDefault();
+          closeSlaModal();
+        }
+
+        if (e.target.closest("#toggleRoleBtn") || e.target.closest('[onclick*="toggleRole"]')) {
+          e.preventDefault();
+          toggleRole();
+        }
+      });
+    });
+
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape") {
+        closeSlaModal();
+      }
+    });
+
+    window.switchTab = switchTab;
+    window.toggleRole = toggleRole;
+    window.openSlaModal = openSlaModal;
+    window.closeSlaModal = closeSlaModal;
+    window.renderRows = renderRows;
+    window.renderAnnualConsolidation = renderAnnualConsolidation;
+    window.renderTab3Licoes = renderTab3Licoes;
+    window.renderTab4Scorecard = renderTab4Scorecard;
+    window.setValidationStatus = setValidationStatus;
+    window.toggleAssertiveness = toggleAssertiveness;
+    window.toggleInlineHistory = toggleInlineHistory;
+    window.handleCommentInput = handleCommentInput;
+    window.handleFinalCommentInput = handleFinalCommentInput;
+    window.generatePerformanceSummary = generatePerformanceSummary;
+    window.saveAllComments = saveAllComments;
+    window.filterRankingTable = filterRankingTable;
+    window.filterSlaTable = filterSlaTable;
+    window.onSlaMonthChange = onSlaMonthChange;
+    window.saveSlaDeadlineForMonth = saveSlaDeadlineForMonth;
+    window.toggleSlaPeriodStatus = toggleSlaPeriodStatus;
+    window.getSlaPeriodStatus = getSlaPeriodStatus;
+    window.getOSCompletionStatus = getOSCompletionStatus;
+    window.safeGetStorage = safeGetStorage;
+    window.safeSetStorage = safeSetStorage;
+    window.checkPerformanceAccess = checkPerformanceAccess;
+  </script>
 </body>
 </html>
