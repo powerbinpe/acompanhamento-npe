@@ -35,7 +35,7 @@
             </p>
           </div>
         </div>
-        <button id="slaModalCloseBtn" onclick="closeSlaModal()" style="background:#ef4444; color:#ffffff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.88rem; box-shadow:0 3px 8px rgba(0,0,0,0.3); transition:all 0.2s ease; display:flex; align-items:center; gap:6px;">
+        <button id="slaModalCloseBtn" type="button" onclick="closeSlaModal();" style="background:#ef4444; color:#ffffff; border:none; padding:8px 22px; border-radius:8px; font-weight:800; cursor:pointer; font-size:0.92rem; box-shadow:0 3px 8px rgba(0,0,0,0.3); transition:all 0.2s ease; display:flex; align-items:center; gap:6px;">
           ✕ Fechar Painel
         </button>
       </div>
@@ -113,7 +113,7 @@
       <div style="padding:8px 24px; background:#ffffff; border-bottom:1.5px solid #cbd5e1; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; flex-shrink:0;">
         <div style="display:flex; align-items:center; gap:8px;">
           <input type="text" id="slaSearchInput" oninput="filterSlaTable()" placeholder="🔍 Filtrar OS por Código ou Descrição..." style="padding:6px 14px; border-radius:6px; border:1.5px solid #94a3b8; font-size:0.85rem; width:360px; color:#0f172a; outline:none;" />
-          <span style="font-size:0.78rem; color:#64748b; font-weight:600;">(Todas as 99 OSs ativas com rolagem infinita)</span>
+          <span style="font-size:0.78rem; color:#64748b; font-weight:600;">(Todas as 68 OSs operacionais elegíveis)</span>
         </div>
         <div style="font-size:0.80rem; color:#0f2b5c; font-weight:700;">
           📌 Cabeçalho e colunas de Código e Descrição permanecem sempre fixos à vista
@@ -815,7 +815,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         </div>
         <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
           <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS AVALIADAS</span>
-          <div style="font-size:1.30rem; font-weight:800; color:#ffffff;">99 Contratos Ativos</div>
+          <div style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
         </div>
       </div>
 
@@ -1260,7 +1260,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     }
 
     // =========================================================================
-    // 2. SECURITY & PROFILE ACCESS
+    // 2. SECURITY & PROFILE ACCESS (GESTOR <-> MASTER)
     // =========================================================================
     window.currentRoleSimulated = null;
     window.MASTER_PERFORMANCE_EMAILS = [
@@ -1280,14 +1280,19 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       const userEmail = (params.get("UserEmail") || "").toLowerCase().trim();
 
       if (isUserPerformanceParam) return true;
-      if (!userEmail) return true; // Fallback para testes standalone
+      if (!userEmail) return true;
 
       return window.MASTER_PERFORMANCE_EMAILS.some(allowed => userEmail.includes(allowed.toLowerCase().trim()));
     }
 
-    window.isMaster = false;
+    window.isMaster = true; // Robson / Setor de Performance ativo por padrão
+    let _roleToggleLock = false;
 
     function toggleRole() {
+      if (_roleToggleLock) return;
+      _roleToggleLock = true;
+      setTimeout(() => { _roleToggleLock = false; }, 300);
+
       window.isMaster = !window.isMaster;
       window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
       safeSetStorage("npe_active_role", window.isMaster ? "MASTER" : "GESTOR");
@@ -1327,7 +1332,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     }
 
     // =========================================================================
-    // 3. TOPICS DATA & ACTIVE CONTRACTS CATALOG
+    // 3. TOPICS DATA & ACTIVE CONTRACTS CATALOG (68 ELIGIBLE CONTRACTS)
     // =========================================================================
     const topicsData = [
       {
@@ -3358,699 +3363,482 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     /* ========================================================= */
 
     const ACTIVE_CONTRACTS_CATALOG = [
-      {
-            "code": "C95000",
-            "name": "C95000 - CREDITOS TRIBUTARIOS",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "CREDITOS TRIBUTARIOS",
-            "gestor": "SHEYLA MARTINS"
-      },
-      {
-            "code": "F09900",
-            "name": "F09900 - RHODIA",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "HERISON SOARES"
-      },
-      {
-            "code": "F95000",
-            "name": "F95000 - CREDITOS TRIBUTARIOS",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "CREDITOS TRIBUTARIOS",
-            "gestor": "SHEYLA MARTINS"
-      },
-      {
-            "code": "J95000",
-            "name": "J95000 - CREDITOS TRIBUTARIOS",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "CREDITOS TRIBUTARIOS",
-            "gestor": "SHEYLA MARTINS"
-      },
-      {
-            "code": "M00100",
-            "name": "M00100 - CBMM - ARAXA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "ROTINA",
-            "gestor": "SEM INFORMAÇÂO"
-      },
-      {
-            "code": "M00101",
-            "name": "M00101 - CBMM - PARADA - ARAXA",
-            "estagio": "NOVA",
-            "negocio": "ROTINA",
-            "gestor": "CARLOS CASTILHO"
-      },
-      {
-            "code": "M00200",
-            "name": "M00200 - YARA - PAULINIA",
-            "estagio": "DEMOBILIZACAO",
-            "negocio": "ROTINA",
-            "gestor": "AILSON MOTA"
-      },
-      {
-            "code": "M00500",
-            "name": "M00500 - CMOC - SANTALUZ",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ORLANDO FILHO"
-      },
-      {
-            "code": "M00600",
-            "name": "M00600 - HEXION - CURITIBA",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "CLERTON ARAUJO"
-      },
-      {
-            "code": "M00700",
-            "name": "M00700 - STRATOS - ROSARIO DO CATETE",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ANDRE SILVA"
-      },
-      {
-            "code": "M00900",
-            "name": "M00900 - DOW - BREU BRANCO",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "FRANCISCO ANTUNES"
-      },
-      {
-            "code": "M01009",
-            "name": "M01009 - BRASKEM - PIT STOP PVC",
-            "estagio": "DEMOBILIZACAO",
-            "negocio": "PARADA",
-            "gestor": "CHRISTIANO MARQUES"
-      },
-      {
-            "code": "M01010",
-            "name": "M01010 - BRASKEM - PARADA CALDEIRA GV5301D",
-            "estagio": "DEMOBILIZACAO",
-            "negocio": "PARADA",
-            "gestor": "CARLOS MONTEIRO"
-      },
-      {
-            "code": "M01011",
-            "name": "M01011 - BRASKEM - FORNO - PMP BA4109",
-            "estagio": "DEMOBILIZACAO",
-            "negocio": "PARADA",
-            "gestor": "CARLOS MONTEIRO"
-      },
-      {
-            "code": "M01012",
-            "name": "M01012 - BRASKEM - PARADA IM C4 2026 -BA",
-            "estagio": "DEMOBILIZACAO",
-            "negocio": "PARADA",
-            "gestor": "CHRISTIANO MARQUES"
-      },
-      {
-            "code": "M01013",
-            "name": "M01013 - BRASKEM - SERVICOS EVENTUAIS",
-            "estagio": "NOVA",
-            "negocio": "PARADA",
-            "gestor": "CARLOS MONTEIRO"
-      },
-      {
-            "code": "M01200",
-            "name": "M01200 - GALVANI - LUIS EDUARDO - BA",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "FELIPE SILVA"
-      },
-      {
-            "code": "M01400",
-            "name": "M01400 - VALE - CONCEICAO",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "FRANCISCO PINTO"
-      },
-      {
-            "code": "M01500",
-            "name": "M01500 - VALE - BRUCUTU",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ALEXSANDRO TOMAZ"
-      },
-      {
-            "code": "M01600",
-            "name": "M01600 - VALE - TIMBOPEBA",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "SILVIO CASSIMIRO"
-      },
-      {
-            "code": "M01800",
-            "name": "M01800 - VALE - MINA MUTUCA",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "FERNANDO LIMA"
-      },
-      {
-            "code": "M01900",
-            "name": "M01900 - VALE - PARAOPEBAS",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "FERNANDO LIMA"
-      },
-      {
-            "code": "M02000",
-            "name": "M02000 - VALE - VARGEM GRANDE - INTEGRIDADE",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ENRICO FERNANDES"
-      },
-      {
-            "code": "M02001",
-            "name": "M02000 - VALE - VARGEM GRANDE - INTEGRIDADE",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ENRICO FERNANDES"
-      },
-      {
-            "code": "M02200",
-            "name": "M02200 - VALE - SALOBO - PA",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ARTUR FONSECA"
-      },
-      {
-            "code": "M02300",
-            "name": "M02300 - VALE - ACG MINA BRUCUTU",
-            "estagio": "NOVA",
-            "negocio": "ROTINA",
-            "gestor": "HENRIQUE QUEIROZ"
-      },
-      {
-            "code": "M02500",
-            "name": "M02500 - OFICINA DIAS DAVILA",
-            "estagio": "EXECUCAO",
-            "negocio": "OFICINA",
-            "gestor": "THELMO ANTONIO"
-      },
-      {
-            "code": "M02600",
-            "name": "M02600 - STRATOS - REC ESTRUTU - ROSARIO DO CATET",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ALESSANDRO SILVA"
-      },
-      {
-            "code": "M02700",
-            "name": "M02700 - NITROQUIMICA",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "RICARDO ALBUQUERQUE"
-      },
-      {
-            "code": "M02800",
-            "name": "M02800 - DOW - SANTOS DUMONT",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "DOUGLAS FERREIRA"
-      },
-      {
-            "code": "M02900",
-            "name": "M02900 - OLIN",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "RICARDO ALBUQUERQUE"
-      },
-      {
-            "code": "M03000",
-            "name": "M03000 - NEXA - VAZANTE",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ADAN COSTA"
-      },
-      {
-            "code": "M03100",
-            "name": "M03100 - NEXA - TRES MARIAS",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "LUIZ LACERDA"
-      },
-      {
-            "code": "M03200",
-            "name": "M03200 - NEXA - JUIZ DE FORA",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "FELIPE SANTOS"
-      },
-      {
-            "code": "M03300",
-            "name": "M03300 - DOW - ARATU",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "CARLOS BOMFIM"
-      },
-      {
-            "code": "M03400",
-            "name": "M03400 - EQUINOX - BARROCAS",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ORLANDO FILHO"
-      },
-      {
-            "code": "M03500",
-            "name": "M03500 - GERDAU - DIVINOPOLIS - MG",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "VITOR JURDI"
-      },
-      {
-            "code": "M03600",
-            "name": "M03600 - GERDAU - OURO BRANCO - MG",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "DOUGLAS ALBUQUERQUE"
-      },
-      {
-            "code": "M03700",
-            "name": "M03700 - GERDAU - MINERACAO - MG",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "DIOGO PEREIRA"
-      },
-      {
-            "code": "M03800",
-            "name": "M03800 - VOPAK - ARATU",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "CARLOS BOMFIM"
-      },
-      {
-            "code": "M03900",
-            "name": "M03900 - VOPAK - ALEMOA",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "RICARDO ALBUQUERQUE"
-      },
-      {
-            "code": "M04100",
-            "name": "M04100 - PAN AMERICAN",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "FELIPE SILVA"
-      },
-      {
-            "code": "M04600",
-            "name": "M04600 - CSN - COCALZINHO",
-            "estagio": "EXECUCAO",
-            "negocio": "PARADA",
-            "gestor": "ROGEL NETO"
-      },
-      {
-            "code": "M04601",
-            "name": "M04601 - CSN - PARADA - COCALZINHO",
-            "estagio": "EXECUCAO",
-            "negocio": "PARADA",
-            "gestor": "ROGEL NETO"
-      },
-      {
-            "code": "M04700",
-            "name": "M04700 - CSN - CANDEIAS",
-            "estagio": "EXECUCAO",
-            "negocio": "PARADA",
-            "gestor": "ROGEL NETO"
-      },
-      {
-            "code": "M04701",
-            "name": "M04701 - CSN - PARADA - CANDEIAS",
-            "estagio": "EXECUCAO",
-            "negocio": "PARADA",
-            "gestor": "ROGEL NETO"
-      },
-      {
-            "code": "M04800",
-            "name": "M04800 - CSN - CAAPORA",
-            "estagio": "EXECUCAO",
-            "negocio": "PARADA",
-            "gestor": "ROGEL NETO"
-      },
-      {
-            "code": "M04801",
-            "name": "M04801 - CSN - PARADA - CAAPORA",
-            "estagio": "EXECUCAO",
-            "negocio": "PARADA",
-            "gestor": "ROGEL NETO"
-      },
-      {
-            "code": "M04900",
-            "name": "M04900 - CSN - ALHANDRA",
-            "estagio": "EXECUCAO",
-            "negocio": "PARADA",
-            "gestor": "ROGEL NETO"
-      },
-      {
-            "code": "M04901",
-            "name": "M04901 - CSN - PARADA - ALHANDRA",
-            "estagio": "EXECUCAO",
-            "negocio": "PARADA",
-            "gestor": "ROGEL NETO"
-      },
-      {
-            "code": "M05100",
-            "name": "M05100 - CBMM - ARAXA",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ADRIEDSON CUNHA"
-      },
-      {
-            "code": "M05200",
-            "name": "M05200 - ACELEN - TANQUES CANDEIAS",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ROGEL NETO"
-      },
-      {
-            "code": "M05300",
-            "name": "M05300 - STRATOS - APOIO ADM - ROSARIO DO CATETE",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ANDRE SILVA"
-      },
-      {
-            "code": "M05400",
-            "name": "M05400 - CMOC - CUBATAO",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "DENIS FONSECA"
-      },
-      {
-            "code": "M05401",
-            "name": "M05401 - CMOC - ANDAIME - CUBATAO",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "DENIS FONSECA"
-      },
-      {
-            "code": "M05402",
-            "name": "M05402 - CMOC - PARADA ACIDOS - CUBATAO",
-            "estagio": "NOVA",
-            "negocio": "ROTINA",
-            "gestor": "DENIS FONSECA"
-      },
-      {
-            "code": "M05500",
-            "name": "M05500 - CMOC - CUBATAO",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "DENIS FONSECA"
-      },
-      {
-            "code": "M05700",
-            "name": "M05700 - ACELEN - PARADA U29A",
-            "estagio": "NOVA",
-            "negocio": "PARADA",
-            "gestor": "ROGEL NETO"
-      },
-      {
-            "code": "M05900",
-            "name": "M05900 - VALE - ACG - FLOTACAO - BRUCUTU",
-            "estagio": "NOVA",
-            "negocio": "ROTINA",
-            "gestor": "HENRIQUE QUEIROZ"
-      },
-      {
-            "code": "M07500",
-            "name": "M07500 - PAN AMERICAN - REC ESTR - JACOBINA",
-            "estagio": "NOVA",
-            "negocio": "ROTINA",
-            "gestor": "ALESSANDRO SILVA"
-      },
-      {
-            "code": "M90000",
-            "name": "F90000 - SUPERINTENDENCIA MANUTENCAO",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "CIDINEY ARAUJO"
-      },
-      {
-            "code": "M90001",
-            "name": "F90001 - GERENCIA NORTE",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "FRANCISCO ANTUNES"
-      },
-      {
-            "code": "M90002",
-            "name": "F90002 - GERENCIA NORDESTE",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "MATHEUS QUEIROZ"
-      },
-      {
-            "code": "M90003",
-            "name": "M90003 - GERENCIA TRIANGULO MINEIRO",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "ANDERSON MOREIRA"
-      },
-      {
-            "code": "M90004",
-            "name": "F90004 - GERENCIA MINAS SUL",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "REGINALDO SOUSA"
-      },
-      {
-            "code": "M90005",
-            "name": "M90005 - GERENCIA MINAS SUDESTE",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "SIDLEY BARCELLOS"
-      },
-      {
-            "code": "M90006",
-            "name": "F90006 - GERENCIA SUL/SUDESTE",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "DAVI BARBOZA"
-      },
-      {
-            "code": "M90007",
-            "name": "M90007 - SUPERINTENDENCIA MANUTENCAO 2",
-            "estagio": "EXECUCAO",
-            "negocio": "ROTINA",
-            "gestor": "FLAVIO FERREIRA"
-      },
-      {
-            "code": "M90100",
-            "name": "M90100 - SUPERINTENDENCIA PARADAS 1",
-            "estagio": "EXECUCAO",
-            "negocio": "PARADA",
-            "gestor": "GILMAR SILVA"
-      },
-      {
-            "code": "M90101",
-            "name": "F90101 - GERENCIA PARADAS 1",
-            "estagio": "EXECUCAO",
-            "negocio": "PARADA",
-            "gestor": "DIEGO LOPES"
-      },
-      {
-            "code": "M90200",
-            "name": "F90200 - SUPERINTENDENCIA PARADAS 2",
-            "estagio": "EXECUCAO",
-            "negocio": "PARADA",
-            "gestor": "NESTOR OGASAWARA"
-      },
-      {
-            "code": "M95000",
-            "name": "M95000 - CREDITOS TRIBUTARIOS",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "CREDITOS TRIBUTARIOS",
-            "gestor": "SHEYLA MARTINS"
-      },
-      {
-            "code": "N00400",
-            "name": "N00400 - RHODIA - CAPEX - PAULINIA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N00700",
-            "name": "N00700 - OLIN",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N00900",
-            "name": "N00900 - YARA - PAULINIA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N01500",
-            "name": "N01500 - VALE - CONCEICAO",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N01700",
-            "name": "N01700 - VALE - ACG MINA BRUCUTU",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N01900",
-            "name": "N01900 - VALE - PCM - TIMBOPEBA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N02200",
-            "name": "N02200 - GALVANI FOSNOR – PARADA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N02500",
-            "name": "N02500 - VOPAK - ALEMOA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N03800",
-            "name": "N03800 - NPE SERVICE",
-            "estagio": "EXECUCAO",
-            "negocio": "LOCACOES",
-            "gestor": "EDIVALTER JUNIOR"
-      },
-      {
-            "code": "N04400",
-            "name": "N04400 - VOPAK - ARATU",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N06000",
-            "name": "N06000 - NITROQUIMICA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N06400",
-            "name": "N06400 - MOSAIC - ROSARIO DO CATETE",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N07000",
-            "name": "N07000 - DOW - ARATU",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N07600",
-            "name": "N07600 - HEXION - CURITIBA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N07800",
-            "name": "N07800 - ALFA ENGENHARIA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "EDIVALTER JUNIOR"
-      },
-      {
-            "code": "N08000",
-            "name": "N08000 - EQUINOX - BARROCAS",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N08800",
-            "name": "N08800 - BRASKEM - PGM AREA FRIA - CAMACARI",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N09100",
-            "name": "N09100 - EJA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N09300",
-            "name": "N09300 - CMOC - PARADA - CUBATAO",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N10300",
-            "name": "N10300 - CBMM - ARAXA",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N10400",
-            "name": "N10400 - ACELEN - CAPEX - F4201D - CANDEIAS",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N10600",
-            "name": "N10600 - EQUINOX - PEAD - SANTA LUZ",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N10700",
-            "name": "N10700 - MOSAIC - REC ESTRUTU - ROSARIO DO CATETE",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N12100",
-            "name": "N12100 - GERDAU - PARADA - DIVINOPOLIS - MG",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N12300",
-            "name": "N12300 - GERDAU - PARADA 1 E 4 - OURO BRANCO - MG",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N12400",
-            "name": "N12400 - GERDAU - MINERACAO - MG",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      },
-      {
-            "code": "N12700",
-            "name": "N12700 - DOW - BREU BRANCO",
-            "estagio": "EM EXECUÇÃO",
-            "negocio": "LOCACOES",
-            "gestor": "THAIS CARVALHO"
-      }
+  {
+    "code": "F09900",
+    "name": "F09900 - RHODIA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "HERISON SOARES"
+  },
+  {
+    "code": "M00100",
+    "name": "M00100 - CBMM - ARAXA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "SEM INFORMAÇÂO"
+  },
+  {
+    "code": "M00101",
+    "name": "M00101 - CBMM - PARADA - ARAXA",
+    "estagio": "NOVA",
+    "negocio": "ROTINA",
+    "gestor": "CARLOS CASTILHO"
+  },
+  {
+    "code": "M00200",
+    "name": "M00200 - YARA - PAULINIA",
+    "estagio": "DESMOBILIZAÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "AILSON MOTA"
+  },
+  {
+    "code": "M00500",
+    "name": "M00500 - CMOC - SANTALUZ",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ORLANDO FILHO"
+  },
+  {
+    "code": "M00600",
+    "name": "M00600 - HEXION - CURITIBA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "CLERTON ARAUJO"
+  },
+  {
+    "code": "M00700",
+    "name": "M00700 - STRATOS - ROSARIO DO CATETE",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ANDRE SILVA"
+  },
+  {
+    "code": "M00900",
+    "name": "M00900 - DOW - BREU BRANCO",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "FRANCISCO ANTUNES"
+  },
+  {
+    "code": "M01009",
+    "name": "M01009 - BRASKEM - PIT STOP PVC",
+    "estagio": "DESMOBILIZAÇÃO",
+    "negocio": "PARADA",
+    "gestor": "CHRISTIANO MARQUES"
+  },
+  {
+    "code": "M01010",
+    "name": "M01010 - BRASKEM - PARADA CALDEIRA GV5301D",
+    "estagio": "DESMOBILIZAÇÃO",
+    "negocio": "PARADA",
+    "gestor": "CARLOS MONTEIRO"
+  },
+  {
+    "code": "M01011",
+    "name": "M01011 - BRASKEM - FORNO - PMP BA4109",
+    "estagio": "DESMOBILIZAÇÃO",
+    "negocio": "PARADA",
+    "gestor": "CARLOS MONTEIRO"
+  },
+  {
+    "code": "M01012",
+    "name": "M01012 - BRASKEM - PARADA IM C4 2026 -BA",
+    "estagio": "DESMOBILIZAÇÃO",
+    "negocio": "PARADA",
+    "gestor": "CHRISTIANO MARQUES"
+  },
+  {
+    "code": "M01013",
+    "name": "M01013 - BRASKEM - SERVICOS EVENTUAIS",
+    "estagio": "NOVA",
+    "negocio": "PARADA",
+    "gestor": "CARLOS MONTEIRO"
+  },
+  {
+    "code": "M01200",
+    "name": "M01200 - GALVANI - LUIS EDUARDO - BA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "FELIPE SILVA"
+  },
+  {
+    "code": "M01400",
+    "name": "M01400 - VALE - CONCEICAO",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "FRANCISCO PINTO"
+  },
+  {
+    "code": "M01500",
+    "name": "M01500 - VALE - BRUCUTU",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ALEXSANDRO TOMAZ"
+  },
+  {
+    "code": "M01600",
+    "name": "M01600 - VALE - TIMBOPEBA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "SILVIO CASSIMIRO"
+  },
+  {
+    "code": "M01800",
+    "name": "M01800 - VALE - MINA MUTUCA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "FERNANDO LIMA"
+  },
+  {
+    "code": "M01900",
+    "name": "M01900 - VALE - PARAOPEBAS",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "FERNANDO LIMA"
+  },
+  {
+    "code": "M02000",
+    "name": "M02000 - VALE - VARGEM GRANDE - INTEGRIDADE",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ENRICO FERNANDES"
+  },
+  {
+    "code": "M02001",
+    "name": "M02000 - VALE - VARGEM GRANDE - INTEGRIDADE",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ENRICO FERNANDES"
+  },
+  {
+    "code": "M02200",
+    "name": "M02200 - VALE - SALOBO - PA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ARTUR FONSECA"
+  },
+  {
+    "code": "M02300",
+    "name": "M02300 - VALE - ACG MINA BRUCUTU",
+    "estagio": "NOVA",
+    "negocio": "ROTINA",
+    "gestor": "HENRIQUE QUEIROZ"
+  },
+  {
+    "code": "M02500",
+    "name": "M02500 - OFICINA DIAS DAVILA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "OFICINA",
+    "gestor": "THELMO ANTONIO"
+  },
+  {
+    "code": "M02600",
+    "name": "M02600 - STRATOS - REC ESTRUTU - ROSARIO DO CATET",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ALESSANDRO SILVA"
+  },
+  {
+    "code": "M02700",
+    "name": "M02700 - NITROQUIMICA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "RICARDO ALBUQUERQUE"
+  },
+  {
+    "code": "M02800",
+    "name": "M02800 - DOW - SANTOS DUMONT",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "DOUGLAS FERREIRA"
+  },
+  {
+    "code": "M02900",
+    "name": "M02900 - OLIN",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "RICARDO ALBUQUERQUE"
+  },
+  {
+    "code": "M03000",
+    "name": "M03000 - NEXA - VAZANTE",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ADAN COSTA"
+  },
+  {
+    "code": "M03100",
+    "name": "M03100 - NEXA - TRES MARIAS",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "LUIZ LACERDA"
+  },
+  {
+    "code": "M03200",
+    "name": "M03200 - NEXA - JUIZ DE FORA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "FELIPE SANTOS"
+  },
+  {
+    "code": "M03300",
+    "name": "M03300 - DOW - ARATU",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "CARLOS BOMFIM"
+  },
+  {
+    "code": "M03400",
+    "name": "M03400 - EQUINOX - BARROCAS",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ORLANDO FILHO"
+  },
+  {
+    "code": "M03500",
+    "name": "M03500 - GERDAU - DIVINOPOLIS - MG",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "VITOR JURDI"
+  },
+  {
+    "code": "M03600",
+    "name": "M03600 - GERDAU - OURO BRANCO - MG",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "DOUGLAS ALBUQUERQUE"
+  },
+  {
+    "code": "M03700",
+    "name": "M03700 - GERDAU - MINERACAO - MG",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "DIOGO PEREIRA"
+  },
+  {
+    "code": "M03800",
+    "name": "M03800 - VOPAK - ARATU",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "CARLOS BOMFIM"
+  },
+  {
+    "code": "M03900",
+    "name": "M03900 - VOPAK - ALEMOA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "RICARDO ALBUQUERQUE"
+  },
+  {
+    "code": "M04100",
+    "name": "M04100 - PAN AMERICAN",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "FELIPE SILVA"
+  },
+  {
+    "code": "M04600",
+    "name": "M04600 - CSN - COCALZINHO",
+    "estagio": "EXECUÇÃO",
+    "negocio": "PARADA",
+    "gestor": "ROGEL NETO"
+  },
+  {
+    "code": "M04601",
+    "name": "M04601 - CSN - PARADA - COCALZINHO",
+    "estagio": "EXECUÇÃO",
+    "negocio": "PARADA",
+    "gestor": "ROGEL NETO"
+  },
+  {
+    "code": "M04700",
+    "name": "M04700 - CSN - CANDEIAS",
+    "estagio": "EXECUÇÃO",
+    "negocio": "PARADA",
+    "gestor": "ROGEL NETO"
+  },
+  {
+    "code": "M04701",
+    "name": "M04701 - CSN - PARADA - CANDEIAS",
+    "estagio": "EXECUÇÃO",
+    "negocio": "PARADA",
+    "gestor": "ROGEL NETO"
+  },
+  {
+    "code": "M04800",
+    "name": "M04800 - CSN - CAAPORA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "PARADA",
+    "gestor": "ROGEL NETO"
+  },
+  {
+    "code": "M04801",
+    "name": "M04801 - CSN - PARADA - CAAPORA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "PARADA",
+    "gestor": "ROGEL NETO"
+  },
+  {
+    "code": "M04900",
+    "name": "M04900 - CSN - ALHANDRA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "PARADA",
+    "gestor": "ROGEL NETO"
+  },
+  {
+    "code": "M04901",
+    "name": "M04901 - CSN - PARADA - ALHANDRA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "PARADA",
+    "gestor": "ROGEL NETO"
+  },
+  {
+    "code": "M05100",
+    "name": "M05100 - CBMM - ARAXA",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ADRIEDSON CUNHA"
+  },
+  {
+    "code": "M05200",
+    "name": "M05200 - ACELEN - TANQUES CANDEIAS",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ROGEL NETO"
+  },
+  {
+    "code": "M05300",
+    "name": "M05300 - STRATOS - APOIO ADM - ROSARIO DO CATETE",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ANDRE SILVA"
+  },
+  {
+    "code": "M05400",
+    "name": "M05400 - CMOC - CUBATAO",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "DENIS FONSECA"
+  },
+  {
+    "code": "M05401",
+    "name": "M05401 - CMOC - ANDAIME - CUBATAO",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "DENIS FONSECA"
+  },
+  {
+    "code": "M05402",
+    "name": "M05402 - CMOC - PARADA ACIDOS - CUBATAO",
+    "estagio": "NOVA",
+    "negocio": "ROTINA",
+    "gestor": "DENIS FONSECA"
+  },
+  {
+    "code": "M05500",
+    "name": "M05500 - CMOC - CUBATAO",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "DENIS FONSECA"
+  },
+  {
+    "code": "M05700",
+    "name": "M05700 - ACELEN - PARADA U29A",
+    "estagio": "NOVA",
+    "negocio": "PARADA",
+    "gestor": "ROGEL NETO"
+  },
+  {
+    "code": "M05900",
+    "name": "M05900 - VALE - ACG - FLOTACAO - BRUCUTU",
+    "estagio": "NOVA",
+    "negocio": "ROTINA",
+    "gestor": "HENRIQUE QUEIROZ"
+  },
+  {
+    "code": "M07500",
+    "name": "M07500 - PAN AMERICAN - REC ESTR - JACOBINA",
+    "estagio": "NOVA",
+    "negocio": "ROTINA",
+    "gestor": "ALESSANDRO SILVA"
+  },
+  {
+    "code": "M90000",
+    "name": "F90000 - SUPERINTENDENCIA MANUTENCAO",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "CIDINEY ARAUJO"
+  },
+  {
+    "code": "M90001",
+    "name": "F90001 - GERENCIA NORTE",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "FRANCISCO ANTUNES"
+  },
+  {
+    "code": "M90002",
+    "name": "F90002 - GERENCIA NORDESTE",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "MATHEUS QUEIROZ"
+  },
+  {
+    "code": "M90003",
+    "name": "M90003 - GERENCIA TRIANGULO MINEIRO",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "ANDERSON MOREIRA"
+  },
+  {
+    "code": "M90004",
+    "name": "F90004 - GERENCIA MINAS SUL",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "REGINALDO SOUSA"
+  },
+  {
+    "code": "M90005",
+    "name": "M90005 - GERENCIA MINAS SUDESTE",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "SIDLEY BARCELLOS"
+  },
+  {
+    "code": "M90006",
+    "name": "F90006 - GERENCIA SUL/SUDESTE",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "DAVI BARBOZA"
+  },
+  {
+    "code": "M90007",
+    "name": "M90007 - SUPERINTENDENCIA MANUTENCAO 2",
+    "estagio": "EXECUÇÃO",
+    "negocio": "ROTINA",
+    "gestor": "FLAVIO FERREIRA"
+  },
+  {
+    "code": "M90100",
+    "name": "M90100 - SUPERINTENDENCIA PARADAS 1",
+    "estagio": "EXECUÇÃO",
+    "negocio": "PARADA",
+    "gestor": "GILMAR SILVA"
+  },
+  {
+    "code": "M90101",
+    "name": "F90101 - GERENCIA PARADAS 1",
+    "estagio": "EXECUÇÃO",
+    "negocio": "PARADA",
+    "gestor": "DIEGO LOPES"
+  },
+  {
+    "code": "M90200",
+    "name": "F90200 - SUPERINTENDENCIA PARADAS 2",
+    "estagio": "EXECUÇÃO",
+    "negocio": "PARADA",
+    "gestor": "NESTOR OGASAWARA"
+  }
 ];
 
     // =========================================================================
@@ -4093,7 +3881,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       } else if (tabId === 'tabRanking') {
         if (btns[3]) btns[3].classList.add("active");
         if (p4) { p4.style.display = "block"; p4.classList.add("active"); }
-        if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
+        renderTab4Scorecard();
       }
     }
 
@@ -4169,7 +3957,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       let monthName = currentParams.get("SelectedMes") || monthNames[monthNum - 1] || "JULHO";
       let monthFmt = `${monthName.toUpperCase()} / 2026`;
 
-      // Update Final Remarks (Topic #24)
+      // Final Remarks (Topic #24)
       const finalTA = document.getElementById("finalPerformanceComment");
       const finalLock = document.getElementById("finalLock");
       
@@ -4312,19 +4100,28 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           (valStatus === "Validado" ? `<span class="status-pill status-validado" style="font-size: 0.84rem;">🔒 Validado & Travado</span>` : `<span class="status-pill status-pendente" style="font-size: 0.84rem;">⏳ Pendente de Validação</span>`);
 
         let masterControlsHTML = "";
-        if (window.isMaster && !isMultiOS) {
-          masterControlsHTML = `
-            <div class="validation-control-bar" style="margin-top: 8px;">
-              ${valStatus !== "Validado" ? 
-                `<button class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
-                  🔒 VALIDAR E TRAVAR COMENTÁRIO DO GESTOR
-                 </button>` : 
-                `<button class="val-btn btn-unlock" onclick="setValidationStatus(${topic.id}, 'Reaberto')" style="background:#d97706; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(217,119,6,0.25);">
-                  🔓 REABRIR EDIÇÃO PARA O GESTOR
-                 </button>`
-              }
-            </div>
-          `;
+        if (window.isMaster) {
+          if (isMultiOS) {
+            masterControlsHTML = `
+              <div style="margin-top: 8px; background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 6px; padding: 6px 10px; font-size: 0.78rem; color: #0369a1; font-weight: 700; display: flex; align-items: center; justify-content: space-between;">
+                <span>🛡️ Modo Máster Ativo (Visão Multi-OS)</span>
+                <span style="font-size: 0.72rem; color: #0284c7;">Filtre uma OS no topo para validar</span>
+              </div>
+            `;
+          } else {
+            masterControlsHTML = `
+              <div class="validation-control-bar" style="margin-top: 8px;">
+                ${valStatus !== "Validado" ? 
+                  `<button type="button" class="val-btn btn-lock" onclick="setValidationStatus(${topic.id}, 'Validado')" style="background:#16a34a; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
+                    🔒 VALIDAR E TRAVAR COMENTÁRIO DO GESTOR
+                   </button>` : 
+                  `<button type="button" class="val-btn btn-unlock" onclick="setValidationStatus(${topic.id}, 'Reaberto')" style="background:#d97706; color:#ffffff; padding:8px 14px; font-weight:700; font-size:0.90rem; border-radius:6px; cursor:pointer; width:100%; justify-content:center; box-shadow:0 2px 8px rgba(217,119,6,0.25);">
+                    🔓 REABRIR EDIÇÃO PARA O GESTOR
+                   </button>`
+                }
+              </div>
+            `;
+          }
         }
 
         let assertiveBarHTML = "";
@@ -4361,20 +4158,20 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           if (window.isMaster) {
             if (isOverride) {
               overrideButtonHTML = `
-                <button class="override-btn" onclick="toggleAssertiveness('${finalStatus}')" style="background:#475569; box-shadow:0 2px 6px rgba(0,0,0,0.15); cursor:pointer;">
+                <button type="button" class="override-btn" onclick="toggleAssertiveness('${finalStatus}')" style="background:#475569; box-shadow:0 2px 6px rgba(0,0,0,0.15); cursor:pointer;">
                   🔄 Reverter para Apuração Automática (${calculatedStatus})
                 </button>
               `;
             } else {
               overrideButtonHTML = `
-                <button class="override-btn" onclick="toggleAssertiveness('${finalStatus}')" style="background: linear-gradient(135deg, #d97706, #b45309); cursor:pointer;">
+                <button type="button" class="override-btn" onclick="toggleAssertiveness('${finalStatus}')" style="background: linear-gradient(135deg, #d97706, #b45309); cursor:pointer;">
                   🔴 Alterar para Não Assertivo (Override Máster)
                 </button>
               `;
             }
           } else {
             overrideButtonHTML = `
-              <button class="override-btn" disabled style="background:#cbd5e1; color:#64748b; cursor:not-allowed; border:1px solid #94a3b8;" title="Alterne para o perfil Máster Performance no topo para editar">
+              <button type="button" class="override-btn" disabled style="background:#cbd5e1; color:#64748b; cursor:not-allowed; border:1px solid #94a3b8;" title="Alterne para o perfil Máster Performance no topo para editar">
                 🔒 Override Exclusivo Máster
               </button>
             `;
@@ -4407,7 +4204,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
                 ${linesHTML}
               </div>
             </div>
-            <button id="btn_hist_${topic.id}" class="timeline-btn" onclick="toggleInlineHistory(${topic.id})">
+            <button id="btn_hist_${topic.id}" type="button" class="timeline-btn" onclick="toggleInlineHistory(${topic.id})">
               📜 Histórico ATA_COMENTARIO
             </button>
           </div>
@@ -4447,7 +4244,6 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
         container.appendChild(row);
 
-        // Container do Histórico Inline
         const histRow = document.createElement("div");
         histRow.id = `hist_row_${topic.id}`;
         histRow.style.display = "none";
@@ -4700,13 +4496,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       tbody.innerHTML = "";
 
       const currentParams = new URLSearchParams(window.location.search);
-      const rawAllowed = currentParams.get("AllowedOSList") || "";
-      const allowedOSArray = rawAllowed ? rawAllowed.split(",").map(s => s.trim().toUpperCase()).filter(Boolean) : [];
-
-      let osList = ACTIVE_CONTRACTS_CATALOG.filter(c => c.estagio !== "FINALIZADA");
-      if (allowedOSArray.length > 0) {
-        osList = osList.filter(c => allowedOSArray.includes(c.code.toUpperCase()));
-      }
+      let osList = ACTIVE_CONTRACTS_CATALOG;
 
       let totalOS = osList.length;
       let okCount = 0;
@@ -4719,13 +4509,14 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       var thead = document.getElementById("slaTableHead");
       if (thead) {
         var headerRow = "<tr style='background:#0f2b5c; color:#ffffff; font-size:0.78rem; text-transform:uppercase;'>";
-        headerRow += "<th style='padding:10px 8px; position:sticky; left:0; background:#0f2b5c; z-index:2; min-width:100px;'>OS</th>";
-        headerRow += "<th style='padding:10px 8px; min-width:120px;'>Cliente</th>";
-        headerRow += "<th style='padding:10px 8px; min-width:80px;'>Estágio</th>";
+        headerRow += "<th style='padding:10px 8px; position:sticky; left:0; background:#0f2b5c; z-index:2; min-width:90px;'>OS</th>";
+        headerRow += "<th style='padding:10px 8px; min-width:140px; text-align:left;'>Nome do Contrato</th>";
+        headerRow += "<th style='padding:10px 8px; min-width:90px;'>Negócio</th>";
+        headerRow += "<th style='padding:10px 8px; min-width:100px;'>Estágio</th>";
         for (var h = 1; h <= selMonthNum; h++) {
           headerRow += "<th style='padding:10px 6px; min-width:110px; text-align:center;'>" + monthNames[h] + "</th>";
         }
-        headerRow += "<th style='padding:10px 8px; min-width:100px; text-align:center;'>Status Atual</th>";
+        headerRow += "<th style='padding:10px 8px; min-width:110px; text-align:center;'>Status Atual</th>";
         headerRow += "</tr>";
         thead.innerHTML = headerRow;
       }
@@ -4777,7 +4568,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           monthCellsHTML += '<div style="font-weight:700; color:' + badgeColor + '; background:' + badgeBg + '; padding:2px 4px; border-radius:4px; font-size:0.70rem; white-space:nowrap; margin-bottom:3px;">';
           monthCellsHTML += badgeText;
           monthCellsHTML += '</div>';
-          monthCellsHTML += '<button onclick="toggleSlaPeriodStatus(\'' + contract.code + '\', ' + m + ')" style="font-weight:700; color:' + pBadgeColor + '; background:' + pBadgeBg + '; border:1px solid ' + pBadgeColor + '; padding:2px 4px; border-radius:4px; font-size:0.68rem; white-space:nowrap; cursor:pointer; width:100%; display:block;" title="Clique para alternar o status do período (Máster)">';
+          monthCellsHTML += '<button type="button" onclick="toggleSlaPeriodStatus(\'' + contract.code + '\', ' + m + ')" style="font-weight:700; color:' + pBadgeColor + '; background:' + pBadgeBg + '; border:1px solid ' + pBadgeColor + '; padding:2px 4px; border-radius:4px; font-size:0.68rem; white-space:nowrap; cursor:pointer; width:100%; display:block;" title="Clique para alternar o status do período (Máster)">';
           monthCellsHTML += pBadgeText;
           monthCellsHTML += '</button>';
           monthCellsHTML += '</td>';
@@ -4793,7 +4584,8 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
         var trHTML = "<tr style='background:" + rowBg + "; border-bottom:1px solid #cbd5e1;'>";
         trHTML += "<td style='padding:8px 8px; font-weight:800; color:#0f2b5c; position:sticky; left:0; background:" + rowBg + "; z-index:1;'>" + contract.code + "</td>";
-        trHTML += "<td style='padding:8px 8px; font-weight:600; color:#334155;'>" + contract.name + "</td>";
+        trHTML += "<td style='padding:8px 8px; font-weight:600; color:#334155; text-align:left;'>" + contract.name + "</td>";
+        trHTML += "<td style='padding:8px 8px; font-size:0.74rem; font-weight:700; color:#64748b;'>" + contract.negocio + "</td>";
         trHTML += "<td style='padding:8px 8px; font-size:0.74rem; font-weight:700; color:#475569;'>" + contract.estagio + "</td>";
         trHTML += monthCellsHTML;
         trHTML += "<td style='padding:8px 8px; text-align:center;'>" + curBadge + "</td>";
@@ -4834,14 +4626,8 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       tbody.innerHTML = "";
 
       const currentParams = new URLSearchParams(window.location.search);
-      const rawAllowed = currentParams.get("AllowedOSList") || "";
-      const allowedOSArray = rawAllowed ? rawAllowed.split(",").map(s => s.trim().toUpperCase()).filter(Boolean) : [];
       const selMonthNum = parseInt(currentParams.get("SelectedMesNo")) || 7;
-
-      let osList = ACTIVE_CONTRACTS_CATALOG.filter(c => c.estagio !== "FINALIZADA");
-      if (allowedOSArray.length > 0) {
-        osList = osList.filter(c => allowedOSArray.includes(c.code.toUpperCase()));
-      }
+      let osList = ACTIVE_CONTRACTS_CATALOG;
 
       let rankingData = osList.map(contract => {
         const comp = getOSCompletionStatus(contract.code, selMonthNum);
@@ -4888,6 +4674,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           code: contract.code,
           name: contract.name,
           negocio: contract.negocio,
+          estagio: contract.estagio,
           gestor: contract.gestor,
           govPts: govPts,
           finPts: finPts,
@@ -4901,32 +4688,40 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
       rankingData.sort((a, b) => b.avgAccum - a.avgAccum);
 
-      if (rankingData[0]) {
-        const p1N = document.getElementById("podium1Name");
-        const p1S = document.getElementById("podium1Score");
-        if (p1N) p1N.innerText = `${rankingData[0].code} - ${rankingData[0].name}`;
-        if (p1S) p1S.innerText = `${rankingData[0].avgAccum} pts`;
-      }
-      if (rankingData[1]) {
-        const p2N = document.getElementById("podium2Name");
-        const p2S = document.getElementById("podium2Score");
-        if (p2N) p2N.innerText = `${rankingData[1].code} - ${rankingData[1].name}`;
-        if (p2S) p2S.innerText = `${rankingData[1].avgAccum} pts`;
-      }
-      if (rankingData[2]) {
-        const p3N = document.getElementById("podium3Name");
-        const p3S = document.getElementById("podium3Score");
-        if (p3N) p3N.innerText = `${rankingData[2].code} - ${rankingData[2].name}`;
-        if (p3S) p3S.innerText = `${rankingData[2].avgAccum} pts`;
+      // Render Pódio (Top 3)
+      const podiumCont = document.getElementById("scorecardPodiumContainer");
+      if (podiumCont && rankingData.length >= 3) {
+        podiumCont.innerHTML = `
+          <div style="background:linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); border-radius:10px; padding:16px; color:#ffffff; border:2px solid #60a5fa; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+            <div style="font-size:0.75rem; font-weight:800; color:#bfdbfe; text-transform:uppercase;">🥈 2º LUGAR</div>
+            <div style="font-size:1.05rem; font-weight:800; margin:4px 0;">${rankingData[1].code} - ${rankingData[1].name}</div>
+            <div style="font-size:0.78rem; color:#cbd5e1; margin-bottom:8px;">${rankingData[1].negocio} • Gestor: ${rankingData[1].gestor}</div>
+            <div style="font-size:1.4rem; font-weight:900; color:#93c5fd;">${rankingData[1].avgAccum} <span style="font-size:0.80rem;">pts</span></div>
+          </div>
+
+          <div style="background:linear-gradient(135deg, #b45309 0%, #d97706 100%); border-radius:10px; padding:18px; color:#ffffff; border:2.5px solid #fde047; box-shadow:0 6px 18px rgba(0,0,0,0.25); transform:scale(1.02);">
+            <div style="font-size:0.80rem; font-weight:800; color:#fef08a; text-transform:uppercase;">🥇 1º LUGAR (CAMPEÃO)</div>
+            <div style="font-size:1.15rem; font-weight:900; margin:4px 0;">${rankingData[0].code} - ${rankingData[0].name}</div>
+            <div style="font-size:0.80rem; color:#fef3c7; margin-bottom:8px;">${rankingData[0].negocio} • Gestor: ${rankingData[0].gestor}</div>
+            <div style="font-size:1.6rem; font-weight:900; color:#ffffff;">${rankingData[0].avgAccum} <span style="font-size:0.85rem;">pts</span></div>
+          </div>
+
+          <div style="background:linear-gradient(135deg, #78350f 0%, #92400e 100%); border-radius:10px; padding:16px; color:#ffffff; border:2px solid #fdba74; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+            <div style="font-size:0.75rem; font-weight:800; color:#fed7aa; text-transform:uppercase;">🥉 3º LUGAR</div>
+            <div style="font-size:1.05rem; font-weight:800; margin:4px 0;">${rankingData[2].code} - ${rankingData[2].name}</div>
+            <div style="font-size:0.78rem; color:#ffedd5; margin-bottom:8px;">${rankingData[2].negocio} • Gestor: ${rankingData[2].gestor}</div>
+            <div style="font-size:1.4rem; font-weight:900; color:#fdba74;">${rankingData[2].avgAccum} <span style="font-size:0.80rem;">pts</span></div>
+          </div>
+        `;
       }
 
       rankingData.forEach((item, idx) => {
         const pos = idx + 1;
-        const medal = pos === 1 ? "🥇" : (pos === 2 ? "🥈" : (pos === 3 ? "🥉" : `${pos}º`));
+        const medal = pos === 1 ? "🥇 1º" : (pos === 2 ? "🥈 2º" : (pos === 3 ? "🥉 3º" : `${pos}º`));
         const rowBg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
 
-        let scoreBadgeClass = item.avgAccum >= 85 ? "background:#dcfce7; color:#15803d; border:1px solid #86efac;" :
-          (item.avgAccum >= 70 ? "background:#fef3c7; color:#b45309; border:1px solid #fde68a;" : "background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5;");
+        let scoreBadgeClass = item.avgAccum >= 85 ? "background:#dcfce7; color:#15803d; border:1.5px solid #86efac;" :
+          (item.avgAccum >= 70 ? "background:#fef3c7; color:#b45309; border:1.5px solid #fde68a;" : "background:#fee2e2; color:#b91c1c; border:1.5px solid #fca5a5;");
 
         const tr = document.createElement("tr");
         tr.style.background = rowBg;
@@ -4934,9 +4729,9 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
         tr.innerHTML = `
           <td style="padding:10px; font-weight:800; font-size:1.05rem; text-align:center; color:#0f2b5c;">${medal}</td>
           <td style="padding:10px; font-weight:800; color:#0f2b5c;">${item.code}</td>
-          <td style="padding:10px; font-weight:600; color:#334155;">${item.name}</td>
+          <td style="padding:10px; font-weight:600; color:#334155; text-align:left;">${item.name}</td>
           <td style="padding:10px; font-size:0.80rem; font-weight:700; color:#64748b;">${item.negocio}</td>
-          <td style="padding:10px; font-size:0.82rem; font-weight:600; color:#334155;">${item.gestor}</td>
+          <td style="padding:10px; font-size:0.80rem; font-weight:700; color:#475569;">${item.estagio}</td>
           <td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">${item.govPts} / 30</td>
           <td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">${item.finPts} / 30</td>
           <td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">${item.pesPts} / 20</td>
@@ -4953,39 +4748,13 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     }
 
     // =========================================================================
-    // 7. INITIALIZATION & EVENT DELEGATION
+    // 7. INITIALIZATION
     // =========================================================================
     document.addEventListener("DOMContentLoaded", function() {
       updateFromURLParams();
       
       var savedTab = safeGetStorage('pbi_active_tab', 'tabMensal');
       switchTab(savedTab);
-
-      document.addEventListener("click", function(e) {
-        var tabBtn = e.target.closest(".tab-btn");
-        if (tabBtn) {
-          e.preventDefault();
-          var onclickStr = tabBtn.getAttribute("onclick") || "";
-          var match = onclickStr.match(/switchTab\(['"]([^'"]+)['"]\)/);
-          if (match) {
-            switchTab(match[1]);
-          }
-        }
-
-        if (e.target.closest("#btnOpenSlaModal") || e.target.closest('[onclick*="openSlaModal"]')) {
-          e.preventDefault();
-          openSlaModal();
-        }
-        if (e.target.id === "slaModalCloseBtn" || e.target.closest('[onclick*="closeSlaModal"]') || e.target.id === "slaModal") {
-          e.preventDefault();
-          closeSlaModal();
-        }
-
-        if (e.target.closest("#toggleRoleBtn") || e.target.closest('[onclick*="toggleRole"]')) {
-          e.preventDefault();
-          toggleRole();
-        }
-      });
     });
 
     document.addEventListener("keydown", function(e) {
