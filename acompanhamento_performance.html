@@ -159,17 +159,33 @@
       "ivan.santos@npegroup.com.br"
     ];
 
-    window.checkPerformanceAccess = function() {
+    // Declaracao Global Oficial de Seguranca
+    window.currentRoleSimulated = null;
+    window.MASTER_PERFORMANCE_EMAILS = [
+      "robson.araujo@npe.com.br",
+      "robson.araujo@npegroup.com.br",
+      "robson.araujo@npeservice.com.br",
+      "atila.hohenfeld@npegroup.com.br",
+      "luis.andrade@npegroup.com.br",
+      "vinicius.pedroza@npegroup.com.br",
+      "ivan.santos@npegroup.com.br"
+    ];
+
+    function checkPerformanceAccess() {
+      if (window.currentRoleSimulated === "GESTOR") return false;
+      if (window.currentRoleSimulated === "MASTER") return true;
+
       const params = new URLSearchParams(window.location.search);
       const isUserPerformanceParam = (params.get("IsUserPerformance") || "").toUpperCase() === "TRUE";
       const userEmail = (params.get("UserEmail") || "").toLowerCase().trim();
-      
+
       if (isUserPerformanceParam) return true;
       if (!userEmail) return false;
-      
+
       return window.MASTER_PERFORMANCE_EMAILS.some(allowed => userEmail.includes(allowed.toLowerCase().trim()));
-    };
-    function checkPerformanceAccess() { return window.checkPerformanceAccess(); }
+    }
+    window.checkPerformanceAccess = checkPerformanceAccess;
+    
 
 
 window.BI_MONTHLY_METRICS = {"M00100": {"1": {"mes_nome": "JANEIRO / 2026", "fat_ano": 13042170, "res_ano": 613871, "fat_mes": 1749787, "res_mes": 184973, "abs": 0.0449, "turnover": 0.0239, "efetivo_pr": 194, "efetivo_real": 158, "hht_pr": 28201, "hht_real": 19388, "perda": 0, "indenizacao": 5615, "bp_apr": 0, "bp_rec": 0, "saf": 0, "caf": 0, "marg_real": 0.1057, "marg_fcst": 0.1057, "dif_marg": 0.0, "assertiv": "Assertivo"}, "2": {"mes_nome": "FEVEREIRO / 2026", "fat_ano": 13042170, "res_ano": 613871, "fat_mes": 1449268, "res_mes": 201005, "abs": 0.0411, "turnover": 0.0225, "efetivo_pr": 142, "efetivo_real": 143, "hht_pr": 16127, "hht_real": 16221, "perda": 0, "indenizacao": 1830, "bp_apr": 0, "bp_rec": 0, "saf": 0, "caf": 0, "marg_real": 0.1387, "marg_fcst": 0.1387, "dif_marg": 0.0, "assertiv": "Assertivo"}, "3": {"mes_nome": "MARÇO / 2026", "fat_ano": 13794839, "res_ano": 1072007, "fat_mes": 1167693, "res_mes": -122599, "abs": 0.0483, "turnover": 0.0221, "efetivo_pr": 158, "efetivo_real": 127, "hht_pr": 15664, "hht_real": 18299, "perda": 31459, "indenizacao": 0, "bp_apr": 0, "bp_rec": 0, "saf": 0, "caf": 0, "marg_real": -0.105, "marg_fcst": 0.0122, "dif_marg": -0.1172, "assertiv": "Não Assertivo"}, "4": {"mes_nome": "ABRIL / 2026", "fat_ano": 13846939, "res_ano": 1078416, "fat_mes": 1270760, "res_mes": 125537, "abs": 0.0809, "turnover": 0.017, "efetivo_pr": 116, "efetivo_real": 118, "hht_pr": 15143, "hht_real": 15082, "perda": 62071, "indenizacao": 3288, "bp_apr": 0, "bp_rec": 0, "saf": 0, "caf": 0, "marg_real": 0.0988, "marg_fcst": 0.0893, "dif_marg": 0.0095, "assertiv": "Assertivo"}, "5": {"mes_nome": "MAIO / 2026", "fat_ano": 13925149, "res_ano": 1208505, "fat_mes": 1228648, "res_mes": 47915, "abs": 0.0871, "turnover": 0.0178, "efetivo_pr": 115, "efetivo_real": 115, "hht_pr": 15273, "hht_real": 17804, "perda": 51047, "indenizacao": 0, "bp_apr": 2, "bp_rec": 0, "saf": 0, "caf": 0, "marg_real": 0.039, "marg_fcst": 0.0309, "dif_marg": 0.0081, "assertiv": "Assertivo"}, "6": {"mes_nome": "JUNHO / 2026", "fat_ano": 14379791, "res_ano": 600282, "fat_mes": 1804654, "res_mes": -143, "abs": 0.0397, "turnover": 0.0224, "efetivo_pr": 116, "efetivo_real": 194, "hht_pr": 15143, "hht_real": 31589, "perda": 0, "indenizacao": 3288, "bp_apr": 1, "bp_rec": 1, "saf": 0, "caf": 0, "marg_real": -0.0001, "marg_fcst": 0.0213, "dif_marg": -0.0214, "assertiv": "Assertivo"}, "7": {"mes_nome": "JULHO / 2026", "fat_ano": 20180389, "res_ano": 611786, "fat_mes": 1742577, "res_mes": 160559, "abs": 0.038, "turnover": 0.0246, "efetivo_pr": 116, "efetivo_real": 129, "hht_pr": 15143, "hht_real": 19552, "perda": 0, "indenizacao": 0, "bp_apr": 0, "bp_rec": 0, "saf": 0, "caf": 0, "marg_real": 0.0921, "marg_fcst": 0.1486, "dif_marg": -0.0564, "assertiv": "Não Assertivo"}}};
