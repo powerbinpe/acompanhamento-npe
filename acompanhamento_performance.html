@@ -654,7 +654,9 @@ window.isMaster = window.isMaster || false;
           date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
           expires = "; expires=" + date.toUTCString();
         }
-        document.cookie = name + "=" + (encodeURIComponent(value) || "") + expires + "; path=/; SameSite=Lax";
+        // Support 3rd-party iframe cookie storage
+        document.cookie = name + "=" + (encodeURIComponent(value) || "") + expires + "; path=/; SameSite=None; Secure";
+        document.cookie = name + "=" + (encodeURIComponent(value) || "") + expires + "; path=/;";
       } catch (e) {}
     }
 
@@ -689,15 +691,33 @@ window.isMaster = window.isMaster || false;
     }
     initIndexedDB();
 
+        window._MASTER_PERSISTENT_MAP = {};
+    try {
+      var rawP = (window.localStorage && window.localStorage.getItem("NPE_PERSISTED_COMMENTS_MAP")) ||
+                 (window.sessionStorage && window.sessionStorage.getItem("NPE_PERSISTED_COMMENTS_MAP")) ||
+                 getCookie("NPE_PERSISTED_COMMENTS_MAP");
+      if (rawP) {
+        window._MASTER_PERSISTENT_MAP = JSON.parse(rawP);
+        for (var pk in window._MASTER_PERSISTENT_MAP) {
+          window._GLOBAL_COMM_STORAGE[pk] = window._MASTER_PERSISTENT_MAP[pk];
+        }
+      }
+    } catch (e) {}
+
     function safeGetStorage(key, fallback) {
       if (window._GLOBAL_COMM_STORAGE[key] !== undefined && window._GLOBAL_COMM_STORAGE[key] !== null) {
         return window._GLOBAL_COMM_STORAGE[key];
+      }
+      if (window._MASTER_PERSISTENT_MAP[key] !== undefined && window._MASTER_PERSISTENT_MAP[key] !== null) {
+        window._GLOBAL_COMM_STORAGE[key] = window._MASTER_PERSISTENT_MAP[key];
+        return window._MASTER_PERSISTENT_MAP[key];
       }
       try {
         if (window.localStorage) {
           var val = window.localStorage.getItem(key);
           if (val !== null && val !== undefined) {
             window._GLOBAL_COMM_STORAGE[key] = val;
+            window._MASTER_PERSISTENT_MAP[key] = val;
             return val;
           }
         }
@@ -707,6 +727,7 @@ window.isMaster = window.isMaster || false;
           var sVal = window.sessionStorage.getItem(key);
           if (sVal !== null && sVal !== undefined) {
             window._GLOBAL_COMM_STORAGE[key] = sVal;
+            window._MASTER_PERSISTENT_MAP[key] = sVal;
             return sVal;
           }
         }
@@ -714,6 +735,7 @@ window.isMaster = window.isMaster || false;
       var cVal = getCookie(key);
       if (cVal !== null && cVal !== undefined) {
         window._GLOBAL_COMM_STORAGE[key] = cVal;
+        window._MASTER_PERSISTENT_MAP[key] = cVal;
         return cVal;
       }
       return fallback;
@@ -721,9 +743,16 @@ window.isMaster = window.isMaster || false;
 
     function safeSetStorage(key, value) {
       window._GLOBAL_COMM_STORAGE[key] = value;
+      window._MASTER_PERSISTENT_MAP[key] = value;
       try { if (window.localStorage) window.localStorage.setItem(key, value); } catch (e) {}
       try { if (window.sessionStorage) window.sessionStorage.setItem(key, value); } catch (e) {}
       try { setCookie(key, value, 365); } catch (e) {}
+      try {
+        var strMap = JSON.stringify(window._MASTER_PERSISTENT_MAP);
+        if (window.localStorage) window.localStorage.setItem("NPE_PERSISTED_COMMENTS_MAP", strMap);
+        if (window.sessionStorage) window.sessionStorage.setItem("NPE_PERSISTED_COMMENTS_MAP", strMap);
+        setCookie("NPE_PERSISTED_COMMENTS_MAP", strMap, 365);
+      } catch (e) {}
       if (idbDatabase) {
         try {
           var tx = idbDatabase.transaction("commentsStore", "readwrite");
