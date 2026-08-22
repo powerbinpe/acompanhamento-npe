@@ -3747,27 +3747,17 @@ window.isMaster = window.isMaster || false;
     // =========================================================================
     document.addEventListener("DOMContentLoaded", function() {
       if (typeof updateFromURLParams === "function") updateFromURLParams();
-      var canAccessMaster = checkPerformanceAccess();
+      
       var savedRole = safeGetStorage("npe_active_role", null);
-      if (savedRole === "MASTER" && canAccessMaster) {
-        
-    // Immediate Role Initialization from Storage
-    var savedRoleAtStart = safeGetStorage("npe_active_role", null);
-    if (savedRoleAtStart === "GESTOR") {
-      window.isMaster = false;
-      window.currentRoleSimulated = "GESTOR";
-    } else if (savedRoleAtStart === "MASTER") {
-      window.isMaster = true;
-      window.currentRoleSimulated = "MASTER";
-    } else {
-      window.isMaster = isUserAuthorizedMaster();
-      window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
-    }
-
-      } else if (savedRole === "GESTOR") {
+      if (savedRole === "GESTOR") {
         window.isMaster = false;
+        window.currentRoleSimulated = "GESTOR";
+      } else if (savedRole === "MASTER") {
+        window.isMaster = true;
+        window.currentRoleSimulated = "MASTER";
       } else {
-        window.isMaster = canAccessMaster;
+        window.isMaster = isUserAuthorizedMaster();
+        window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
       }
       updateRoleUI();
 
