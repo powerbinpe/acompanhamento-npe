@@ -2105,6 +2105,74 @@ window.isMaster = window.isMaster || false;
     }
 
 
+    
+    function getTopicMonthlyMetricsHTML(topicId, osCode, mNum) {
+      var biData = (window.BI_MONTHLY_METRICS && window.BI_MONTHLY_METRICS[osCode] && window.BI_MONTHLY_METRICS[osCode][String(mNum)]) ? window.BI_MONTHLY_METRICS[osCode][String(mNum)] : null;
+      if (!biData) {
+        return '<div style="font-size:0.75rem; color:#64748b; font-style:italic;">Acompanhamento regular</div>';
+      }
+
+      function fmtMo(val) {
+        if (val === undefined || val === null) return "-";
+        return "R$ " + Number(val).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+      }
+      function fmtPct(val) {
+        if (val === undefined || val === null) return "-";
+        return (val * 100).toFixed(2).replace(".", ",") + "%";
+      }
+
+      var html = '<div style="font-size:0.78rem; display:flex; flex-direction:column; gap:2px;">';
+
+      if (topicId === 1) {
+        html += '<span style="font-weight:700; color:#0f2b5c;">Real Acum.: <strong>' + fmtMo(biData.fat_ano) + '</strong></span>';
+      } else if (topicId === 2) {
+        html += '<span style="font-weight:700; color:#0f2b5c;">Real Acum.: <strong>' + fmtMo(biData.res_ano) + '</strong></span>';
+        if (biData.fat_ano) {
+          var mgAno = (biData.res_ano / biData.fat_ano);
+          html += '<span style="font-size:0.72rem; color:#15803d; font-weight:700;">Margem Ano: ' + fmtPct(mgAno) + '</span>';
+        }
+      } else if (topicId === 3) {
+        html += '<span style="font-weight:700; color:#0f2b5c;">Real Mês: <strong>' + fmtMo(biData.fat_mes) + '</strong></span>';
+      } else if (topicId === 4) {
+        var isAss = biData.assertiv === "Assertivo";
+        var colAss = isAss ? "#15803d" : "#b91c1c";
+        html += '<span style="font-weight:700; color:#0f2b5c;">Real: ' + fmtPct(biData.marg_real) + ' | FCST: ' + fmtPct(biData.marg_fcst) + '</span>';
+        html += '<span style="font-weight:800; color:' + colAss + ';">Dif: ' + fmtPct(biData.dif_marg) + ' (' + (isAss ? '🟢 Assertivo' : '🔴 Não Assertivo') + ')</span>';
+      } else if (topicId === 6) {
+        var colP = biData.perda > 0 ? "#b91c1c" : "#15803d";
+        html += '<span style="font-weight:800; color:' + colP + ';">Perda Mês: ' + fmtMo(biData.perda) + '</span>';
+      } else if (topicId === 8) {
+        var colI = biData.indenizacao > 0 ? "#b91c1c" : "#15803d";
+        html += '<span style="font-weight:800; color:' + colI + ';">Indenização: ' + fmtMo(biData.indenizacao) + '</span>';
+      } else if (topicId === 9) {
+        var efDif = biData.efetivo_real - biData.efetivo_pr;
+        var colEf = efDif < 0 ? "#b91c1c" : "#15803d";
+        html += '<span style="font-weight:700; color:#0f2b5c;">Real: ' + biData.efetivo_real + ' pax (PR: ' + biData.efetivo_pr + ' pax)</span>';
+        html += '<span style="font-weight:700; color:' + colEf + ';">Dif: ' + (efDif >= 0 ? '+' : '') + efDif + ' pax</span>';
+      } else if (topicId === 10) {
+        var hhtDif = biData.hht_real - biData.hht_pr;
+        html += '<span style="font-weight:700; color:#0f2b5c;">Real: ' + Number(biData.hht_real).toLocaleString("pt-BR") + 'h (PR: ' + Number(biData.hht_pr).toLocaleString("pt-BR") + 'h)</span>';
+      } else if (topicId === 11) {
+        var colAbs = biData.abs <= 0.029 ? "#15803d" : "#b91c1c";
+        html += '<span style="font-weight:800; color:' + colAbs + ';">Real: ' + fmtPct(biData.abs) + '</span><span style="font-size:0.70rem; color:#64748b;">Meta: 2,90%</span>';
+      } else if (topicId === 12) {
+        var colTurn = biData.turnover <= 0.025 ? "#15803d" : "#b91c1c";
+        html += '<span style="font-weight:800; color:' + colTurn + ';">Real: ' + fmtPct(biData.turnover) + '</span><span style="font-size:0.70rem; color:#64748b;">Meta: 2,50%</span>';
+      } else if (topicId === 15) {
+        html += '<span style="font-weight:700; color:' + (biData.saf > 0 ? '#b91c1c' : '#15803d') + ';">SAF: ' + biData.saf + ' casos</span>';
+      } else if (topicId === 16) {
+        html += '<span style="font-weight:700; color:' + (biData.caf > 0 ? '#b91c1c' : '#15803d') + ';">CAF: ' + biData.caf + ' casos</span>';
+      } else if (topicId === 20) {
+        html += '<span style="font-weight:700; color:#0f2b5c;">Aprovadas: ' + biData.bp_apr + ' | Reconhecidas: ' + biData.bp_rec + '</span>';
+      } else {
+        html += '<span style="font-size:0.72rem; color:#475569;">Acompanhamento regular</span>';
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+
     function renderRows() {
       if (typeof updateFromURLParams === 'function') updateFromURLParams();
       var container = document.getElementById("topicsContainer");
@@ -2388,19 +2456,21 @@ window.isMaster = window.isMaster || false;
 
             if (!gTxt && !mTxt) continue;
 
-            tHtml += '<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:12px; display:grid; grid-template-columns:140px 1fr 1fr; gap:14px; align-items:start;">' +
+            var metricsHTML = getTopicMonthlyMetricsHTML(topic.id, activeOS, hm);
+
+            tHtml += '<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:12px; display:grid; grid-template-columns:190px 1fr 1fr; gap:14px; align-items:start;">' +
               '<div style="border-right:1.5px solid #e2e8f0; padding-right:10px;">' +
-                '<div style="font-weight:800; font-size:0.88rem; color:#0f2b5c;">Mês ' + String(hm).padStart(2, '0') + '</div>' +
-                '<div style="font-size:0.78rem; font-weight:700; color:#2563eb;">' + mName + ' / 2026</div>' +
-                '<div style="margin-top:6px;"><span class="status-pill status-validado" style="font-size:0.70rem;">🔒 Homologado</span></div>' +
+                '<div style="font-weight:800; font-size:0.88rem; color:#0f2b5c;">Mês ' + String(hm).padStart(2, '0') + ' • ' + mName + '</div>' +
+                '<div style="margin-top:4px; margin-bottom:6px;">' + metricsHTML + '</div>' +
+                '<span class="status-pill status-validado" style="font-size:0.68rem;">🔒 Homologado</span>' +
               '</div>' +
               '<div>' +
-                '<div style="font-size:0.75rem; font-weight:800; color:#0f2b5c; margin-bottom:4px;">👤 Parecer do Gestor:</div>' +
-                '<div style="font-size:0.82rem; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; min-height:40px;">' + (gTxt || "<em>Sem parecer registrado</em>") + '</div>' +
+                '<div style="font-size:0.75rem; font-weight:800; color:#0f2b5c; margin-bottom:4px;">👤 Parecer do Gestor de OS:</div>' +
+                '<div style="font-size:0.82rem; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; min-height:44px;">' + (gTxt || "<em>Sem parecer registrado</em>") + '</div>' +
               '</div>' +
               '<div>' +
-                '<div style="font-size:0.75rem; font-weight:800; color:#0f2b5c; margin-bottom:4px;">🛡️ Parecer da Performance:</div>' +
-                '<div style="font-size:0.82rem; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; min-height:40px;">' + (mTxt || "<em>Acompanhamento regular</em>") + '</div>' +
+                '<div style="font-size:0.75rem; font-weight:800; color:#0f2b5c; margin-bottom:4px;">🛡️ Parecer do Setor de Performance:</div>' +
+                '<div style="font-size:0.82rem; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; min-height:44px;">' + (mTxt || "<em>Acompanhamento regular</em>") + '</div>' +
               '</div>' +
               '</div>';
           }
@@ -2414,9 +2484,14 @@ window.isMaster = window.isMaster || false;
     // =========================================================================
     // 7. GERADOR DE RESUMOS POR SUPERINTENDÊNCIA E NEGÓCIO (ABAS 2, 3 E 4)
     // =========================================================================
-    function renderSuperintendenciaAndNegocioSummary(containerId, tabType) {
+        function renderSuperintendenciaAndNegocioSummary(containerId, tabType) {
       var container = document.getElementById(containerId);
       if (!container) return;
+
+      var currentParams = new URLSearchParams(window.location.search);
+      var rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      var activeOSFilter = !isMultiOS ? extractPrimaryOSCode(rawOS) : "";
 
       var sups = [
         "Superintendência de Rotina 01 - Cidney Araujo",
@@ -2427,31 +2502,42 @@ window.isMaster = window.isMaster || false;
 
       var negs = ["ROTINA", "PARADA", "OFICINA"];
 
+      var activeContract = activeOSFilter ? ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; }) : null;
+
+      var filteredSups = sups;
+      var filteredNegs = negs;
+      if (activeContract) {
+        filteredSups = [activeContract.superintendencia];
+        filteredNegs = [activeContract.negocio];
+      }
+
+      var headerLabel = isMultiOS ? "Consolidado Oficial CTT • 68 OSs" : "Filtro Ativo • OS " + activeOSFilter;
+
       var supsHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); margin-top:24px; margin-bottom:24px;">' +
         '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
           '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">' +
-            '🏛️ Resumo Executivo por Superintendência (4 Regionais Operacionais)' +
+            '🏛️ Resumo Executivo por Superintendência (' + (isMultiOS ? '4 Regionais Operacionais' : 'Regional da OS Selecionada') + ')' +
           '</h3>' +
           '<span style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' +
-            'Consolidado Oficial CTT • 68 OSs' +
+            headerLabel +
           '</span>' +
         '</div>' +
         '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">';
 
-      sups.forEach(function(supName, idx) {
+      filteredSups.forEach(function(supName, idx) {
         var supContracts = ACTIVE_CONTRACTS_CATALOG.filter(function(c) { return c.superintendencia === supName; });
-        var count = supContracts.length;
+        var count = isMultiOS ? supContracts.length : 1;
         
-        var supMarg = (idx === 0 ? "11,8%" : (idx === 1 ? "10,5%" : (idx === 2 ? "14,2%" : "12,9%")));
-        var supSla = (idx === 0 ? "96,5%" : (idx === 1 ? "92,0%" : (idx === 2 ? "98,0%" : "95,0%")));
-        var supNota = (idx === 0 ? "88.5" : (idx === 1 ? "84.2" : (idx === 2 ? "91.0" : "87.5")));
+        var supMarg = isMultiOS ? (idx === 0 ? "11,8%" : (idx === 1 ? "10,5%" : (idx === 2 ? "14,2%" : "12,9%"))) : (currentParams.get("MargReal") || "10,5%");
+        var supSla = isMultiOS ? (idx === 0 ? "96,5%" : (idx === 1 ? "92,0%" : (idx === 2 ? "98,0%" : "95,0%"))) : "100,0%";
+        var supNota = isMultiOS ? (idx === 0 ? "88.5" : (idx === 1 ? "84.2" : (idx === 2 ? "91.0" : "87.5"))) : "95.0";
 
         supsHTML += '<div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">' +
           '<div>' +
             '<div style="font-size:0.88rem; font-weight:800; color:#0f2b5c; margin-bottom:6px; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">' + supName + '</div>' +
             '<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px;">' +
               '<span style="color:#64748b; font-weight:600;">Contratos Ativos:</span>' +
-              '<span style="font-weight:800; color:#0f2b5c;">' + count + ' OSs</span>' +
+              '<span style="font-weight:800; color:#0f2b5c;">' + count + ' OS' + (count > 1 ? 's' : '') + '</span>' +
             '</div>' +
             '<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px;">' +
               '<span style="color:#64748b; font-weight:600;">Margem Média:</span>' +
@@ -2467,7 +2553,7 @@ window.isMaster = window.isMaster || false;
             '</div>' +
           '</div>' +
           '<div style="font-size:0.75rem; color:#475569; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px; margin-top:8px; line-height:1.35;">' +
-            '📌 <strong>Síntese:</strong> Cumprimento satisfatório das metas. Acompanhamento rigoroso de avanço físico e medições em andamento.' +
+            '📌 <strong>Síntese:</strong> ' + (isMultiOS ? 'Cumprimento satisfatório das metas. Acompanhamento rigoroso de avanço físico e medições em andamento.' : 'Desempenho da OS ' + activeOSFilter + ' acompanhado com rigor pelo setor de Performance.') +
           '</div>' +
           '</div>';
       });
@@ -2477,20 +2563,20 @@ window.isMaster = window.isMaster || false;
       var negsHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); margin-bottom:24px;">' +
         '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
           '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">' +
-            '🏭 Resumo Executivo por Negócio (Rotina • Parada • Oficina)' +
+            '🏭 Resumo Executivo por Negócio (' + (isMultiOS ? 'Rotina • Parada • Oficina' : 'Negócio da OS Selecionada') + ')' +
           '</h3>' +
           '<span style="background:#fef3c7; color:#b45309; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' +
-            '3 Linhas de Negócio Operacionais' +
+            (isMultiOS ? '3 Linhas de Negócio Operacionais' : '1 Negócio Filtrado') +
           '</span>' +
         '</div>' +
         '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">';
 
-      negs.forEach(function(negName) {
+      filteredNegs.forEach(function(negName) {
         var negContracts = ACTIVE_CONTRACTS_CATALOG.filter(function(c) { return c.negocio === negName; });
-        var count = negContracts.length;
-        var negMarg = (negName === "PARADA" ? "14,5%" : (negName === "OFICINA" ? "9,4%" : "11,2%"));
-        var negSla = (negName === "PARADA" ? "97,5%" : (negName === "OFICINA" ? "88,0%" : "94,0%"));
-        var negNota = (negName === "PARADA" ? "90.2" : (negName === "OFICINA" ? "80.5" : "86.8"));
+        var count = isMultiOS ? negContracts.length : 1;
+        var negMarg = isMultiOS ? (negName === "PARADA" ? "14,5%" : (negName === "OFICINA" ? "9,4%" : "11,2%")) : (currentParams.get("MargReal") || "11,2%");
+        var negSla = isMultiOS ? (negName === "PARADA" ? "97,5%" : (negName === "OFICINA" ? "88,0%" : "94,0%")) : "100,0%";
+        var negNota = isMultiOS ? (negName === "PARADA" ? "90.2" : (negName === "OFICINA" ? "80.5" : "86.8")) : "95.0";
         var icon = negName === "ROTINA" ? "🔄" : (negName === "PARADA" ? "⏱️" : "🔧");
 
         negsHTML += '<div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">' +
@@ -2500,7 +2586,7 @@ window.isMaster = window.isMaster || false;
             '</div>' +
             '<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px;">' +
               '<span style="color:#64748b; font-weight:600;">Volume de OSs:</span>' +
-              '<span style="font-weight:800; color:#0f2b5c;">' + count + ' OSs</span>' +
+              '<span style="font-weight:800; color:#0f2b5c;">' + count + ' OS' + (count > 1 ? 's' : '') + '</span>' +
             '</div>' +
             '<div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:4px;">' +
               '<span style="color:#64748b; font-weight:600;">Margem Bruta:</span>' +
@@ -2529,28 +2615,50 @@ window.isMaster = window.isMaster || false;
     // =========================================================================
     // 8. ABA 2: CONSOLIDAÇÃO ANUAL
     // =========================================================================
-    function renderAnnualConsolidation() {
+        function renderAnnualConsolidation() {
+      var currentParams = new URLSearchParams(window.location.search);
+      var rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      var activeOSFilter = !isMultiOS ? extractPrimaryOSCode(rawOS) : "";
+
+      var fatVal = isMultiOS ? "R$ 740,5 M" : ("R$ " + (currentParams.get("FatRealAno") || "14.392.466"));
+      var fatSub = isMultiOS ? "+9,08% vs FCST Previsto" : ((currentParams.get("FatPctAno") || "+3,36%") + " vs FCST Previsto");
+      
+      var resVal = isMultiOS ? "R$ 39,0 M" : ("R$ " + (currentParams.get("ResRealAno") || "1.200.000"));
+      var resSub = isMultiOS ? "Margem Real: 5,27%" : ("Margem Real: " + (currentParams.get("MargReal") || "8,34%"));
+
+      var efVal = isMultiOS ? "1.842 pax" : (currentParams.get("EfetivoReal") || "194 pax");
+      var efSub = isMultiOS ? "Alocação operacional ativa" : ("Orçado: " + (currentParams.get("EfetivoPR") || "116 pax"));
+
+      var govVal = isMultiOS ? "94,8%" : "100,0%";
+      var govSub = isMultiOS ? "Aderência aos Prazos" : "Aderência Plena aos Prazos";
+
+      var badgeTotal = document.getElementById("tab2TotalEligibleOSBadge");
+      if (badgeTotal) {
+        badgeTotal.innerText = isMultiOS ? "68 Contratos Ativos" : "1 Contrato Selecionado (OS " + activeOSFilter + ")";
+      }
+
       var cardsCont = document.getElementById("annualSummaryCardsContainer");
       if (cardsCont) {
         cardsCont.innerHTML = '<div class="summary-card" style="background:#ffffff; border:2.5px solid #162b58; border-radius:12px; padding:18px; border-left:5px solid #2563eb;">' +
-          '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">💰 Faturamento Anual (68 OSs)</div>' +
-          '<div style="color:#0f2b5c; font-size:1.75rem; font-weight:900; margin:4px 0;">R$ 740,5 M</div>' +
-          '<div style="color:#15803d; font-weight:700; font-size:0.88rem;">+9,08% vs FCST Previsto</div>' +
+          '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">💰 Faturamento Anual ' + (isMultiOS ? '(68 OSs)' : '(OS ' + activeOSFilter + ')') + '</div>' +
+          '<div style="color:#0f2b5c; font-size:1.75rem; font-weight:900; margin:4px 0;">' + fatVal + '</div>' +
+          '<div style="color:#15803d; font-weight:700; font-size:0.88rem;">' + fatSub + '</div>' +
           '</div>' +
           '<div class="summary-card" style="background:#ffffff; border:2.5px solid #162b58; border-radius:12px; padding:18px; border-left:5px solid #16a34a;">' +
           '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">📈 Resultado Bruto Anual</div>' +
-          '<div style="color:#15803d; font-size:1.75rem; font-weight:900; margin:4px 0;">R$ 39,0 M</div>' +
-          '<div style="color:#15803d; font-weight:700; font-size:0.88rem;">Margem Real: 5,27%</div>' +
+          '<div style="color:#15803d; font-size:1.75rem; font-weight:900; margin:4px 0;">' + resVal + '</div>' +
+          '<div style="color:#15803d; font-weight:700; font-size:0.88rem;">' + resSub + '</div>' +
           '</div>' +
           '<div class="summary-card" style="background:#ffffff; border:2.5px solid #162b58; border-radius:12px; padding:18px; border-left:5px solid #f59e0b;">' +
           '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">👥 Efetivo Total em Campo</div>' +
-          '<div style="color:#0f2b5c; font-size:1.75rem; font-weight:900; margin:4px 0;">1.842 pax</div>' +
-          '<div style="color:#475569; font-size:0.88rem; font-weight:600;">Alocação operacional ativa</div>' +
+          '<div style="color:#0f2b5c; font-size:1.75rem; font-weight:900; margin:4px 0;">' + efVal + '</div>' +
+          '<div style="color:#475569; font-size:0.88rem; font-weight:600;">' + efSub + '</div>' +
           '</div>' +
           '<div class="summary-card" style="background:#ffffff; border:2.5px solid #162b58; border-radius:12px; padding:18px; border-left:5px solid #0284c7;">' +
           '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">🛡️ Conformidade Governança</div>' +
-          '<div style="color:#0284c7; font-size:1.75rem; font-weight:900; margin:4px 0;">94,8%</div>' +
-          '<div style="color:#15803d; font-weight:700; font-size:0.88rem;">Aderência aos Prazos</div>' +
+          '<div style="color:#0284c7; font-size:1.75rem; font-weight:900; margin:4px 0;">' + govVal + '</div>' +
+          '<div style="color:#15803d; font-weight:700; font-size:0.88rem;">' + govSub + '</div>' +
           '</div>';
       }
 
@@ -2560,7 +2668,53 @@ window.isMaster = window.isMaster || false;
     // =========================================================================
     // 9. ABA 3: LIÇÕES APRENDIDAS & GESTÃO DE RISCO
     // =========================================================================
-    function renderTab3Licoes() {
+        function renderTab3Licoes() {
+      var currentParams = new URLSearchParams(window.location.search);
+      var rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      var activeOSFilter = !isMultiOS ? extractPrimaryOSCode(rawOS) : "";
+
+      var allBPData = [
+        { os: "M00100", cliente: "CBMM - ARAXÁ", pilar: "Financeiro & Produtividade", color: "#15803d", texto: "Otimização de apontamentos e avanço diário de frentes de eletromecânica garantindo superávit de medição física." },
+        { os: "M02800", cliente: "VALE - VITORIA TUBARAO", pilar: "SSMA & Pessoas", color: "#1e40af", texto: "Implementação de DDS temático focado em percepção de risco e controle preventivo de horas extras em paradas." },
+        { os: "F09900", cliente: "MOSAIC - UBERABA", pilar: "Planejamento & Custos", color: "#d97706", texto: "Redução de custos indiretos através da otimização de rotas de transporte e alojamento dos colaboradores de parada." }
+      ];
+
+      var bpToRender = allBPData;
+      if (activeOSFilter) {
+        var filtered = allBPData.filter(function(b) { return extractPrimaryOSCode(b.os) === activeOSFilter; });
+        if (filtered.length > 0) {
+          bpToRender = filtered;
+        } else {
+          // If no pre-canned BP for this OS, create dynamic record
+          var cInfo = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; }) || { name: activeOSFilter };
+          bpToRender = [{
+            os: activeOSFilter,
+            cliente: cInfo.name,
+            pilar: "Operacional & Performance",
+            color: "#15803d",
+            texto: "Acompanhamento rigoroso de avanço físico, cumprimento do cronograma de manutenção e metas de segurança operacional."
+          }];
+        }
+      }
+
+      var badgeTotal = document.getElementById("tab3TotalEligibleOSBadge");
+      if (badgeTotal) {
+        badgeTotal.innerText = isMultiOS ? "68 Contratos Ativos" : "1 Contrato Selecionado (OS " + activeOSFilter + ")";
+      }
+
+      var rowsHTML = "";
+      bpToRender.forEach(function(b, idx) {
+        var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+        rowsHTML += '<tr style="border-bottom:1px solid #e2e8f0; background:' + rowBg + ';">' +
+          '<td style="padding:10px; font-weight:800; color:#0f2b5c;">' + b.os + '</td>' +
+          '<td style="padding:10px; font-weight:600;">' + b.cliente + '</td>' +
+          '<td style="padding:10px; font-weight:700; color:' + b.color + ';">' + b.pilar + '</td>' +
+          '<td style="padding:10px;">' + b.texto + '</td>' +
+          '<td style="padding:10px; text-align:center;"><span style="background:#dcfce7; color:#15803d; font-weight:800; padding:2px 8px; border-radius:4px;">🟢 Implementada</span></td>' +
+          '</tr>';
+      });
+
       var bpCont = document.getElementById("tab3BestPracticesContainer");
       if (bpCont) {
         bpCont.innerHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12);">' +
@@ -2578,29 +2732,7 @@ window.isMaster = window.isMaster || false;
                 '<th style="padding:10px; width:120px; text-align:center;">STATUS</th>' +
               '</tr>' +
             '</thead>' +
-            '<tbody>' +
-              '<tr style="border-bottom:1px solid #e2e8f0;">' +
-                '<td style="padding:10px; font-weight:800; color:#0f2b5c;">M00100</td>' +
-                '<td style="padding:10px; font-weight:600;">CBMM - ARAXÁ</td>' +
-                '<td style="padding:10px; font-weight:700; color:#15803d;">Financeiro & Produtividade</td>' +
-                '<td style="padding:10px;">Otimização de apontamentos e avanço diário de frentes de eletromecânica garantindo superávit de medição física.</td>' +
-                '<td style="padding:10px; text-align:center;"><span style="background:#dcfce7; color:#15803d; font-weight:800; padding:2px 8px; border-radius:4px;">🟢 Implementada</span></td>' +
-              '</tr>' +
-              '<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;">' +
-                '<td style="padding:10px; font-weight:800; color:#0f2b5c;">M02800</td>' +
-                '<td style="padding:10px; font-weight:600;">VALE - VITORIA TUBARAO</td>' +
-                '<td style="padding:10px; font-weight:700; color:#1e40af;">SSMA & Pessoas</td>' +
-                '<td style="padding:10px;">Implementação de DDS temático focado em percepção de risco e controle preventivo de horas extras em paradas.</td>' +
-                '<td style="padding:10px; text-align:center;"><span style="background:#dcfce7; color:#15803d; font-weight:800; padding:2px 8px; border-radius:4px;">🟢 Implementada</span></td>' +
-              '</tr>' +
-              '<tr style="border-bottom:1px solid #e2e8f0;">' +
-                '<td style="padding:10px; font-weight:800; color:#0f2b5c;">F09900</td>' +
-                '<td style="padding:10px; font-weight:600;">MOSAIC - UBERABA</td>' +
-                '<td style="padding:10px; font-weight:700; color:#d97706;">Planejamento & Custos</td>' +
-                '<td style="padding:10px;">Redução de custos indiretos através da otimização de rotas de transporte e alojamento dos colaboradores de parada.</td>' +
-                '<td style="padding:10px; text-align:center;"><span style="background:#dcfce7; color:#15803d; font-weight:800; padding:2px 8px; border-radius:4px;">🟢 Implementada</span></td>' +
-              '</tr>' +
-            '</tbody>' +
+            '<tbody>' + rowsHTML + '</tbody>' +
           '</table>' +
           '</div>';
       }
@@ -2774,16 +2906,25 @@ window.isMaster = window.isMaster || false;
       });
     }
 
-    function renderTab4Scorecard() {
+        function renderTab4Scorecard() {
       var tbody = document.getElementById("rankingTableBody");
       if (!tbody) return;
       tbody.innerHTML = "";
 
       var currentParams = new URLSearchParams(window.location.search);
       var selMonthNum = parseInt(currentParams.get("SelectedMesNo")) || 7;
+      var rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      var activeOSFilter = !isMultiOS ? extractPrimaryOSCode(rawOS) : "";
+
+      var badgeTotal = document.getElementById("tab4TotalEligibleOSBadge");
+      if (badgeTotal) {
+        badgeTotal.innerText = isMultiOS ? "68 Contratos Ativos" : "1 Contrato Selecionado (OS " + activeOSFilter + ")";
+      }
+
       var osList = ACTIVE_CONTRACTS_CATALOG;
 
-      var rankingData = osList.map(function(contract) {
+      var allRankingData = osList.map(function(contract) {
         var curScore = calculateOSScore(contract, selMonthNum);
 
         var totalScoreSum = 0;
@@ -2814,32 +2955,58 @@ window.isMaster = window.isMaster || false;
         };
       });
 
-      rankingData.sort(function(a, b) { return b.avgAccum - a.avgAccum; });
+      allRankingData.sort(function(a, b) { return b.avgAccum - a.avgAccum; });
 
       var podiumCont = document.getElementById("scorecardPodiumContainer");
-      if (podiumCont && rankingData.length >= 3) {
-        podiumCont.innerHTML = '<div style="background:linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); border-radius:10px; padding:16px; color:#ffffff; border:2px solid #60a5fa; box-shadow:0 4px 12px rgba(0,0,0,0.15);">' +
-          '<div style="font-size:0.75rem; font-weight:800; color:#bfdbfe; text-transform:uppercase;">🥈 2º LUGAR</div>' +
-          '<div style="font-size:1.05rem; font-weight:800; margin:4px 0;">' + rankingData[1].code + ' - ' + rankingData[1].name + '</div>' +
-          '<div style="font-size:0.78rem; color:#cbd5e1; margin-bottom:8px;">' + rankingData[1].negocio + ' • ' + rankingData[1].superintendencia + '</div>' +
-          '<div style="font-size:1.4rem; font-weight:900; color:#93c5fd;">' + rankingData[1].avgAccum + ' <span style="font-size:0.80rem;">pts</span></div>' +
-          '</div>' +
-          '<div style="background:linear-gradient(135deg, #b45309 0%, #d97706 100%); border-radius:10px; padding:18px; color:#ffffff; border:2.5px solid #fde047; box-shadow:0 6px 18px rgba(0,0,0,0.25); transform:scale(1.02);">' +
-          '<div style="font-size:0.80rem; font-weight:800; color:#fef08a; text-transform:uppercase;">🥇 1º LUGAR (CAMPEÃO)</div>' +
-          '<div style="font-size:1.15rem; font-weight:900; margin:4px 0;">' + rankingData[0].code + ' - ' + rankingData[0].name + '</div>' +
-          '<div style="font-size:0.80rem; color:#fef3c7; margin-bottom:8px;">' + rankingData[0].negocio + ' • ' + rankingData[0].superintendencia + '</div>' +
-          '<div style="font-size:1.6rem; font-weight:900; color:#ffffff;">' + rankingData[0].avgAccum + ' <span style="font-size:0.85rem;">pts</span></div>' +
-          '</div>' +
-          '<div style="background:linear-gradient(135deg, #78350f 0%, #92400e 100%); border-radius:10px; padding:16px; color:#ffffff; border:2px solid #fdba74; box-shadow:0 4px 12px rgba(0,0,0,0.15);">' +
-          '<div style="font-size:0.75rem; font-weight:800; color:#fed7aa; text-transform:uppercase;">🥉 3º LUGAR</div>' +
-          '<div style="font-size:1.05rem; font-weight:800; margin:4px 0;">' + rankingData[2].code + ' - ' + rankingData[2].name + '</div>' +
-          '<div style="font-size:0.78rem; color:#ffedd5; margin-bottom:8px;">' + rankingData[2].negocio + ' • ' + rankingData[2].superintendencia + '</div>' +
-          '<div style="font-size:1.4rem; font-weight:900; color:#fdba74;">' + rankingData[2].avgAccum + ' <span style="font-size:0.80rem;">pts</span></div>' +
-          '</div>';
+      if (podiumCont) {
+        if (!isMultiOS && activeOSFilter) {
+          var matchedIdx = allRankingData.findIndex(function(r) { return extractPrimaryOSCode(r.code) === activeOSFilter; });
+          var matchedItem = matchedIdx !== -1 ? allRankingData[matchedIdx] : allRankingData[0];
+          var posDisplay = matchedIdx !== -1 ? (matchedIdx + 1) + "º LUGAR NO RANKING CORPORATIVO" : "OS SELECIONADA";
+          
+          podiumCont.innerHTML = '<div style="grid-column: 1 / -1; background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:20px; color:#ffffff; border:2.5px solid #60a5fa; box-shadow:0 8px 24px rgba(0,0,0,0.25); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">' +
+            '<div>' +
+              '<div style="font-size:0.82rem; font-weight:800; color:#fde047; text-transform:uppercase;">🏆 ' + posDisplay + '</div>' +
+              '<div style="font-size:1.4rem; font-weight:900; margin:4px 0;">' + matchedItem.code + ' - ' + matchedItem.name + '</div>' +
+              '<div style="font-size:0.85rem; color:#bfdbfe;">' + matchedItem.negocio + ' • ' + matchedItem.superintendencia + ' • Gestor: ' + matchedItem.gestor + '</div>' +
+            '</div>' +
+            '<div style="text-align:right;">' +
+              '<div style="font-size:0.75rem; color:#cbd5e1; font-weight:700; text-transform:uppercase;">Média Geral Acumulada</div>' +
+              '<div style="font-size:2.2rem; font-weight:900; color:#ffffff;">' + matchedItem.avgAccum + ' <span style="font-size:1.0rem; color:#93c5fd;">pts</span></div>' +
+              '<div style="font-size:0.80rem; color:#86efac; font-weight:800;">Nota do Mês: ' + matchedItem.monthScore + ' pts</div>' +
+            '</div>' +
+            '</div>';
+        } else if (allRankingData.length >= 3) {
+          podiumCont.innerHTML = '<div style="background:linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); border-radius:10px; padding:16px; color:#ffffff; border:2px solid #60a5fa; box-shadow:0 4px 12px rgba(0,0,0,0.15);">' +
+            '<div style="font-size:0.75rem; font-weight:800; color:#bfdbfe; text-transform:uppercase;">🥈 2º LUGAR</div>' +
+            '<div style="font-size:1.05rem; font-weight:800; margin:4px 0;">' + allRankingData[1].code + ' - ' + allRankingData[1].name + '</div>' +
+            '<div style="font-size:0.78rem; color:#cbd5e1; margin-bottom:8px;">' + allRankingData[1].negocio + ' • ' + allRankingData[1].superintendencia + '</div>' +
+            '<div style="font-size:1.4rem; font-weight:900; color:#93c5fd;">' + allRankingData[1].avgAccum + ' <span style="font-size:0.80rem;">pts</span></div>' +
+            '</div>' +
+            '<div style="background:linear-gradient(135deg, #b45309 0%, #d97706 100%); border-radius:10px; padding:18px; color:#ffffff; border:2.5px solid #fde047; box-shadow:0 6px 18px rgba(0,0,0,0.25); transform:scale(1.02);">' +
+            '<div style="font-size:0.80rem; font-weight:800; color:#fef08a; text-transform:uppercase;">🥇 1º LUGAR (CAMPEÃO)</div>' +
+            '<div style="font-size:1.15rem; font-weight:900; margin:4px 0;">' + allRankingData[0].code + ' - ' + allRankingData[0].name + '</div>' +
+            '<div style="font-size:0.80rem; color:#fef3c7; margin-bottom:8px;">' + allRankingData[0].negocio + ' • ' + allRankingData[0].superintendencia + '</div>' +
+            '<div style="font-size:1.6rem; font-weight:900; color:#ffffff;">' + allRankingData[0].avgAccum + ' <span style="font-size:0.85rem;">pts</span></div>' +
+            '</div>' +
+            '<div style="background:linear-gradient(135deg, #78350f 0%, #92400e 100%); border-radius:10px; padding:16px; color:#ffffff; border:2px solid #fdba74; box-shadow:0 4px 12px rgba(0,0,0,0.15);">' +
+            '<div style="font-size:0.75rem; font-weight:800; color:#fed7aa; text-transform:uppercase;">🥉 3º LUGAR</div>' +
+            '<div style="font-size:1.05rem; font-weight:800; margin:4px 0;">' + allRankingData[2].code + ' - ' + allRankingData[2].name + '</div>' +
+            '<div style="font-size:0.78rem; color:#ffedd5; margin-bottom:8px;">' + allRankingData[2].negocio + ' • ' + allRankingData[2].superintendencia + '</div>' +
+            '<div style="font-size:1.4rem; font-weight:900; color:#fdba74;">' + allRankingData[2].avgAccum + ' <span style="font-size:0.80rem;">pts</span></div>' +
+            '</div>';
+        }
       }
 
-      rankingData.forEach(function(item, idx) {
-        var pos = idx + 1;
+      var itemsToRenderInTable = allRankingData;
+      if (!isMultiOS && activeOSFilter) {
+        var singleFiltered = allRankingData.filter(function(r) { return extractPrimaryOSCode(r.code) === activeOSFilter; });
+        if (singleFiltered.length > 0) itemsToRenderInTable = singleFiltered;
+      }
+
+      itemsToRenderInTable.forEach(function(item, idx) {
+        var globalIdx = allRankingData.findIndex(function(r) { return r.code === item.code; });
+        var pos = globalIdx !== -1 ? (globalIdx + 1) : (idx + 1);
         var medal = pos === 1 ? "🥇 1º" : (pos === 2 ? "🥈 2º" : (pos === 3 ? "🥉 3º" : pos + "º"));
         var rowBg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
 
@@ -2865,7 +3032,7 @@ window.isMaster = window.isMaster || false;
             '</span>' +
           '</td>' +
           '<td style="padding:10px; text-align:center;">' +
-            '<button type="button" onclick="openQualitativeEvalModal(\'' + item.code + '\')" style="background:#0284c7; color:#ffffff; border:none; padding:4px 8px; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 4px rgba(2,132,199,0.3);">' +
+            '<button type="button" onclick="openQualitativeEvalModal(\'" + item.code + "\')" style="background:#0284c7; color:#ffffff; border:none; padding:4px 8px; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 4px rgba(2,132,199,0.3);">' +
               '⚙️ Apurar (Máster)' +
             '</button>' +
           '</td>';
