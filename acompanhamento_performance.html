@@ -2017,6 +2017,28 @@ window.isMaster = window.isMaster || false;
       }
     }
 
+    
+    function getMonthNumberFromParams(params) {
+      if (!params) params = new URLSearchParams(window.location.search);
+      var paramMesNo = parseInt(params.get("SelectedMesNo"), 10);
+      if (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) return paramMesNo;
+      var selMes = (params.get("SelectedMes") || "").toUpperCase().trim();
+      if (selMes.indexOf("JAN") !== -1) return 1;
+      if (selMes.indexOf("FEV") !== -1) return 2;
+      if (selMes.indexOf("MAR") !== -1) return 3;
+      if (selMes.indexOf("ABR") !== -1) return 4;
+      if (selMes.indexOf("MAI") !== -1) return 5;
+      if (selMes.indexOf("JUN") !== -1) return 6;
+      if (selMes.indexOf("JUL") !== -1) return 7;
+      if (selMes.indexOf("AGO") !== -1) return 8;
+      if (selMes.indexOf("SET") !== -1) return 9;
+      if (selMes.indexOf("OUT") !== -1) return 10;
+      if (selMes.indexOf("NOV") !== -1) return 11;
+      if (selMes.indexOf("DEZ") !== -1) return 12;
+      return 7;
+    }
+
+
     function extractPrimaryOSCode(rawOS) {
       if (!rawOS) return "M00100";
       var match = rawOS.match(/\b([A-Z]\d{5})\b/);
@@ -2289,8 +2311,7 @@ window.isMaster = window.isMaster || false;
       var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
       var activeOS = isMultiOS ? (allowedOSArray.length > 0 ? allowedOSArray[0] : "M00100") : (extractPrimaryOSCode(rawOS) || "M00100");
 
-      var paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
-      var monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+      var monthNum = getMonthNumberFromParams(currentParams);
       var monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
       var monthName = currentParams.get("SelectedMes") || monthNames[monthNum - 1] || "JULHO";
       var monthFmt = monthName.toUpperCase() + " / 2026";
@@ -2520,6 +2541,12 @@ window.isMaster = window.isMaster || false;
           '</div>';
 
         container.appendChild(row);
+
+        // Explicitly set textarea DOM values to guarantee persistence
+        var gTextEl = document.getElementById("gestor_" + topic.id);
+        if (gTextEl) gTextEl.value = finalGestorText;
+        var mTextEl = document.getElementById("master_" + topic.id);
+        if (mTextEl) mTextEl.value = finalMasterText;
 
         // Rich Structured History Row (Following Main Layout for Each Month)
         var histRow = document.createElement("div");
@@ -3406,8 +3433,7 @@ window.isMaster = window.isMaster || false;
       var currentParams = new URLSearchParams(window.location.search);
       var rawOS = currentParams.get("SelectedOS") || "M00100";
       var activeOS = extractPrimaryOSCode(rawOS);
-      var paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
-      var monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+      var monthNum = getMonthNumberFromParams(currentParams);
 
       safeSetStorage("status_" + activeOS + "_m" + monthNum + "_" + topicId, newStatus);
       showToast("🔒 Status do Tópico #" + topicId + " atualizado para: " + newStatus);
@@ -3443,8 +3469,7 @@ window.isMaster = window.isMaster || false;
       var currentParams = new URLSearchParams(window.location.search);
       var rawOS = currentParams.get("SelectedOS") || "M00100";
       var activeOS = extractPrimaryOSCode(rawOS);
-      var paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
-      var monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+      var monthNum = getMonthNumberFromParams(currentParams);
 
       var prefix = tipo === "GESTOR" ? "g_" : "m_";
       safeSetStorage(prefix + activeOS + "_m" + monthNum + "_" + topicId, value);
@@ -3454,8 +3479,7 @@ window.isMaster = window.isMaster || false;
       var currentParams = new URLSearchParams(window.location.search);
       var rawOS = currentParams.get("SelectedOS") || "M00100";
       var activeOS = extractPrimaryOSCode(rawOS);
-      var paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
-      var monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+      var monthNum = getMonthNumberFromParams(currentParams);
 
       safeSetStorage("m_" + activeOS + "_m" + monthNum + "_24", value);
     }
@@ -3503,8 +3527,7 @@ window.isMaster = window.isMaster || false;
       var currentParams = new URLSearchParams(window.location.search);
       var rawOS = currentParams.get("SelectedOS") || "M00100";
       var activeOS = extractPrimaryOSCode(rawOS) || "M00100";
-      var paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
-      var monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+      var monthNum = getMonthNumberFromParams(currentParams);
 
       window.ATA_COMENTARIOS_DB[activeOS] = window.ATA_COMENTARIOS_DB[activeOS] || {};
 
