@@ -761,10 +761,10 @@ window.isMaster = window.isMaster || false;
       }
     }
 
+    
     // =========================================================================
     // 2. SECURITY & PROFILE ACCESS (GESTOR <-> MASTER)
     // =========================================================================
-    window.currentRoleSimulated = null;
     window.MASTER_PERFORMANCE_EMAILS = [
       "robson.araujo",
       "atila.hohenfeld",
@@ -777,24 +777,49 @@ window.isMaster = window.isMaster || false;
       var params = new URLSearchParams(window.location.search);
       var isUserPerformanceParam = (params.get("IsUserPerformance") || "").toUpperCase() === "TRUE";
       var userEmail = (params.get("UserEmail") || "").toLowerCase().trim();
-
       if (isUserPerformanceParam) return true;
-      if (!userEmail) return true; // Default allow in dev/local
-
-      var isAllowed = window.MASTER_PERFORMANCE_EMAILS.some(function(allowed) {
+      if (!userEmail) return true;
+      return window.MASTER_PERFORMANCE_EMAILS.some(function(allowed) {
         return userEmail.indexOf(allowed.toLowerCase().trim()) !== -1;
       });
-      return isAllowed;
+    }
+
+    // Read stored simulation preference
+    var initialRolePref = safeGetStorage("npe_active_role", null);
+    if (initialRolePref === "GESTOR") {
+      window.isMaster = false;
+      window.currentRoleSimulated = "GESTOR";
+    } else if (initialRolePref === "MASTER") {
+      window.isMaster = true;
+      window.currentRoleSimulated = "MASTER";
+    } else {
+      window.isMaster = isUserAuthorizedMaster();
+      window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
+    }
+
+    var _roleToggleLock = false;
+    function toggleRole() {
+      if (_roleToggleLock) return;
+      _roleToggleLock = true;
+      setTimeout(function() { _roleToggleLock = false; }, 150);
+
+      window.isMaster = !window.isMaster;
+      window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
+      safeSetStorage("npe_active_role", window.currentRoleSimulated);
+      updateRoleUI();
+      renderRows();
+      if (typeof renderSlaModalMatrix === "function") renderSlaModalMatrix();
+      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
+      showToast(window.isMaster ? "🛡️ Perfil alterado para: Máster / Setor de Performance" : "👤 Perfil alterado para: Gestor de OS");
     }
 
     function checkPerformanceAccess() {
-      if (window.currentRoleSimulated === "GESTOR") return false;
-      if (window.currentRoleSimulated === "MASTER") return true;
-      var saved = safeGetStorage("npe_active_role", null);
-      if (saved === "GESTOR") return false;
-      if (saved === "MASTER") return true;
+      var activeRole = safeGetStorage("npe_active_role", window.currentRoleSimulated);
+      if (activeRole === "GESTOR") return false;
+      if (activeRole === "MASTER") return true;
       return isUserAuthorizedMaster();
     }
+
 
     
     // Immediate Role Initialization from Storage
@@ -3568,7 +3593,7 @@ window.isMaster = window.isMaster || false;
         // =========================================================================
     // 12. REAL PERSISTENT SAVE ALL COMMENTS (CLOUD WEBHOOK & SHAREPOINT SYNC)
     // =========================================================================
-    window.CLOUD_WEBHOOK_URL = safeGetStorage("npe_cloud_webhook_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/bfaa9f5615144864914029734fbed5bd/triggers/manual/paths/invoke?api-version=1");
+    window.CLOUD_WEBHOOK_URL = safeGetStorage("npe_cloud_webhook_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/bfaa9f5615144864914029734fbed5bd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=P-9LbSTlkgYK1spior6qlj8ejGES2_8pQRVn0JDjz-0");
 
     function configureCloudWebhook() {
       var curUrl = window.CLOUD_WEBHOOK_URL || "";
@@ -3672,7 +3697,7 @@ window.isMaster = window.isMaster || false;
       };
 
       var cloudSuccess = false;
-      var webhook = window.CLOUD_WEBHOOK_URL || "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/bfaa9f5615144864914029734fbed5bd/triggers/manual/paths/invoke?api-version=1";
+      var webhook = window.CLOUD_WEBHOOK_URL || "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/bfaa9f5615144864914029734fbed5bd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=P-9LbSTlkgYK1spior6qlj8ejGES2_8pQRVn0JDjz-0";
       if (webhook && webhook.startsWith("http")) {
         try {
           var response = await fetch(webhook, {
