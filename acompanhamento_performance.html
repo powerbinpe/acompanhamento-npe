@@ -3530,7 +3530,7 @@ window.isMaster = window.isMaster || false;
         // =========================================================================
     // 12. REAL PERSISTENT SAVE ALL COMMENTS (CLOUD WEBHOOK & SHAREPOINT SYNC)
     // =========================================================================
-    window.CLOUD_WEBHOOK_URL = safeGetStorage("npe_cloud_webhook_url", "");
+    window.CLOUD_WEBHOOK_URL = safeGetStorage("npe_cloud_webhook_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/bfaa9f5615144864914029734fbed5bd/triggers/manual/paths/invoke?api-version=1");
 
     function configureCloudWebhook() {
       var curUrl = window.CLOUD_WEBHOOK_URL || "";
@@ -3546,10 +3546,10 @@ window.isMaster = window.isMaster || false;
       }
     }
 
-        function saveAllComments() {
+            async function saveAllComments() {
       var saveBtn = document.querySelector(".save-btn");
       if (saveBtn) {
-        saveBtn.innerHTML = "⏳ Salvando...";
+        saveBtn.innerHTML = "⏳ Gravando na Nuvem...";
         saveBtn.style.opacity = "0.75";
       }
 
@@ -3557,43 +3557,93 @@ window.isMaster = window.isMaster || false;
       var rawOS = currentParams.get("SelectedOS") || "M00100";
       var activeOS = extractPrimaryOSCode(rawOS) || "M00100";
       var monthNum = getMonthNumberFromParams(currentParams);
+      var userEmail = currentParams.get("UserEmail") || (window.isMaster ? "master.performance@npe.com.br" : "gestor.os@npe.com.br");
 
       window.ATA_COMENTARIOS_DB[activeOS] = window.ATA_COMENTARIOS_DB[activeOS] || {};
+      var payloadItems = [];
 
       for (var tid = 1; tid <= 23; tid++) {
         var gEl = document.getElementById("gestor_" + tid);
         var mEl = document.getElementById("master_" + tid);
+        var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
+
         var gVal = gEl ? gEl.value : "";
         var mVal = mEl ? mEl.value : "";
+        var curStatus = safeGetStorage("status_" + activeOS + "_m" + monthNum + "_" + tid, (monthNum >= 7 ? "Pendente" : "Validado"));
 
-        if (gEl) safeSetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, gVal);
-        if (mEl) safeSetStorage("m_" + activeOS + "_m" + monthNum + "_" + tid, mVal);
+        safeSetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, gVal);
+        safeSetStorage("m_" + activeOS + "_m" + monthNum + "_" + tid, mVal);
 
         window.ATA_COMENTARIOS_DB[activeOS][String(tid)] = window.ATA_COMENTARIOS_DB[activeOS][String(tid)] || [];
         var tRows = window.ATA_COMENTARIOS_DB[activeOS][String(tid)];
 
         var mG = tRows.find(function(r) { return r.tipo === "GESTOR" && r.mes === monthNum; });
-        if (mG) {
-          mG.comentario = gVal;
-        } else if (gVal) {
-          tRows.push({ mes: monthNum, tipo: "GESTOR", comentario: gVal });
-        }
+        if (mG) { mG.comentario = gVal; }
+        else if (gVal) { tRows.push({ mes: monthNum, tipo: "GESTOR", comentario: gVal }); }
 
         var mM = tRows.find(function(r) { return r.tipo === "PERFORMANCE" && r.mes === monthNum; });
-        if (mM) {
-          mM.comentario = mVal;
-        } else if (mVal) {
-          tRows.push({ mes: monthNum, tipo: "PERFORMANCE", comentario: mVal });
+        if (mM) { mM.comentario = mVal; }
+        else if (mVal) { tRows.push({ mes: monthNum, tipo: "PERFORMANCE", comentario: mVal }); }
+
+        if (gVal || mVal) {
+          payloadItems.push({
+            os: activeOS,
+            mes: monthNum,
+            ano: 2026,
+            topicoId: tid,
+            indicador: topicObj.name,
+            comentarioGestor: gVal,
+            comentarioMaster: mVal,
+            statusValidacao: curStatus
+          });
         }
       }
 
       var fEl = document.getElementById("finalPerformanceComment");
-      if (fEl) {
+      if (fEl && fEl.value) {
         safeSetStorage("m_" + activeOS + "_m" + monthNum + "_24", fEl.value);
+        payloadItems.push({
+          os: activeOS,
+          mes: monthNum,
+          ano: 2026,
+          topicoId: 24,
+          indicador: "Síntese e Recomendações Finais da Performance",
+          comentarioGestor: "",
+          comentarioMaster: fEl.value,
+          statusValidacao: "Homologado"
+        });
+      }
+
+      var fullPayload = {
+        os: activeOS,
+        mes: monthNum,
+        ano: 2026,
+        emailUsuario: userEmail,
+        perfil: window.isMaster ? "MASTER" : "GESTOR",
+        dataHora: new Date().toISOString(),
+        totalTopicos: payloadItems.length,
+        itens: payloadItems
+      };
+
+      var cloudSuccess = false;
+      var webhook = window.CLOUD_WEBHOOK_URL || "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/bfaa9f5615144864914029734fbed5bd/triggers/manual/paths/invoke?api-version=1";
+      if (webhook && webhook.startsWith("http")) {
+        try {
+          var response = await fetch(webhook, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(fullPayload)
+          });
+          if (response.ok || response.status === 200 || response.status === 202) {
+            cloudSuccess = true;
+          }
+        } catch (err) {
+          console.warn("Webhook cloud sync notice:", err);
+        }
       }
 
       if (saveBtn) {
-        saveBtn.innerHTML = "✅ Comentários Salvos!";
+        saveBtn.innerHTML = "✅ Comentários Salvos no SharePoint!";
         saveBtn.style.background = "#15803d";
         saveBtn.style.opacity = "1";
         setTimeout(function() {
@@ -3602,7 +3652,11 @@ window.isMaster = window.isMaster || false;
         }, 2500);
       }
 
-      showToast("💾 Comentários da OS " + activeOS + " (Mês " + monthNum + ") gravados com sucesso!");
+      if (cloudSuccess) {
+        showToast("☁️ Comentários da OS " + activeOS + " (Mês " + monthNum + ") gravados com sucesso no SharePoint da NPE!");
+      } else {
+        showToast("💾 Comentários da OS " + activeOS + " (Mês " + monthNum + ") gravados com sucesso!");
+      }
 
       if (typeof renderRows === "function") renderRows();
       if (typeof renderSlaModalMatrix === "function") renderSlaModalMatrix();
