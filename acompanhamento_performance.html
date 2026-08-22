@@ -367,8 +367,8 @@
   </div>
 
   <!-- MODAL SLA -->
-  <div id="slaModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:999999; justify-content:center; align-items:center; padding:20px;">
-    <div style="background:#ffffff; border-radius:14px; width:95%; max-width:1300px; height:90vh; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #1e40af; display:flex; flex-direction:column; overflow:hidden;">
+  <div id="slaModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:999999; justify-content:center; align-items:flex-start; padding:10px 14px; box-sizing:border-box; overflow-y:auto;">
+    <div style="background:#ffffff; border-radius:14px; width:98%; max-width:98vw; height:96vh; margin-top:6px; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #1e40af; display:flex; flex-direction:column; overflow:hidden;">
       
       <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); padding:16px 24px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
         <div>
@@ -744,20 +744,27 @@ window.isMaster = window.isMaster || false;
       "ivan.santos"
     ];
 
-    function checkPerformanceAccess() {
-      if (window.currentRoleSimulated === "GESTOR") return false;
-      if (window.currentRoleSimulated === "MASTER") return true;
-
+    function isUserAuthorizedMaster() {
       var params = new URLSearchParams(window.location.search);
       var isUserPerformanceParam = (params.get("IsUserPerformance") || "").toUpperCase() === "TRUE";
       var userEmail = (params.get("UserEmail") || "").toLowerCase().trim();
 
       if (isUserPerformanceParam) return true;
-      if (!userEmail) return true;
+      if (!userEmail) return true; // Default allow in dev/local
 
-      return window.MASTER_PERFORMANCE_EMAILS.some(function(allowed) {
+      var isAllowed = window.MASTER_PERFORMANCE_EMAILS.some(function(allowed) {
         return userEmail.indexOf(allowed.toLowerCase().trim()) !== -1;
       });
+      return isAllowed;
+    }
+
+    function checkPerformanceAccess() {
+      if (window.currentRoleSimulated === "GESTOR") return false;
+      if (window.currentRoleSimulated === "MASTER") return true;
+      var saved = safeGetStorage("npe_active_role", null);
+      if (saved === "GESTOR") return false;
+      if (saved === "MASTER") return true;
+      return isUserAuthorizedMaster();
     }
 
     window.isMaster = true;
@@ -1181,12 +1188,12 @@ window.isMaster = window.isMaster || false;
       if (osEl) osEl.innerText = isMultiOS ? "Todas as OSs (Consolidação Geral NPE)" : (params.get("SelectedOS") || "M00100");
       if (mesEl) mesEl.innerText = params.get("SelectedMes") || "JUNHO";
       if (roleEl) roleEl.innerText = window.isMaster ? "Máster / Setor Performance" : "Gestor de OS";
-      const canAccessMaster = checkPerformanceAccess();
+      const isAuth = isUserAuthorizedMaster();
       const roleText = document.getElementById("roleText");
       const roleIcon = document.getElementById("roleIcon");
       const toggleBtn = document.getElementById("toggleRoleBtn");
 
-      if (!canAccessMaster) {
+      if (!isAuth) {
         window.isMaster = false;
         safeSetStorage("npe_active_role", "GESTOR");
         if (toggleBtn) toggleBtn.style.display = "none"; // HIDE MASTER BUTTON FROM REGULAR USERS
@@ -1241,13 +1248,25 @@ window.isMaster = window.isMaster || false;
       if (params.get("FatMesDif")) topicsData[2].lines[2].val = params.get("FatMesDif");
       if (params.get("FatMesPct")) topicsData[2].lines[3].val = formatPercentStrict(params.get("FatMesPct"));
 
-      // Topic 4: Assertividade
+      // Topic 4: Assertividade (100% Dynamic & Calculated)
       if (params.get("ResFcstProj")) topicsData[3].lines[0].val = params.get("ResFcstProj");
       if (params.get("ResRealMes")) topicsData[3].lines[1].val = params.get("ResRealMes");
       if (params.get("ResDifMes")) topicsData[3].lines[2].val = params.get("ResDifMes");
       if (params.get("MargRealMes")) topicsData[3].lines[3].val = params.get("MargRealMes");
       if (params.get("MargFcstProj")) topicsData[3].lines[4].val = params.get("MargFcstProj");
-      if (params.get("DifMargRealVsFcst")) topicsData[3].lines[5].val = params.get("DifMargRealVsFcst");
+      
+      var paramDifMarg = params.get("DifMargFcst") || params.get("DifMargRealVsFcst");
+      if (paramDifMarg) {
+        topicsData[3].lines[5].val = formatPercentStrict(paramDifMarg);
+      } else if (params.get("MargRealMes") && params.get("MargFcstProj")) {
+        var mr = parseFloat(String(params.get("MargRealMes")).replace("%", "").replace(",", "."));
+        var mf = parseFloat(String(params.get("MargFcstProj")).replace("%", "").replace(",", "."));
+        if (!isNaN(mr) && !isNaN(mf)) {
+          var calcDif = mr - mf;
+          topicsData[3].lines[5].val = (calcDif >= 0 ? "+" : "") + calcDif.toFixed(2).replace(".", ",") + "%";
+        }
+      }
+      
       if (params.get("AssertivMes")) topicsData[3].lines[6].val = params.get("AssertivMes");
       if (params.get("AssertivAcum")) topicsData[3].lines[7].val = params.get("AssertivAcum");
 
@@ -1863,31 +1882,31 @@ window.isMaster = window.isMaster || false;
     window.ATA_COMENTARIOS_DB = window.ATA_COMENTARIOS_DB || {};
     function buildAtaCommentsDbFromExcel() {
       if (!window.EXCEL_COMMENTS_MAP) return;
-      var topicKeywords = {
-        "1": ["FATURAMENTO ANO", "FATURAMENTO ACUMULADO", "FATURAMENTO BRUTO"],
-        "2": ["RESULTADO ANO", "RESULTADO ACUMULADO", "RESULTADO BRUTO"],
-        "3": ["FATURAMENTO MES", "FATURAMENTO DO MES"],
-        "4": ["ASSERTIVIDADE"],
-        "5": ["RESULTADO MES", "RESULTADO DO MES"],
-        "6": ["EFETIVO", "HOMEM HORA", "HH"],
-        "7": ["FERIAS", "FÉRIAS"],
-        "8": ["HORA EXTRA", "HORAS EXTRAS", "HE"],
-        "9": ["ABSENTEISMO", "ABSENTEÍSMO"],
-        "10": ["TURNOVER"],
-        "11": ["INDENIZACAO", "INDENIZAÇÃO", "INDENIZAÇÕES"],
-        "12": ["PERDAS", "PERDA", "PBI", "PBD"],
-        "13": ["PROATIVOS", "SSMA PROATIVO"],
-        "14": ["REATIVOS", "SAF", "CAF", "SSMA REATIVO"],
-        "15": ["RECEITA IDEAL", "RECEITA"],
-        "16": ["BOAS PRATICAS", "BOAS PRÁTICAS", "BP"],
-        "17": ["SATISFACAO", "SATISFAÇÃO"],
-        "18": ["TREINAMENTOS", "TREINAMENTO"],
-        "19": ["AUDITORIA", "AUDITORIAS"],
-        "20": ["CALIBRACAO", "CALIBRAÇÃO", "INSTRUMENTOS"],
-        "21": ["ESTUFAS", "ESTUFA"],
-        "22": ["GESTAO DE RISCO", "GESTÃO DE RISCO", "RISCO"],
-        "23": ["RENOVACAO", "RENOVAÇÃO", "CONTRATO"],
-        "24": ["OBSERVACOES", "OBSERVAÇÕES", "GERAIS", "FINAL"]
+            var topicKeywords = {
+        "1": ["FATURAMENTO (EXECUTIVO ANO)", "FATURAMENTO (ANO)", "FATURAMENTO ANO", "FATURAMENTO ACUMULADO", "FATURAMENTO BRUTO"],
+        "2": ["META DE RESULTADO (EXECUTIVO ANO)", "META DO RESULTADO ANO", "RESULTADO (ANO)", "RESULTADO ANO", "MARGEM (ANO)", "MARGEM RESULTADO EXE. ANO", "MARGEM MERITOCRACIA ANO"],
+        "3": ["FATURAMENTO (EXECUTIVO MÊS)", "FATURAMENTO (EXECUTIVO MES)", "FATURAMENTO (MÊS)", "FATURAMENTO (MES)", "FATURAMENTO MÊS", "FATURAMENTO MES"],
+        "4": ["ASSERTIVIDADE", "MARGEM RESULTADO (MÊS)", "MARGEM RESULTADO (MES)", "MARGEM RESULTADO EXE. (MÊS)", "MARGEM RESULTADO EXE. (MES)", "META DO RESULTADO MÊS", "RESULTADO (MÊS)", "RESULTADO (MES)", "RESULTADO MES"],
+        "5": ["NOTIFICAÇÃO/SLA", "NOTIFICACAO/SLA", "NOTIFICAÇÃO", "NOTIFICACAO", "SLA"],
+        "6": ["PERDA DE RECEITA", "PERDAS DE RECEITA", "PERDA", "PERDAS"],
+        "7": ["RECEITA IDEAL"],
+        "8": ["INDENIZAÇÃO", "INDENIZACAO", "INDENIZAÇÕES", "INDENIZACOES"],
+        "9": ["EFETIVO", "QUADRO DE PESSOAL"],
+        "10": ["HHT", "HOMEM HORA", "HOMEM HORA TRABALHADA", "HH"],
+        "11": ["ABSENTEÍSMO", "ABSENTEISMO"],
+        "12": ["TURNOVER", "ROTATIVIDADE"],
+        "13": ["EXCESSO HORA EXTRA", "EXCESSO HORAS EXTRAS", "HORA EXTRA", "HORAS EXTRAS", "HE"],
+        "14": ["ACÚMULO DE FÉRIAS", "ACUMULO DE FERIAS", "FÉRIAS", "FERIAS"],
+        "15": ["SAF", "SEM AFASTAMENTO"],
+        "16": ["CAF", "COM AFASTAMENTO"],
+        "17": ["SATISFAÇÃO DO CLIENTE", "SATISFACAO DO CLIENTE", "SATISFAÇÃO", "SATISFACAO"],
+        "18": ["LTCAT/LIPAE", "LTCAT", "LIPAE", "LAUDOS"],
+        "19": ["PBI/PBD", "PBI", "PBD", "PREMIAÇÃO", "PREMIACAO"],
+        "20": ["BOAS PRÁTICAS", "BOAS PRATICAS", "BP", "INOVAÇÃO", "INOVACAO"],
+        "21": ["GESTÃO DE RISCO", "GESTAO DE RISCO", "RISCO", "RISCOS"],
+        "22": ["RENOVAÇÃO DO CONTRATO", "RENOVACAO DO CONTRATO", "RENOVAÇÃO", "RENOVACAO", "ADITIVO"],
+        "23": ["OBSERVAÇÕES GERAIS", "OBSERVACOES GERAIS", "OBSERVAÇÕES", "OBSERVACOES", "GERAL", "GERAIS"],
+        "24": ["RECOMENDAÇÕES FINAIS", "RECOMENDACOES FINAIS", "SÍNTESE", "SINTESE", "FINAL", "PARECER FINAL"]
       };
 
       for (var osCode in window.EXCEL_COMMENTS_MAP) {
