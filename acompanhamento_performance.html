@@ -638,6 +638,8 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
   </script>
 
   <script>
+window.isMaster = window.isMaster || false;
+
 
     // =========================================================================
     // 1. STORAGE & COMPATIBILITY LAYER (SANDBOX SAFE)
@@ -807,7 +809,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     // =========================================================================
     // 3. TOPICS DATA & ACTIVE CONTRACTS CATALOG (68 OFFICIAL CONTRACTS)
     // =========================================================================
-        const topicsData = [
+        var topicsData = window.topicsData = [
       {
         id: 1, name: "Faturamento Ano",
         lines: [
@@ -1100,7 +1102,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     ];
 
     // Dummy Monthly Recommendations DB
-    const monthlyRecommendations = [
+    var monthlyRecommendations = window.monthlyRecommendations = [
       { mes: "JANEIRO / 2026", text: "Alinhamento inicial das metas de faturamento e implantação do acompanhamento por OS." },
       { mes: "FEVEREIRO / 2026", text: "Ajuste na curva de HHT e reforço no controle de absenteísmo." },
       { mes: "MARÇO / 2026", text: "Foco na redução de glosas de faturamento e aprovação das primeiras boas práticas." },
@@ -1178,23 +1180,23 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
       if (osEl) osEl.innerText = isMultiOS ? "Todas as OSs (Consolidação Geral NPE)" : (params.get("SelectedOS") || "M00100");
       if (mesEl) mesEl.innerText = params.get("SelectedMes") || "JUNHO";
-      if (roleEl) roleEl.innerText = isMaster ? "Máster / Setor Performance" : "Gestor de OS";
+      if (roleEl) roleEl.innerText = window.isMaster ? "Máster / Setor Performance" : "Gestor de OS";
       const canAccessMaster = checkPerformanceAccess();
       const roleText = document.getElementById("roleText");
       const roleIcon = document.getElementById("roleIcon");
       const toggleBtn = document.getElementById("toggleRoleBtn");
 
       if (!canAccessMaster) {
-        isMaster = false;
+        window.isMaster = false;
         safeSetStorage("npe_active_role", "GESTOR");
         if (toggleBtn) toggleBtn.style.display = "none"; // HIDE MASTER BUTTON FROM REGULAR USERS
       } else {
         if (toggleBtn) {
           toggleBtn.style.display = "inline-flex";
-          toggleBtn.style.background = isMaster ? "#0284c7" : "#1e40af";
+          toggleBtn.style.background = window.isMaster ? "#0284c7" : "#1e40af";
         }
-        if (roleText) roleText.innerText = isMaster ? "Máster Performance" : "Gestor de OS";
-        if (roleIcon) roleIcon.innerText = isMaster ? "🛡️" : "👤";
+        if (roleText) roleText.innerText = window.isMaster ? "Máster Performance" : "Gestor de OS";
+        if (roleIcon) roleIcon.innerText = window.isMaster ? "🛡️" : "👤";
       }
 
       // Summary Cards on Tab 2
@@ -2020,7 +2022,72 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     // =========================================================================
     // 6. ABA 1: RENDER ROWS (23 TÓPICOS COM CORES E REGRAS CORRETAS)
     // =========================================================================
+    
+    function getLineColor(topic, line, rawVal) {
+      if (!rawVal || rawVal === "-" || rawVal === "0" || rawVal === "R$ 0" || rawVal === "0 casos" || rawVal === "0h" || rawVal === "0 pax") {
+        if (topic.id === 6 || topic.id === 8 || topic.id === 15 || topic.id === 16) {
+          return "#15803d"; // Zero losses/indemnities/accidents is GOOD (Green)
+        }
+        return "#0f172a";
+      }
+
+      var s = String(rawVal).trim();
+      var sLower = s.toLowerCase();
+      var label = (line.label || "").toLowerCase();
+
+      // Assertividade (±5.00% Rule)
+      if (topic.isAssertividade) {
+        if (label.indexOf("diferença na margem") !== -1 || label.indexOf("dif") !== -1) {
+          var numVal = parseFloat(s.replace("%", "").replace(",", ".").replace("+", ""));
+          if (!isNaN(numVal)) {
+            return (Math.abs(numVal) <= 5.0) ? "#15803d" : "#b91c1c";
+          }
+        }
+        if (label.indexOf("assertividade calculada") !== -1 || label.indexOf("status") !== -1) {
+          return (sLower.indexOf("não") !== -1 || sLower.indexOf("nao") !== -1) ? "#b91c1c" : "#15803d";
+        }
+        if (label.indexOf("assertividade acumulada") !== -1) {
+          var numAcum = parseFloat(s.replace("%", "").replace(",", ".").replace("+", ""));
+          if (!isNaN(numAcum)) {
+            return (numAcum >= 80.0) ? "#15803d" : "#b91c1c";
+          }
+        }
+      }
+
+      // Indicators where HIGHER is BAD (Perda, Indenização, SAF, CAF)
+      if (topic.id === 6 || topic.id === 8 || topic.id === 15 || topic.id === 16) {
+        return "#b91c1c"; // Any loss/incident > 0 is RED
+      }
+
+      // Absenteismo & Turnover (Compare to meta)
+      if (topic.id === 11 && label.indexOf("absenteísmo") !== -1 && label.indexOf("meta") === -1) {
+        var absVal = parseFloat(s.replace("%", "").replace(",", "."));
+        return (!isNaN(absVal) && absVal <= 2.90) ? "#15803d" : "#b91c1c";
+      }
+      if (topic.id === 12 && label.indexOf("turnover") !== -1 && label.indexOf("meta") === -1) {
+        var turnVal = parseFloat(s.replace("%", "").replace(",", "."));
+        return (!isNaN(turnVal) && turnVal <= 2.50) ? "#15803d" : "#b91c1c";
+      }
+
+      // General Differences (Revenue, Result, Margin, Headcount, HHT)
+      if (label.indexOf("diferença") !== -1 || label.indexOf("dif") !== -1) {
+        if (s.indexOf("-") === 0 || s.indexOf("(") === 0) return "#b91c1c";
+        if (s.indexOf("+") === 0) return "#15803d";
+        var n = parseFloat(s.replace("R$", "").replace("%", "").replace("pax", "").replace("h", "").replace(/\./g, "").replace(",", ".").trim());
+        if (!isNaN(n)) {
+          return n >= 0 ? "#15803d" : "#b91c1c";
+        }
+      }
+
+      // Default rules
+      if (s.indexOf("-") === 0 || s.indexOf("(") === 0) return "#b91c1c";
+      if (s.indexOf("+") === 0) return "#15803d";
+      return "#0f172a";
+    }
+
+
     function renderRows() {
+      if (typeof updateFromURLParams === 'function') updateFromURLParams();
       var container = document.getElementById("topicsContainer");
       if (!container) return;
       container.innerHTML = "";
@@ -2154,18 +2221,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
           
           topic.lines.forEach(function(l, idx) {
             var rawVal = String(l.val || "").trim();
-            var valColor = "#0f172a";
-
-            if (topic.isAssertividade && l.label.indexOf("Diferença na Margem") !== -1) {
-              var numVal = parseFloat(rawVal.replace("%", "").replace(",", "."));
-              valColor = (Math.abs(numVal) <= 5.0) ? "#15803d" : "#b91c1c";
-            } else if (topic.isAssertividade && l.label.indexOf("Assertividade Calculada") !== -1) {
-              valColor = (rawVal.toLowerCase().indexOf("não") !== -1 || rawVal.toLowerCase().indexOf("nao") !== -1) ? "#b91c1c" : "#15803d";
-            } else if (rawVal.indexOf("+") === 0) {
-              valColor = "#15803d";
-            } else if (rawVal.indexOf("-") === 0 || rawVal.indexOf("(") === 0) {
-              valColor = "#b91c1c";
-            }
+            var valColor = getLineColor(topic, l, rawVal);
 
             var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
             linesHTML += '<tr style="background-color: ' + rowBg + '; border-bottom: 1.5px solid #cbd5e1;">' +
@@ -3119,35 +3175,122 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       showToast("⚡ Síntese automática da Performance gerada com sucesso!");
     }
 
+        // =========================================================================
+    // 12. REAL PERSISTENT SAVE ALL COMMENTS (CLOUD WEBHOOK & SHAREPOINT SYNC)
     // =========================================================================
-    // 12. REAL PERSISTENT SAVE ALL COMMENTS
-    // =========================================================================
-    function saveAllComments() {
+    window.CLOUD_WEBHOOK_URL = safeGetStorage("npe_cloud_webhook_url", "");
+
+    function configureCloudWebhook() {
+      var curUrl = window.CLOUD_WEBHOOK_URL || "";
+      var newUrl = prompt("🌐 Digite a URL do Webhook do Power Automate para gravação direta no SharePoint da NPE:", curUrl);
+      if (newUrl !== null) {
+        window.CLOUD_WEBHOOK_URL = newUrl.trim();
+        safeSetStorage("npe_cloud_webhook_url", window.CLOUD_WEBHOOK_URL);
+        if (window.CLOUD_WEBHOOK_URL) {
+          showToast("🔗 Webhook da Nuvem configurado com sucesso!");
+        } else {
+          showToast("ℹ️ Webhook removido. Gravação ocorrerá no armazenamento local.");
+        }
+      }
+    }
+
+    async function saveAllComments() {
+      var saveBtn = document.querySelector(".save-btn");
+      var originalBtnHtml = saveBtn ? saveBtn.innerHTML : "💾 Salvar Comentários";
+
+      if (saveBtn) {
+        saveBtn.innerHTML = "⏳ Gravando na Nuvem...";
+        saveBtn.style.opacity = "0.75";
+      }
+
       var currentParams = new URLSearchParams(window.location.search);
       var rawOS = currentParams.get("SelectedOS") || "M00100";
       var activeOS = extractPrimaryOSCode(rawOS);
       var paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
       var monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+      var userEmail = currentParams.get("UserEmail") || (window.isMaster ? "master.performance@npe.com.br" : "gestor.os@npe.com.br");
 
-      var savedCount = 0;
+      var payloadItems = [];
+
       for (var tid = 1; tid <= 23; tid++) {
         var gEl = document.getElementById("gestor_" + tid);
-        if (gEl) {
-          safeSetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, gEl.value);
-          savedCount++;
-        }
         var mEl = document.getElementById("master_" + tid);
-        if (mEl) {
-          safeSetStorage("m_" + activeOS + "_m" + monthNum + "_" + tid, mEl.value);
-        }
+        var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
+
+        var gVal = gEl ? gEl.value : "";
+        var mVal = mEl ? mEl.value : "";
+        var curStatus = safeGetStorage("status_" + activeOS + "_m" + monthNum + "_" + tid, (monthNum >= 7 ? "Pendente" : "Validado"));
+
+        if (gEl) safeSetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, gVal);
+        if (mEl) safeSetStorage("m_" + activeOS + "_m" + monthNum + "_" + tid, mVal);
+
+        payloadItems.push({
+          os: activeOS,
+          mes: monthNum,
+          ano: 2026,
+          topicoId: tid,
+          indicador: topicObj.name,
+          comentarioGestor: gVal,
+          comentarioMaster: mVal,
+          statusValidacao: curStatus
+        });
       }
 
       var fEl = document.getElementById("finalPerformanceComment");
+      var finalVal = fEl ? fEl.value : "";
       if (fEl) {
-        safeSetStorage("m_" + activeOS + "_m" + monthNum + "_24", fEl.value);
+        safeSetStorage("m_" + activeOS + "_m" + monthNum + "_24", finalVal);
+        payloadItems.push({
+          os: activeOS,
+          mes: monthNum,
+          ano: 2026,
+          topicoId: 24,
+          indicador: "Síntese e Recomendações Finais da Performance",
+          comentarioGestor: "",
+          comentarioMaster: finalVal,
+          statusValidacao: "Homologado"
+        });
       }
 
-      showToast("💾 Todos os comentários da OS " + activeOS + " (Mês " + monthNum + ") foram salvos com sucesso!");
+      var fullPayload = {
+        os: activeOS,
+        mes: monthNum,
+        ano: 2026,
+        emailUsuario: userEmail,
+        perfil: window.isMaster ? "MASTER" : "GESTOR",
+        dataHora: new Date().toISOString(),
+        totalTopicos: payloadItems.length,
+        itens: payloadItems
+      };
+
+      // If Webhook URL is configured, send directly to Power Automate / SharePoint
+      var cloudSuccess = false;
+      if (window.CLOUD_WEBHOOK_URL && window.CLOUD_WEBHOOK_URL.startsWith("http")) {
+        try {
+          var response = await fetch(window.CLOUD_WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(fullPayload)
+          });
+          if (response.ok) {
+            cloudSuccess = true;
+          }
+        } catch (err) {
+          console.warn("Falha ao sincronizar com Webhook:", err);
+        }
+      }
+
+      if (saveBtn) {
+        saveBtn.innerHTML = originalBtnHtml;
+        saveBtn.style.opacity = "1";
+      }
+
+      if (cloudSuccess) {
+        showToast("☁️ Comentários da OS " + activeOS + " gravados com sucesso no SharePoint da NPE!");
+      } else {
+        showToast("💾 Comentários da OS " + activeOS + " (Mês " + monthNum + ") gravados com sucesso!");
+      }
+
       renderRows();
       if (typeof renderSlaModalMatrix === "function") renderSlaModalMatrix();
       if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
@@ -3157,12 +3300,13 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     // 13. INITIALIZATION & GLOBAL WINDOW EXPORTS
     // =========================================================================
     document.addEventListener("DOMContentLoaded", function() {
+      if (typeof updateFromURLParams === "function") updateFromURLParams();
       var canAccessMaster = checkPerformanceAccess();
       var savedRole = safeGetStorage("npe_active_role", null);
       if (savedRole === "MASTER" && canAccessMaster) {
         window.isMaster = true;
       } else if (savedRole === "GESTOR") {
-        window.isMaster = false;
+        window.window.isMaster = false;
       } else {
         window.isMaster = canAccessMaster;
       }
@@ -3180,6 +3324,8 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     });
 
     window.switchTab = switchTab;
+    window.getLineColor = getLineColor;
+    window.updateFromURLParams = updateFromURLParams;
     window.toggleRole = toggleRole;
     window.openSlaModal = openSlaModal;
     window.closeSlaModal = closeSlaModal;
@@ -3211,6 +3357,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     window.checkPerformanceAccess = checkPerformanceAccess;
     window.ACTIVE_CONTRACTS_CATALOG = ACTIVE_CONTRACTS_CATALOG;
 
-  </script>
+  
+    </script>
 </body>
 </html>
