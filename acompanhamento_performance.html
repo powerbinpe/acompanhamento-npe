@@ -497,6 +497,7 @@
 
 
 
+
             // Lista Oficial de Usuários Máster (Setor de Performance / Diretoria)
     window.MASTER_PERFORMANCE_EMAILS = [
       "robson.araujo@npe.com.br",
@@ -633,11 +634,12 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
   
   
+  
   </script>
 
   <script>
 
-// =========================================================================
+    // =========================================================================
     // 1. STORAGE & COMPATIBILITY LAYER (SANDBOX SAFE)
     // =========================================================================
     window._GLOBAL_COMM_STORAGE = window._GLOBAL_COMM_STORAGE || {};
@@ -762,7 +764,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
     function toggleRole() {
       if (_roleToggleLock) return;
       _roleToggleLock = true;
-      setTimeout(function() { _roleToggleLock = false; }, 300);
+      setTimeout(function() { _roleToggleLock = false; }, 150);
 
       window.isMaster = !window.isMaster;
       window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
@@ -802,10 +804,10 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
       }
     }
 
-// =========================================================================
-// 3. TOPICS DATA & ACTIVE CONTRACTS CATALOG (68 OFFICIAL CONTRACTS)
-// =========================================================================
-    const topicsData = [
+    // =========================================================================
+    // 3. TOPICS DATA & ACTIVE CONTRACTS CATALOG (68 OFFICIAL CONTRACTS)
+    // =========================================================================
+        const topicsData = [
       {
         id: 1, name: "Faturamento Ano",
         lines: [
@@ -1306,7 +1308,7 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
 
 
 
-var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [
+    var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [
   {
     "code": "F09900",
     "name": "F09900 - RHODIA",
@@ -1853,7 +1855,7 @@ var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [
   }
 ];
 
-// =========================================================================
+    // =========================================================================
     // 4. ATA_COMENTARIOS_DB ADAPTER (MAPPING 7,500 ROWS DIRECTLY)
     // =========================================================================
     window.ATA_COMENTARIOS_DB = window.ATA_COMENTARIOS_DB || {};
@@ -2016,7 +2018,7 @@ var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [
     }
 
     // =========================================================================
-    // 6. ABA 1: RENDER ROWS (23 TÓPICOS COM ATA_COMENTARIO)
+    // 6. ABA 1: RENDER ROWS (23 TÓPICOS COM CORES E REGRAS CORRETAS)
     // =========================================================================
     function renderRows() {
       var container = document.getElementById("topicsContainer");
@@ -2139,6 +2141,7 @@ var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [
         
         var gestorIsLocked = isMultiOS || (valStatus === "Validado" && !window.isMaster);
 
+        // KPI Box Color Rules
         var linesHTML = '';
         if (topic.onlyComments || (topic.lines.length === 1 && topic.lines[0].label === "Tipo de Controle")) {
           linesHTML = '<div style="width: 100%; box-sizing: border-box; margin-top: 6px; background: #f8fafc; border: 2px solid #0f2b5c; border-radius: 8px; padding: 12px 14px;">' +
@@ -2150,11 +2153,24 @@ var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [
             '<table style="width: 100%; border-collapse: collapse; background: #ffffff; table-layout: fixed;"><tbody>';
           
           topic.lines.forEach(function(l, idx) {
-            var valColor = (l.val && String(l.val).indexOf("+") === 0) ? '#15803d' : ((l.val && (String(l.val).indexOf("-") === 0 || String(l.val).indexOf("(") === 0)) ? '#b91c1c' : '#0f172a');
+            var rawVal = String(l.val || "").trim();
+            var valColor = "#0f172a";
+
+            if (topic.isAssertividade && l.label.indexOf("Diferença na Margem") !== -1) {
+              var numVal = parseFloat(rawVal.replace("%", "").replace(",", "."));
+              valColor = (Math.abs(numVal) <= 5.0) ? "#15803d" : "#b91c1c";
+            } else if (topic.isAssertividade && l.label.indexOf("Assertividade Calculada") !== -1) {
+              valColor = (rawVal.toLowerCase().indexOf("não") !== -1 || rawVal.toLowerCase().indexOf("nao") !== -1) ? "#b91c1c" : "#15803d";
+            } else if (rawVal.indexOf("+") === 0) {
+              valColor = "#15803d";
+            } else if (rawVal.indexOf("-") === 0 || rawVal.indexOf("(") === 0) {
+              valColor = "#b91c1c";
+            }
+
             var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
             linesHTML += '<tr style="background-color: ' + rowBg + '; border-bottom: 1.5px solid #cbd5e1;">' +
               '<td style="padding: 7px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 60%;">' + l.label + ':</td>' +
-              '<td style="padding: 7px 12px; font-size: 1.05rem; color: ' + valColor + '; font-weight: 800; text-align: right; width: 38%;">' + l.val + '</td>' +
+              '<td style="padding: 7px 12px; font-size: 1.05rem; color: ' + valColor + '; font-weight: 800; text-align: right; width: 38%;">' + rawVal + '</td>' +
               '</tr>';
           });
 
@@ -2185,10 +2201,15 @@ var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [
           }
         }
 
+        // Assertiveness Override Logic & Colors (|diff| <= 5% = Assertivo, |diff| > 5% = Não Assertivo)
         var assertiveBarHTML = "";
         if (topic.isAssertividade) {
-          var autoAssertive = currentParams.get("AssertivMes") || "Assertivo";
-          var calculatedStatus = (autoAssertive.toLowerCase().indexOf("não") !== -1 || autoAssertive.toLowerCase().indexOf("nao") !== -1) ? "Não Assertivo" : "Assertivo";
+          var difMargStr = currentParams.get("DifMargFcst") || "9,77%";
+          var difMargNum = parseFloat(difMargStr.replace("%", "").replace(",", "."));
+          if (isNaN(difMargNum)) difMargNum = 9.77;
+
+          var autoAssertive = (Math.abs(difMargNum) <= 5.0) ? "Assertivo" : "Não Assertivo";
+          var calculatedStatus = autoAssertive;
 
           var savedOverride = safeGetStorage("assertiv_override_" + activeOS + "_m" + monthNum, "AUTOMATICO");
           var finalStatus = (savedOverride && savedOverride !== "AUTOMATICO") ? savedOverride : calculatedStatus;
@@ -2209,7 +2230,7 @@ var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [
                 '</button>';
             } else {
               overrideButtonHTML = '<button type="button" onclick="toggleAssertiveness(\'' + finalStatus + '\')" style="background:linear-gradient(135deg, #d97706, #b45309); color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer;">' +
-                '🔴 Alterar para Não Assertivo (Override Máster)' +
+                (isAssertivo ? '🔴 Alterar para Não Assertivo (Override Máster)' : '🟢 Alterar para Assertivo (Override Máster)') +
                 '</button>';
             }
           } else {
@@ -2259,28 +2280,58 @@ var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [
 
         container.appendChild(row);
 
+        // Rich Structured History Row (Following Main Layout for Each Month)
         var histRow = document.createElement("div");
         histRow.id = "hist_row_" + topic.id;
         histRow.style.display = "none";
         histRow.style.background = "#f1f5f9";
-        histRow.style.border = "2px solid #94a3b8";
-        histRow.style.borderRadius = "8px";
-        histRow.style.padding = "14px 18px";
-        histRow.style.marginBottom = "20px";
+        histRow.style.border = "2.5px solid #0f2b5c";
+        histRow.style.borderRadius = "12px";
+        histRow.style.padding = "18px";
+        histRow.style.marginBottom = "24px";
+        histRow.style.boxShadow = "0 4px 14px rgba(0,0,0,0.1)";
 
         var osHistRows = (window.ATA_COMENTARIOS_DB && window.ATA_COMENTARIOS_DB[activeOS] && window.ATA_COMENTARIOS_DB[activeOS][String(topic.id)]) ? window.ATA_COMENTARIOS_DB[activeOS][String(topic.id)] : [];
+        
+        var tHtml = '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #cbd5e1; padding-bottom:8px; margin-bottom:12px;">' +
+          '<div style="font-weight:800; font-size:1.0rem; color:#0f2b5c;">📜 Linha do Tempo & Histórico Registrado em ATA_COMENTARIO • OS ' + activeOS + '</div>' +
+          '<span style="font-size:0.75rem; font-weight:700; background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:4px;">Tópico #' + String(topic.id).padStart(2, '0') + ' ' + topic.name + '</span>' +
+          '</div>';
+
         if (osHistRows.length === 0) {
-          histRow.innerHTML = '<div style="font-size:0.88rem; color:#475569;">Nenhum registro histórico prévio na base ATA_COMENTARIO para esta OS neste tópico.</div>';
+          tHtml += '<div style="font-size:0.88rem; color:#64748b; padding:10px 0;">Nenhum registro histórico anterior gravado para esta OS neste tópico.</div>';
         } else {
-          var tHtml = '<div style="font-weight:800; font-size:0.92rem; color:#0f2b5c; margin-bottom:8px;">📜 Histórico Registrado em ATA_COMENTARIO (OS ' + activeOS + '):</div>' +
-            '<table style="width:100%; border-collapse:collapse; background:#ffffff; font-size:0.82rem; border-radius:6px; overflow:hidden;">' +
-            '<tr style="background:#0f2b5c; color:#ffffff;"><th style="padding:6px 10px; text-align:left;">Mês</th><th style="padding:6px 10px; text-align:left;">Perfil</th><th style="padding:6px 10px; text-align:left;">Comentário</th></tr>';
-          osHistRows.forEach(function(r) {
-            tHtml += '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:6px 10px; font-weight:700;">Mês ' + r.mes + '</td><td style="padding:6px 10px; font-weight:700; color:' + (r.tipo === 'GESTOR' ? '#1e40af' : '#15803d') + ';">' + r.tipo + '</td><td style="padding:6px 10px;">' + r.comentario + '</td></tr>';
-          });
-          tHtml += '</table>';
-          histRow.innerHTML = tHtml;
+          tHtml += '<div style="display:flex; flex-direction:column; gap:12px;">';
+          
+          for (var hm = 1; hm <= 7; hm++) {
+            var mName = monthNames[hm - 1];
+            var gM = osHistRows.filter(function(r) { return r.tipo === "GESTOR"; }).find(function(r) { return r.mes === hm; });
+            var mM = osHistRows.filter(function(r) { return r.tipo === "PERFORMANCE"; }).find(function(r) { return r.mes === hm; });
+            
+            var gTxt = gM ? gM.comentario : safeGetStorage("g_" + activeOS + "_m" + hm + "_" + topic.id, "");
+            var mTxt = mM ? mM.comentario : safeGetStorage("m_" + activeOS + "_m" + hm + "_" + topic.id, "");
+
+            if (!gTxt && !mTxt) continue;
+
+            tHtml += '<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:12px; display:grid; grid-template-columns:140px 1fr 1fr; gap:14px; align-items:start;">' +
+              '<div style="border-right:1.5px solid #e2e8f0; padding-right:10px;">' +
+                '<div style="font-weight:800; font-size:0.88rem; color:#0f2b5c;">Mês ' + String(hm).padStart(2, '0') + '</div>' +
+                '<div style="font-size:0.78rem; font-weight:700; color:#2563eb;">' + mName + ' / 2026</div>' +
+                '<div style="margin-top:6px;"><span class="status-pill status-validado" style="font-size:0.70rem;">🔒 Homologado</span></div>' +
+              '</div>' +
+              '<div>' +
+                '<div style="font-size:0.75rem; font-weight:800; color:#0f2b5c; margin-bottom:4px;">👤 Parecer do Gestor:</div>' +
+                '<div style="font-size:0.82rem; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; min-height:40px;">' + (gTxt || "<em>Sem parecer registrado</em>") + '</div>' +
+              '</div>' +
+              '<div>' +
+                '<div style="font-size:0.75rem; font-weight:800; color:#0f2b5c; margin-bottom:4px;">🛡️ Parecer da Performance:</div>' +
+                '<div style="font-size:0.82rem; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; min-height:40px;">' + (mTxt || "<em>Acompanhamento regular</em>") + '</div>' +
+              '</div>' +
+              '</div>';
+          }
+          tHtml += '</div>';
         }
+        histRow.innerHTML = tHtml;
         container.appendChild(histRow);
       });
     }
@@ -3068,12 +3119,42 @@ var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [
       showToast("⚡ Síntese automática da Performance gerada com sucesso!");
     }
 
+    // =========================================================================
+    // 12. REAL PERSISTENT SAVE ALL COMMENTS
+    // =========================================================================
     function saveAllComments() {
-      showToast("💾 Todos os comentários e validações foram gravados com sucesso!");
+      var currentParams = new URLSearchParams(window.location.search);
+      var rawOS = currentParams.get("SelectedOS") || "M00100";
+      var activeOS = extractPrimaryOSCode(rawOS);
+      var paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
+      var monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
+
+      var savedCount = 0;
+      for (var tid = 1; tid <= 23; tid++) {
+        var gEl = document.getElementById("gestor_" + tid);
+        if (gEl) {
+          safeSetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, gEl.value);
+          savedCount++;
+        }
+        var mEl = document.getElementById("master_" + tid);
+        if (mEl) {
+          safeSetStorage("m_" + activeOS + "_m" + monthNum + "_" + tid, mEl.value);
+        }
+      }
+
+      var fEl = document.getElementById("finalPerformanceComment");
+      if (fEl) {
+        safeSetStorage("m_" + activeOS + "_m" + monthNum + "_24", fEl.value);
+      }
+
+      showToast("💾 Todos os comentários da OS " + activeOS + " (Mês " + monthNum + ") foram salvos com sucesso!");
+      renderRows();
+      if (typeof renderSlaModalMatrix === "function") renderSlaModalMatrix();
+      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
     }
 
     // =========================================================================
-    // 12. INITIALIZATION & GLOBAL WINDOW EXPORTS
+    // 13. INITIALIZATION & GLOBAL WINDOW EXPORTS
     // =========================================================================
     document.addEventListener("DOMContentLoaded", function() {
       var canAccessMaster = checkPerformanceAccess();
