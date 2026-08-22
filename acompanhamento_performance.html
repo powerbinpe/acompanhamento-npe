@@ -796,7 +796,20 @@ window.isMaster = window.isMaster || false;
       return isUserAuthorizedMaster();
     }
 
-    window.isMaster = true;
+    
+    // Immediate Role Initialization from Storage
+    var savedRoleAtStart = safeGetStorage("npe_active_role", null);
+    if (savedRoleAtStart === "GESTOR") {
+      window.isMaster = false;
+      window.currentRoleSimulated = "GESTOR";
+    } else if (savedRoleAtStart === "MASTER") {
+      window.isMaster = true;
+      window.currentRoleSimulated = "MASTER";
+    } else {
+      window.isMaster = isUserAuthorizedMaster();
+      window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
+    }
+
     var _roleToggleLock = false;
 
     function toggleRole() {
@@ -1909,97 +1922,122 @@ window.isMaster = window.isMaster || false;
     // 4. ATA_COMENTARIOS_DB ADAPTER (MAPPING 7,500 ROWS DIRECTLY)
     // =========================================================================
     window.ATA_COMENTARIOS_DB = window.ATA_COMENTARIOS_DB || {};
-    function buildAtaCommentsDbFromExcel() {
-      if (!window.EXCEL_COMMENTS_MAP) return;
-            var topicKeywords = {
-        "1": ["FATURAMENTO (EXECUTIVO ANO)", "FATURAMENTO (ANO)", "FATURAMENTO ANO", "FATURAMENTO ACUMULADO", "FATURAMENTO BRUTO"],
-        "2": ["META DE RESULTADO (EXECUTIVO ANO)", "META DO RESULTADO ANO", "RESULTADO (ANO)", "RESULTADO ANO", "MARGEM (ANO)", "MARGEM RESULTADO EXE. ANO", "MARGEM MERITOCRACIA ANO"],
-        "3": ["FATURAMENTO (EXECUTIVO MÊS)", "FATURAMENTO (EXECUTIVO MES)", "FATURAMENTO (MÊS)", "FATURAMENTO (MES)", "FATURAMENTO MÊS", "FATURAMENTO MES"],
-        "4": ["ASSERTIVIDADE", "MARGEM RESULTADO (MÊS)", "MARGEM RESULTADO (MES)", "MARGEM RESULTADO EXE. (MÊS)", "MARGEM RESULTADO EXE. (MES)", "META DO RESULTADO MÊS", "RESULTADO (MÊS)", "RESULTADO (MES)", "RESULTADO MES"],
-        "5": ["NOTIFICAÇÃO/SLA", "NOTIFICACAO/SLA", "NOTIFICAÇÃO", "NOTIFICACAO", "SLA"],
-        "6": ["PERDA DE RECEITA", "PERDAS DE RECEITA", "PERDA", "PERDAS"],
-        "7": ["RECEITA IDEAL"],
-        "8": ["INDENIZAÇÃO", "INDENIZACAO", "INDENIZAÇÕES", "INDENIZACOES"],
-        "9": ["EFETIVO", "QUADRO DE PESSOAL"],
-        "10": ["HHT", "HOMEM HORA", "HOMEM HORA TRABALHADA", "HH"],
-        "11": ["ABSENTEÍSMO", "ABSENTEISMO"],
-        "12": ["TURNOVER", "ROTATIVIDADE"],
-        "13": ["EXCESSO HORA EXTRA", "EXCESSO HORAS EXTRAS", "HORA EXTRA", "HORAS EXTRAS", "HE"],
-        "14": ["ACÚMULO DE FÉRIAS", "ACUMULO DE FERIAS", "FÉRIAS", "FERIAS"],
-        "15": ["SAF", "SEM AFASTAMENTO"],
-        "16": ["CAF", "COM AFASTAMENTO"],
-        "17": ["SATISFAÇÃO DO CLIENTE", "SATISFACAO DO CLIENTE", "SATISFAÇÃO", "SATISFACAO"],
-        "18": ["LTCAT/LIPAE", "LTCAT", "LIPAE", "LAUDOS"],
-        "19": ["PBI/PBD", "PBI", "PBD", "PREMIAÇÃO", "PREMIACAO"],
-        "20": ["BOAS PRÁTICAS", "BOAS PRATICAS", "BP", "INOVAÇÃO", "INOVACAO"],
-        "21": ["GESTÃO DE RISCO", "GESTAO DE RISCO", "RISCO", "RISCOS"],
-        "22": ["RENOVAÇÃO DO CONTRATO", "RENOVACAO DO CONTRATO", "RENOVAÇÃO", "RENOVACAO", "ADITIVO"],
-        "23": ["OBSERVAÇÕES GERAIS", "OBSERVACOES GERAIS", "OBSERVAÇÕES", "OBSERVACOES", "GERAL", "GERAIS"],
-        "24": ["RECOMENDAÇÕES FINAIS", "RECOMENDACOES FINAIS", "SÍNTESE", "SINTESE", "FINAL", "PARECER FINAL"]
-      };
+    
+    
+    function getMonthNumberFromExcelRow(r) {
+      if (r.periodo_raw) {
+        var mMatch = r.periodo_raw.match(/-(\d{2})-/);
+        if (mMatch) return parseInt(mMatch[1], 10);
+      }
+      var p = (r.periodo_fmt || "").toUpperCase();
+      if (p.indexOf("JAN") !== -1) return 1;
+      if (p.indexOf("FEV") !== -1) return 2;
+      if (p.indexOf("MAR") !== -1) return 3;
+      if (p.indexOf("ABR") !== -1) return 4;
+      if (p.indexOf("MAI") !== -1) return 5;
+      if (p.indexOf("JUN") !== -1) return 6;
+      if (p.indexOf("JUL") !== -1) return 7;
+      if (p.indexOf("AGO") !== -1) return 8;
+      if (p.indexOf("SET") !== -1) return 9;
+      if (p.indexOf("OUT") !== -1) return 10;
+      if (p.indexOf("NOV") !== -1) return 11;
+      if (p.indexOf("DEZ") !== -1) return 12;
+      return 7;
+    }
 
+    function getTopicIdFromExcelRow(r) {
+      var ind = (r.indicador || "").toLowerCase();
+      if (ind.indexOf("faturamento (ano)") !== -1 || ind.indexOf("faturamento ano") !== -1) return 1;
+      if (ind.indexOf("resultado (ano)") !== -1 || ind.indexOf("resultado ano") !== -1) return 2;
+      if (ind.indexOf("faturamento (mês)") !== -1 || ind.indexOf("faturamento mês") !== -1 || ind.indexOf("faturamento mes") !== -1) return 3;
+      if (ind.indexOf("assertividade") !== -1) return 4;
+      if (ind.indexOf("custos diretos") !== -1) return 5;
+      if (ind.indexOf("perda de receita") !== -1 || ind.indexOf("perda") !== -1) return 6;
+      if (ind.indexOf("despesas gerais") !== -1) return 7;
+      if (ind.indexOf("indeniza") !== -1) return 8;
+      if (ind.indexOf("efetivo") !== -1) return 9;
+      if (ind.indexOf("hht") !== -1) return 10;
+      if (ind.indexOf("absente") !== -1) return 11;
+      if (ind.indexOf("turnover") !== -1) return 12;
+      if (ind.indexOf("hora extra") !== -1) return 13;
+      if (ind.indexOf("avaria") !== -1) return 14;
+      if (ind.indexOf("saf") !== -1) return 15;
+      if (ind.indexOf("caf") !== -1) return 16;
+      if (ind.indexOf("satisfa") !== -1) return 17;
+      if (ind.indexOf("gestão de risco") !== -1 || ind.indexOf("risco") !== -1) return 18;
+      if (ind.indexOf("avaliação qualitativa") !== -1 || ind.indexOf("qualitativa") !== -1) return 19;
+      if (ind.indexOf("boas práticas") !== -1 || ind.indexOf("boas praticas") !== -1) return 20;
+      if (ind.indexOf("lições aprendidas") !== -1 || ind.indexOf("licoes") !== -1) return 21;
+      if (ind.indexOf("plano de ação") !== -1 || ind.indexOf("plano de acao") !== -1) return 22;
+      if (ind.indexOf("ata de encerramento") !== -1 || ind.indexOf("encerramento") !== -1) return 23;
+      if (ind.indexOf("recomendações") !== -1 || ind.indexOf("sintese") !== -1) return 24;
+      return 1;
+    }
+
+    function buildAtaCommentsDbFromExcel() {
+      window.ATA_COMENTARIOS_DB = {};
+      if (!window.EXCEL_COMMENTS_MAP) return;
+      
       for (var osCode in window.EXCEL_COMMENTS_MAP) {
-        window.ATA_COMENTARIOS_DB[osCode] = window.ATA_COMENTARIOS_DB[osCode] || {};
         var rows = window.EXCEL_COMMENTS_MAP[osCode] || [];
+        window.ATA_COMENTARIOS_DB[osCode] = {};
         
         for (var i = 0; i < rows.length; i++) {
           var r = rows[i];
-          var ind = (r.indicador || "").toUpperCase();
-          var matchedTid = "24";
-
-          for (var tid in topicKeywords) {
-            var keys = topicKeywords[tid];
-            var found = false;
-            for (var k = 0; k < keys.length; k++) {
-              if (ind.indexOf(keys[k]) !== -1) {
-                matchedTid = tid;
-                found = true;
-                break;
-              }
-            }
-            if (found) break;
+          var tid = getTopicIdFromExcelRow(r);
+          var mNum = getMonthNumberFromExcelRow(r);
+          
+          if (!window.ATA_COMENTARIOS_DB[osCode][String(tid)]) {
+            window.ATA_COMENTARIOS_DB[osCode][String(tid)] = [];
           }
-
-          if (!window.ATA_COMENTARIOS_DB[osCode][matchedTid]) {
-            window.ATA_COMENTARIOS_DB[osCode][matchedTid] = [];
-          }
-
-          var mNum = 7;
-          if (r.periodo_raw) {
-            var mMatch = r.periodo_raw.match(/-(\d{2})-/);
-            if (mMatch) mNum = parseInt(mMatch[1], 10);
-          } else if (r.periodo_fmt) {
-            var pUpper = r.periodo_fmt.toUpperCase();
-            if (pUpper.indexOf("JAN") !== -1) mNum = 1;
-            else if (pUpper.indexOf("FEV") !== -1) mNum = 2;
-            else if (pUpper.indexOf("MAR") !== -1) mNum = 3;
-            else if (pUpper.indexOf("ABR") !== -1) mNum = 4;
-            else if (pUpper.indexOf("MAI") !== -1) mNum = 5;
-            else if (pUpper.indexOf("JUN") !== -1) mNum = 6;
-            else if (pUpper.indexOf("JUL") !== -1) mNum = 7;
-            else if (pUpper.indexOf("AGO") !== -1) mNum = 8;
-            else if (pUpper.indexOf("SET") !== -1) mNum = 9;
-            else if (pUpper.indexOf("OUT") !== -1) mNum = 10;
-            else if (pUpper.indexOf("NOV") !== -1) mNum = 11;
-            else if (pUpper.indexOf("DEZ") !== -1) mNum = 12;
-          }
-
-          if (r.gestor_comment && r.gestor_comment.trim()) {
-            window.ATA_COMENTARIOS_DB[osCode][matchedTid].push({
+          
+          if (r.gestor_comment && r.gestor_comment.trim() && r.gestor_comment !== "Sem justificativas") {
+            window.ATA_COMENTARIOS_DB[osCode][String(tid)].push({
               mes: mNum,
-              tipo: "GESTOR",
-              comentario: r.gestor_comment.trim()
+              tipo: 'GESTOR',
+              comentario: r.gestor_comment.trim(),
+              status: r.status_comentario || (mNum >= 7 ? 'Pendente' : 'Validado')
             });
           }
           if (r.performance_comment && r.performance_comment.trim()) {
-            window.ATA_COMENTARIOS_DB[osCode][matchedTid].push({
+            window.ATA_COMENTARIOS_DB[osCode][String(tid)].push({
               mes: mNum,
-              tipo: "PERFORMANCE",
-              comentario: r.performance_comment.trim()
+              tipo: 'PERFORMANCE',
+              comentario: r.performance_comment.trim(),
+              status: 'Validado'
             });
           }
         }
       }
+
+      // Merge any user comments previously saved in localStorage
+      try {
+        var rawBackup = (window.localStorage && window.localStorage.getItem("NPE_RUNTIME_DATA_BACKUP")) ||
+                        (window.sessionStorage && window.sessionStorage.getItem("NPE_RUNTIME_DATA_BACKUP")) ||
+                        getCookie("NPE_RUNTIME_DATA_BACKUP");
+        if (rawBackup) {
+          var userDb = JSON.parse(rawBackup);
+          for (var bOs in userDb) {
+            window.ATA_COMENTARIOS_DB[bOs] = window.ATA_COMENTARIOS_DB[bOs] || {};
+            for (var bTid in userDb[bOs]) {
+              window.ATA_COMENTARIOS_DB[bOs][bTid] = window.ATA_COMENTARIOS_DB[bOs][bTid] || [];
+              var bRows = userDb[bOs][bTid];
+              for (var j = 0; j < bRows.length; j++) {
+                var bItem = bRows[j];
+                var existing = window.ATA_COMENTARIOS_DB[bOs][bTid].find(function(x) {
+                  return x.mes === bItem.mes && x.tipo === bItem.tipo;
+                });
+                if (existing) {
+                  existing.comentario = bItem.comentario;
+                  existing.status = bItem.status;
+                } else {
+                  window.ATA_COMENTARIOS_DB[bOs][bTid].push(bItem);
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {}
     }
     buildAtaCommentsDbFromExcel();
 
@@ -3548,6 +3586,14 @@ window.isMaster = window.isMaster || false;
 
             async function saveAllComments() {
       var saveBtn = document.querySelector(".save-btn");
+      
+      try {
+        var bStr = JSON.stringify(window.ATA_COMENTARIOS_DB);
+        if (window.localStorage) window.localStorage.setItem("NPE_RUNTIME_DATA_BACKUP", bStr);
+        if (window.sessionStorage) window.sessionStorage.setItem("NPE_RUNTIME_DATA_BACKUP", bStr);
+        setCookie("NPE_RUNTIME_DATA_BACKUP", bStr, 365);
+      } catch (e) {}
+
       if (saveBtn) {
         saveBtn.innerHTML = "⏳ Gravando na Nuvem...";
         saveBtn.style.opacity = "0.75";
@@ -3642,6 +3688,14 @@ window.isMaster = window.isMaster || false;
         }
       }
 
+      
+      try {
+        var bStr = JSON.stringify(window.ATA_COMENTARIOS_DB);
+        if (window.localStorage) window.localStorage.setItem("NPE_RUNTIME_DATA_BACKUP", bStr);
+        if (window.sessionStorage) window.sessionStorage.setItem("NPE_RUNTIME_DATA_BACKUP", bStr);
+        setCookie("NPE_RUNTIME_DATA_BACKUP", bStr, 365);
+      } catch (e) {}
+
       if (saveBtn) {
         saveBtn.innerHTML = "✅ Comentários Salvos no SharePoint!";
         saveBtn.style.background = "#15803d";
@@ -3671,9 +3725,22 @@ window.isMaster = window.isMaster || false;
       var canAccessMaster = checkPerformanceAccess();
       var savedRole = safeGetStorage("npe_active_role", null);
       if (savedRole === "MASTER" && canAccessMaster) {
-        window.isMaster = true;
+        
+    // Immediate Role Initialization from Storage
+    var savedRoleAtStart = safeGetStorage("npe_active_role", null);
+    if (savedRoleAtStart === "GESTOR") {
+      window.isMaster = false;
+      window.currentRoleSimulated = "GESTOR";
+    } else if (savedRoleAtStart === "MASTER") {
+      window.isMaster = true;
+      window.currentRoleSimulated = "MASTER";
+    } else {
+      window.isMaster = isUserAuthorizedMaster();
+      window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
+    }
+
       } else if (savedRole === "GESTOR") {
-        window.window.isMaster = false;
+        window.isMaster = false;
       } else {
         window.isMaster = canAccessMaster;
       }
