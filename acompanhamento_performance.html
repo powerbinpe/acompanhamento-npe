@@ -3275,11 +3275,10 @@ window.isMaster = window.isMaster || false;
 
       var currentParams = new URLSearchParams(window.location.search);
       var rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
-      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
-      var activeOSFilter = !isMultiOS ? extractPrimaryOSCode(rawOS) : "";
+      var activeOSFilter = extractPrimaryOSCode(rawOS);
 
       var osList = ACTIVE_CONTRACTS_CATALOG;
-      if (!isMultiOS && activeOSFilter) {
+      if (activeOSFilter) {
         var single = ACTIVE_CONTRACTS_CATALOG.filter(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; });
         if (single.length > 0) osList = single;
       }
@@ -3503,7 +3502,7 @@ window.isMaster = window.isMaster || false;
 
       var currentParams = new URLSearchParams(window.location.search);
       var rawOS = currentParams.get("SelectedOS") || "M00100";
-      var activeOS = extractPrimaryOSCode(rawOS);
+      var activeOS = extractPrimaryOSCode(rawOS) || "M00100";
       var paramMesNo = parseInt(currentParams.get("SelectedMesNo"), 10);
       var monthNum = (!isNaN(paramMesNo) && paramMesNo >= 1 && paramMesNo <= 12) ? paramMesNo : 7;
 
@@ -3595,6 +3594,7 @@ window.isMaster = window.isMaster || false;
     window.renderAnnualConsolidation = renderAnnualConsolidation;
     window.renderTab3Licoes = renderTab3Licoes;
     window.renderTab4Scorecard = renderTab4Scorecard;
+    window.extractPrimaryOSCode = extractPrimaryOSCode;
     window.renderSlaModalMatrix = renderSlaModalMatrix;
     window.setValidationStatus = setValidationStatus;
     window.toggleAssertiveness = toggleAssertiveness;
