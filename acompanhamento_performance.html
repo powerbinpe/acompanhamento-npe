@@ -837,20 +837,7 @@ window.isMaster = window.isMaster || false;
 
     var _roleToggleLock = false;
 
-    function toggleRole() {
-      if (_roleToggleLock) return;
-      _roleToggleLock = true;
-      setTimeout(function() { _roleToggleLock = false; }, 150);
-
-      window.isMaster = !window.isMaster;
-      window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
-      safeSetStorage("npe_active_role", window.isMaster ? "MASTER" : "GESTOR");
-      updateRoleUI();
-      renderRows();
-      if (typeof renderSlaModalMatrix === "function") renderSlaModalMatrix();
-      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
-      showToast(window.isMaster ? "🛡️ Perfil alterado para: Máster / Setor de Performance" : "👤 Perfil alterado para: Gestor de OS");
-    }
+    
 
     function updateRoleUI() {
       var roleText = document.getElementById("roleText");
