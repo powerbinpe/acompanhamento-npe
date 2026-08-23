@@ -640,6 +640,45 @@ console.log("EXCEL DATA LOADED CLEANLY: 46 OS codes, M00100 has " + (window.EXCE
   <script>
 window.isMaster = window.isMaster || false;
 
+// Reads live data pushed in by the Power BI report (SimRoleOverride, AtaComments
+// query-string params built by the _mHTML_ACOMPANHAMENTO measure from the
+// ATA_COMENTARIO SharePoint list) and seeds it into the same storage keys the
+// rest of the app already reads, since the iframe is recreated on every filter
+// change and browser storage does not reliably survive that reload.
+function hydrateFromPowerBI() {
+  var params = new URLSearchParams(window.location.search);
+
+  var simRoleOverride = (params.get("SimRoleOverride") || "").toUpperCase();
+  if (simRoleOverride === "GESTOR") {
+    safeSetStorage("npe_active_role", "GESTOR");
+  } else if (simRoleOverride === "MASTER") {
+    safeSetStorage("npe_active_role", "MASTER");
+  }
+
+  var rawOS = params.get("SelectedOS") || "TODAS_OS";
+  var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+  if (isMultiOS) return;
+
+  var activeOS = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOS) : rawOS;
+  var monthNum = parseInt(params.get("SelectedMesNo"), 10) || 7;
+
+  var ataComments = params.get("AtaComments") || "";
+  if (!ataComments) return;
+
+  var topics = ataComments.split("~");
+  for (var i = 0; i < topics.length; i++) {
+    var parts = topics[i].split("^");
+    if (parts.length < 4) continue;
+    var tid = parts[0];
+    var status = parts[1];
+    var gestor = parts[2];
+    var master = parts[3];
+    if (gestor) safeSetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, gestor);
+    if (master) safeSetStorage("m_" + activeOS + "_m" + monthNum + "_" + tid, master);
+    if (status) safeSetStorage("status_" + activeOS + "_m" + monthNum + "_" + tid, status);
+  }
+}
+
 
     // =========================================================================
     // 1. STORAGE & COMPATIBILITY LAYER (SANDBOX SAFE)
@@ -3767,6 +3806,7 @@ window.isMaster = window.isMaster || false;
     // 13. INITIALIZATION & GLOBAL WINDOW EXPORTS
     // =========================================================================
     document.addEventListener("DOMContentLoaded", function() {
+      hydrateFromPowerBI();
       if (typeof updateFromURLParams === "function") updateFromURLParams();
       
       var savedRole = safeGetStorage("npe_active_role", null);
