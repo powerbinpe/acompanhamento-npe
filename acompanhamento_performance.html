@@ -3688,31 +3688,30 @@ function hydrateFromPowerBI() {
           primaryIndicador = topicObj.name;
         }
 
-        if (gVal || mVal) {
-          payloadItems.push({
-            Title: activeOS,
-            os: activeOS,
-            Mes: monthNum,
-            mes: monthNum,
-            Ano: 2026,
-            ano: 2026,
-            TopicoId: tid,
-            topicoId: tid,
-            Indicador: topicObj.name,
-            indicador: topicObj.name,
-            ComentarioGestor: gVal,
-            comentarioGestor: gVal,
-            ComentarioMaster: mVal,
-            comentarioMaster: mVal,
-            StatusValidacao: curStatus,
-            statusValidacao: curStatus
-          });
-        }
+        payloadItems.push({
+          Title: activeOS,
+          os: activeOS,
+          Mes: monthNum,
+          mes: monthNum,
+          Ano: 2026,
+          ano: 2026,
+          TopicoId: tid,
+          topicoId: tid,
+          Indicador: topicObj.name,
+          indicador: topicObj.name,
+          ComentarioGestor: gVal,
+          comentarioGestor: gVal,
+          ComentarioMaster: mVal,
+          comentarioMaster: mVal,
+          StatusValidacao: curStatus,
+          statusValidacao: curStatus
+        });
       }
 
       var fEl = document.getElementById("finalPerformanceComment");
-      if (fEl && fEl.value) {
-        safeSetStorage("m_" + activeOS + "_m" + monthNum + "_24", fEl.value);
+      if (fEl) {
+        var fVal = fEl.value || "";
+        safeSetStorage("m_" + activeOS + "_m" + monthNum + "_24", fVal);
         payloadItems.push({
           Title: activeOS,
           os: activeOS,
@@ -3726,8 +3725,8 @@ function hydrateFromPowerBI() {
           indicador: "Síntese e Recomendações Finais da Performance",
           ComentarioGestor: "",
           comentarioGestor: "",
-          ComentarioMaster: fEl.value,
-          comentarioMaster: fEl.value,
+          ComentarioMaster: fVal,
+          comentarioMaster: fVal,
           StatusValidacao: "Homologado",
           statusValidacao: "Homologado"
         });
