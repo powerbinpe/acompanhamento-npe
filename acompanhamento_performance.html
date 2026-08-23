@@ -2786,6 +2786,28 @@ function hydrateFromPowerBI() {
     // =========================================================================
     // 7. GERADOR DE RESUMOS POR SUPERINTENDÊNCIA E NEGÓCIO (ABAS 2, 3 E 4)
     // =========================================================================
+        function buildOSVsGroupCompareHTML(contract, groupStats, selMonthNum) {
+          var sc = calculateOSScore(contract, selMonthNum);
+          var groupScoreNum = parseFloat((groupStats.scoreAvg + "").replace(",", "."));
+          var scoreDiff = isNaN(groupScoreNum) ? null : (sc.monthScore - groupScoreNum);
+          var scoreDiffColor = scoreDiff === null ? "#64748b" : (scoreDiff >= 0 ? "#15803d" : "#b91c1c");
+          var scoreDiffTxt = scoreDiff === null ? "" : ((scoreDiff >= 0 ? "▲ +" : "▼ ") + scoreDiff.toFixed(1) + " pts vs média");
+
+          var assertOwn = (typeof contract.assertividadeAcumPct === "number") ? (contract.assertividadeAcumPct * 100).toFixed(1).replace(".", ",") + "%" : "-";
+
+          return '<div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:8px; padding:10px 12px; margin-top:4px;">' +
+            '<div style="font-size:0.72rem; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">📍 OS ' + contract.code + ' (Selecionada)</div>' +
+            '<div style="display:flex; justify-content:space-between; font-size:0.80rem; margin-bottom:2px;">' +
+              '<span style="color:#334155; font-weight:600;">Assertividade:</span>' +
+              '<span style="font-weight:800; color:#0f2b5c;">' + assertOwn + '</span>' +
+            '</div>' +
+            '<div style="display:flex; justify-content:space-between; font-size:0.80rem;">' +
+              '<span style="color:#334155; font-weight:600;">Score do Mês:</span>' +
+              '<span style="font-weight:800; color:#0f2b5c;">' + sc.monthScore + ' pts <span style="color:' + scoreDiffColor + '; font-weight:700; font-size:0.72rem;">(' + scoreDiffTxt + ')</span></span>' +
+            '</div>' +
+          '</div>';
+        }
+
         function renderSuperintendenciaAndNegocioSummary(containerId, tabType) {
       var container = document.getElementById(containerId);
       if (!container) return;
@@ -2846,8 +2868,9 @@ function hydrateFromPowerBI() {
         '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">';
 
       filteredSups.forEach(function(supName) {
-        var supContracts = activeContract ? [activeContract] : ACTIVE_CONTRACTS_CATALOG.filter(function(c) { return c.superintendencia === supName; });
+        var supContracts = ACTIVE_CONTRACTS_CATALOG.filter(function(c) { return c.superintendencia === supName; });
         var stats = computeGroupStats(supContracts);
+        var compareHTML = activeContract ? buildOSVsGroupCompareHTML(activeContract, stats, selMonthNum) : "";
 
         supsHTML += '<div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">' +
           '<div>' +
@@ -2868,9 +2891,10 @@ function hydrateFromPowerBI() {
               '<span style="color:#64748b; font-weight:600;">Score Médio:</span>' +
               '<span style="font-weight:800; color:#b45309; background:#fef3c7; padding:1px 6px; border-radius:4px;">' + stats.scoreAvg + ' pts</span>' +
             '</div>' +
+            compareHTML +
           '</div>' +
           '<div style="font-size:0.75rem; color:#475569; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px; margin-top:8px; line-height:1.35;">' +
-            '📌 <strong>Síntese:</strong> ' + (isMultiOS ? ('Dados apurados em tempo real a partir de ' + stats.count + ' contratos ativos desta Superintendência.') : 'Desempenho da OS ' + activeOSFilter + ' acompanhado com rigor pelo setor de Performance.') +
+            '📌 <strong>Síntese:</strong> ' + (isMultiOS ? ('Dados apurados em tempo real a partir de ' + stats.count + ' contratos ativos desta Superintendência.') : ('Valores acima são a referência (média) de toda a Superintendência. Veja abaixo a posição da OS ' + activeOSFilter + ' dentro desse grupo.')) +
           '</div>' +
           '</div>';
       });
@@ -2889,8 +2913,9 @@ function hydrateFromPowerBI() {
         '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">';
 
       filteredNegs.forEach(function(negName) {
-        var negContracts = activeContract ? [activeContract] : ACTIVE_CONTRACTS_CATALOG.filter(function(c) { return c.negocio === negName; });
+        var negContracts = ACTIVE_CONTRACTS_CATALOG.filter(function(c) { return c.negocio === negName; });
         var stats = computeGroupStats(negContracts);
+        var compareHTML = activeContract ? buildOSVsGroupCompareHTML(activeContract, stats, selMonthNum) : "";
         var icon = negName === "ROTINA" ? "🔄" : (negName === "PARADA" ? "⏱️" : "🔧");
 
         negsHTML += '<div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">' +
@@ -2914,9 +2939,10 @@ function hydrateFromPowerBI() {
               '<span style="color:#64748b; font-weight:600;">Pontuação Média:</span>' +
               '<span style="font-weight:800; color:#b45309; background:#fef3c7; padding:1px 6px; border-radius:4px;">' + stats.scoreAvg + ' pts</span>' +
             '</div>' +
+            compareHTML +
           '</div>' +
           '<div style="font-size:0.75rem; color:#475569; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px; margin-top:8px; line-height:1.35;">' +
-            '📌 <strong>Comentários & Desvios:</strong> Dados apurados em tempo real a partir de ' + stats.count + ' contratos ativos desta linha de negócio.' +
+            '📌 <strong>Comentários & Desvios:</strong> ' + (isMultiOS ? ('Dados apurados em tempo real a partir de ' + stats.count + ' contratos ativos desta linha de negócio.') : ('Valores acima são a referência (média) de toda a linha de negócio. Veja abaixo a posição da OS ' + activeOSFilter + ' dentro desse grupo.')) +
           '</div>' +
           '</div>';
       });
