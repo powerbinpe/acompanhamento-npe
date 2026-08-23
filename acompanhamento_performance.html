@@ -670,6 +670,7 @@ function hydrateFromPowerBI() {
     var parts = topics[i].split("^");
     if (parts.length < 4) continue;
     var tid = parts[0];
+    if (!tid) continue;
     var status = parts[1];
     var gestor = parts[2];
     var master = parts[3];
