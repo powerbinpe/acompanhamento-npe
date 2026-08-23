@@ -3596,18 +3596,10 @@ window.isMaster = window.isMaster || false;
       }
     }
 
-            async function saveAllComments() {
+                async function saveAllComments() {
       var saveBtn = document.querySelector(".save-btn");
-      
-      try {
-        var bStr = JSON.stringify(window.ATA_COMENTARIOS_DB);
-        if (window.localStorage) window.localStorage.setItem("NPE_RUNTIME_DATA_BACKUP", bStr);
-        if (window.sessionStorage) window.sessionStorage.setItem("NPE_RUNTIME_DATA_BACKUP", bStr);
-        setCookie("NPE_RUNTIME_DATA_BACKUP", bStr, 365);
-      } catch (e) {}
-
       if (saveBtn) {
-        saveBtn.innerHTML = "⏳ Gravando na Nuvem...";
+        saveBtn.innerHTML = "⏳ Gravando no SharePoint...";
         saveBtn.style.opacity = "0.75";
       }
 
@@ -3615,10 +3607,14 @@ window.isMaster = window.isMaster || false;
       var rawOS = currentParams.get("SelectedOS") || "M00100";
       var activeOS = extractPrimaryOSCode(rawOS) || "M00100";
       var monthNum = getMonthNumberFromParams(currentParams);
-      var userEmail = currentParams.get("UserEmail") || (window.isMaster ? "master.performance@npe.com.br" : "gestor.os@npe.com.br");
+      var userEmail = currentParams.get("UserEmail") || (window.isMaster ? "robson.araujo@npe.com.br" : "gestor.os@npe.com.br");
 
       window.ATA_COMENTARIOS_DB[activeOS] = window.ATA_COMENTARIOS_DB[activeOS] || {};
       var payloadItems = [];
+
+      var primaryGestor = "";
+      var primaryMaster = "";
+      var primaryIndicador = "Faturamento Ano";
 
       for (var tid = 1; tid <= 23; tid++) {
         var gEl = document.getElementById("gestor_" + tid);
@@ -3637,21 +3633,35 @@ window.isMaster = window.isMaster || false;
 
         var mG = tRows.find(function(r) { return r.tipo === "GESTOR" && r.mes === monthNum; });
         if (mG) { mG.comentario = gVal; }
-        else if (gVal) { tRows.push({ mes: monthNum, tipo: "GESTOR", comentario: gVal }); }
+        else if (gVal) { tRows.push({ mes: monthNum, tipo: "GESTOR", comentario: gVal, status: curStatus }); }
 
         var mM = tRows.find(function(r) { return r.tipo === "PERFORMANCE" && r.mes === monthNum; });
         if (mM) { mM.comentario = mVal; }
-        else if (mVal) { tRows.push({ mes: monthNum, tipo: "PERFORMANCE", comentario: mVal }); }
+        else if (mVal) { tRows.push({ mes: monthNum, tipo: "PERFORMANCE", comentario: mVal, status: "Validado" }); }
+
+        if (tid === 1) {
+          primaryGestor = gVal;
+          primaryMaster = mVal;
+          primaryIndicador = topicObj.name;
+        }
 
         if (gVal || mVal) {
           payloadItems.push({
+            Title: activeOS,
             os: activeOS,
+            Mes: monthNum,
             mes: monthNum,
+            Ano: 2026,
             ano: 2026,
+            TopicoId: tid,
             topicoId: tid,
+            Indicador: topicObj.name,
             indicador: topicObj.name,
+            ComentarioGestor: gVal,
             comentarioGestor: gVal,
+            ComentarioMaster: mVal,
             comentarioMaster: mVal,
+            StatusValidacao: curStatus,
             statusValidacao: curStatus
           });
         }
@@ -3661,30 +3671,62 @@ window.isMaster = window.isMaster || false;
       if (fEl && fEl.value) {
         safeSetStorage("m_" + activeOS + "_m" + monthNum + "_24", fEl.value);
         payloadItems.push({
+          Title: activeOS,
           os: activeOS,
+          Mes: monthNum,
           mes: monthNum,
+          Ano: 2026,
           ano: 2026,
+          TopicoId: 24,
           topicoId: 24,
+          Indicador: "Síntese e Recomendações Finais da Performance",
           indicador: "Síntese e Recomendações Finais da Performance",
+          ComentarioGestor: "",
           comentarioGestor: "",
+          ComentarioMaster: fEl.value,
           comentarioMaster: fEl.value,
+          StatusValidacao: "Homologado",
           statusValidacao: "Homologado"
         });
       }
 
+      // Root payload supporting both single flat item and array loop
       var fullPayload = {
+        Title: activeOS,
         os: activeOS,
+        Mes: monthNum,
         mes: monthNum,
+        Ano: 2026,
         ano: 2026,
+        TopicoId: 1,
+        topicoId: 1,
+        Indicador: primaryIndicador,
+        indicador: primaryIndicador,
+        ComentarioGestor: primaryGestor,
+        comentarioGestor: primaryGestor,
+        ComentarioMaster: primaryMaster,
+        comentarioMaster: primaryMaster,
+        StatusValidacao: "Validado",
+        statusValidacao: "Validado",
+        EmailUsuario: userEmail,
         emailUsuario: userEmail,
         perfil: window.isMaster ? "MASTER" : "GESTOR",
+        DataHoraRegistro: new Date().toISOString(),
         dataHora: new Date().toISOString(),
         totalTopicos: payloadItems.length,
         itens: payloadItems
       };
 
+      try {
+        var bStr = JSON.stringify(window.ATA_COMENTARIOS_DB);
+        if (window.localStorage) window.localStorage.setItem("NPE_RUNTIME_DATA_BACKUP", bStr);
+        if (window.sessionStorage) window.sessionStorage.setItem("NPE_RUNTIME_DATA_BACKUP", bStr);
+        setCookie("NPE_RUNTIME_DATA_BACKUP", bStr, 365);
+      } catch (e) {}
+
       var cloudSuccess = false;
       var webhook = window.CLOUD_WEBHOOK_URL || "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/bfaa9f5615144864914029734fbed5bd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=P-9LbSTlkgYK1spior6qlj8ejGES2_8pQRVn0JDjz-0";
+      
       if (webhook && webhook.startsWith("http")) {
         try {
           var response = await fetch(webhook, {
@@ -3699,14 +3741,6 @@ window.isMaster = window.isMaster || false;
           console.warn("Webhook cloud sync notice:", err);
         }
       }
-
-      
-      try {
-        var bStr = JSON.stringify(window.ATA_COMENTARIOS_DB);
-        if (window.localStorage) window.localStorage.setItem("NPE_RUNTIME_DATA_BACKUP", bStr);
-        if (window.sessionStorage) window.sessionStorage.setItem("NPE_RUNTIME_DATA_BACKUP", bStr);
-        setCookie("NPE_RUNTIME_DATA_BACKUP", bStr, 365);
-      } catch (e) {}
 
       if (saveBtn) {
         saveBtn.innerHTML = "✅ Comentários Salvos no SharePoint!";
