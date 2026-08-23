@@ -688,12 +688,111 @@ function hydrateOSScoreDataFromPowerBI(params) {
   }
   if (liveCatalog.length === 0) return;
 
+  var verdictsByCode = hydrateTopicVerdictsFromPowerBI(params);
+  if (verdictsByCode) {
+    for (var vi = 0; vi < liveCatalog.length; vi++) {
+      var vc = liveCatalog[vi];
+      vc.topicVerdicts = verdictsByCode[vc.code] || null;
+    }
+  }
+
   if (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined" && ACTIVE_CONTRACTS_CATALOG) {
     ACTIVE_CONTRACTS_CATALOG.length = 0;
     for (var ci = 0; ci < liveCatalog.length; ci++) ACTIVE_CONTRACTS_CATALOG.push(liveCatalog[ci]);
   } else {
     window.ACTIVE_CONTRACTS_CATALOG = liveCatalog;
   }
+}
+
+var TOPIC_VERDICT_FIELD_ORDER = ["perda", "indenizacao", "efetivo", "hht", "absenteismo", "turnover", "saf", "caf"];
+
+function hydrateTopicVerdictsFromPowerBI(params) {
+  var raw = params.get("TopicVerdicts") || "";
+  if (!raw) return null;
+
+  var result = {};
+  var osRows = raw.split("~");
+  for (var oi = 0; oi < osRows.length; oi++) {
+    var f = osRows[oi].split("^");
+    if (f.length < 3) continue;
+    var code = f[0];
+    var curStr = f[1] || "";
+    var prevStr = f[2] || "";
+    if (!code || curStr.length !== TOPIC_VERDICT_FIELD_ORDER.length) continue;
+
+    var cur = {}, prev = {};
+    for (var k = 0; k < TOPIC_VERDICT_FIELD_ORDER.length; k++) {
+      cur[TOPIC_VERDICT_FIELD_ORDER[k]] = curStr.charAt(k);
+      prev[TOPIC_VERDICT_FIELD_ORDER[k]] = prevStr.charAt(k);
+    }
+    result[code] = { cur: cur, prev: prev };
+  }
+  return result;
+}
+
+// 23-topic map: 'verdict' topics read from TopicVerdicts (real DAX threshold rules),
+// 'qual' topics read from the existing manual Conforme/Não Conforme/N/A evaluation,
+// 'text' topics have no numeric/compliance signal today (comment-only tracking).
+var TOPIC_INDICATOR_MAP = [
+  { id: 1, name: "Faturamento Ano", kind: "text" },
+  { id: 2, name: "Resultado Ano", kind: "text" },
+  { id: 3, name: "Faturamento Mês", kind: "text" },
+  { id: 4, name: "Assertividade", kind: "text" },
+  { id: 5, name: "Notificação/SLA", kind: "text" },
+  { id: 6, name: "Perda de Receita", kind: "verdict", key: "perda" },
+  { id: 7, name: "Receita Ideal", kind: "qual", key: "rec_ideal" },
+  { id: 8, name: "Indenização", kind: "verdict", key: "indenizacao" },
+  { id: 9, name: "Efetivo", kind: "verdict", key: "efetivo" },
+  { id: 10, name: "HHT", kind: "verdict", key: "hht" },
+  { id: 11, name: "Absenteísmo", kind: "verdict", key: "absenteismo" },
+  { id: 12, name: "TurnOver", kind: "verdict", key: "turnover" },
+  { id: 13, name: "Excesso Hora Extra", kind: "qual", key: "he" },
+  { id: 14, name: "Acúmulo de Férias", kind: "qual", key: "ferias" },
+  { id: 15, name: "SAF", kind: "verdict", key: "saf" },
+  { id: 16, name: "CAF", kind: "verdict", key: "caf" },
+  { id: 17, name: "Satisfação do Cliente", kind: "text" },
+  { id: 18, name: "LTCAT/LIPAE", kind: "text" },
+  { id: 19, name: "PBI/PBD", kind: "qual", key: "pbi_pbd" },
+  { id: 20, name: "Boas Práticas", kind: "text" },
+  { id: 21, name: "Gestão de Risco", kind: "text" },
+  { id: 22, name: "Renovação do Contrato", kind: "text" },
+  { id: 23, name: "Observações Gerais", kind: "text" }
+];
+
+// Per-topic Conforme count (now vs previous month) for a group of contracts, using the same
+// real per-OS verdict data as calculateOSScore for 'verdict' topics, and the existing
+// manual qualitative evaluation storage for 'qual' topics. 'text' topics have no real signal
+// yet and are reported as such rather than guessed.
+function computeTopicIndicatorBreakdown(contracts, selMonthNum) {
+  var prevMonthNum = selMonthNum === 1 ? 12 : selMonthNum - 1;
+
+  return TOPIC_INDICATOR_MAP.map(function(topic) {
+    if (topic.kind === "text") {
+      return { id: topic.id, name: topic.name, kind: "text" };
+    }
+
+    var total = 0, curOk = 0, prevOk = 0;
+    contracts.forEach(function(c) {
+      if (topic.kind === "verdict") {
+        if (!c.topicVerdicts) return;
+        var curV = c.topicVerdicts.cur[topic.key];
+        var prevV = c.topicVerdicts.prev[topic.key];
+        if (curV === "N" && prevV === "N") return;
+        total++;
+        if (curV === "G") curOk++;
+        if (prevV === "G") prevOk++;
+      } else if (topic.kind === "qual") {
+        total++;
+        var curQ = getQualitativeEval(c.code, selMonthNum, topic.key);
+        var prevQ = getQualitativeEval(c.code, prevMonthNum, topic.key);
+        if (curQ !== "NA" && curQ === "ADERENTE") curOk++;
+        if (prevQ !== "NA" && prevQ === "ADERENTE") prevOk++;
+      }
+    });
+
+    var trend = curOk > prevOk ? "up" : (curOk < prevOk ? "down" : "flat");
+    return { id: topic.id, name: topic.name, kind: topic.kind, total: total, curOk: curOk, prevOk: prevOk, trend: trend };
+  });
 }
 
 function hydrateFromPowerBI() {
@@ -2786,6 +2885,30 @@ function hydrateFromPowerBI() {
     // =========================================================================
     // 7. GERADOR DE RESUMOS POR SUPERINTENDÊNCIA E NEGÓCIO (ABAS 2, 3 E 4)
     // =========================================================================
+        function buildTopicIndicatorTableHTML(breakdown) {
+          var rows = breakdown.map(function(t) {
+            if (t.kind === "text") {
+              return '<tr><td style="padding:4px 8px; font-size:0.74rem; color:#334155;">' + t.id + '. ' + t.name + '</td>' +
+                '<td colspan="3" style="padding:4px 8px; font-size:0.72rem; color:#94a3b8; text-align:center; font-style:italic;">Somente acompanhamento textual (sem indicador real)</td></tr>';
+            }
+            var pct = t.total > 0 ? Math.round((t.curOk / t.total) * 100) : 0;
+            var trendIcon = t.trend === "up" ? "▲" : (t.trend === "down" ? "▼" : "●");
+            var trendColor = t.trend === "up" ? "#15803d" : (t.trend === "down" ? "#b91c1c" : "#64748b");
+            return '<tr><td style="padding:4px 8px; font-size:0.74rem; color:#334155;">' + t.id + '. ' + t.name + '</td>' +
+              '<td style="padding:4px 8px; font-size:0.74rem; text-align:center; font-weight:700; color:#0f2b5c;">' + t.curOk + '/' + t.total + ' (' + pct + '%)</td>' +
+              '<td style="padding:4px 8px; font-size:0.74rem; text-align:center; color:#64748b;">' + t.prevOk + '/' + t.total + '</td>' +
+              '<td style="padding:4px 8px; font-size:0.74rem; text-align:center; font-weight:800; color:' + trendColor + ';">' + trendIcon + '</td></tr>';
+          }).join("");
+
+          return '<table style="width:100%; border-collapse:collapse; margin-top:2px;">' +
+            '<thead><tr style="background:#0f2b5c; color:#ffffff;">' +
+              '<th style="padding:4px 8px; font-size:0.68rem; text-align:left;">TÓPICO</th>' +
+              '<th style="padding:4px 8px; font-size:0.68rem;">CONFORME (MÊS ATUAL)</th>' +
+              '<th style="padding:4px 8px; font-size:0.68rem;">CONFORME (MÊS ANTERIOR)</th>' +
+              '<th style="padding:4px 8px; font-size:0.68rem;">TENDÊNCIA</th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table>';
+        }
+
         function buildOSVsGroupCompareHTML(contract, groupStats, selMonthNum) {
           var sc = calculateOSScore(contract, selMonthNum);
           var groupScoreNum = parseFloat((groupStats.scoreAvg + "").replace(",", "."));
@@ -2871,6 +2994,9 @@ function hydrateFromPowerBI() {
         var supContracts = ACTIVE_CONTRACTS_CATALOG.filter(function(c) { return c.superintendencia === supName; });
         var stats = computeGroupStats(supContracts);
         var compareHTML = activeContract ? buildOSVsGroupCompareHTML(activeContract, stats, selMonthNum) : "";
+        var topicBreakdown = computeTopicIndicatorBreakdown(supContracts, selMonthNum);
+        var topicDetailsHTML = '<details style="margin-top:8px;"><summary style="cursor:pointer; font-size:0.76rem; font-weight:700; color:#1e40af;">📋 Ver os 23 Indicadores desta Superintendência</summary>' +
+          '<div style="overflow-x:auto; margin-top:4px;">' + buildTopicIndicatorTableHTML(topicBreakdown) + '</div></details>';
 
         supsHTML += '<div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">' +
           '<div>' +
@@ -2896,6 +3022,7 @@ function hydrateFromPowerBI() {
           '<div style="font-size:0.75rem; color:#475569; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px; margin-top:8px; line-height:1.35;">' +
             '📌 <strong>Síntese:</strong> ' + (isMultiOS ? ('Dados apurados em tempo real a partir de ' + stats.count + ' contratos ativos desta Superintendência.') : ('Valores acima são a referência (média) de toda a Superintendência. Veja abaixo a posição da OS ' + activeOSFilter + ' dentro desse grupo.')) +
           '</div>' +
+          topicDetailsHTML +
           '</div>';
       });
 
@@ -2916,6 +3043,9 @@ function hydrateFromPowerBI() {
         var negContracts = ACTIVE_CONTRACTS_CATALOG.filter(function(c) { return c.negocio === negName; });
         var stats = computeGroupStats(negContracts);
         var compareHTML = activeContract ? buildOSVsGroupCompareHTML(activeContract, stats, selMonthNum) : "";
+        var topicBreakdown = computeTopicIndicatorBreakdown(negContracts, selMonthNum);
+        var topicDetailsHTML = '<details style="margin-top:8px;"><summary style="cursor:pointer; font-size:0.76rem; font-weight:700; color:#b45309;">📋 Ver os 23 Indicadores desta Linha de Negócio</summary>' +
+          '<div style="overflow-x:auto; margin-top:4px;">' + buildTopicIndicatorTableHTML(topicBreakdown) + '</div></details>';
         var icon = negName === "ROTINA" ? "🔄" : (negName === "PARADA" ? "⏱️" : "🔧");
 
         negsHTML += '<div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">' +
@@ -2944,6 +3074,7 @@ function hydrateFromPowerBI() {
           '<div style="font-size:0.75rem; color:#475569; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px; margin-top:8px; line-height:1.35;">' +
             '📌 <strong>Comentários & Desvios:</strong> ' + (isMultiOS ? ('Dados apurados em tempo real a partir de ' + stats.count + ' contratos ativos desta linha de negócio.') : ('Valores acima são a referência (média) de toda a linha de negócio. Veja abaixo a posição da OS ' + activeOSFilter + ' dentro desse grupo.')) +
           '</div>' +
+          topicDetailsHTML +
           '</div>';
       });
 
