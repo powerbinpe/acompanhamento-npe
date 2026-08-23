@@ -814,6 +814,9 @@ function hydrateFromPowerBI() {
 
     function isUserAuthorizedMaster() {
       var params = new URLSearchParams(window.location.search);
+      var simRoleOverride = (params.get("SimRoleOverride") || "").toUpperCase();
+      if (simRoleOverride === "GESTOR") return false;
+      if (simRoleOverride === "MASTER") return true;
       var isUserPerformanceParam = (params.get("IsUserPerformance") || "").toUpperCase() === "TRUE";
       var userEmail = (params.get("UserEmail") || "").toLowerCase().trim();
       if (isUserPerformanceParam) return true;
