@@ -230,9 +230,12 @@
             Parecer executivo do Setor de Performance com direcionamentos estratégicos, governança e planos de ação para a diretoria.
           </div>
         </div>
-        <div style="margin-top: 12px;">
+        <div style="margin-top: 12px; display:flex; gap:8px;">
           <button id="btnGenerateSummary" type="button" onclick="generatePerformanceSummary()" style="background:linear-gradient(135deg, #1e40af, #2563eb); color:#ffffff; border:none; padding:8px 14px; border-radius:6px; font-weight:700; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-            ⚡ Gerar Síntese Automática
+            🤖 Gerar Síntese com IA
+          </button>
+          <button type="button" onclick="configureAiSummaryWebhook()" title="Configurar o Webhook do Power Automate (AI Builder)" style="background:#f1f5f9; color:#334155; border:1.5px solid #cbd5e1; padding:8px 12px; border-radius:6px; font-weight:700; font-size:0.85rem; cursor:pointer;">
+            ⚙️
           </button>
         </div>
       </div>
@@ -3844,7 +3847,19 @@ function hydrateFromPowerBI() {
       safeSetStorage("m_" + activeOS + "_m" + monthNum + "_24", value);
     }
 
-    function generatePerformanceSummary() {
+    window.AI_SUMMARY_WEBHOOK_URL = safeGetStorage("npe_ai_summary_webhook_url", "");
+
+    function configureAiSummaryWebhook() {
+      var curUrl = window.AI_SUMMARY_WEBHOOK_URL || "";
+      var newUrl = prompt("🤖 Digite a URL do Webhook do Power Automate (AI Builder) que gera a síntese automática:", curUrl);
+      if (newUrl !== null) {
+        window.AI_SUMMARY_WEBHOOK_URL = newUrl.trim();
+        safeSetStorage("npe_ai_summary_webhook_url", window.AI_SUMMARY_WEBHOOK_URL);
+        showToast(window.AI_SUMMARY_WEBHOOK_URL ? "🔗 Webhook de IA configurado com sucesso!" : "ℹ️ Webhook de IA removido.");
+      }
+    }
+
+    async function generatePerformanceSummary() {
       if (!window.isMaster) {
         showToast("⚠️ Apenas o perfil Máster Performance pode gerar a síntese.");
         return;
@@ -3852,10 +3867,54 @@ function hydrateFromPowerBI() {
       var finalTA = document.getElementById("finalPerformanceComment");
       if (!finalTA) return;
 
-      var summaryText = "Síntese Consolidada do Setor de Performance: OS com aderência satisfatória às metas operacionais e de governança. Recomenda-se acompanhamento rigoroso do plano de ação para fechamento do exercício.";
-      finalTA.value = summaryText;
-      handleFinalCommentInput(summaryText);
-      showToast("⚡ Síntese automática da Performance gerada com sucesso!");
+      var currentParams = new URLSearchParams(window.location.search);
+      var rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
+      var activeOS = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOS) : rawOS;
+      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      if (isMultiOS || !activeOS) {
+        showToast("⚠️ Selecione uma OS específica no Power BI para gerar a síntese com IA.");
+        return;
+      }
+      var monthNum = getMonthNumberFromParams(currentParams);
+
+      if (!window.AI_SUMMARY_WEBHOOK_URL) {
+        showToast("⚠️ Configure o Webhook de IA primeiro (⚙️ Configurar IA).");
+        return;
+      }
+
+      var topicosPayload = topicsData.map(function(t) {
+        return {
+          id: t.id,
+          nome: t.name,
+          comentarioGestor: safeGetStorage("g_" + activeOS + "_m" + monthNum + "_" + t.id, ""),
+          comentarioMaster: safeGetStorage("m_" + activeOS + "_m" + monthNum + "_" + t.id, "")
+        };
+      });
+
+      var originalValue = finalTA.value;
+      finalTA.value = "⏳ Gerando síntese com IA...";
+      finalTA.disabled = true;
+
+      try {
+        var resp = await fetch(window.AI_SUMMARY_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ modo: "OS", os: activeOS, mes: monthNum, ano: 2026, topicos: topicosPayload })
+        });
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        var data = await resp.json();
+        var summaryText = (data && (data.sintese || data.Sintese)) || "";
+        if (!summaryText) throw new Error("Resposta vazia da IA");
+
+        finalTA.value = summaryText;
+        handleFinalCommentInput(summaryText);
+        showToast("🤖 Síntese gerada por IA com sucesso!");
+      } catch (e) {
+        finalTA.value = originalValue;
+        showToast("❌ Erro ao gerar síntese via IA: " + e.message);
+      } finally {
+        finalTA.disabled = false;
+      }
     }
 
         // =========================================================================
@@ -4098,6 +4157,7 @@ function hydrateFromPowerBI() {
     window.handleCommentInput = handleCommentInput;
     window.handleFinalCommentInput = handleFinalCommentInput;
     window.generatePerformanceSummary = generatePerformanceSummary;
+    window.configureAiSummaryWebhook = configureAiSummaryWebhook;
     window.saveAllComments = saveAllComments;
     window.filterRankingTable = filterRankingTable;
     window.filterSlaTable = filterSlaTable;
