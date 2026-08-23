@@ -268,7 +268,7 @@
       </div>
       <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
         <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS ELEGÍVEIS</span>
-        <div style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
+        <div id="tab2TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
       </div>
     </div>
 
@@ -294,7 +294,7 @@
       </div>
       <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
         <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS</span>
-        <div style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
+        <div id="tab3TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
       </div>
     </div>
 
@@ -320,7 +320,7 @@
       </div>
       <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
         <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS ELEGÍVEIS</span>
-        <div style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
+        <div id="tab4TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
       </div>
     </div>
 
@@ -2870,11 +2870,22 @@ function hydrateFromPowerBI() {
       var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
       var activeOSFilter = !isMultiOS ? extractPrimaryOSCode(rawOS) : "";
 
-      var fatVal = isMultiOS ? "R$ 740,5 M" : ("R$ " + (currentParams.get("FatRealAno") || "14.392.466"));
-      var fatSub = isMultiOS ? "+9,08% vs FCST Previsto" : ((currentParams.get("FatPctAno") || "+3,36%") + " vs FCST Previsto");
-      
-      var resVal = isMultiOS ? "R$ 39,0 M" : ("R$ " + (currentParams.get("ResRealAno") || "1.200.000"));
-      var resSub = isMultiOS ? "Margem Real: 5,27%" : ("Margem Real: " + (currentParams.get("MargReal") || "8,34%"));
+      var fatDifRaw = currentParams.get("FatDifAno") || "-";
+      var fatPctRaw = currentParams.get("FatPctAno") || "-";
+      var fatIsUp = fatDifRaw.indexOf("-") === -1 && fatDifRaw.indexOf("(") === -1 && fatDifRaw !== "-";
+      var fatVal = isMultiOS ? "R$ 740,5 M" : ("R$ " + (currentParams.get("FatRealAno") || "-"));
+      var fatSub = isMultiOS ? "+9,08% vs Executivo" :
+        (fatDifRaw === "-" ? "Sem comparativo Executivo" :
+          (fatIsUp ? "▲ " : "▼ ") + "R$ " + fatDifRaw + " (" + fatPctRaw + ") vs Executivo");
+      var fatSubColor = isMultiOS ? "#15803d" : (fatDifRaw === "-" ? "#64748b" : (fatIsUp ? "#15803d" : "#b91c1c"));
+
+      var resDifRaw = currentParams.get("ResDifAno") || "-";
+      var resIsUp = resDifRaw.indexOf("-") === -1 && resDifRaw.indexOf("(") === -1 && resDifRaw !== "-";
+      var resVal = isMultiOS ? "R$ 39,0 M" : ("R$ " + (currentParams.get("ResRealAno") || "-"));
+      var resSub = isMultiOS ? "Margem Real: 5,27%" :
+        (resDifRaw === "-" ? "Sem comparativo Executivo" :
+          (resIsUp ? "▲ " : "▼ ") + "R$ " + resDifRaw + " vs Executivo (Margem " + (currentParams.get("MargReal") || "-") + ")");
+      var resSubColor = isMultiOS ? "#15803d" : (resDifRaw === "-" ? "#64748b" : (resIsUp ? "#15803d" : "#b91c1c"));
 
       var efVal = isMultiOS ? "1.842 pax" : (currentParams.get("EfetivoReal") || "194 pax");
       var efSub = isMultiOS ? "Alocação operacional ativa" : ("Orçado: " + (currentParams.get("EfetivoPR") || "116 pax"));
@@ -2892,12 +2903,12 @@ function hydrateFromPowerBI() {
         cardsCont.innerHTML = '<div class="summary-card" style="background:#ffffff; border:2.5px solid #162b58; border-radius:12px; padding:18px; border-left:5px solid #2563eb;">' +
           '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">💰 Faturamento Anual ' + (isMultiOS ? '(68 OSs)' : '(OS ' + activeOSFilter + ')') + '</div>' +
           '<div style="color:#0f2b5c; font-size:1.75rem; font-weight:900; margin:4px 0;">' + fatVal + '</div>' +
-          '<div style="color:#15803d; font-weight:700; font-size:0.88rem;">' + fatSub + '</div>' +
+          '<div style="color:' + fatSubColor + '; font-weight:700; font-size:0.88rem;">' + fatSub + '</div>' +
           '</div>' +
           '<div class="summary-card" style="background:#ffffff; border:2.5px solid #162b58; border-radius:12px; padding:18px; border-left:5px solid #16a34a;">' +
           '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">📈 Resultado Bruto Anual</div>' +
           '<div style="color:#15803d; font-size:1.75rem; font-weight:900; margin:4px 0;">' + resVal + '</div>' +
-          '<div style="color:#15803d; font-weight:700; font-size:0.88rem;">' + resSub + '</div>' +
+          '<div style="color:' + resSubColor + '; font-weight:700; font-size:0.88rem;">' + resSub + '</div>' +
           '</div>' +
           '<div class="summary-card" style="background:#ffffff; border:2.5px solid #162b58; border-radius:12px; padding:18px; border-left:5px solid #f59e0b;">' +
           '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">👥 Efetivo Total em Campo</div>' +
