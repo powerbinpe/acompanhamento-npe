@@ -698,7 +698,11 @@ function hydrateOSScoreDataFromPowerBI(params) {
       satVal: f[21] !== "" && f[21] !== undefined ? (parseInt(f[21], 10) / 10000) : null,
       satMeta: f[22] !== "" && f[22] !== undefined ? (parseInt(f[22], 10) / 10000) : null,
       bpAprovAcum: parseInt(f[23], 10) || 0,
-      bpReconAcum: parseInt(f[24], 10) || 0
+      bpReconAcum: parseInt(f[24], 10) || 0,
+      bpAprovS1: parseInt(f[25], 10) || 0,
+      bpReconS1: parseInt(f[26], 10) || 0,
+      bpAprovS2: parseInt(f[27], 10) || 0,
+      bpReconS2: parseInt(f[28], 10) || 0
     });
   }
   if (liveCatalog.length === 0) return;
@@ -731,7 +735,7 @@ function hydrateOSMonthHistoryFromPowerBI(params) {
   var monthRows = raw.split("~");
   for (var i = 0; i < monthRows.length; i++) {
     var f = monthRows[i].split("^");
-    if (f.length < 17) continue;
+    if (f.length < 21) continue;
     var m = parseInt(f[0], 10);
     if (!m) continue;
     history[m] = {
@@ -750,7 +754,11 @@ function hydrateOSMonthHistoryFromPowerBI(params) {
       safCount: parseInt(f[13], 10) || 0,
       cafCount: parseInt(f[14], 10) || 0,
       bpAprovAcum: parseInt(f[15], 10) || 0,
-      bpReconAcum: parseInt(f[16], 10) || 0
+      bpReconAcum: parseInt(f[16], 10) || 0,
+      bpAprovS1: parseInt(f[17], 10) || 0,
+      bpReconS1: parseInt(f[18], 10) || 0,
+      bpAprovS2: parseInt(f[19], 10) || 0,
+      bpReconS2: parseInt(f[20], 10) || 0
     };
   }
   return history;
@@ -2731,8 +2739,8 @@ function hydrateFromPowerBI() {
 
             var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
             linesHTML += '<tr style="background-color: ' + rowBg + '; border-bottom: 1.5px solid #cbd5e1;">' +
-              '<td style="padding: 7px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 60%;">' + l.label + ':</td>' +
-              '<td style="padding: 7px 12px; font-size: 1.05rem; color: ' + valColor + '; font-weight: 800; text-align: right; width: 38%;">' + rawVal + '</td>' +
+              '<td style="padding: 7px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 40%;">' + l.label + ':</td>' +
+              '<td style="padding: 7px 12px; font-size: 1.05rem; color: ' + valColor + '; font-weight: 800; text-align: right; width: 60%; white-space: nowrap;">' + rawVal + '</td>' +
               '</tr>';
           });
 
@@ -3430,7 +3438,7 @@ function hydrateFromPowerBI() {
     var MONTH_HISTORY_FIELDS = [
       "fatDifAnoPct", "resDifAnoPct", "fatDifMesPct", "resDifMesPct", "perdaPctAcum", "indenizOk",
       "efetivoDifPct", "hhtDifPct", "absenteismoPct", "absenteismoMetaPct", "turnoverPct", "turnoverMetaPct",
-      "safCount", "cafCount", "bpAprovAcum", "bpReconAcum"
+      "safCount", "cafCount", "bpAprovAcum", "bpReconAcum", "bpAprovS1", "bpReconS1", "bpAprovS2", "bpReconS2"
     ];
 
     // Quando existe histórico real por mês (só disponível com 1 OS selecionada no Power BI), usa
@@ -3520,9 +3528,21 @@ function hydrateFromPowerBI() {
       addQual("ltcat_lipae", "t18", TOPIC_WEIGHTS.t18);
       addQual("pbi_pbd", "t19", TOPIC_WEIGHTS.t19);
 
-      // --- 20. Boas Práticas (só apurado no fechamento: Estágio = FINALIZADA; Rotina/Oficina por semestre, Parada por evento) ---
-      var bpApplicable = (contract.estagio === "FINALIZADA");
-      var bpMet = (contract.bpAprovAcum || 0) >= 3 && (contract.bpReconAcum || 0) >= 1;
+      // --- 20. Boas Práticas: meta é 3 aprovadas + 1 reconhecida pelo cliente.
+      // Rotina/Oficina: apurado por SEMESTRE calendário (só nos meses 6 e 12, fechamento do S1/S2).
+      // Parada: apurado por EVENTO -- só quando a OS fecha (Estágio = FINALIZADA).
+      var bpApplicable, bpMet;
+      if (contract.negocio === "PARADA") {
+        bpApplicable = (contract.estagio === "FINALIZADA");
+        bpMet = (contract.bpAprovAcum || 0) >= 3 && (contract.bpReconAcum || 0) >= 1;
+      } else {
+        bpApplicable = (monthNum === 6 || monthNum === 12);
+        if (monthNum === 6) {
+          bpMet = (contract.bpAprovS1 || 0) >= 3 && (contract.bpReconS1 || 0) >= 1;
+        } else if (monthNum === 12) {
+          bpMet = (contract.bpAprovS2 || 0) >= 3 && (contract.bpReconS2 || 0) >= 1;
+        }
+      }
       addBinary("t20", TOPIC_WEIGHTS.t20, bpApplicable, bpMet);
 
       addQual("notificacao_sla", "t5", TOPIC_WEIGHTS.t5);
