@@ -686,18 +686,22 @@ function hydrateOSScoreDataFromPowerBI(params) {
       turnoverPct: f[9] !== "" ? (parseInt(f[9], 10) / 10000) : null,
       turnoverMetaPct: f[10] !== "" ? (parseInt(f[10], 10) / 10000) : null,
       safCount: parseInt(f[11], 10) || 0,
-      cafCount: parseInt(f[12], 10) || 0
+      cafCount: parseInt(f[12], 10) || 0,
+      fatDifAnoPct: f[13] !== "" && f[13] !== undefined ? (parseInt(f[13], 10) / 10000) : null,
+      resDifAnoPct: f[14] !== "" && f[14] !== undefined ? (parseInt(f[14], 10) / 10000) : null,
+      fatDifMesPct: f[15] !== "" && f[15] !== undefined ? (parseInt(f[15], 10) / 10000) : null,
+      resDifMesPct: f[16] !== "" && f[16] !== undefined ? (parseInt(f[16], 10) / 10000) : null,
+      perdaPctAcum: f[17] !== "" && f[17] !== undefined ? (parseInt(f[17], 10) / 10000) : 0,
+      indenizOk: f[18] !== "R",
+      efetivoDifPct: f[19] !== "" && f[19] !== undefined ? (parseInt(f[19], 10) / 10000) : null,
+      hhtDifPct: f[20] !== "" && f[20] !== undefined ? (parseInt(f[20], 10) / 10000) : null,
+      satVal: f[21] !== "" && f[21] !== undefined ? (parseInt(f[21], 10) / 10000) : null,
+      satMeta: f[22] !== "" && f[22] !== undefined ? (parseInt(f[22], 10) / 10000) : null,
+      bpAprovAcum: parseInt(f[23], 10) || 0,
+      bpReconAcum: parseInt(f[24], 10) || 0
     });
   }
   if (liveCatalog.length === 0) return;
-
-  var verdictsByCode = hydrateTopicVerdictsFromPowerBI(params);
-  if (verdictsByCode) {
-    for (var vi = 0; vi < liveCatalog.length; vi++) {
-      var vc = liveCatalog[vi];
-      vc.topicVerdicts = verdictsByCode[vc.code] || null;
-    }
-  }
 
   if (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined" && ACTIVE_CONTRACTS_CATALOG) {
     ACTIVE_CONTRACTS_CATALOG.length = 0;
@@ -707,94 +711,55 @@ function hydrateOSScoreDataFromPowerBI(params) {
   }
 }
 
-var TOPIC_VERDICT_FIELD_ORDER = ["perda", "indenizacao", "efetivo", "hht", "absenteismo", "turnover", "saf", "caf"];
-
-function hydrateTopicVerdictsFromPowerBI(params) {
-  var raw = params.get("TopicVerdicts") || "";
-  if (!raw) return null;
-
-  var result = {};
-  var osRows = raw.split("~");
-  for (var oi = 0; oi < osRows.length; oi++) {
-    var f = osRows[oi].split("^");
-    if (f.length < 3) continue;
-    var code = f[0];
-    var curStr = f[1] || "";
-    var prevStr = f[2] || "";
-    if (!code || curStr.length !== TOPIC_VERDICT_FIELD_ORDER.length) continue;
-
-    var cur = {}, prev = {};
-    for (var k = 0; k < TOPIC_VERDICT_FIELD_ORDER.length; k++) {
-      cur[TOPIC_VERDICT_FIELD_ORDER[k]] = curStr.charAt(k);
-      prev[TOPIC_VERDICT_FIELD_ORDER[k]] = prevStr.charAt(k);
-    }
-    result[code] = { cur: cur, prev: prev };
-  }
-  return result;
-}
-
-// 23-topic map: 'verdict' topics read from TopicVerdicts (real DAX threshold rules),
-// 'qual' topics read from the existing manual Conforme/Não Conforme/N/A evaluation,
-// 'text' topics have no numeric/compliance signal today (comment-only tracking).
+// 21-topic map (22 Renovação e 23 Observações saem da lista/score por serem só informativos).
+// scoreId liga cada tópico ao id usado dentro de calculateOSScore().topics -- Aba 2 apenas
+// exibe o resultado já apurado mês a mês pela Aba 4, não recalcula nada por conta própria.
 var TOPIC_INDICATOR_MAP = [
-  { id: 1, name: "Faturamento Ano", kind: "text" },
-  { id: 2, name: "Resultado Ano", kind: "text" },
-  { id: 3, name: "Faturamento Mês", kind: "text" },
-  { id: 4, name: "Assertividade", kind: "text" },
-  { id: 5, name: "Notificação/SLA", kind: "text" },
-  { id: 6, name: "Perda de Receita", kind: "verdict", key: "perda" },
-  { id: 7, name: "Receita Ideal", kind: "qual", key: "rec_ideal" },
-  { id: 8, name: "Indenização", kind: "verdict", key: "indenizacao" },
-  { id: 9, name: "Efetivo", kind: "verdict", key: "efetivo" },
-  { id: 10, name: "HHT", kind: "verdict", key: "hht" },
-  { id: 11, name: "Absenteísmo", kind: "verdict", key: "absenteismo" },
-  { id: 12, name: "TurnOver", kind: "verdict", key: "turnover" },
-  { id: 13, name: "Excesso Hora Extra", kind: "qual", key: "he" },
-  { id: 14, name: "Acúmulo de Férias", kind: "qual", key: "ferias" },
-  { id: 15, name: "SAF", kind: "verdict", key: "saf" },
-  { id: 16, name: "CAF", kind: "verdict", key: "caf" },
-  { id: 17, name: "Satisfação do Cliente", kind: "text" },
-  { id: 18, name: "LTCAT/LIPAE", kind: "text" },
-  { id: 19, name: "PBI/PBD", kind: "qual", key: "pbi_pbd" },
-  { id: 20, name: "Boas Práticas", kind: "text" },
-  { id: 21, name: "Gestão de Risco", kind: "text" },
-  { id: 22, name: "Renovação do Contrato", kind: "text" },
-  { id: 23, name: "Observações Gerais", kind: "text" }
+  { id: 1, name: "Faturamento Ano", scoreId: "t1" },
+  { id: 2, name: "Resultado Ano", scoreId: "t2" },
+  { id: 3, name: "Faturamento Mês", scoreId: "t3" },
+  { id: 4, name: "Assertividade", scoreId: "t4" },
+  { id: 5, name: "Notificação/SLA", scoreId: "t5" },
+  { id: 6, name: "Perda de Receita", scoreId: "t6" },
+  { id: 7, name: "Receita Ideal", scoreId: "t7" },
+  { id: 8, name: "Indenização", scoreId: "t8" },
+  { id: 9, name: "Efetivo", scoreId: "t9" },
+  { id: 10, name: "HHT", scoreId: "t10" },
+  { id: 11, name: "Absenteísmo", scoreId: "t11" },
+  { id: 12, name: "TurnOver", scoreId: "t12" },
+  { id: 13, name: "Excesso Hora Extra", scoreId: "t13" },
+  { id: 14, name: "Acúmulo de Férias", scoreId: "t14" },
+  { id: 15, name: "SAF", scoreId: "t15" },
+  { id: 16, name: "CAF", scoreId: "t16" },
+  { id: 17, name: "Satisfação do Cliente", scoreId: "t17" },
+  { id: 18, name: "LTCAT/LIPAE", scoreId: "t18" },
+  { id: 19, name: "PBI/PBD", scoreId: "t19" },
+  { id: 20, name: "Boas Práticas", scoreId: "t20" },
+  { id: 21, name: "Gestão de Risco", scoreId: "t21" }
 ];
 
-// Per-topic Conforme count (now vs previous month) for a group of contracts, using the same
-// real per-OS verdict data as calculateOSScore for 'verdict' topics, and the existing
-// manual qualitative evaluation storage for 'qual' topics. 'text' topics have no real signal
-// yet and are reported as such rather than guessed.
+// Per-topic Conforme count (mês atual vs anterior) para um grupo de contratos, lendo
+// diretamente o breakdown já calculado por calculateOSScore (a mesma apuração da Aba 4).
 function computeTopicIndicatorBreakdown(contracts, selMonthNum) {
   var prevMonthNum = selMonthNum === 1 ? 12 : selMonthNum - 1;
 
-  return TOPIC_INDICATOR_MAP.map(function(topic) {
-    if (topic.kind === "text") {
-      return { id: topic.id, name: topic.name, kind: "text" };
-    }
+  var scores = contracts.map(function(c) {
+    return { cur: calculateOSScore(c, selMonthNum), prev: calculateOSScore(c, prevMonthNum) };
+  });
 
+  return TOPIC_INDICATOR_MAP.map(function(topic) {
     var total = 0, curOk = 0, prevOk = 0;
-    contracts.forEach(function(c) {
-      if (topic.kind === "verdict") {
-        if (!c.topicVerdicts) return;
-        var curV = c.topicVerdicts.cur[topic.key];
-        var prevV = c.topicVerdicts.prev[topic.key];
-        if (curV === "N" && prevV === "N") return;
-        total++;
-        if (curV === "G") curOk++;
-        if (prevV === "G") prevOk++;
-      } else if (topic.kind === "qual") {
-        total++;
-        var curQ = getQualitativeEval(c.code, selMonthNum, topic.key);
-        var prevQ = getQualitativeEval(c.code, prevMonthNum, topic.key);
-        if (curQ !== "NA" && curQ === "ADERENTE") curOk++;
-        if (prevQ !== "NA" && prevQ === "ADERENTE") prevOk++;
-      }
+    scores.forEach(function(sc) {
+      var curT = sc.cur.topics[topic.scoreId];
+      var prevT = sc.prev.topics[topic.scoreId];
+      if (!curT.applicable && !prevT.applicable) return;
+      total++;
+      if (curT.applicable && curT.earned >= curT.max - 0.01) curOk++;
+      if (prevT.applicable && prevT.earned >= prevT.max - 0.01) prevOk++;
     });
 
     var trend = curOk > prevOk ? "up" : (curOk < prevOk ? "down" : "flat");
-    return { id: topic.id, name: topic.name, kind: topic.kind, total: total, curOk: curOk, prevOk: prevOk, trend: trend };
+    return { id: topic.id, name: topic.name, kind: "verdict", total: total, curOk: curOk, prevOk: prevOk, trend: trend };
   });
 }
 
@@ -2977,7 +2942,7 @@ function hydrateFromPowerBI() {
         contracts.forEach(function(c) {
           if (typeof c.assertividadeAcumPct === "number") { assertSum += c.assertividadeAcumPct; assertN++; }
           var sc = calculateOSScore(c, selMonthNum);
-          if (sc.govPts >= 25) slaOkCount++;
+          if (sc.topics.prazo.earned >= TOPIC_WEIGHTS.prazo && sc.topics.preenchimento.earned >= TOPIC_WEIGHTS.preenchimento) slaOkCount++;
           scoreSum += sc.monthScore;
         });
         var assertAvg = assertN > 0 ? ((assertSum / assertN) * 100).toFixed(1).replace(".", ",") + "%" : "-";
@@ -3239,10 +3204,13 @@ function hydrateFromPowerBI() {
     var currentQualEvalOS = null;
 
     var QUALITATIVE_TOPICS = [
-      { key: "ferias", name: "07. Acúmulo de Férias & Gestão de Pessoal", weight: 5 },
-      { key: "he", name: "08. Excesso de Horas Extras & Banco de Horas", weight: 5 },
-      { key: "pbi_pbd", name: "12. PBI / PBD & Perdas Operacionais", weight: 5 },
-      { key: "rec_ideal", name: "15. Receita Ideal & Equilíbrio de Custos", weight: 10 }
+      { key: "notificacao_sla", name: "05. Notificação / SLA", weight: 3 },
+      { key: "rec_ideal", name: "07. Receita Ideal & Equilíbrio de Custos", weight: 3 },
+      { key: "he", name: "13. Excesso de Horas Extras & Banco de Horas", weight: 3 },
+      { key: "ferias", name: "14. Acúmulo de Férias & Gestão de Pessoal", weight: 3 },
+      { key: "ltcat_lipae", name: "18. LTCAT / LIPAE", weight: 3 },
+      { key: "pbi_pbd", name: "19. PBI / PBD & Perdas Operacionais", weight: 3 },
+      { key: "gestao_risco", name: "21. Gestão de Risco", weight: 3 }
     ];
 
     function getQualitativeEval(osCode, monthNum, topicKey) {
@@ -3321,76 +3289,114 @@ function hydrateFromPowerBI() {
       renderTab4Scorecard();
     }
 
+    // Peso de cada tópico "verdict" (indicador numérico real) e qualitativo, e a que bucket de exibição
+    // (finPts/govPts/pesPts/ssmaPts) cada um pertence na tabela da Aba 4.
+    var TOPIC_WEIGHTS = {
+      prazo: 12, preenchimento: 13,
+      t1: 8, t2: 15, t3: 6, t4: 6, t6: 5, t8: 5,
+      t9: 5, t10: 5, t11: 5, t12: 5,
+      t15: 6, t16: 6, t17: 5, t20: 5
+    };
+
     function calculateOSScore(contract, monthNum) {
       var comp = getOSCompletionStatus(contract.code, monthNum);
+      var periodStatus = getSlaPeriodStatus(contract.code, monthNum);
 
       var maxPossiblePoints = 0;
       var earnedPoints = 0;
+      var topics = {};
 
-      // 1. Financeiro & Assertividade (30 pts base, escalado da Assertividade Acumulada real + 10 pts qualitativo)
-      maxPossiblePoints += 30;
-      var assertPct = (typeof contract.assertividadeAcumPct === "number") ? contract.assertividadeAcumPct : null;
-      var finBasePts = assertPct === null ? 0 : Math.max(0, Math.min(30, assertPct * 30));
-      earnedPoints += finBasePts;
-
-      var recEval = getQualitativeEval(contract.code, monthNum, "rec_ideal");
-      if (recEval !== "NA") {
-        maxPossiblePoints += 10;
-        if (recEval === "ADERENTE") earnedPoints += 10;
+      // applicable=false (N/A / sem dado) exclui o tópico tanto do numerador quanto do denominador
+      function addTopic(id, weight, earned, applicable) {
+        if (applicable === false) { topics[id] = { earned: 0, max: 0, applicable: false }; return; }
+        maxPossiblePoints += weight;
+        earnedPoints += earned;
+        topics[id] = { earned: earned, max: weight, applicable: true };
       }
 
-      // 2. Governança & SLA (25 pts) - real, baseado na apuração mensal ATA_COMENTARIO
-      maxPossiblePoints += 25;
-      var govPts = 0;
-      if (comp.periodStatus === "INDEFINIDO") {
-        govPts = (comp.status === "OK") ? 25 : (comp.status === "PARCIAL" ? 12 : 0);
-      } else if (comp.periodStatus === "NO_PRAZO") {
-        govPts = (comp.status === "OK") ? 25 : (comp.status === "PARCIAL" ? 12 : 0);
-      } else {
-        govPts = (comp.status === "OK") ? 15 : (comp.status === "PARCIAL" ? 8 : 0);
-      }
-      earnedPoints += govPts;
-
-      // 3. Pessoas & Gestão de Equipe (5+5 pts base real: Absenteísmo/Turnover vs Meta, + 5+5 qualitativo)
-      maxPossiblePoints += 10;
-      var absOk = (typeof contract.absenteismoPct !== "number" || typeof contract.absenteismoMetaPct !== "number") ? true : (contract.absenteismoPct <= contract.absenteismoMetaPct);
-      var turnOk = (typeof contract.turnoverPct !== "number" || typeof contract.turnoverMetaPct !== "number") ? true : (contract.turnoverPct <= contract.turnoverMetaPct);
-      var pesBasePts = (absOk ? 5 : 0) + (turnOk ? 5 : 0);
-      earnedPoints += pesBasePts;
-
-      var feriasEval = getQualitativeEval(contract.code, monthNum, "ferias");
-      if (feriasEval !== "NA") {
-        maxPossiblePoints += 5;
-        if (feriasEval === "ADERENTE") earnedPoints += 5;
+      function addQual(topicKey, id, weight) {
+        var ev = getQualitativeEval(contract.code, monthNum, topicKey);
+        addTopic(id, weight, ev === "ADERENTE" ? weight : 0, ev !== "NA");
       }
 
-      var heEval = getQualitativeEval(contract.code, monthNum, "he");
-      if (heEval !== "NA") {
-        maxPossiblePoints += 5;
-        if (heEval === "ADERENTE") earnedPoints += 5;
+      // applicable=false -> N/A (exclui o tópico do score). applicable=true -> ganha o peso cheio se ok=true, senão 0.
+      function addBinary(id, weight, applicable, ok) {
+        addTopic(id, weight, applicable && ok ? weight : 0, applicable);
       }
 
-      // 4. SSMA, Qualidade & Inovação (10 pts base real: zero casos SAF+CAF, + 5 pts qualitativo)
-      maxPossiblePoints += 10;
-      var safCafCount = (contract.safCount || 0) + (contract.cafCount || 0);
-      var ssmaBasePts = safCafCount === 0 ? 10 : 0;
-      earnedPoints += ssmaBasePts;
+      // --- Prazo & Preenchimento (Governança/SLA da Aba "Painel de Preenchimentos & SLA") ---
+      var prazoOk = (periodStatus === "NO_PRAZO" || periodStatus === "INDEFINIDO");
+      addTopic("prazo", TOPIC_WEIGHTS.prazo, prazoOk ? TOPIC_WEIGHTS.prazo : 0, true);
+      addTopic("preenchimento", TOPIC_WEIGHTS.preenchimento, TOPIC_WEIGHTS.preenchimento * (comp.pct / 100), true);
 
-      var pbiEval = getQualitativeEval(contract.code, monthNum, "pbi_pbd");
-      if (pbiEval !== "NA") {
-        maxPossiblePoints += 5;
-        if (pbiEval === "ADERENTE") earnedPoints += 5;
-      }
+      // --- 1/2. Faturamento Ano / Resultado Ano (Real vs Executivo/Meta, ±5%) ---
+      addBinary("t1", TOPIC_WEIGHTS.t1, typeof contract.fatDifAnoPct === "number", Math.abs(contract.fatDifAnoPct) <= 0.05);
+      addBinary("t2", TOPIC_WEIGHTS.t2, typeof contract.resDifAnoPct === "number", Math.abs(contract.resDifAnoPct) <= 0.05);
+
+      // --- 3/4. Faturamento Mês / Assertividade Mês (FCST Atual vs FCST Anterior, ±5%) ---
+      addBinary("t3", TOPIC_WEIGHTS.t3, typeof contract.fatDifMesPct === "number", Math.abs(contract.fatDifMesPct) <= 0.05);
+      addBinary("t4", TOPIC_WEIGHTS.t4, typeof contract.resDifMesPct === "number", Math.abs(contract.resDifMesPct) <= 0.05);
+
+      addQual("rec_ideal", "t7", 3);
+
+      // --- 6. Perda de Receita (≤2% acumulado = OK; cada 1% acima perde 1pt, máx a perda total do tópico) ---
+      var perdaPct100 = (contract.perdaPctAcum || 0) * 100;
+      var perdaPenalty = perdaPct100 <= 2 ? 0 : Math.min(TOPIC_WEIGHTS.t6, Math.ceil(perdaPct100 - 2));
+      addTopic("t6", TOPIC_WEIGHTS.t6, TOPIC_WEIGHTS.t6 - perdaPenalty, true);
+
+      // --- 8. Indenização (meta zero, usa a COR real do modelo já comparada ao acumulado do ano) ---
+      addBinary("t8", TOPIC_WEIGHTS.t8, true, contract.indenizOk);
+
+      // --- 9/10. Efetivo / HHT (Real vs Executivo, tolerância ±10%) ---
+      addBinary("t9", TOPIC_WEIGHTS.t9, typeof contract.efetivoDifPct === "number", Math.abs(contract.efetivoDifPct) <= 0.10);
+      addBinary("t10", TOPIC_WEIGHTS.t10, typeof contract.hhtDifPct === "number", Math.abs(contract.hhtDifPct) <= 0.10);
+
+      // --- 11/12. Absenteísmo / Turnover (vs Meta real) ---
+      var absApplicable = (typeof contract.absenteismoPct === "number" && typeof contract.absenteismoMetaPct === "number");
+      addBinary("t11", TOPIC_WEIGHTS.t11, absApplicable, absApplicable && contract.absenteismoPct <= contract.absenteismoMetaPct);
+      var turnApplicable = (typeof contract.turnoverPct === "number" && typeof contract.turnoverMetaPct === "number");
+      addBinary("t12", TOPIC_WEIGHTS.t12, turnApplicable, turnApplicable && contract.turnoverPct <= contract.turnoverMetaPct);
+
+      addQual("he", "t13", 3);
+      addQual("ferias", "t14", 3);
+
+      // --- 15/16. SAF / CAF (-10%/-20% dos pontos do tópico por ocorrência) ---
+      var safPenaltyPct = Math.min(1, (contract.safCount || 0) * 0.10);
+      addTopic("t15", TOPIC_WEIGHTS.t15, TOPIC_WEIGHTS.t15 * (1 - safPenaltyPct), true);
+      var cafPenaltyPct = Math.min(1, (contract.cafCount || 0) * 0.20);
+      addTopic("t16", TOPIC_WEIGHTS.t16, TOPIC_WEIGHTS.t16 * (1 - cafPenaltyPct), true);
+
+      // --- 17. Satisfação do Cliente (apuração anual; sem pesquisa no ano = N/A) ---
+      var satApplicable = (typeof contract.satVal === "number" && typeof contract.satMeta === "number");
+      addBinary("t17", TOPIC_WEIGHTS.t17, satApplicable, satApplicable && contract.satVal >= contract.satMeta);
+
+      addQual("ltcat_lipae", "t18", 3);
+      addQual("pbi_pbd", "t19", 3);
+
+      // --- 20. Boas Práticas (só apurado no fechamento: Estágio = FINALIZADA; Rotina/Oficina por semestre, Parada por evento) ---
+      var bpApplicable = (contract.estagio === "FINALIZADA");
+      var bpMet = (contract.bpAprovAcum || 0) >= 3 && (contract.bpReconAcum || 0) >= 1;
+      addBinary("t20", TOPIC_WEIGHTS.t20, bpApplicable, bpMet);
+
+      addQual("notificacao_sla", "t5", 3);
+      addQual("gestao_risco", "t21", 3);
 
       var finalNormalizedScore = maxPossiblePoints > 0 ? ((earnedPoints / maxPossiblePoints) * 100) : 0;
 
+      function sumTopics(ids) {
+        var s = 0;
+        ids.forEach(function(id) { if (topics[id]) s += topics[id].earned; });
+        return parseFloat(s.toFixed(1));
+      }
+
       return {
-        finPts: parseFloat((finBasePts + (recEval === "ADERENTE" ? 10 : 0)).toFixed(1)),
-        govPts: govPts,
-        pesPts: (pesBasePts + (feriasEval === "ADERENTE" ? 5 : 0) + (heEval === "ADERENTE" ? 5 : 0)),
-        ssmaPts: (ssmaBasePts + (pbiEval === "ADERENTE" ? 5 : 0)),
+        topics: topics,
+        finPts: sumTopics(["t1", "t2", "t3", "t4", "t6", "t8", "t7"]),
+        govPts: sumTopics(["prazo", "preenchimento", "t5", "t18", "t21"]),
+        pesPts: sumTopics(["t9", "t10", "t11", "t12", "t13", "t14"]),
+        ssmaPts: sumTopics(["t15", "t16", "t19", "t17", "t20"]),
         monthScore: parseFloat(finalNormalizedScore.toFixed(1)),
-        isDefinedPeriod: (comp.periodStatus === "NO_PRAZO" || comp.periodStatus === "FORA_PRAZO")
+        isDefinedPeriod: (periodStatus === "NO_PRAZO" || periodStatus === "FORA_PRAZO")
       };
     }
 
@@ -3519,10 +3525,10 @@ function hydrateFromPowerBI() {
           '<td style="padding:10px; font-weight:600; color:#334155; text-align:left;">' + item.name + '</td>' +
           '<td style="padding:10px; font-size:0.80rem; font-weight:700; color:#64748b;">' + item.negocio + '</td>' +
           '<td style="padding:10px; font-size:0.75rem; font-weight:600; color:#334155; text-align:left;">' + item.superintendencia + '</td>' +
-          '<td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">' + item.finPts + ' / 40</td>' +
-          '<td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">' + item.govPts + ' / 25</td>' +
-          '<td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">' + item.pesPts + ' / 20</td>' +
-          '<td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">' + item.ssmaPts + ' / 15</td>' +
+          '<td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">' + item.finPts + ' / 48</td>' +
+          '<td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">' + item.govPts + ' / 34</td>' +
+          '<td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">' + item.pesPts + ' / 26</td>' +
+          '<td style="padding:10px; text-align:right; font-weight:700; color:#0f2b5c;">' + item.ssmaPts + ' / 25</td>' +
           '<td style="padding:10px; text-align:right; font-weight:800; color:#1e40af; font-size:0.95rem;">' + item.monthScore + ' pts</td>' +
           '<td style="padding:10px; text-align:center;">' +
             '<span style="display:inline-block; padding:4px 10px; border-radius:6px; font-weight:800; font-size:0.92rem; ' + scoreBadgeClass + '">' +
