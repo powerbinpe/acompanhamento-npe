@@ -703,12 +703,57 @@ function hydrateOSScoreDataFromPowerBI(params) {
   }
   if (liveCatalog.length === 0) return;
 
+  var monthHistory = hydrateOSMonthHistoryFromPowerBI(params);
+  if (monthHistory) {
+    var rawOSForHistory = params.get("SelectedOS") || "";
+    var activeOSForHistory = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOSForHistory) : rawOSForHistory;
+    for (var hi = 0; hi < liveCatalog.length; hi++) {
+      if (liveCatalog[hi].code === activeOSForHistory) { liveCatalog[hi].monthHistory = monthHistory; break; }
+    }
+  }
+
   if (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined" && ACTIVE_CONTRACTS_CATALOG) {
     ACTIVE_CONTRACTS_CATALOG.length = 0;
     for (var ci = 0; ci < liveCatalog.length; ci++) ACTIVE_CONTRACTS_CATALOG.push(liveCatalog[ci]);
   } else {
     window.ACTIVE_CONTRACTS_CATALOG = liveCatalog;
   }
+}
+
+// Parseia o histórico mensal real (só existe/é enviado quando exatamente 1 OS está selecionada
+// no Power BI) -- cada mês tem seus próprios valores reais, ao invés de reaproveitar o snapshot
+// do mês atualmente selecionado para todos os meses.
+function hydrateOSMonthHistoryFromPowerBI(params) {
+  var raw = params.get("OSMonthHistory") || "";
+  if (!raw) return null;
+
+  var history = {};
+  var monthRows = raw.split("~");
+  for (var i = 0; i < monthRows.length; i++) {
+    var f = monthRows[i].split("^");
+    if (f.length < 17) continue;
+    var m = parseInt(f[0], 10);
+    if (!m) continue;
+    history[m] = {
+      fatDifAnoPct: f[1] !== "" ? (parseInt(f[1], 10) / 10000) : null,
+      resDifAnoPct: f[2] !== "" ? (parseInt(f[2], 10) / 10000) : null,
+      fatDifMesPct: f[3] !== "" ? (parseInt(f[3], 10) / 10000) : null,
+      resDifMesPct: f[4] !== "" ? (parseInt(f[4], 10) / 10000) : null,
+      perdaPctAcum: f[5] !== "" ? (parseInt(f[5], 10) / 10000) : 0,
+      indenizOk: f[6] !== "R",
+      efetivoDifPct: f[7] !== "" ? (parseInt(f[7], 10) / 10000) : null,
+      hhtDifPct: f[8] !== "" ? (parseInt(f[8], 10) / 10000) : null,
+      absenteismoPct: f[9] !== "" ? (parseInt(f[9], 10) / 10000) : null,
+      absenteismoMetaPct: f[10] !== "" ? (parseInt(f[10], 10) / 10000) : null,
+      turnoverPct: f[11] !== "" ? (parseInt(f[11], 10) / 10000) : null,
+      turnoverMetaPct: f[12] !== "" ? (parseInt(f[12], 10) / 10000) : null,
+      safCount: parseInt(f[13], 10) || 0,
+      cafCount: parseInt(f[14], 10) || 0,
+      bpAprovAcum: parseInt(f[15], 10) || 0,
+      bpReconAcum: parseInt(f[16], 10) || 0
+    };
+  }
+  return history;
 }
 
 // 21-topic map (22 Renovação e 23 Observações saem da lista/score por serem só informativos).
@@ -3381,7 +3426,28 @@ function hydrateFromPowerBI() {
       return result;
     }
 
-    function calculateOSScoreUncached(contract, monthNum) {
+    var MONTH_HISTORY_FIELDS = [
+      "fatDifAnoPct", "resDifAnoPct", "fatDifMesPct", "resDifMesPct", "perdaPctAcum", "indenizOk",
+      "efetivoDifPct", "hhtDifPct", "absenteismoPct", "absenteismoMetaPct", "turnoverPct", "turnoverMetaPct",
+      "safCount", "cafCount", "bpAprovAcum", "bpReconAcum"
+    ];
+
+    // Quando existe histórico real por mês (só disponível com 1 OS selecionada no Power BI), usa
+    // os valores DAQUELE mês específico em vez do snapshot único do mês atualmente selecionado.
+    function resolveContractForMonth(contract, monthNum) {
+      var monthData = contract.monthHistory && contract.monthHistory[monthNum];
+      if (!monthData) return contract;
+      var merged = {};
+      for (var k in contract) merged[k] = contract[k];
+      for (var i = 0; i < MONTH_HISTORY_FIELDS.length; i++) {
+        var f = MONTH_HISTORY_FIELDS[i];
+        merged[f] = monthData[f];
+      }
+      return merged;
+    }
+
+    function calculateOSScoreUncached(contractRaw, monthNum) {
+      var contract = resolveContractForMonth(contractRaw, monthNum);
       var comp = getOSCompletionStatus(contract.code, monthNum);
       var periodStatus = getSlaPeriodStatus(contract.code, monthNum);
 
@@ -3407,10 +3473,10 @@ function hydrateFromPowerBI() {
         addTopic(id, weight, applicable && ok ? weight : 0, applicable);
       }
 
-      // --- Prazo & Preenchimento (Governança/SLA da Aba "Painel de Preenchimentos & SLA") ---
+      // --- Prazo & Preenchimento (Governança/SLA da Aba "Painel de Preenchimentos & SLA") -- binário: preencheu tudo ou não ganha nada
       var prazoOk = (periodStatus === "NO_PRAZO" || periodStatus === "INDEFINIDO");
-      addTopic("prazo", TOPIC_WEIGHTS.prazo, prazoOk ? TOPIC_WEIGHTS.prazo : 0, true);
-      addTopic("preenchimento", TOPIC_WEIGHTS.preenchimento, TOPIC_WEIGHTS.preenchimento * (comp.pct / 100), true);
+      addBinary("prazo", TOPIC_WEIGHTS.prazo, true, prazoOk);
+      addBinary("preenchimento", TOPIC_WEIGHTS.preenchimento, true, comp.status === "OK");
 
       // --- 1/2. Faturamento Ano / Resultado Ano (Real vs Executivo/Meta, ±5%) ---
       addBinary("t1", TOPIC_WEIGHTS.t1, typeof contract.fatDifAnoPct === "number", Math.abs(contract.fatDifAnoPct) <= 0.05);
@@ -3422,10 +3488,9 @@ function hydrateFromPowerBI() {
 
       addQual("rec_ideal", "t7", 3);
 
-      // --- 6. Perda de Receita (≤2% acumulado = OK; cada 1% acima perde 1pt, máx a perda total do tópico) ---
+      // --- 6. Perda de Receita (≤2% acumulado = OK, senão 0 -- binário) ---
       var perdaPct100 = (contract.perdaPctAcum || 0) * 100;
-      var perdaPenalty = perdaPct100 <= 2 ? 0 : Math.min(TOPIC_WEIGHTS.t6, Math.ceil(perdaPct100 - 2));
-      addTopic("t6", TOPIC_WEIGHTS.t6, TOPIC_WEIGHTS.t6 - perdaPenalty, true);
+      addBinary("t6", TOPIC_WEIGHTS.t6, true, perdaPct100 <= 2);
 
       // --- 8. Indenização (meta zero, usa a COR real do modelo já comparada ao acumulado do ano) ---
       addBinary("t8", TOPIC_WEIGHTS.t8, true, contract.indenizOk);
@@ -3443,11 +3508,9 @@ function hydrateFromPowerBI() {
       addQual("he", "t13", 3);
       addQual("ferias", "t14", 3);
 
-      // --- 15/16. SAF / CAF (-10%/-20% dos pontos do tópico por ocorrência) ---
-      var safPenaltyPct = Math.min(1, (contract.safCount || 0) * 0.10);
-      addTopic("t15", TOPIC_WEIGHTS.t15, TOPIC_WEIGHTS.t15 * (1 - safPenaltyPct), true);
-      var cafPenaltyPct = Math.min(1, (contract.cafCount || 0) * 0.20);
-      addTopic("t16", TOPIC_WEIGHTS.t16, TOPIC_WEIGHTS.t16 * (1 - cafPenaltyPct), true);
+      // --- 15/16. SAF / CAF (zero ocorrências = OK, senão 0 -- binário) ---
+      addBinary("t15", TOPIC_WEIGHTS.t15, true, (contract.safCount || 0) === 0);
+      addBinary("t16", TOPIC_WEIGHTS.t16, true, (contract.cafCount || 0) === 0);
 
       // --- 17. Satisfação do Cliente (apuração anual; sem pesquisa no ano = N/A) ---
       var satApplicable = (typeof contract.satVal === "number" && typeof contract.satMeta === "number");
