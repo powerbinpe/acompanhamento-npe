@@ -2997,9 +2997,6 @@ function hydrateFromPowerBI() {
         var supContracts = ACTIVE_CONTRACTS_CATALOG.filter(function(c) { return c.superintendencia === supName; });
         var stats = computeGroupStats(supContracts);
         var compareHTML = activeContract ? buildOSVsGroupCompareHTML(activeContract, stats, selMonthNum) : "";
-        var topicBreakdown = computeTopicIndicatorBreakdown(supContracts, selMonthNum);
-        var topicDetailsHTML = '<details style="margin-top:8px;"><summary style="cursor:pointer; font-size:0.76rem; font-weight:700; color:#1e40af;">📋 Ver os 23 Indicadores desta Superintendência</summary>' +
-          '<div style="overflow-x:auto; margin-top:4px;">' + buildTopicIndicatorTableHTML(topicBreakdown) + '</div></details>';
 
         supsHTML += '<div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">' +
           '<div>' +
@@ -3025,7 +3022,6 @@ function hydrateFromPowerBI() {
           '<div style="font-size:0.75rem; color:#475569; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px; margin-top:8px; line-height:1.35;">' +
             '📌 <strong>Síntese:</strong> ' + (isMultiOS ? ('Dados apurados em tempo real a partir de ' + stats.count + ' contratos ativos desta Superintendência.') : ('Valores acima são a referência (média) de toda a Superintendência. Veja abaixo a posição da OS ' + activeOSFilter + ' dentro desse grupo.')) +
           '</div>' +
-          topicDetailsHTML +
           '</div>';
       });
 
@@ -3046,9 +3042,6 @@ function hydrateFromPowerBI() {
         var negContracts = ACTIVE_CONTRACTS_CATALOG.filter(function(c) { return c.negocio === negName; });
         var stats = computeGroupStats(negContracts);
         var compareHTML = activeContract ? buildOSVsGroupCompareHTML(activeContract, stats, selMonthNum) : "";
-        var topicBreakdown = computeTopicIndicatorBreakdown(negContracts, selMonthNum);
-        var topicDetailsHTML = '<details style="margin-top:8px;"><summary style="cursor:pointer; font-size:0.76rem; font-weight:700; color:#b45309;">📋 Ver os 23 Indicadores desta Linha de Negócio</summary>' +
-          '<div style="overflow-x:auto; margin-top:4px;">' + buildTopicIndicatorTableHTML(topicBreakdown) + '</div></details>';
         var icon = negName === "ROTINA" ? "🔄" : (negName === "PARADA" ? "⏱️" : "🔧");
 
         negsHTML += '<div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">' +
@@ -3077,13 +3070,24 @@ function hydrateFromPowerBI() {
           '<div style="font-size:0.75rem; color:#475569; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px; margin-top:8px; line-height:1.35;">' +
             '📌 <strong>Comentários & Desvios:</strong> ' + (isMultiOS ? ('Dados apurados em tempo real a partir de ' + stats.count + ' contratos ativos desta linha de negócio.') : ('Valores acima são a referência (média) de toda a linha de negócio. Veja abaixo a posição da OS ' + activeOSFilter + ' dentro desse grupo.')) +
           '</div>' +
-          topicDetailsHTML +
           '</div>';
       });
 
       negsHTML += '</div></div>';
 
-      container.innerHTML = supsHTML + negsHTML;
+      var osScopeContracts = activeContract ? [activeContract] : ACTIVE_CONTRACTS_CATALOG;
+      var osScopeLabel = activeContract ? ('OS ' + activeOSFilter + ' (Selecionada)') : ('Todas as ' + ACTIVE_CONTRACTS_CATALOG.length + ' OSs Selecionadas');
+      var osTopicBreakdown = computeTopicIndicatorBreakdown(osScopeContracts, selMonthNum);
+      var osTopicHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); margin-top:24px; margin-bottom:24px;">' +
+        '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
+          '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">📋 Resumo dos 23 Indicadores</h3>' +
+          '<span style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' + osScopeLabel + '</span>' +
+        '</div>' +
+        '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Conformidade exclusiva da(s) OS(s) selecionada(s) no Power BI. Os cards de Superintendência/Negócio abaixo mostram apenas a média do grupo, como referência de comparação.</div>' +
+        '<div style="overflow-x:auto;">' + buildTopicIndicatorTableHTML(osTopicBreakdown) + '</div>' +
+      '</div>';
+
+      container.innerHTML = osTopicHTML + supsHTML + negsHTML;
     }
 
     // =========================================================================
