@@ -738,28 +738,34 @@ var TOPIC_INDICATOR_MAP = [
   { id: 21, name: "Gestão de Risco", scoreId: "t21" }
 ];
 
-// Per-topic Conforme count (mês atual vs anterior) para um grupo de contratos, lendo
-// diretamente o breakdown já calculado por calculateOSScore (a mesma apuração da Aba 4).
+// Pontuação acumulada no ano (Jan até o mês selecionado) por tópico, para um grupo de contratos,
+// lendo diretamente o breakdown já calculado por calculateOSScore mês a mês (a mesma apuração da
+// Aba 4) -- a nota é sempre a apurada mês a mês; aqui só somamos/mediamos ao longo do ano.
 function computeTopicIndicatorBreakdown(contracts, selMonthNum) {
-  var prevMonthNum = selMonthNum === 1 ? 12 : selMonthNum - 1;
-
-  var scores = contracts.map(function(c) {
-    return { cur: calculateOSScore(c, selMonthNum), prev: calculateOSScore(c, prevMonthNum) };
+  var allScores = contracts.map(function(c) {
+    var monthly = [];
+    for (var m = 1; m <= selMonthNum; m++) monthly.push(calculateOSScore(c, m));
+    return monthly;
   });
 
   return TOPIC_INDICATOR_MAP.map(function(topic) {
-    var total = 0, curOk = 0, prevOk = 0;
-    scores.forEach(function(sc) {
-      var curT = sc.cur.topics[topic.scoreId];
-      var prevT = sc.prev.topics[topic.scoreId];
-      if (!curT.applicable && !prevT.applicable) return;
-      total++;
-      if (curT.applicable && curT.earned >= curT.max - 0.01) curOk++;
-      if (prevT.applicable && prevT.earned >= prevT.max - 0.01) prevOk++;
+    var earnedSum = 0, maxSum = 0, okCount = 0, totalCount = 0;
+    allScores.forEach(function(monthly) {
+      monthly.forEach(function(sc) {
+        var t = sc.topics[topic.scoreId];
+        if (!t.applicable) return;
+        totalCount++;
+        earnedSum += t.earned;
+        maxSum += t.max;
+        if (t.earned >= t.max - 0.01) okCount++;
+      });
     });
-
-    var trend = curOk > prevOk ? "up" : (curOk < prevOk ? "down" : "flat");
-    return { id: topic.id, name: topic.name, kind: "verdict", total: total, curOk: curOk, prevOk: prevOk, trend: trend };
+    var pctAvg = maxSum > 0 ? (earnedSum / maxSum * 100) : null;
+    return {
+      id: topic.id, name: topic.name, weight: TOPIC_WEIGHTS[topic.scoreId],
+      earnedSum: parseFloat(earnedSum.toFixed(1)), maxSum: parseFloat(maxSum.toFixed(1)),
+      okCount: okCount, totalCount: totalCount, pctAvg: pctAvg
+    };
   });
 }
 
@@ -820,12 +826,18 @@ function hydrateFromPowerBI() {
       } catch (e) {}
     }
 
+    var _cookieCacheRaw = null;
+    var _cookieCacheArr = null;
     function getCookie(name) {
       try {
+        var raw = document.cookie;
+        if (raw !== _cookieCacheRaw) {
+          _cookieCacheRaw = raw;
+          _cookieCacheArr = raw.split(';');
+        }
         var nameEQ = name + "=";
-        var ca = document.cookie.split(';');
-        for (var i = 0; i < ca.length; i++) {
-          var c = ca[i];
+        for (var i = 0; i < _cookieCacheArr.length; i++) {
+          var c = _cookieCacheArr[i];
           while (c.charAt(0) === ' ') c = c.substring(1, c.length);
           if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
         }
@@ -902,6 +914,7 @@ function hydrateFromPowerBI() {
     }
 
     function safeSetStorage(key, value) {
+      window._scoreCache = {};
       window._GLOBAL_COMM_STORAGE[key] = value;
       window._MASTER_PERSISTENT_MAP[key] = value;
       try { if (window.localStorage) window.localStorage.setItem(key, value); } catch (e) {}
@@ -2853,31 +2866,75 @@ function hydrateFromPowerBI() {
     // =========================================================================
     // 7. GERADOR DE RESUMOS POR SUPERINTENDÊNCIA E NEGÓCIO (ABAS 2, 3 E 4)
     // =========================================================================
+    var MONTH_SHORT_NAMES = ["", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+    // Matriz Tópico x Mês para UMA OS: mostra os pontos ganhos em cada mês fechado até o mês
+    // selecionado, mais uma coluna de Acumulado -- é o detalhamento por trás do resumo da Aba 2.
+    function buildTopicMonthMatrixHTML(contract, selMonthNum) {
+      var rows = [
+        { id: "prazo", name: "Prazo de Preenchimento", weight: TOPIC_WEIGHTS.prazo },
+        { id: "preenchimento", name: "Preenchimento Total", weight: TOPIC_WEIGHTS.preenchimento }
+      ].concat(TOPIC_INDICATOR_MAP.map(function(t) {
+        return { id: t.scoreId, name: t.id + ". " + t.name, weight: TOPIC_WEIGHTS[t.scoreId] };
+      }));
+
+      var monthlyScores = [];
+      for (var m = 1; m <= selMonthNum; m++) monthlyScores.push(calculateOSScore(contract, m));
+
+      var headerCells = '<th style="padding:8px 12px; font-size:0.72rem; text-align:left; position:sticky; left:0; background:#0f2b5c; z-index:1;">TÓPICO</th>';
+      for (var m2 = 1; m2 <= selMonthNum; m2++) {
+        headerCells += '<th style="padding:8px 6px; font-size:0.68rem; text-align:center; min-width:44px;">' + MONTH_SHORT_NAMES[m2] + '</th>';
+      }
+      headerCells += '<th style="padding:8px 12px; font-size:0.70rem; text-align:center; background:#1e3a8a; min-width:80px;">ACUMULADO</th>';
+
+      var bodyRows = rows.map(function(r, idx) {
+        var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+        var cells = '<td style="padding:6px 12px; font-size:0.78rem; color:#334155; font-weight:600; white-space:nowrap; position:sticky; left:0; background:' + rowBg + ';">' + r.name + ' <span style="color:#94a3b8; font-weight:500;">(' + r.weight + 'p)</span></td>';
+        var earnedSum = 0, maxSum = 0, hasAny = false;
+        monthlyScores.forEach(function(sc) {
+          var t = sc.topics[r.id];
+          if (!t.applicable) {
+            cells += '<td style="padding:6px; font-size:0.75rem; text-align:center; color:#cbd5e1;">-</td>';
+            return;
+          }
+          hasAny = true;
+          earnedSum += t.earned;
+          maxSum += t.max;
+          var ok = t.earned >= t.max - 0.01;
+          cells += '<td style="padding:6px; font-size:0.75rem; text-align:center; font-weight:700; color:' + (ok ? '#15803d' : '#b91c1c') + ';">' + t.earned.toFixed(1) + '</td>';
+        });
+        var accumText = hasAny ? (earnedSum.toFixed(1) + ' / ' + maxSum.toFixed(1)) : '-';
+        cells += '<td style="padding:6px 12px; font-size:0.78rem; text-align:center; font-weight:800; color:#1e3a8a; background:#eff6ff;">' + accumText + '</td>';
+        return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' + cells + '</tr>';
+      }).join("");
+
+      return '<div style="overflow-x:auto;"><table style="border-collapse:collapse; min-width:100%;">' +
+        '<thead><tr style="background:#0f2b5c; color:#ffffff;">' + headerCells + '</tr></thead>' +
+        '<tbody>' + bodyRows + '</tbody></table></div>';
+    }
+
         function buildTopicIndicatorTableHTML(breakdown) {
           var rows = breakdown.map(function(t, idx) {
             var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
-            if (t.kind === "text") {
-              return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' +
-                '<td style="padding:10px 14px; font-size:0.92rem; color:#334155; font-weight:600;">' + t.id + '. ' + t.name + '</td>' +
-                '<td colspan="3" style="padding:10px 14px; font-size:0.85rem; color:#94a3b8; text-align:center; font-style:italic;">Somente textual (sem indicador)</td></tr>';
+            var nameCell = '<td style="padding:10px 14px; font-size:0.92rem; color:#334155; font-weight:600;">' + t.id + '. ' + t.name + ' <span style="color:#94a3b8; font-weight:500; font-size:0.80rem;">(' + t.weight + ' pts)</span></td>';
+
+            if (t.maxSum === 0) {
+              return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' + nameCell +
+                '<td colspan="2" style="padding:10px 14px; font-size:0.85rem; color:#94a3b8; text-align:center; font-style:italic;">Sem dado apurado no ano</td></tr>';
             }
-            var pct = t.total > 0 ? Math.round((t.curOk / t.total) * 100) : 0;
-            var trendIcon = t.trend === "up" ? "▲" : (t.trend === "down" ? "▼" : "●");
-            var trendColor = t.trend === "up" ? "#15803d" : (t.trend === "down" ? "#b91c1c" : "#64748b");
-            return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' +
-              '<td style="padding:10px 14px; font-size:0.92rem; color:#334155; font-weight:600;">' + t.id + '. ' + t.name + '</td>' +
-              '<td style="padding:10px 14px; font-size:0.92rem; text-align:center; font-weight:700; color:#0f2b5c;">' + t.curOk + '/' + t.total + ' (' + pct + '%)</td>' +
-              '<td style="padding:10px 14px; font-size:0.92rem; text-align:center; color:#64748b;">' + t.prevOk + '/' + t.total + '</td>' +
-              '<td style="padding:10px 14px; font-size:1.05rem; text-align:center; font-weight:800; color:' + trendColor + ';">' + trendIcon + '</td></tr>';
+
+            var pctColor = t.pctAvg >= 80 ? '#15803d' : (t.pctAvg >= 50 ? '#b45309' : '#b91c1c');
+            return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' + nameCell +
+              '<td style="padding:10px 14px; font-size:0.92rem; text-align:center; font-weight:700; color:' + pctColor + ';">' + t.earnedSum.toFixed(1) + ' / ' + t.maxSum.toFixed(1) + ' pts (' + t.pctAvg.toFixed(0) + '%)</td>' +
+              '<td style="padding:10px 14px; font-size:0.92rem; text-align:center; color:#64748b;">' + t.okCount + ' de ' + t.totalCount + ' meses conforme</td></tr>';
           }).join("");
 
           return '<table style="width:100%; border-collapse:collapse; margin-top:6px; table-layout:fixed;">' +
-            '<colgroup><col style="width:40%;"><col style="width:24%;"><col style="width:24%;"><col style="width:12%;"></colgroup>' +
+            '<colgroup><col style="width:42%;"><col style="width:32%;"><col style="width:26%;"></colgroup>' +
             '<thead><tr style="background:#0f2b5c; color:#ffffff;">' +
-              '<th style="padding:10px 14px; font-size:0.80rem; text-align:left;">TÓPICO</th>' +
-              '<th style="padding:10px 14px; font-size:0.80rem;">CONFORME (MÊS ATUAL)</th>' +
-              '<th style="padding:10px 14px; font-size:0.80rem;">CONFORME (MÊS ANTERIOR)</th>' +
-              '<th style="padding:10px 14px; font-size:0.80rem;">TENDÊNCIA</th>' +
+              '<th style="padding:10px 14px; font-size:0.80rem; text-align:left;">TÓPICO (PESO)</th>' +
+              '<th style="padding:10px 14px; font-size:0.80rem;">PONTUAÇÃO ACUMULADA NO ANO</th>' +
+              '<th style="padding:10px 14px; font-size:0.80rem;">CONFORMIDADE</th>' +
             '</tr></thead><tbody>' + rows + '</tbody></table>';
         }
 
@@ -3046,15 +3103,32 @@ function hydrateFromPowerBI() {
 
       var osScopeContracts = activeContract ? [activeContract] : ACTIVE_CONTRACTS_CATALOG;
       var osScopeLabel = activeContract ? ('OS ' + activeOSFilter + ' (Selecionada)') : ('Todas as ' + ACTIVE_CONTRACTS_CATALOG.length + ' OSs Selecionadas');
-      var osTopicBreakdown = computeTopicIndicatorBreakdown(osScopeContracts, selMonthNum);
-      var osTopicHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); margin-top:24px; margin-bottom:24px;">' +
-        '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
-          '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">📋 Resumo dos 23 Indicadores</h3>' +
-          '<span style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' + osScopeLabel + '</span>' +
-        '</div>' +
-        '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Conformidade exclusiva da(s) OS(s) selecionada(s) no Power BI. Os cards de Superintendência/Negócio abaixo mostram apenas a média do grupo, como referência de comparação.</div>' +
-        '<div style="overflow-x:auto;">' + buildTopicIndicatorTableHTML(osTopicBreakdown) + '</div>' +
-      '</div>';
+      var osTopicHTML;
+
+      if (tabType === "ranking" && activeContract) {
+        // Aba 4: detalhamento mês a mês, item a item, até o mês fechado selecionado -- é essa
+        // apuração que alimenta tanto o Score quanto o resumo acumulado exibido na Aba 2.
+        osTopicHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); margin-top:24px; margin-bottom:24px;">' +
+          '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
+            '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">📊 Apuração Mês a Mês por Indicador</h3>' +
+            '<span style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' + osScopeLabel + '</span>' +
+          '</div>' +
+          '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontos ganhos em cada mês fechado (Janeiro até o mês selecionado) e o acumulado do ano por indicador. É esse resultado que alimenta o resumo da Aba 2.</div>' +
+          buildTopicMonthMatrixHTML(activeContract, selMonthNum) +
+        '</div>';
+      } else if (tabType === "ranking") {
+        osTopicHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:16px 20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); margin-top:24px; margin-bottom:24px; font-size:0.85rem; color:#64748b;">📊 Selecione uma OS específica no Power BI para ver a apuração mês a mês de cada um dos 21 indicadores.</div>';
+      } else {
+        var osTopicBreakdown = computeTopicIndicatorBreakdown(osScopeContracts, selMonthNum);
+        osTopicHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); margin-top:24px; margin-bottom:24px;">' +
+          '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
+            '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">📋 Resumo dos 23 Indicadores (Acumulado do Ano)</h3>' +
+            '<span style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' + osScopeLabel + '</span>' +
+          '</div>' +
+          '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontuação acumulada de Janeiro até o mês selecionado, da(s) OS(s) selecionada(s) no Power BI, apurada mês a mês na Aba 4. Os cards de Superintendência/Negócio abaixo mostram apenas a média do grupo, como referência de comparação.</div>' +
+          '<div style="overflow-x:auto;">' + buildTopicIndicatorTableHTML(osTopicBreakdown) + '</div>' +
+        '</div>';
+      }
 
       container.innerHTML = osTopicHTML + supsHTML + negsHTML;
     }
@@ -3298,7 +3372,16 @@ function hydrateFromPowerBI() {
       t15: 6, t16: 6, t17: 5, t20: 5
     };
 
+    window._scoreCache = window._scoreCache || {};
     function calculateOSScore(contract, monthNum) {
+      var cacheKey = contract.code + "_m" + monthNum;
+      if (window._scoreCache[cacheKey]) return window._scoreCache[cacheKey];
+      var result = calculateOSScoreUncached(contract, monthNum);
+      window._scoreCache[cacheKey] = result;
+      return result;
+    }
+
+    function calculateOSScoreUncached(contract, monthNum) {
       var comp = getOSCompletionStatus(contract.code, monthNum);
       var periodStatus = getSlaPeriodStatus(contract.code, monthNum);
 
