@@ -3414,7 +3414,8 @@ function hydrateFromPowerBI() {
       prazo: 12, preenchimento: 13,
       t1: 8, t2: 15, t3: 6, t4: 6, t6: 5, t8: 5,
       t9: 5, t10: 5, t11: 5, t12: 5,
-      t15: 6, t16: 6, t17: 5, t20: 5
+      t15: 6, t16: 6, t17: 5, t20: 5,
+      t5: 3, t7: 3, t13: 3, t14: 3, t18: 3, t19: 3, t21: 3
     };
 
     window._scoreCache = window._scoreCache || {};
@@ -3486,7 +3487,7 @@ function hydrateFromPowerBI() {
       addBinary("t3", TOPIC_WEIGHTS.t3, typeof contract.fatDifMesPct === "number", Math.abs(contract.fatDifMesPct) <= 0.05);
       addBinary("t4", TOPIC_WEIGHTS.t4, typeof contract.resDifMesPct === "number", Math.abs(contract.resDifMesPct) <= 0.05);
 
-      addQual("rec_ideal", "t7", 3);
+      addQual("rec_ideal", "t7", TOPIC_WEIGHTS.t7);
 
       // --- 6. Perda de Receita (≤2% acumulado = OK, senão 0 -- binário) ---
       var perdaPct100 = (contract.perdaPctAcum || 0) * 100;
@@ -3505,8 +3506,8 @@ function hydrateFromPowerBI() {
       var turnApplicable = (typeof contract.turnoverPct === "number" && typeof contract.turnoverMetaPct === "number");
       addBinary("t12", TOPIC_WEIGHTS.t12, turnApplicable, turnApplicable && contract.turnoverPct <= contract.turnoverMetaPct);
 
-      addQual("he", "t13", 3);
-      addQual("ferias", "t14", 3);
+      addQual("he", "t13", TOPIC_WEIGHTS.t13);
+      addQual("ferias", "t14", TOPIC_WEIGHTS.t14);
 
       // --- 15/16. SAF / CAF (zero ocorrências = OK, senão 0 -- binário) ---
       addBinary("t15", TOPIC_WEIGHTS.t15, true, (contract.safCount || 0) === 0);
@@ -3516,16 +3517,16 @@ function hydrateFromPowerBI() {
       var satApplicable = (typeof contract.satVal === "number" && typeof contract.satMeta === "number");
       addBinary("t17", TOPIC_WEIGHTS.t17, satApplicable, satApplicable && contract.satVal >= contract.satMeta);
 
-      addQual("ltcat_lipae", "t18", 3);
-      addQual("pbi_pbd", "t19", 3);
+      addQual("ltcat_lipae", "t18", TOPIC_WEIGHTS.t18);
+      addQual("pbi_pbd", "t19", TOPIC_WEIGHTS.t19);
 
       // --- 20. Boas Práticas (só apurado no fechamento: Estágio = FINALIZADA; Rotina/Oficina por semestre, Parada por evento) ---
       var bpApplicable = (contract.estagio === "FINALIZADA");
       var bpMet = (contract.bpAprovAcum || 0) >= 3 && (contract.bpReconAcum || 0) >= 1;
       addBinary("t20", TOPIC_WEIGHTS.t20, bpApplicable, bpMet);
 
-      addQual("notificacao_sla", "t5", 3);
-      addQual("gestao_risco", "t21", 3);
+      addQual("notificacao_sla", "t5", TOPIC_WEIGHTS.t5);
+      addQual("gestao_risco", "t21", TOPIC_WEIGHTS.t21);
 
       var finalNormalizedScore = maxPossiblePoints > 0 ? ((earnedPoints / maxPossiblePoints) * 100) : 0;
 
