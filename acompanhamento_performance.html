@@ -2889,26 +2889,30 @@ function hydrateFromPowerBI() {
     // 7. GERADOR DE RESUMOS POR SUPERINTENDÊNCIA E NEGÓCIO (ABAS 2, 3 E 4)
     // =========================================================================
         function buildTopicIndicatorTableHTML(breakdown) {
-          var rows = breakdown.map(function(t) {
+          var rows = breakdown.map(function(t, idx) {
+            var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
             if (t.kind === "text") {
-              return '<tr><td style="padding:4px 8px; font-size:0.74rem; color:#334155;">' + t.id + '. ' + t.name + '</td>' +
-                '<td colspan="3" style="padding:4px 8px; font-size:0.72rem; color:#94a3b8; text-align:center; font-style:italic;">Somente acompanhamento textual (sem indicador real)</td></tr>';
+              return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' +
+                '<td style="padding:10px 14px; font-size:0.92rem; color:#334155; font-weight:600;">' + t.id + '. ' + t.name + '</td>' +
+                '<td colspan="3" style="padding:10px 14px; font-size:0.85rem; color:#94a3b8; text-align:center; font-style:italic;">Somente textual (sem indicador)</td></tr>';
             }
             var pct = t.total > 0 ? Math.round((t.curOk / t.total) * 100) : 0;
             var trendIcon = t.trend === "up" ? "▲" : (t.trend === "down" ? "▼" : "●");
             var trendColor = t.trend === "up" ? "#15803d" : (t.trend === "down" ? "#b91c1c" : "#64748b");
-            return '<tr><td style="padding:4px 8px; font-size:0.74rem; color:#334155;">' + t.id + '. ' + t.name + '</td>' +
-              '<td style="padding:4px 8px; font-size:0.74rem; text-align:center; font-weight:700; color:#0f2b5c;">' + t.curOk + '/' + t.total + ' (' + pct + '%)</td>' +
-              '<td style="padding:4px 8px; font-size:0.74rem; text-align:center; color:#64748b;">' + t.prevOk + '/' + t.total + '</td>' +
-              '<td style="padding:4px 8px; font-size:0.74rem; text-align:center; font-weight:800; color:' + trendColor + ';">' + trendIcon + '</td></tr>';
+            return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' +
+              '<td style="padding:10px 14px; font-size:0.92rem; color:#334155; font-weight:600;">' + t.id + '. ' + t.name + '</td>' +
+              '<td style="padding:10px 14px; font-size:0.92rem; text-align:center; font-weight:700; color:#0f2b5c;">' + t.curOk + '/' + t.total + ' (' + pct + '%)</td>' +
+              '<td style="padding:10px 14px; font-size:0.92rem; text-align:center; color:#64748b;">' + t.prevOk + '/' + t.total + '</td>' +
+              '<td style="padding:10px 14px; font-size:1.05rem; text-align:center; font-weight:800; color:' + trendColor + ';">' + trendIcon + '</td></tr>';
           }).join("");
 
-          return '<table style="width:100%; border-collapse:collapse; margin-top:2px;">' +
+          return '<table style="width:100%; border-collapse:collapse; margin-top:6px; table-layout:fixed;">' +
+            '<colgroup><col style="width:40%;"><col style="width:24%;"><col style="width:24%;"><col style="width:12%;"></colgroup>' +
             '<thead><tr style="background:#0f2b5c; color:#ffffff;">' +
-              '<th style="padding:4px 8px; font-size:0.68rem; text-align:left;">TÓPICO</th>' +
-              '<th style="padding:4px 8px; font-size:0.68rem;">CONFORME (MÊS ATUAL)</th>' +
-              '<th style="padding:4px 8px; font-size:0.68rem;">CONFORME (MÊS ANTERIOR)</th>' +
-              '<th style="padding:4px 8px; font-size:0.68rem;">TENDÊNCIA</th>' +
+              '<th style="padding:10px 14px; font-size:0.80rem; text-align:left;">TÓPICO</th>' +
+              '<th style="padding:10px 14px; font-size:0.80rem;">CONFORME (MÊS ATUAL)</th>' +
+              '<th style="padding:10px 14px; font-size:0.80rem;">CONFORME (MÊS ANTERIOR)</th>' +
+              '<th style="padding:10px 14px; font-size:0.80rem;">TENDÊNCIA</th>' +
             '</tr></thead><tbody>' + rows + '</tbody></table>';
         }
 
