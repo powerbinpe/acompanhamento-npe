@@ -186,9 +186,9 @@
   <div class="navbar">
     <div class="nav-tabs">
       <button type="button" class="tab-btn active" onclick="switchTab('tabMensal')">📊 Aba 1: Acompanhamento Mensal</button>
-      <button type="button" class="tab-btn" onclick="switchTab('tabConsolidacao')">📈 Aba 2: Consolidação Anual</button>
-      <button type="button" class="tab-btn" onclick="switchTab('tabLicoes')">💡 Aba 3: Lições Aprendidas & Gestão de Risco</button>
-      <button type="button" class="tab-btn" onclick="switchTab('tabRanking')">🏆 Aba 4: Gestão de Pontuação & Ranking</button>
+      <button type="button" class="tab-btn" onclick="switchTab('tabRanking')">🏆 Aba 2: Gestão de Pontuação & Ranking</button>
+      <button type="button" class="tab-btn" onclick="switchTab('tabConsolidacao')">📈 Aba 3: Consolidação Anual</button>
+      <button type="button" class="tab-btn" onclick="switchTab('tabLicoes')">💡 Aba 4: Lições Aprendidas & Gestão de Risco</button>
     </div>
 
     <div class="controls">
@@ -256,13 +256,13 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- ABA 2: CONSOLIDAÇÃO ANUAL -->
+  <!-- ABA 3: CONSOLIDAÇÃO ANUAL -->
   <!-- ========================================================================= -->
   <div id="tabConsolidacao" class="tab-page">
     <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #3b82f6; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
       <div>
         <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
-          📊 Aba 2: Consolidação Anual de Performance
+          📊 Aba 3: Consolidação Anual de Performance
         </h2>
         <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
           Visão financeira e operacional consolidada do exercício 2026 • Acompanhamento corporativo de todas as OSs
@@ -282,13 +282,13 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- ABA 3: LIÇÕES APRENDIDAS & GESTÃO DE RISCO -->
+  <!-- ABA 4: LIÇÕES APRENDIDAS & GESTÃO DE RISCO -->
   <!-- ========================================================================= -->
   <div id="tabLicoes" class="tab-page">
     <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #10b981; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
       <div>
         <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
-          💡 Aba 3: Lições Aprendidas & Gestão de Risco
+          💡 Aba 4: Lições Aprendidas & Gestão de Risco
         </h2>
         <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
           Banco de Boas Práticas, Ações Preventivas e Planos de Mitigação de Riscos Operacionais e Financeiros
@@ -308,13 +308,13 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- ABA 4: GESTÃO DE PONTUAÇÃO & RANKING -->
+  <!-- ABA 2: GESTÃO DE PONTUAÇÃO & RANKING -->
   <!-- ========================================================================= -->
   <div id="tabRanking" class="tab-page">
     <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #f59e0b; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
       <div>
         <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
-          🏆 Aba 4: Gestão de Pontuação & Ranking de Performance das OSs
+          🏆 Aba 2: Gestão de Pontuação & Ranking de Performance das OSs
         </h2>
         <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
           Pesos Estratégicos: <strong>Financeiro (40 pts)</strong> • <strong>Governança & SLA (25 pts)</strong> • <strong>Pessoas (20 pts)</strong> • <strong>SSMA & Qualidade (15 pts)</strong>
@@ -639,7 +639,7 @@ function hydrateOSScoreDataFromPowerBI(params) {
   // por exemplo por algum render inicial usando o catálogo estático de fallback. Sem isto, essas
   // entradas "sem dado real ainda" ficam presas no cache para sempre, mesmo após OSScoreData/
   // OSMonthHistory chegarem com os valores reais (bug real: mostrava "-" em vários meses na matriz
-  // da Aba 4 mesmo com o DAX retornando dados corretos).
+  // da Aba 2 mesmo com o DAX retornando dados corretos).
   window._scoreCache = {};
 }
 
@@ -679,7 +679,7 @@ function hydrateOSMonthHistoryFromPowerBI(params) {
       bpAprovS2: parseInt(f[19], 10) || 0,
       bpReconS2: parseInt(f[20], 10) || 0,
       // Valores brutos (não são % nem pontos) usados para mostrar o comparativo real por trás de
-      // cada indicador na matriz da Aba 4 -- ex: Executivo x FCST Atual, Real x Executivo (pax/h).
+      // cada indicador na matriz da Aba 2 -- ex: Executivo x FCST Atual, Real x Executivo (pax/h).
       fatAnoRealV: f[21] !== undefined && f[21] !== "" ? parseFloat(f[21]) : null,
       fatAnoExecV: f[22] !== undefined && f[22] !== "" ? parseFloat(f[22]) : null,
       resAnoRealV: f[23] !== undefined && f[23] !== "" ? parseFloat(f[23]) : null,
@@ -716,8 +716,8 @@ function hydrateOSCommentHistoryFromPowerBI(params) {
 }
 
 // 21-topic map (22 Renovação e 23 Observações saem da lista/score por serem só informativos).
-// scoreId liga cada tópico ao id usado dentro de calculateOSScore().topics -- Aba 2 apenas
-// exibe o resultado já apurado mês a mês pela Aba 4, não recalcula nada por conta própria.
+// scoreId liga cada tópico ao id usado dentro de calculateOSScore().topics -- Aba 3 apenas
+// exibe o resultado já apurado mês a mês pela Aba 2, não recalcula nada por conta própria.
 var TOPIC_INDICATOR_MAP = [
   { id: 1, name: "Faturamento Ano", scoreId: "t1" },
   { id: 2, name: "Resultado Ano", scoreId: "t2" },
@@ -744,7 +744,7 @@ var TOPIC_INDICATOR_MAP = [
 
 // Pontuação acumulada no ano (Jan até o mês selecionado) por tópico, para um grupo de contratos,
 // lendo diretamente o breakdown já calculado por calculateOSScore mês a mês (a mesma apuração da
-// Aba 4) -- a nota é sempre a apurada mês a mês; aqui só somamos/mediamos ao longo do ano.
+// Aba 2) -- a nota é sempre a apurada mês a mês; aqui só somamos/mediamos ao longo do ano.
 function computeTopicIndicatorBreakdown(contracts, selMonthNum) {
   var allScores = contracts.map(function(c) {
     var monthly = [];
@@ -3027,7 +3027,7 @@ function hydrateFromPowerBI() {
     }
 
     // Categorias e pesos usados no cálculo real (calculateOSScoreUncached) -- mesma fonte da
-    // Aba 4/ranking, para que a matriz mês a mês agrupe os tópicos exatamente como são somados.
+    // Aba 2/ranking, para que a matriz mês a mês agrupe os tópicos exatamente como são somados.
     var SCORE_CATEGORIES = [
       { key: "fin", label: "Financeiro", icon: "💰", color: "#0f2b5c", topics: ["t1", "t2", "t3", "t4", "t6", "t8", "t7"] },
       { key: "gov", label: "Governança do Contrato", icon: "📋", color: "#0e7490", topics: ["t5", "t21", "t19"] },
@@ -3057,7 +3057,7 @@ function hydrateFromPowerBI() {
     }
 
     // Matriz Tópico x Mês para UMA OS: mostra os pontos ganhos em cada mês fechado até o mês
-    // selecionado, mais uma coluna de Acumulado -- é o detalhamento por trás do resumo da Aba 2.
+    // selecionado, mais uma coluna de Acumulado -- é o detalhamento por trás do resumo da Aba 3.
     // Tópicos apurados manualmente pelo Máster (modal Conforme/Não Conforme/N-A) -- não têm um
     // valor numérico de apuração por trás, então a matriz mostra só o veredito, não um comparativo.
     var QUALITATIVE_TOPIC_IDS = ["t5", "t7", "t13", "t14", "t18", "t19", "t21"];
@@ -3429,14 +3429,14 @@ function hydrateFromPowerBI() {
       var osTopicHTML;
 
       if (tabType === "ranking" && activeContract) {
-        // Aba 4: detalhamento mês a mês, item a item, até o mês fechado selecionado -- é essa
-        // apuração que alimenta tanto o Score quanto o resumo acumulado exibido na Aba 2.
+        // Aba 2: detalhamento mês a mês, item a item, até o mês fechado selecionado -- é essa
+        // apuração que alimenta tanto o Score quanto o resumo acumulado exibido na Aba 3.
         osTopicHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); margin-top:24px; margin-bottom:24px;">' +
           '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
             '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">📊 Apuração Mês a Mês por Indicador</h3>' +
             '<span style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' + osScopeLabel + '</span>' +
           '</div>' +
-          '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontos ganhos em cada mês fechado (Janeiro até o mês selecionado) e o acumulado do ano por indicador. É esse resultado que alimenta o resumo da Aba 2.</div>' +
+          '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontos ganhos em cada mês fechado (Janeiro até o mês selecionado) e o acumulado do ano por indicador. É esse resultado que alimenta o resumo da Aba 3.</div>' +
           buildTopicMonthMatrixHTML(activeContract, selMonthNum) +
         '</div>';
       } else if (tabType === "ranking") {
@@ -3448,7 +3448,7 @@ function hydrateFromPowerBI() {
             '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">📋 Resumo dos 23 Indicadores (Acumulado do Ano)</h3>' +
             '<span style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' + osScopeLabel + '</span>' +
           '</div>' +
-          '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontuação acumulada de Janeiro até o mês selecionado, da(s) OS(s) selecionada(s) no Power BI, apurada mês a mês na Aba 4. Os cards de Superintendência/Negócio abaixo mostram apenas a média do grupo, como referência de comparação.</div>' +
+          '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontuação acumulada de Janeiro até o mês selecionado, da(s) OS(s) selecionada(s) no Power BI, apurada mês a mês na Aba 2. Os cards de Superintendência/Negócio abaixo mostram apenas a média do grupo, como referência de comparação.</div>' +
           '<div style="overflow-x:auto;">' + buildTopicIndicatorTableHTML(osTopicBreakdown, activeContract) + '</div>' +
         '</div>';
       }
@@ -3457,7 +3457,7 @@ function hydrateFromPowerBI() {
     }
 
     // =========================================================================
-    // 8. ABA 2: CONSOLIDAÇÃO ANUAL
+    // 8. ABA 3: CONSOLIDAÇÃO ANUAL
     // =========================================================================
         function renderAnnualConsolidation() {
       var currentParams = new URLSearchParams(window.location.search);
@@ -3516,7 +3516,7 @@ function hydrateFromPowerBI() {
     }
 
     // =========================================================================
-    // 9. ABA 3: LIÇÕES APRENDIDAS & GESTÃO DE RISCO
+    // 9. ABA 4: LIÇÕES APRENDIDAS & GESTÃO DE RISCO
     // =========================================================================
         function renderTab3Licoes() {
       var currentParams = new URLSearchParams(window.location.search);
@@ -3591,7 +3591,7 @@ function hydrateFromPowerBI() {
     }
 
     // =========================================================================
-    // 10. ABA 4: GESTÃO DE PONTUAÇÃO, RANKING & APURAÇÃO QUALITATIVA DO MÁSTER
+    // 10. ABA 2: GESTÃO DE PONTUAÇÃO, RANKING & APURAÇÃO QUALITATIVA DO MÁSTER
     // =========================================================================
     var currentQualEvalOS = null;
 
@@ -3607,7 +3607,7 @@ function hydrateFromPowerBI() {
 
     // Mapeia o id do tópico (usado nos cards da Aba 1) para a chave de avaliação qualitativa --
     // permite mostrar os botões Pendente/N-A/Não Aderente/Aderente direto no card, sem precisar
-    // abrir o modal "Apurar (Máster)" da Aba 4 para cada um.
+    // abrir o modal "Apurar (Máster)" da Aba 2 para cada um.
     var TOPIC_ID_TO_QUAL_KEY = {};
     QUALITATIVE_TOPICS.forEach(function(t) {
       var idMatch = t.name.match(/^(\d+)\./);
@@ -3621,7 +3621,7 @@ function hydrateFromPowerBI() {
       return safeGetStorage("qual_eval_" + osCode + "_m" + monthNum + "_" + topicKey, "PENDENTE");
     }
 
-    // Botões inline na Aba 1 (mesmo efeito do modal "Apurar" da Aba 4, mas direto no card do tópico).
+    // Botões inline na Aba 1 (mesmo efeito do modal "Apurar" da Aba 2, mas direto no card do tópico).
     function setQualitativeEvalInline(topicId, qualKey, value) {
       if (!window.isMaster) {
         showToast("⚠️ Apenas o perfil Máster Performance pode realizar a apuração qualitativa.");
@@ -3739,7 +3739,7 @@ function hydrateFromPowerBI() {
     }
 
     // Peso de cada tópico "verdict" (indicador numérico real) e qualitativo, e a que bucket de exibição
-    // (finPts/govPts/pesPts/ssmaPts) cada um pertence na tabela da Aba 4.
+    // (finPts/govPts/pesPts/ssmaPts) cada um pertence na tabela da Aba 2.
     var TOPIC_WEIGHTS = {
       prazo: 12, preenchimento: 13,
       t1: 8, t2: 15, t3: 6, t4: 6, t6: 5, t8: 5,
