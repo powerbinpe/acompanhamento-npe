@@ -442,6 +442,7 @@
             <option value="INDEFINIDO">⚪ Sem Período Definido</option>
             <option value="NO_PRAZO">⏱️ No Prazo</option>
             <option value="FORA_PRAZO">⚠️ Fora do Prazo</option>
+            <option value="INATIVO">⛔ Período Inativo (não medido, não conta no score)</option>
           </select>
 
           <button type="button" onclick="saveSlaDeadlineForMonth()" style="background:#16a34a; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.82rem; cursor:pointer; box-shadow:0 2px 6px rgba(22,163,74,0.25);">
@@ -767,7 +768,19 @@ function hydrateOSMonthHistoryFromPowerBI(params) {
       bpAprovS1: parseInt(f[17], 10) || 0,
       bpReconS1: parseInt(f[18], 10) || 0,
       bpAprovS2: parseInt(f[19], 10) || 0,
-      bpReconS2: parseInt(f[20], 10) || 0
+      bpReconS2: parseInt(f[20], 10) || 0,
+      // Valores brutos (não são % nem pontos) usados para mostrar o comparativo real por trás de
+      // cada indicador na matriz da Aba 4 -- ex: Executivo x FCST Atual, Real x Executivo (pax/h).
+      fatAnoRealV: f[21] !== undefined && f[21] !== "" ? parseFloat(f[21]) : null,
+      fatAnoExecV: f[22] !== undefined && f[22] !== "" ? parseFloat(f[22]) : null,
+      resAnoRealV: f[23] !== undefined && f[23] !== "" ? parseFloat(f[23]) : null,
+      resAnoExecV: f[24] !== undefined && f[24] !== "" ? parseFloat(f[24]) : null,
+      fatMesAtualV: f[25] !== undefined && f[25] !== "" ? parseFloat(f[25]) : null,
+      fatMesAntV: f[26] !== undefined && f[26] !== "" ? parseFloat(f[26]) : null,
+      efetivoRealV: f[27] !== undefined && f[27] !== "" ? parseFloat(f[27]) : null,
+      efetivoExecV: f[28] !== undefined && f[28] !== "" ? parseFloat(f[28]) : null,
+      hhtRealV: f[29] !== undefined && f[29] !== "" ? parseFloat(f[29]) : null,
+      hhtExecV: f[30] !== undefined && f[30] !== "" ? parseFloat(f[30]) : null
     };
   }
   return history;
@@ -2732,7 +2745,9 @@ function hydrateFromPowerBI() {
           finalMasterText = safeGetStorage("m_" + activeOS + "_m" + monthNum + "_" + topic.id, excelMaster);
         }
 
-        var defaultStatusForMonth = (monthNum >= 7) ? "Pendente" : "Validado";
+        // Todos os meses começam sem validação (Pendente) até o Máster revisar e travar
+        // explicitamente -- não há mais um "corte" automático que já vem travado.
+        var defaultStatusForMonth = "Pendente";
         var savedStatus = safeGetStorage("status_" + activeOS + "_m" + monthNum + "_" + topic.id, defaultStatusForMonth);
         var valStatus = isMultiOS ? "Pendente" : savedStatus;
         
@@ -2988,13 +3003,59 @@ function hydrateFromPowerBI() {
 
     // Matriz Tópico x Mês para UMA OS: mostra os pontos ganhos em cada mês fechado até o mês
     // selecionado, mais uma coluna de Acumulado -- é o detalhamento por trás do resumo da Aba 2.
+    // Tópicos apurados manualmente pelo Máster (modal Conforme/Não Conforme/N-A) -- não têm um
+    // valor numérico de apuração por trás, então a matriz mostra só o veredito, não um comparativo.
+    var QUALITATIVE_TOPIC_IDS = ["t5", "t7", "t13", "t14", "t18", "t19", "t21"];
+
+    function formatCompactBRL(n) {
+      if (typeof n !== "number" || isNaN(n)) return "–";
+      var sign = n < 0 ? "-" : "";
+      var abs = Math.abs(n);
+      if (abs >= 1000000) return sign + "R$" + (abs / 1000000).toFixed(2).replace(".", ",") + "M";
+      if (abs >= 1000) return sign + "R$" + (abs / 1000).toFixed(0) + "k";
+      return sign + "R$" + abs.toFixed(0);
+    }
+    function formatIntBR(n) {
+      if (typeof n !== "number" || isNaN(n)) return "–";
+      return Math.round(n).toLocaleString("pt-BR");
+    }
+    function formatPctBR(v) {
+      return typeof v === "number" ? (v * 100).toFixed(1).replace(".", ",") + "%" : "–";
+    }
+
+    // Linha pequena mostrando o dado real por trás do ponto -- ex: "R$14,39M vs Exec R$18,57M" --
+    // para os tópicos que têm apuração numérica de verdade (todos exceto os manuais listados acima).
+    function buildTopicDetailLine(topicId, monthData, contract, m) {
+      if (topicId === "prazo") {
+        var pStatus = getSlaPeriodStatus(contract.code, m);
+        return pStatus === "NO_PRAZO" ? "No prazo" : (pStatus === "FORA_PRAZO" ? "Fora do prazo" : (pStatus === "INATIVO" ? "Período inativo" : "Sem período definido"));
+      }
+      if (!monthData) return "";
+      switch (topicId) {
+        case "t1": return formatCompactBRL(monthData.fatAnoRealV) + " · Exec " + formatCompactBRL(monthData.fatAnoExecV);
+        case "t2": return formatCompactBRL(monthData.resAnoRealV) + " · Exec " + formatCompactBRL(monthData.resAnoExecV);
+        case "t3": return formatCompactBRL(monthData.fatMesAtualV) + " · Ant " + formatCompactBRL(monthData.fatMesAntV);
+        case "t4": return "Margem " + formatPctBR(monthData.resDifMesPct) + " vs FCST ant.";
+        case "t6": return "Perda acum. " + formatPctBR(monthData.perdaPctAcum);
+        case "t8": return monthData.indenizOk ? "Dentro da meta" : "Acima da meta";
+        case "t9": return formatIntBR(monthData.efetivoRealV) + " · Exec " + formatIntBR(monthData.efetivoExecV) + " pax";
+        case "t10": return formatIntBR(monthData.hhtRealV) + "h · Exec " + formatIntBR(monthData.hhtExecV) + "h";
+        case "t11": return formatPctBR(monthData.absenteismoPct) + " (meta " + formatPctBR(monthData.absenteismoMetaPct) + ")";
+        case "t12": return formatPctBR(monthData.turnoverPct) + " (meta " + formatPctBR(monthData.turnoverMetaPct) + ")";
+        case "t15": return (monthData.safCount || 0) + " ocorrência(s)";
+        case "t16": return (monthData.cafCount || 0) + " ocorrência(s)";
+        case "t20": return (monthData.bpAprovAcum || 0) + " aprov. · " + (monthData.bpReconAcum || 0) + " reconh.";
+        default: return "";
+      }
+    }
+
     function buildTopicMonthMatrixHTML(contract, selMonthNum) {
       var monthlyScores = [];
       for (var m = 1; m <= selMonthNum; m++) monthlyScores.push(calculateOSScore(contract, m));
 
       var headerCells = '<th style="padding:11px 16px; font-size:0.82rem; text-align:left; position:sticky; left:0; background:#0f2b5c; z-index:2; min-width:220px;">TÓPICO</th>';
       for (var m2 = 1; m2 <= selMonthNum; m2++) {
-        headerCells += '<th style="padding:11px 6px; font-size:0.78rem; text-align:center; min-width:54px;">' + MONTH_SHORT_NAMES[m2] + '</th>';
+        headerCells += '<th style="padding:11px 6px; font-size:0.78rem; text-align:center; min-width:100px;">' + MONTH_SHORT_NAMES[m2] + '</th>';
       }
       headerCells += '<th style="padding:11px 16px; font-size:0.80rem; text-align:center; background:#1e3a8a; min-width:140px;">ACUMULADO</th>';
 
@@ -3008,10 +3069,12 @@ function hydrateFromPowerBI() {
       function topicRowsFor(topicIds) {
         return topicIds.map(function(id, idxInCat) {
           var def = topicDef(id);
+          var isQualitative = QUALITATIVE_TOPIC_IDS.indexOf(id) !== -1;
           var rowBg = idxInCat % 2 === 1 ? '#f8fafc' : '#ffffff';
           var cells = '<td style="padding:9px 16px; font-size:0.92rem; color:#1e293b; font-weight:700; white-space:nowrap; position:sticky; left:0; background:' + rowBg + ';">' + def.name + ' <span style="color:#94a3b8; font-weight:600; font-size:0.80rem;">(' + def.weight + 'p)</span></td>';
           var earnedSum = 0, maxSum = 0, hasAny = false;
-          monthlyScores.forEach(function(sc) {
+          monthlyScores.forEach(function(sc, idx) {
+            var m = idx + 1;
             var t = sc.topics[id];
             if (!t || !t.applicable) {
               cells += '<td style="padding:9px 4px; font-size:0.84rem; text-align:center; color:#cbd5e1; background:' + rowBg + ';">–</td>';
@@ -3022,7 +3085,14 @@ function hydrateFromPowerBI() {
             maxSum += t.max;
             var pct = t.max > 0 ? (t.earned / t.max) * 100 : 100;
             var tier = scoreTier(pct);
-            cells += '<td style="padding:9px 4px; font-size:0.90rem; text-align:center; font-weight:800; color:' + tier.dark + '; background:' + tier.bg + ';">' + t.earned.toFixed(1) + '</td>';
+            var ok = t.earned >= t.max - 0.01;
+            var monthData = contract.monthHistory ? contract.monthHistory[m] : null;
+            var mainLabel = isQualitative ? (ok ? "Conforme" : "Não Conforme") : t.earned.toFixed(1);
+            var detailLine = buildTopicDetailLine(id, monthData, contract, m);
+            cells += '<td style="padding:7px 4px; font-size:' + (isQualitative ? '0.72rem' : '0.90rem') + '; text-align:center; font-weight:800; color:' + tier.dark + '; background:' + tier.bg + ';">' +
+              '<div>' + mainLabel + '</div>' +
+              (detailLine ? '<div style="font-size:0.62rem; font-weight:600; color:' + tier.dark + '; opacity:0.85; white-space:nowrap; margin-top:1px;">' + detailLine + '</div>' : '') +
+            '</td>';
           });
           var accumPct = maxSum > 0 ? (earnedSum / maxSum) * 100 : 0;
           var accumTier = scoreTier(accumPct);
@@ -3583,17 +3653,22 @@ function hydrateFromPowerBI() {
       }
 
       // --- Prazo & Preenchimento (Governança/SLA da Aba "Painel de Preenchimentos & SLA") -- binário: preencheu tudo ou não ganha nada
+      // periodStatus="INATIVO" marca um mês retroativo em que o prazo não foi medido -- fica de fora
+      // do score (não conta nem a favor nem contra), igual ao padrão N/A usado nos demais tópicos.
+      var prazoApplicable = (periodStatus !== "INATIVO");
       var prazoOk = (periodStatus === "NO_PRAZO" || periodStatus === "INDEFINIDO");
-      addBinary("prazo", TOPIC_WEIGHTS.prazo, true, prazoOk);
+      addBinary("prazo", TOPIC_WEIGHTS.prazo, prazoApplicable, prazoOk);
       addBinary("preenchimento", TOPIC_WEIGHTS.preenchimento, true, comp.status === "OK");
 
-      // --- 1/2. Faturamento Ano / Resultado Ano (Real vs Executivo/Meta, ±5%) ---
-      addBinary("t1", TOPIC_WEIGHTS.t1, typeof contract.fatDifAnoPct === "number", Math.abs(contract.fatDifAnoPct) <= 0.05);
-      addBinary("t2", TOPIC_WEIGHTS.t2, typeof contract.resDifAnoPct === "number", Math.abs(contract.resDifAnoPct) <= 0.05);
+      // --- 1/2. Faturamento Ano / Resultado Ano (FCST Atual vs Executivo, margem de -5%) ---
+      // Igual ou acima do Executivo, ou até 5% abaixo, conta como conforme -- só perde ponto se cair
+      // mais de 5% abaixo do Executivo. Ficar acima nunca penaliza (sem teto).
+      addBinary("t1", TOPIC_WEIGHTS.t1, typeof contract.fatDifAnoPct === "number", contract.fatDifAnoPct >= -0.05);
+      addBinary("t2", TOPIC_WEIGHTS.t2, typeof contract.resDifAnoPct === "number", contract.resDifAnoPct >= -0.05);
 
-      // --- 3/4. Faturamento Mês / Assertividade Mês (FCST Atual vs FCST Anterior, ±5%) ---
-      addBinary("t3", TOPIC_WEIGHTS.t3, typeof contract.fatDifMesPct === "number", Math.abs(contract.fatDifMesPct) <= 0.05);
-      addBinary("t4", TOPIC_WEIGHTS.t4, typeof contract.resDifMesPct === "number", Math.abs(contract.resDifMesPct) <= 0.05);
+      // --- 3/4. Faturamento Mês / Assertividade Mês (FCST Atual vs FCST Anterior, margem de -5%) ---
+      addBinary("t3", TOPIC_WEIGHTS.t3, typeof contract.fatDifMesPct === "number", contract.fatDifMesPct >= -0.05);
+      addBinary("t4", TOPIC_WEIGHTS.t4, typeof contract.resDifMesPct === "number", contract.resDifMesPct >= -0.05);
 
       addQual("rec_ideal", "t7", TOPIC_WEIGHTS.t7);
 
@@ -3893,7 +3968,7 @@ function hydrateFromPowerBI() {
       if (dateVal) safeSetStorage("sla_deadline_date_m" + m, dateVal);
 
       var monthNames = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-      var statusLabel = periodVal === "INDEFINIDO" ? "Sem Período Definido" : (periodVal === "NO_PRAZO" ? "No Prazo" : "Fora do Prazo");
+      var statusLabel = periodVal === "INDEFINIDO" ? "Sem Período Definido" : (periodVal === "NO_PRAZO" ? "No Prazo" : (periodVal === "INATIVO" ? "Período Inativo (fora do score)" : "Fora do Prazo"));
       showToast("💾 SLA do mês de " + monthNames[m] + " definido como: " + statusLabel);
 
       renderSlaModalMatrix();
@@ -3909,10 +3984,11 @@ function hydrateFromPowerBI() {
       var next = "INDEFINIDO";
       if (cur === "INDEFINIDO") next = "NO_PRAZO";
       else if (cur === "NO_PRAZO") next = "FORA_PRAZO";
+      else if (cur === "FORA_PRAZO") next = "INATIVO";
       else next = "INDEFINIDO";
 
       safeSetStorage("sla_period_status_" + osCode + "_m" + monthNum, next);
-      var label = next === "INDEFINIDO" ? "⚪ Sem Período Definido" : (next === "NO_PRAZO" ? "⏱️ No Prazo" : "⚠️ Fora do Prazo");
+      var label = next === "INDEFINIDO" ? "⚪ Sem Período Definido" : (next === "NO_PRAZO" ? "⏱️ No Prazo" : (next === "INATIVO" ? "⛔ Período Inativo" : "⚠️ Fora do Prazo"));
       showToast("OS " + osCode + " (Mês " + monthNum + "): Alterado para " + label);
       renderSlaModalMatrix();
       if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
@@ -4027,6 +4103,10 @@ function hydrateFromPowerBI() {
             pBadgeColor = "#b91c1c";
             pBadgeBg = "#fee2e2";
             pBadgeText = "⚠️ Fora do Prazo";
+          } else if (pStatus === "INATIVO") {
+            pBadgeColor = "#78716c";
+            pBadgeBg = "#e7e5e4";
+            pBadgeText = "⛔ Inativo";
           }
 
           monthCellsHTML += '<td style="padding:6px 4px; text-align:center; vertical-align:middle; border:1px solid #e2e8f0; font-size:0.75rem;">';
