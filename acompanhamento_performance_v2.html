@@ -1115,11 +1115,7 @@ function hydrateFromPowerBI() {
       var el = document.getElementById("debugUserInfo");
       if (!el) return;
       var p = new URLSearchParams(window.location.search);
-      var mh = p.get("OSMonthHistory") || "";
-      var mhMonths = mh ? mh.split("~").length : 0;
-      var ch = p.get("OSCommentHistory") || "";
-      el.textContent = "Debug: UserEmail=\"" + (p.get("UserEmail") || "") + "\" | IsUserPerformance=" + (p.get("IsUserPerformance") || "") + " | SimRoleOverride=" + (p.get("SimRoleOverride") || "") + " | savedRoleAtStart=" + (savedRoleAtStart || "(nenhum)") + " | Papel resolvido=" + window.currentRoleSimulated +
-        " | OSMonthHistory.len=" + mh.length + " (meses=" + mhMonths + ")" + " | OSCommentHistory.len=" + ch.length;
+      el.textContent = "Debug: UserEmail=\"" + (p.get("UserEmail") || "") + "\" | IsUserPerformance=" + (p.get("IsUserPerformance") || "") + " | SimRoleOverride=" + (p.get("SimRoleOverride") || "") + " | savedRoleAtStart=" + (savedRoleAtStart || "(nenhum)") + " | Papel resolvido=" + window.currentRoleSimulated;
     })();
 
     var _roleToggleLock = false;
@@ -2880,12 +2876,35 @@ function hydrateFromPowerBI() {
             '</div>';
         }
 
+        var qualKey = TOPIC_ID_TO_QUAL_KEY[topic.id];
+        var qualBlockHTML = "";
+        if (qualKey && !isMultiOS) {
+          var curQualVal = getQualitativeEval(activeOS, monthNum, qualKey);
+          var qualOptions = [
+            { val: "PENDENTE", label: "🟡 Pendente", bg: "#fef9c3", border: "#d97706", fg: "#92400e" },
+            { val: "NA", label: "⚪ N/A", bg: "#e2e8f0", border: "#64748b", fg: "#334155" },
+            { val: "NAO_ADERENTE", label: "🔴 Não Aderente", bg: "#fee2e2", border: "#ef4444", fg: "#b91c1c" },
+            { val: "ADERENTE", label: "🟢 Aderente", bg: "#dcfce7", border: "#16a34a", fg: "#15803d" }
+          ];
+          var qualButtonsHTML = qualOptions.map(function(o) {
+            var active = curQualVal === o.val;
+            var clickable = window.isMaster;
+            return '<button type="button" ' + (clickable ? ('onclick="setQualitativeEvalInline(' + topic.id + ', \'' + qualKey + '\', \'' + o.val + '\')"') : 'disabled') +
+              ' style="flex:1; padding:6px 4px; font-size:0.76rem; font-weight:800; border-radius:6px; cursor:' + (clickable ? 'pointer' : 'not-allowed') + '; background:' + (active ? o.bg : '#ffffff') + '; color:' + (active ? o.fg : '#94a3b8') + '; border:1.5px solid ' + (active ? o.border : '#e2e8f0') + ';">' + o.label + '</button>';
+          }).join("");
+          qualBlockHTML = '<div style="margin-top:10px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px;">' +
+            '<div style="font-size:0.76rem; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:6px;">✅ Avaliação Qualitativa (Score)</div>' +
+            '<div style="display:flex; gap:5px; flex-wrap:wrap;">' + qualButtonsHTML + '</div>' +
+          '</div>';
+        }
+
         row.innerHTML = '<div class="kpi-column">' +
           '<div>' +
             '<div class="topic-header" style="margin-bottom: 6px;">' +
               '<span class="topic-title" style="font-size:1.15rem; font-weight:800; color:#0f2b5c;">#' + String(topic.id).padStart(2, '0') + ' ' + topic.name + '</span>' +
             '</div>' +
             '<div class="kpi-lines">' + linesHTML + '</div>' +
+            qualBlockHTML +
           '</div>' +
           '<button id="btn_hist_' + topic.id + '" type="button" class="timeline-btn" onclick="toggleInlineHistory(' + topic.id + ')">' +
             '📜 Histórico ATA_COMENTARIO' +
@@ -3104,11 +3123,11 @@ function hydrateFromPowerBI() {
       var monthlyScores = [];
       for (var m = 1; m <= selMonthNum; m++) monthlyScores.push(calculateOSScore(contract, m));
 
-      var headerCells = '<th style="padding:11px 16px; font-size:0.82rem; text-align:left; position:sticky; left:0; background:#0f2b5c; z-index:2; min-width:220px;">TÓPICO</th>';
+      var headerCells = '<th style="padding:13px 18px; font-size:1.0rem; text-align:left; position:sticky; left:0; background:#0f2b5c; z-index:2; min-width:250px;">TÓPICO</th>';
       for (var m2 = 1; m2 <= selMonthNum; m2++) {
-        headerCells += '<th style="padding:11px 6px; font-size:0.78rem; text-align:center; min-width:100px;">' + MONTH_SHORT_NAMES[m2] + '</th>';
+        headerCells += '<th style="padding:13px 6px; font-size:0.95rem; text-align:center; min-width:135px;">' + MONTH_SHORT_NAMES[m2] + '</th>';
       }
-      headerCells += '<th style="padding:11px 16px; font-size:0.80rem; text-align:center; background:#1e3a8a; min-width:140px;">ACUMULADO</th>';
+      headerCells += '<th style="padding:13px 18px; font-size:0.98rem; text-align:center; background:#1e3a8a; min-width:160px;">ACUMULADO</th>';
 
       function topicDef(id) {
         if (id === "prazo") return { name: "Prazo de Preenchimento", weight: TOPIC_WEIGHTS.prazo };
@@ -3122,13 +3141,13 @@ function hydrateFromPowerBI() {
           var def = topicDef(id);
           var isQualitative = QUALITATIVE_TOPIC_IDS.indexOf(id) !== -1;
           var rowBg = idxInCat % 2 === 1 ? '#f8fafc' : '#ffffff';
-          var cells = '<td style="padding:9px 16px; font-size:0.92rem; color:#1e293b; font-weight:700; white-space:nowrap; position:sticky; left:0; background:' + rowBg + ';">' + def.name + ' <span style="color:#94a3b8; font-weight:600; font-size:0.80rem;">(' + def.weight + 'p)</span></td>';
+          var cells = '<td style="padding:12px 18px; font-size:1.05rem; color:#1e293b; font-weight:700; white-space:nowrap; position:sticky; left:0; background:' + rowBg + ';">' + def.name + ' <span style="color:#94a3b8; font-weight:600; font-size:0.86rem;">(' + def.weight + 'p)</span></td>';
           var earnedSum = 0, maxSum = 0, hasAny = false;
           monthlyScores.forEach(function(sc, idx) {
             var m = idx + 1;
             var t = sc.topics[id];
             if (!t || !t.applicable) {
-              cells += '<td style="padding:9px 4px; font-size:0.84rem; text-align:center; color:#cbd5e1; background:' + rowBg + ';">–</td>';
+              cells += '<td style="padding:12px 4px; font-size:0.95rem; text-align:center; color:#cbd5e1; background:' + rowBg + ';">–</td>';
               return;
             }
             hasAny = true;
@@ -3140,27 +3159,27 @@ function hydrateFromPowerBI() {
             var monthData = contract.monthHistory ? contract.monthHistory[m] : null;
             var mainLabel = isQualitative ? (ok ? "Conforme" : "Não Conforme") : t.earned.toFixed(1);
             var detailLine = buildTopicDetailLine(id, monthData, contract, m);
-            cells += '<td style="padding:7px 4px; font-size:' + (isQualitative ? '0.72rem' : '0.90rem') + '; text-align:center; font-weight:800; color:' + tier.dark + '; background:' + tier.bg + ';">' +
+            cells += '<td style="padding:10px 5px; font-size:' + (isQualitative ? '0.88rem' : '1.15rem') + '; text-align:center; font-weight:800; color:' + tier.dark + '; background:' + tier.bg + ';">' +
               '<div>' + mainLabel + '</div>' +
-              (detailLine ? '<div style="font-size:0.62rem; font-weight:600; color:' + tier.dark + '; opacity:0.85; white-space:nowrap; margin-top:1px;">' + detailLine + '</div>' : '') +
+              (detailLine ? '<div style="font-size:0.74rem; font-weight:700; color:' + tier.dark + '; opacity:0.9; white-space:nowrap; margin-top:2px;">' + detailLine + '</div>' : '') +
             '</td>';
           });
           var accumPct = maxSum > 0 ? (earnedSum / maxSum) * 100 : 0;
           var accumTier = scoreTier(accumPct);
           var accumCell = hasAny
-            ? '<div style="display:flex; align-items:center; gap:7px; justify-content:center;">' +
-                '<span style="font-weight:800; color:' + accumTier.dark + '; font-size:0.88rem;">' + earnedSum.toFixed(1) + '/' + maxSum.toFixed(1) + '</span>' +
-                '<div style="width:40px; height:7px; background:#e2e8f0; border-radius:4px; overflow:hidden;"><div style="width:' + accumPct.toFixed(0) + '%; height:100%; background:' + accumTier.main + ';"></div></div>' +
+            ? '<div style="display:flex; align-items:center; gap:9px; justify-content:center;">' +
+                '<span style="font-weight:800; color:' + accumTier.dark + '; font-size:1.05rem;">' + earnedSum.toFixed(1) + '/' + maxSum.toFixed(1) + '</span>' +
+                '<div style="width:48px; height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden;"><div style="width:' + accumPct.toFixed(0) + '%; height:100%; background:' + accumTier.main + ';"></div></div>' +
               '</div>'
             : '<span style="color:#cbd5e1;">–</span>';
-          cells += '<td style="padding:9px 16px; text-align:center; background:#eff6ff;">' + accumCell + '</td>';
+          cells += '<td style="padding:12px 18px; text-align:center; background:#eff6ff;">' + accumCell + '</td>';
           return '<tr style="border-bottom:1px solid #e2e8f0;">' + cells + '</tr>';
         }).join("");
       }
 
       var colspan = selMonthNum + 2;
       var groupsHTML = SCORE_CATEGORIES.map(function(cat) {
-        var catHeader = '<tr><td colspan="' + colspan + '" style="padding:8px 16px; font-size:0.82rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.4px;">' + cat.icon + ' ' + cat.label + '</td></tr>';
+        var catHeader = '<tr><td colspan="' + colspan + '" style="padding:9px 18px; font-size:0.92rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.4px;">' + cat.icon + ' ' + cat.label + '</td></tr>';
         return catHeader + topicRowsFor(cat.topics);
       }).join("");
 
@@ -3579,8 +3598,36 @@ function hydrateFromPowerBI() {
       { key: "gestao_risco", name: "21. Gestão de Risco", weight: 3 }
     ];
 
+    // Mapeia o id do tópico (usado nos cards da Aba 1) para a chave de avaliação qualitativa --
+    // permite mostrar os botões Pendente/N-A/Não Aderente/Aderente direto no card, sem precisar
+    // abrir o modal "Apurar (Máster)" da Aba 4 para cada um.
+    var TOPIC_ID_TO_QUAL_KEY = {};
+    QUALITATIVE_TOPICS.forEach(function(t) {
+      var idMatch = t.name.match(/^(\d+)\./);
+      if (idMatch) TOPIC_ID_TO_QUAL_KEY[parseInt(idMatch[1], 10)] = t.key;
+    });
+
+    // Enquanto o Máster não avaliar explicitamente, o indicador fica "PENDENTE" (fora do score,
+    // igual a N/A) -- nunca conta como conforme por padrão. Só passa a valer ponto quando alguém
+    // realmente marcar "Aderente".
     function getQualitativeEval(osCode, monthNum, topicKey) {
-      return safeGetStorage("qual_eval_" + osCode + "_m" + monthNum + "_" + topicKey, "ADERENTE");
+      return safeGetStorage("qual_eval_" + osCode + "_m" + monthNum + "_" + topicKey, "PENDENTE");
+    }
+
+    // Botões inline na Aba 1 (mesmo efeito do modal "Apurar" da Aba 4, mas direto no card do tópico).
+    function setQualitativeEvalInline(topicId, qualKey, value) {
+      if (!window.isMaster) {
+        showToast("⚠️ Apenas o perfil Máster Performance pode realizar a apuração qualitativa.");
+        return;
+      }
+      var currentParams = new URLSearchParams(window.location.search);
+      var rawOS = currentParams.get("SelectedOS") || "";
+      var activeOS = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOS) : rawOS;
+      var monthNum = getMonthNumberFromParams(currentParams);
+      safeSetStorage("qual_eval_" + activeOS + "_m" + monthNum + "_" + qualKey, value);
+      showToast("✅ Tópico #" + topicId + " marcado como: " + value.replace("_", " "));
+      renderRows();
+      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
     }
 
     function openQualitativeEvalModal(osCode) {
@@ -3612,7 +3659,10 @@ function hydrateFromPowerBI() {
             '<div style="font-weight:800; font-size:0.90rem; color:#0f2b5c;">' + topic.name + '</div>' +
             '<div style="font-size:0.75rem; color:#64748b;">Peso no Score: <strong>' + topic.weight + ' pontos</strong></div>' +
           '</div>' +
-          '<div style="display:flex; gap:8px;">' +
+          '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+            '<label style="display:flex; align-items:center; gap:4px; font-size:0.80rem; font-weight:700; background:' + (curVal === 'PENDENTE' ? '#fef9c3' : '#ffffff') + '; border:1.5px solid ' + (curVal === 'PENDENTE' ? '#d97706' : '#cbd5e1') + '; padding:5px 10px; border-radius:6px; cursor:pointer; color:#92400e;">' +
+              '<input type="radio" name="qual_' + topic.key + '" value="PENDENTE" ' + (curVal === 'PENDENTE' ? 'checked' : '') + ' /> 🟡 Pendente (ainda não avaliado)' +
+            '</label>' +
             '<label style="display:flex; align-items:center; gap:4px; font-size:0.80rem; font-weight:700; background:' + (curVal === 'NA' ? '#e2e8f0' : '#ffffff') + '; border:1.5px solid ' + (curVal === 'NA' ? '#64748b' : '#cbd5e1') + '; padding:5px 10px; border-radius:6px; cursor:pointer;">' +
               '<input type="radio" name="qual_' + topic.key + '" value="NA" ' + (curVal === 'NA' ? 'checked' : '') + ' /> ⚪ Não se Aplica (N/A)' +
             '</label>' +
@@ -3643,7 +3693,7 @@ function hydrateFromPowerBI() {
 
       QUALITATIVE_TOPICS.forEach(function(topic) {
         var radios = document.getElementsByName("qual_" + topic.key);
-        var chosenVal = "ADERENTE";
+        var chosenVal = "PENDENTE";
         for (var i = 0; i < radios.length; i++) {
           if (radios[i].checked) { chosenVal = radios[i].value; break; }
         }
@@ -3713,7 +3763,9 @@ function hydrateFromPowerBI() {
 
       function addQual(topicKey, id, weight) {
         var ev = getQualitativeEval(contract.code, monthNum, topicKey);
-        addTopic(id, weight, ev === "ADERENTE" ? weight : 0, ev !== "NA");
+        // PENDENTE (nunca avaliado) fica fora do score, igual a N/A -- só entra como conforme/não
+        // conforme depois que o Máster realmente marcar algo.
+        addTopic(id, weight, ev === "ADERENTE" ? weight : 0, ev !== "NA" && ev !== "PENDENTE");
       }
 
       // applicable=false -> N/A (exclui o tópico do score). applicable=true -> ganha o peso cheio se ok=true, senão 0.
@@ -4547,34 +4599,6 @@ function hydrateFromPowerBI() {
     document.addEventListener("DOMContentLoaded", function() {
       hydrateFromPowerBI();
       if (typeof updateFromURLParams === "function") updateFromURLParams();
-
-      (function appendPostHydrateDebug() {
-        var el = document.getElementById("debugUserInfo");
-        if (!el) return;
-        var params = new URLSearchParams(window.location.search);
-        var rawOS = params.get("SelectedOS") || "";
-        var activeOS = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOS) : rawOS;
-        var c = (window.ACTIVE_CONTRACTS_CATALOG || []).filter(function(x) { return x.code === activeOS; })[0];
-        var mhAttached = c && c.monthHistory ? Object.keys(c.monthHistory).length : 0;
-        el.textContent += " | catalogLen=" + (window.ACTIVE_CONTRACTS_CATALOG || []).length + " | contractFound=" + (!!c) + " | monthHistoryAttached(meses)=" + mhAttached;
-
-        var rawEl = document.createElement("div");
-        rawEl.id = "debugRawMonthHistory";
-        rawEl.style.cssText = "font:10px monospace; color:#fbbf24; background:#0f172a; padding:2px 10px; white-space:nowrap; overflow-x:auto;";
-        var rawParam = params.get("OSMonthHistory") || "(vazio)";
-        rawEl.textContent = "RAW OSMonthHistory: " + rawParam;
-        el.parentNode.insertBefore(rawEl, el.nextSibling);
-
-        if (c && c.monthHistory) {
-          var m1 = c.monthHistory[1], m3 = c.monthHistory[3];
-          var parsedEl = document.createElement("div");
-          parsedEl.id = "debugParsedMonths";
-          parsedEl.style.cssText = "font:10px monospace; color:#86efac; background:#0f172a; padding:2px 10px 6px 10px; white-space:nowrap; overflow-x:auto;";
-          parsedEl.textContent = "Mes1.fatDifAnoPct=" + (m1 ? m1.fatDifAnoPct : "N/A") + " fatAnoRealV=" + (m1 ? m1.fatAnoRealV : "N/A") +
-            " | Mes3.fatDifAnoPct=" + (m3 ? m3.fatDifAnoPct : "N/A") + " fatAnoRealV=" + (m3 ? m3.fatAnoRealV : "N/A");
-          rawEl.parentNode.insertBefore(parsedEl, rawEl.nextSibling);
-        }
-      })();
 
       var eligibleCountStr = ACTIVE_CONTRACTS_CATALOG.length + "";
       ["bannerEligibleOSCount", "rankingHeaderOSCount", "slaModalOSCount"].forEach(function(id) {
