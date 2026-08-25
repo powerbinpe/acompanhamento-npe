@@ -207,6 +207,8 @@
     </div>
   </div>
 
+  <div id="debugUserInfo" style="font:11px monospace; color:#94a3b8; background:#0f172a; padding:3px 10px; white-space:nowrap; overflow-x:auto;"></div>
+
   <!-- Banner Informativo -->
   <div class="sim-banner">
     ℹ️ <strong>Painel Integrado NPE:</strong> Selecione a OS e o Mês nos filtros do Power BI para atualizar o acompanhamento em tempo real! (<span id="bannerEligibleOSCount">68</span> Contratos Operacionais Elegíveis)
@@ -1063,6 +1065,13 @@ function hydrateFromPowerBI() {
       window.isMaster = isUserAuthorizedMaster();
       window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
     }
+
+    (function renderDebugUserInfo() {
+      var el = document.getElementById("debugUserInfo");
+      if (!el) return;
+      var p = new URLSearchParams(window.location.search);
+      el.textContent = "Debug: UserEmail=\"" + (p.get("UserEmail") || "") + "\" | IsUserPerformance=" + (p.get("IsUserPerformance") || "") + " | SimRoleOverride=" + (p.get("SimRoleOverride") || "") + " | savedRoleAtStart=" + (savedRoleAtStart || "(nenhum)") + " | Papel resolvido=" + window.currentRoleSimulated;
+    })();
 
     var _roleToggleLock = false;
 
