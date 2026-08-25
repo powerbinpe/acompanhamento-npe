@@ -3859,7 +3859,11 @@ function hydrateFromPowerBI() {
         pesPts: sumTopics(["t9", "t10", "t11", "t12", "t13", "t14"]),
         ssmaPts: sumTopics(["t15", "t16", "t19", "t17", "t20"]),
         monthScore: parseFloat(finalNormalizedScore.toFixed(1)),
-        isDefinedPeriod: (periodStatus === "NO_PRAZO" || periodStatus === "FORA_PRAZO")
+        // Mês teve algum tópico aplicável (dado real apurado) -- critério para entrar na média
+        // acumulada. Não usa mais o status de Prazo (isDefinedPeriod antigo), pois Prazo ainda
+        // não foi configurado retroativamente e isso zerava a contagem de meses avaliados,
+        // fazendo a média acumulada colapsar sempre para o valor do mês atual.
+        hasEvaluableData: maxPossiblePoints > 0
       };
     }
 
@@ -3899,7 +3903,7 @@ function hydrateFromPowerBI() {
 
         for (var m = 1; m <= selMonthNum; m++) {
           var scM = calculateOSScore(contract, m);
-          if (scM.isDefinedPeriod) {
+          if (scM.hasEvaluableData) {
             evaluatedMonthsCount++;
             totalScoreSum += scM.monthScore;
           }
