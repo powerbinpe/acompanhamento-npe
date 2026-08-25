@@ -211,6 +211,7 @@
     ℹ️ <strong>Painel Integrado NPE:</strong> Selecione a OS e o Mês nos filtros do Power BI para atualizar o acompanhamento em tempo real! (<span id="bannerEligibleOSCount">68</span> Contratos Operacionais Elegíveis)
   </div>
 
+
   <!-- ========================================================================= -->
   <!-- ABA 1: ACOMPANHAMENTO MENSAL -->
   <!-- ========================================================================= -->
@@ -253,61 +254,6 @@
         ></textarea>
       </div>
     </div>
-  </div>
-
-  <!-- ========================================================================= -->
-  <!-- ABA 3: CONSOLIDAÇÃO ANUAL -->
-  <!-- ========================================================================= -->
-  <div id="tabConsolidacao" class="tab-page">
-    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #3b82f6; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-      <div>
-        <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
-          📊 Aba 3: Consolidação Anual de Performance
-        </h2>
-        <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
-          Visão financeira e operacional consolidada do exercício 2026 • Acompanhamento corporativo de todas as OSs
-        </p>
-      </div>
-      <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
-        <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS ELEGÍVEIS</span>
-        <div id="tab2TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
-      </div>
-    </div>
-
-    <!-- Cards de Resumo Corporativo Anual -->
-    <div id="annualSummaryCardsContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:24px;"></div>
-
-    <!-- Resumos por Superintendência e Negócio -->
-    <div id="tab2ExecutiveSummariesContainer"></div>
-  </div>
-
-  <!-- ========================================================================= -->
-  <!-- ABA 4: LIÇÕES APRENDIDAS & GESTÃO DE RISCO -->
-  <!-- ========================================================================= -->
-  <div id="tabLicoes" class="tab-page">
-    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #10b981; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-      <div>
-        <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
-          💡 Aba 4: Lições Aprendidas & Gestão de Risco
-        </h2>
-        <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
-          Visão corporativa de todas as OSs elegíveis, apurada com dados reais do mês -- não considera o filtro de OS/Gestor do Power BI, pois estas lições precisam ser visíveis para todos.
-        </p>
-      </div>
-      <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
-        <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS</span>
-        <div id="tab3TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
-      </div>
-    </div>
-
-    <!-- Destaques reais (top performers por categoria) -->
-    <div id="tab3BestPracticesContainer" style="margin-bottom:24px;"></div>
-
-    <!-- Pontos de atenção e riscos reais (piores desempenhos e ocorrências de segurança) -->
-    <div id="tab3RiskAlertsContainer" style="margin-bottom:24px;"></div>
-
-    <!-- Resumos por Superintendência e Negócio -->
-    <div id="tab3ExecutiveSummariesContainer"></div>
   </div>
 
   <!-- ========================================================================= -->
@@ -371,6 +317,62 @@
     <!-- Resumos por Superintendência e Negócio -->
     <div id="tab4ExecutiveSummariesContainer"></div>
   </div>
+
+  <!-- ========================================================================= -->
+  <!-- ABA 3: CONSOLIDAÇÃO ANUAL -->
+  <!-- ========================================================================= -->
+  <div id="tabConsolidacao" class="tab-page">
+    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #3b82f6; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+      <div>
+        <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
+          📊 Aba 3: Consolidação Anual de Performance
+        </h2>
+        <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
+          Visão financeira e operacional consolidada do exercício 2026 • Acompanhamento corporativo de todas as OSs
+        </p>
+      </div>
+      <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
+        <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS ELEGÍVEIS</span>
+        <div id="tab2TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
+      </div>
+    </div>
+
+    <!-- Cards de Resumo Corporativo Anual -->
+    <div id="annualSummaryCardsContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:24px;"></div>
+
+    <!-- Resumos por Superintendência e Negócio -->
+    <div id="tab2ExecutiveSummariesContainer"></div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- ABA 4: LIÇÕES APRENDIDAS & GESTÃO DE RISCO -->
+  <!-- ========================================================================= -->
+  <div id="tabLicoes" class="tab-page">
+    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #10b981; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+      <div>
+        <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
+          💡 Aba 4: Lições Aprendidas & Gestão de Risco
+        </h2>
+        <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
+          Visão corporativa de todas as OSs elegíveis, apurada com dados reais do mês -- não considera o filtro de OS/Gestor do Power BI, pois estas lições precisam ser visíveis para todos.
+        </p>
+      </div>
+      <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
+        <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS</span>
+        <div id="tab3TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
+      </div>
+    </div>
+
+    <!-- Destaques reais (top performers por categoria) -->
+    <div id="tab3BestPracticesContainer" style="margin-bottom:24px;"></div>
+
+    <!-- Pontos de atenção e riscos reais (piores desempenhos e ocorrências de segurança) -->
+    <div id="tab3RiskAlertsContainer" style="margin-bottom:24px;"></div>
+
+    <!-- Resumos por Superintendência e Negócio -->
+    <div id="tab3ExecutiveSummariesContainer"></div>
+  </div>
+
 
   <!-- Modal Qualitativo -->
   <div id="qualEvalModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:center; padding:20px;">
@@ -712,7 +714,10 @@ function hydrateOSCommentHistoryFromPowerBI(params) {
     var sep = topicRows[i].indexOf("^");
     if (sep === -1) continue;
     var tid = topicRows[i].slice(0, sep);
-    var text = topicRows[i].slice(sep + 1);
+    // Remove prefixos "[Nome do Indicador]" que às vezes vêm embutidos no texto original do
+    // ComentarioGestor -- o card que exibe a justificativa já mostra o nome do indicador no
+    // próprio título, então repetir aqui só deixa o texto mais longo à toa.
+    var text = topicRows[i].slice(sep + 1).replace(/\[[^\]]*\]\s*/g, "");
     if (tid && text) summary[tid] = text;
   }
   return summary;
@@ -748,6 +753,13 @@ var TOPIC_INDICATOR_MAP = [
 // Pontuação acumulada no ano (Jan até o mês selecionado) por tópico, para um grupo de contratos,
 // lendo diretamente o breakdown já calculado por calculateOSScore mês a mês (a mesma apuração da
 // Aba 2) -- a nota é sempre a apurada mês a mês; aqui só somamos/mediamos ao longo do ano.
+// Entradas de Prazo/Preenchimento no mesmo formato do TOPIC_INDICATOR_MAP, para que
+// computeTopicIndicatorBreakdown trate a categoria "Gestão e Acompanhamento" igual às demais.
+var ACOMP_INDICATOR_MAP = [
+  { id: "prazo", name: "Pontualidade do Acompanhamento", scoreId: "prazo" },
+  { id: "preenchimento", name: "Preenchimento do Acompanhamento", scoreId: "preenchimento" }
+];
+
 function computeTopicIndicatorBreakdown(contracts, selMonthNum) {
   var allScores = contracts.map(function(c) {
     var monthly = [];
@@ -755,7 +767,7 @@ function computeTopicIndicatorBreakdown(contracts, selMonthNum) {
     return monthly;
   });
 
-  return TOPIC_INDICATOR_MAP.map(function(topic) {
+  return TOPIC_INDICATOR_MAP.concat(ACOMP_INDICATOR_MAP).map(function(topic) {
     var earnedSum = 0, maxSum = 0, okCount = 0, totalCount = 0;
     allScores.forEach(function(monthly) {
       monthly.forEach(function(sc) {
@@ -1383,45 +1395,6 @@ function hydrateFromPowerBI() {
       { mes: "JULHO / 2026 (Atual)", text: "🟢 FECHAMENTO DO PERÍODO: Contrato com superávit de resultado (+0,08% na margem) e aditivo de renovação em fase final. Desempenho geral aprovado com distinção pelo Setor de Performance." }
     ];
 
-    function switchTab(tabId) {
-      if (typeof tabId === 'number') {
-        const tabMap = { 1: 'tabMensal', 2: 'tabConsolidacao', 3: 'tabLicoes', 4: 'tabRanking' };
-        tabId = tabMap[tabId] || 'tabMensal';
-      }
-
-      safeSetStorage('pbi_active_tab', tabId);
-
-      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-      
-      const p1 = document.getElementById("tabMensal") || document.getElementById("tabContent1");
-      const p2 = document.getElementById("tabConsolidacao") || document.getElementById("tabContent2");
-      const p3 = document.getElementById("tabLicoes") || document.getElementById("tabContent3");
-      const p4 = document.getElementById("tabRanking") || document.getElementById("tabContent4");
-
-      if (p1) { p1.style.display = "none"; p1.classList.remove("active"); }
-      if (p2) { p2.style.display = "none"; p2.classList.remove("active"); }
-      if (p3) { p3.style.display = "none"; p3.classList.remove("active"); }
-      if (p4) { p4.style.display = "none"; p4.classList.remove("active"); }
-
-      const btns = document.querySelectorAll(".tab-btn");
-
-      if (tabId === 'tabMensal') {
-        if (btns[0]) btns[0].classList.add("active");
-        if (p1) { p1.style.display = "block"; p1.classList.add("active"); }
-      } else if (tabId === 'tabConsolidacao') {
-        if (btns[1]) btns[1].classList.add("active");
-        if (p2) { p2.style.display = "block"; p2.classList.add("active"); }
-        if (typeof renderAnnualConsolidation === "function") renderAnnualConsolidation();
-      } else if (tabId === 'tabLicoes') {
-        if (btns[2]) btns[2].classList.add("active");
-        if (p3) { p3.style.display = "block"; p3.classList.add("active"); }
-        if (typeof renderTab3Licoes === "function") renderTab3Licoes();
-      } else if (tabId === 'tabRanking') {
-        if (btns[3]) btns[3].classList.add("active");
-        if (p4) { p4.style.display = "block"; p4.classList.add("active"); }
-        renderTab4Scorecard();
-      }
-    }
 
             
         function formatPercentStrict(raw) {
@@ -3206,8 +3179,11 @@ function hydrateFromPowerBI() {
         }
 
         function buildTopicIndicatorCardHTML(t, commentHistory, contractCode) {
-          var catColor = topicCategoryColor("t" + t.id);
-          var text = commentHistory ? commentHistory[String(t.id)] : null;
+          var isAcompTopic = (t.id === "prazo" || t.id === "preenchimento");
+          var catColor = topicCategoryColor(isAcompTopic ? t.id : ("t" + t.id));
+          // Prazo/Preenchimento não têm ComentarioGestor próprio no ATA_COMENTARIO (não são
+          // tópicos de comentário) -- sem citação de justificativa para eles.
+          var text = (commentHistory && !isAcompTopic) ? commentHistory[String(t.id)] : null;
 
           var body;
           if (t.maxSum === 0) {
@@ -3236,7 +3212,7 @@ function hydrateFromPowerBI() {
 
           return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-left:4px solid ' + catColor + '; padding:14px 16px; box-shadow:0 1px 4px rgba(15,43,92,0.06);">' +
             '<div style="display:flex; justify-content:space-between; align-items:baseline;">' +
-              '<span style="font-size:0.92rem; font-weight:800; color:#1e293b;">' + t.id + '. ' + t.name + '</span>' +
+              '<span style="font-size:0.92rem; font-weight:800; color:#1e293b;">' + (isAcompTopic ? t.name : (t.id + '. ' + t.name)) + '</span>' +
               '<span style="font-size:0.74rem; font-weight:700; color:#94a3b8;">' + t.weight + ' pts</span>' +
             '</div>' +
             body +
@@ -3250,7 +3226,9 @@ function hydrateFromPowerBI() {
           breakdown.forEach(function(t) { byId[t.id] = t; });
 
           var groupsHTML = SCORE_CATEGORIES.map(function(cat) {
-            var topicIds = cat.topics.filter(function(tid) { return tid.charAt(0) === "t"; }).map(function(tid) { return parseInt(tid.slice(1), 10); });
+            // "prazo"/"preenchimento" ficam com seu id de string (chave usada no score); os
+            // demais tópicos (t1..t21) viram o número usado em TOPIC_INDICATOR_MAP/byId.
+            var topicIds = cat.topics.map(function(tid) { return (tid === "prazo" || tid === "preenchimento") ? tid : parseInt(tid.slice(1), 10); });
             var cards = topicIds.filter(function(id) { return byId[id]; }).map(function(id) {
               return buildTopicIndicatorCardHTML(byId[id], commentHistory, contract ? contract.code : "");
             }).join("");
@@ -3444,7 +3422,7 @@ function hydrateFromPowerBI() {
         '</div>';
       } else if (tabType === "ranking") {
         osTopicHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:16px 20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); margin-top:24px; margin-bottom:24px; font-size:0.85rem; color:#64748b;">📊 Selecione uma OS específica no Power BI para ver a apuração mês a mês de cada um dos 21 indicadores.</div>';
-      } else {
+      } else if (tabType === "consolidacao") {
         var osTopicBreakdown = computeTopicIndicatorBreakdown(osScopeContracts, selMonthNum);
         osTopicHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); margin-top:24px; margin-bottom:24px;">' +
           '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
@@ -3454,6 +3432,11 @@ function hydrateFromPowerBI() {
           '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontuação acumulada de Janeiro até o mês selecionado, da(s) OS(s) selecionada(s) no Power BI, apurada mês a mês na Aba 2. Os cards de Superintendência/Negócio abaixo mostram apenas a média do grupo, como referência de comparação.</div>' +
           '<div style="overflow-x:auto;">' + buildTopicIndicatorTableHTML(osTopicBreakdown, activeContract) + '</div>' +
         '</div>';
+      } else {
+        // tabType === "licoes": Lições Aprendidas já tem seu próprio conteúdo completo (destaques
+        // reais + riscos), montado em renderTab3Licoes() -- não repete o resumo de indicadores
+        // aqui, e não usa activeContract/osScopeContracts (essa aba ignora o filtro de OS).
+        osTopicHTML = "";
       }
 
       container.innerHTML = osTopicHTML + supsHTML + negsHTML;
