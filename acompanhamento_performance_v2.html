@@ -3176,54 +3176,63 @@ function hydrateFromPowerBI() {
           return '#94a3b8';
         }
 
-        function buildTopicIndicatorTableHTML(breakdown, contract) {
-          var commentHistory = (contract && contract.commentHistory) ? contract.commentHistory : null;
+        function buildTopicIndicatorCardHTML(t, commentHistory, contractCode) {
+          var catColor = topicCategoryColor("t" + t.id);
+          var text = commentHistory ? commentHistory[String(t.id)] : null;
 
-          function commentRowHTML(t, rowBg) {
-            var text = commentHistory ? commentHistory[String(t.id)] : null;
-            if (!text) return "";
-            return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' +
-              '<td colspan="3" style="padding:0 16px 10px 16px;">' +
-                '<div style="font-size:0.76rem; font-weight:700; color:#1e40af; margin-bottom:4px;">📝 Justificativas do ano (' + contract.code + ')</div>' +
-                '<div style="padding:8px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.80rem; color:#475569; line-height:1.5;">' + text + '</div>' +
-              '</td></tr>';
-          }
-
-          var rows = breakdown.map(function(t, idx) {
-            var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
-            var accentColor = topicCategoryColor("t" + t.id);
-            var nameCell = '<td style="padding:12px 16px; font-size:1.0rem; color:#1e293b; font-weight:700; border-left:4px solid ' + accentColor + ';">' + t.id + '. ' + t.name + ' <span style="color:#94a3b8; font-weight:600; font-size:0.82rem;">(' + t.weight + ' pts)</span></td>';
-
-            if (t.maxSum === 0) {
-              return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' + nameCell +
-                '<td colspan="2" style="padding:12px 16px; font-size:0.88rem; color:#94a3b8; text-align:center; font-style:italic;">Sem dado apurado no ano</td></tr>' +
-                commentRowHTML(t, rowBg);
-            }
-
+          var body;
+          if (t.maxSum === 0) {
+            body = '<div style="padding:14px 0 4px; font-size:0.84rem; color:#94a3b8; font-style:italic; text-align:center;">Sem dado apurado no ano</div>';
+          } else {
             var tier = scoreTier(t.pctAvg);
             var pillBg = t.okCount === t.totalCount ? '#dcfce7' : (t.okCount === 0 ? '#fee2e2' : '#fef9c3');
             var pillFg = t.okCount === t.totalCount ? '#15803d' : (t.okCount === 0 ? '#b91c1c' : '#b45309');
-            return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' + nameCell +
-              '<td style="padding:12px 16px;">' +
-                '<div style="display:flex; align-items:center; gap:10px;">' +
-                  '<div style="flex:1; height:11px; background:#e2e8f0; border-radius:6px; overflow:hidden;"><div style="width:' + t.pctAvg.toFixed(0) + '%; height:100%; background:' + tier.main + '; border-radius:6px;"></div></div>' +
-                  '<span style="font-weight:800; font-size:0.95rem; color:' + tier.dark + '; min-width:38px; text-align:right;">' + t.pctAvg.toFixed(0) + '%</span>' +
-                '</div>' +
-                '<div style="font-size:0.78rem; color:#94a3b8; margin-top:3px; font-weight:600;">' + t.earnedSum.toFixed(1) + ' / ' + t.maxSum.toFixed(1) + ' pts</div>' +
-              '</td>' +
-              '<td style="padding:12px 16px; text-align:center;">' +
-                '<span style="display:inline-block; padding:5px 12px; border-radius:20px; font-weight:800; font-size:0.86rem; background:' + pillBg + '; color:' + pillFg + ';">' + t.okCount + ' de ' + t.totalCount + '</span>' +
-              '</td></tr>' +
-              commentRowHTML(t, rowBg);
+            body =
+              '<div style="display:flex; align-items:center; gap:10px; margin-top:8px;">' +
+                '<div style="flex:1; height:12px; background:#eef2f7; border-radius:6px; overflow:hidden;"><div style="width:' + t.pctAvg.toFixed(0) + '%; height:100%; background:' + tier.main + '; border-radius:6px; transition:width 0.5s ease;"></div></div>' +
+                '<span style="font-weight:900; font-size:1.05rem; color:' + tier.dark + '; min-width:44px; text-align:right;">' + t.pctAvg.toFixed(0) + '%</span>' +
+              '</div>' +
+              '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">' +
+                '<span style="font-size:0.80rem; color:#64748b; font-weight:700;">' + t.earnedSum.toFixed(1) + ' / ' + t.maxSum.toFixed(1) + ' pts</span>' +
+                '<span style="display:inline-block; padding:4px 11px; border-radius:20px; font-weight:800; font-size:0.78rem; background:' + pillBg + '; color:' + pillFg + ';">' + t.okCount + ' de ' + t.totalCount + ' meses</span>' +
+              '</div>';
+          }
+
+          var commentBlock = text
+            ? '<div style="margin-top:10px; padding:9px 11px; background:#eff6ff; border:1px solid #bfdbfe; border-left:3px solid #2563eb; border-radius:6px;">' +
+                '<div style="font-size:0.70rem; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:3px;">📝 Justificativas do ano</div>' +
+                '<div style="font-size:0.78rem; color:#334155; line-height:1.5;">' + text + '</div>' +
+              '</div>'
+            : '';
+
+          return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-left:4px solid ' + catColor + '; padding:14px 16px; box-shadow:0 1px 4px rgba(15,43,92,0.06);">' +
+            '<div style="display:flex; justify-content:space-between; align-items:baseline;">' +
+              '<span style="font-size:0.92rem; font-weight:800; color:#1e293b;">' + t.id + '. ' + t.name + '</span>' +
+              '<span style="font-size:0.74rem; font-weight:700; color:#94a3b8;">' + t.weight + ' pts</span>' +
+            '</div>' +
+            body +
+            commentBlock +
+          '</div>';
+        }
+
+        function buildTopicIndicatorTableHTML(breakdown, contract) {
+          var commentHistory = (contract && contract.commentHistory) ? contract.commentHistory : null;
+          var byId = {};
+          breakdown.forEach(function(t) { byId[t.id] = t; });
+
+          var groupsHTML = SCORE_CATEGORIES.map(function(cat) {
+            var topicIds = cat.topics.filter(function(tid) { return tid.charAt(0) === "t"; }).map(function(tid) { return parseInt(tid.slice(1), 10); });
+            var cards = topicIds.filter(function(id) { return byId[id]; }).map(function(id) {
+              return buildTopicIndicatorCardHTML(byId[id], commentHistory, contract ? contract.code : "");
+            }).join("");
+            if (!cards) return "";
+            return '<div style="margin-bottom:18px;">' +
+              '<div style="padding:7px 14px; font-size:0.78rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.4px; border-radius:6px; margin-bottom:10px;">' + cat.icon + ' ' + cat.label + '</div>' +
+              '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px;">' + cards + '</div>' +
+            '</div>';
           }).join("");
 
-          return '<table style="width:100%; border-collapse:collapse; margin-top:8px; table-layout:fixed; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(15,43,92,0.08);">' +
-            '<colgroup><col style="width:38%;"><col style="width:38%;"><col style="width:24%;"></colgroup>' +
-            '<thead><tr style="background:#0f2b5c; color:#ffffff;">' +
-              '<th style="padding:12px 16px; font-size:0.84rem; text-align:left;">TÓPICO (PESO)</th>' +
-              '<th style="padding:12px 16px; font-size:0.84rem;">PONTUAÇÃO ACUMULADA NO ANO</th>' +
-              '<th style="padding:12px 16px; font-size:0.84rem;">MESES CONFORME</th>' +
-            '</tr></thead><tbody>' + rows + '</tbody></table>';
+          return '<div style="margin-top:8px;">' + groupsHTML + '</div>';
         }
 
         function buildOSVsGroupCompareHTML(contract, groupStats, selMonthNum) {
@@ -3458,28 +3467,23 @@ function hydrateFromPowerBI() {
         badgeTotal.innerText = isMultiOS ? (ACTIVE_CONTRACTS_CATALOG.length + " Contratos Ativos") : "1 Contrato Selecionado (OS " + activeOSFilter + ")";
       }
 
+      function kpiCard(icon, iconBg, label, val, sub, subColor) {
+        return '<div style="background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%); border-radius:14px; border:1px solid #e2e8f0; padding:18px 20px; box-shadow:0 3px 10px rgba(15,43,92,0.08); display:flex; gap:14px; align-items:flex-start;">' +
+          '<div style="flex-shrink:0; width:44px; height:44px; border-radius:12px; background:' + iconBg + '; display:flex; align-items:center; justify-content:center; font-size:1.3rem;">' + icon + '</div>' +
+          '<div style="min-width:0;">' +
+            '<div style="font-size:0.76rem; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.3px;">' + label + '</div>' +
+            '<div style="color:#0f2b5c; font-size:1.65rem; font-weight:900; margin:3px 0 2px; line-height:1.1;">' + val + '</div>' +
+            '<div style="color:' + subColor + '; font-weight:700; font-size:0.82rem;">' + sub + '</div>' +
+          '</div></div>';
+      }
+
       var cardsCont = document.getElementById("annualSummaryCardsContainer");
       if (cardsCont) {
-        cardsCont.innerHTML = '<div class="summary-card" style="background:#ffffff; border:2.5px solid #162b58; border-radius:12px; padding:18px; border-left:5px solid #2563eb;">' +
-          '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">💰 Faturamento Anual ' + (isMultiOS ? ('(' + ACTIVE_CONTRACTS_CATALOG.length + ' OSs)') : ('(OS ' + activeOSFilter + ')')) + '</div>' +
-          '<div style="color:#0f2b5c; font-size:1.75rem; font-weight:900; margin:4px 0;">' + fatVal + '</div>' +
-          '<div style="color:' + fatSubColor + '; font-weight:700; font-size:0.88rem;">' + fatSub + '</div>' +
-          '</div>' +
-          '<div class="summary-card" style="background:#ffffff; border:2.5px solid #162b58; border-radius:12px; padding:18px; border-left:5px solid #16a34a;">' +
-          '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">📈 Resultado Bruto Anual</div>' +
-          '<div style="color:#15803d; font-size:1.75rem; font-weight:900; margin:4px 0;">' + resVal + '</div>' +
-          '<div style="color:' + resSubColor + '; font-weight:700; font-size:0.88rem;">' + resSub + '</div>' +
-          '</div>' +
-          '<div class="summary-card" style="background:#ffffff; border:2.5px solid #162b58; border-radius:12px; padding:18px; border-left:5px solid #f59e0b;">' +
-          '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">👥 Efetivo Total em Campo</div>' +
-          '<div style="color:#0f2b5c; font-size:1.75rem; font-weight:900; margin:4px 0;">' + efVal + '</div>' +
-          '<div style="color:#475569; font-size:0.88rem; font-weight:600;">' + efSub + '</div>' +
-          '</div>' +
-          '<div class="summary-card" style="background:#ffffff; border:2.5px solid #162b58; border-radius:12px; padding:18px; border-left:5px solid #0284c7;">' +
-          '<div style="font-size:0.95rem; font-weight:700; color:#475569; text-transform:uppercase;">🛡️ Conformidade Governança</div>' +
-          '<div style="color:#0284c7; font-size:1.75rem; font-weight:900; margin:4px 0;">' + govVal + '</div>' +
-          '<div style="color:#15803d; font-weight:700; font-size:0.88rem;">' + govSub + '</div>' +
-          '</div>';
+        cardsCont.innerHTML =
+          kpiCard("💰", "#dbeafe", "Faturamento Anual " + (isMultiOS ? ('(' + ACTIVE_CONTRACTS_CATALOG.length + ' OSs)') : ('(OS ' + activeOSFilter + ')')), fatVal, fatSub, fatSubColor) +
+          kpiCard("📈", "#dcfce7", "Resultado Bruto Anual", resVal, resSub, resSubColor) +
+          kpiCard("👥", "#fef3c7", "Efetivo Total em Campo", efVal, efSub, "#475569") +
+          kpiCard("🛡️", "#e0f2fe", "Conformidade Governança", govVal, govSub, "#15803d");
       }
 
       renderSuperintendenciaAndNegocioSummary("tab2ExecutiveSummariesContainer", "consolidacao");
