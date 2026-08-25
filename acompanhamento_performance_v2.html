@@ -291,7 +291,7 @@
           💡 Aba 4: Lições Aprendidas & Gestão de Risco
         </h2>
         <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
-          Banco de Boas Práticas, Ações Preventivas e Planos de Mitigação de Riscos Operacionais e Financeiros
+          Visão corporativa de todas as OSs elegíveis, apurada com dados reais do mês -- não considera o filtro de OS/Gestor do Power BI, pois estas lições precisam ser visíveis para todos.
         </p>
       </div>
       <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
@@ -300,8 +300,11 @@
       </div>
     </div>
 
-    <!-- Tabela de Boas Práticas -->
+    <!-- Destaques reais (top performers por categoria) -->
     <div id="tab3BestPracticesContainer" style="margin-bottom:24px;"></div>
+
+    <!-- Pontos de atenção e riscos reais (piores desempenhos e ocorrências de segurança) -->
+    <div id="tab3RiskAlertsContainer" style="margin-bottom:24px;"></div>
 
     <!-- Resumos por Superintendência e Negócio -->
     <div id="tab3ExecutiveSummariesContainer"></div>
@@ -3518,72 +3521,158 @@ function hydrateFromPowerBI() {
     // =========================================================================
     // 9. ABA 4: LIÇÕES APRENDIDAS & GESTÃO DE RISCO
     // =========================================================================
+        // Dicas de ação por tópico -- usadas para transformar um tópico fraco identificado nos dados
+        // reais em uma recomendação legível, tanto para a própria OS (não repetir) quanto para as
+        // demais (evitar cometer o mesmo erro).
+        var LICOES_TOPIC_HINTS = {
+          t1: "Revisar premissas de faturamento anual junto ao Executivo/FCST para reduzir o desvio.",
+          t2: "Reavaliar a composição de custos e margem para aproximar o resultado real da meta.",
+          t3: "Ajustar a curva de faturamento do mês ao cronograma real de medição do cliente.",
+          t4: "Refinar a assertividade das projeções de FCST mês a mês.",
+          t5: "Tratar notificações/SLA do cliente com mais agilidade para evitar reincidência.",
+          t6: "Investigar causas de perda de receita (indisponibilidade, glosas) e agir preventivamente.",
+          t7: "Formalizar o acompanhamento de receita ideal junto ao cliente.",
+          t8: "Revisar processos que geram indenização e reforçar controles preventivos.",
+          t9: "Ajustar o dimensionamento de efetivo real x executivo.",
+          t10: "Rever o planejamento de HHT para reduzir o desvio real x executivo.",
+          t11: "Reforçar ações de engajamento e controle de absenteísmo.",
+          t12: "Revisar políticas de retenção para reduzir o turnover.",
+          t13: "Controlar banco de horas para reduzir o excesso de horas extras.",
+          t14: "Planejar férias com antecedência para evitar acúmulo.",
+          t15: "Reforçar treinamentos e inspeções preventivas de segurança (SAF).",
+          t16: "Investigar a causa raiz das ocorrências (CAF) e reforçar o plano de ação preventivo.",
+          t17: "Realizar pesquisa de satisfação e agir sobre os pontos levantados pelo cliente.",
+          t18: "Regularizar LTCAT/LIPAE dentro do prazo contratual.",
+          t19: "Manter PBI/PBD atualizados conforme exigido pelo cliente.",
+          t20: "Mapear e submeter boas práticas para reconhecimento do cliente.",
+          t21: "Atualizar a matriz de gestão de risco do contrato.",
+          prazo: "Registrar o acompanhamento mensal dentro do prazo definido pela Performance.",
+          preenchimento: "Preencher todas as justificativas do mês antes do fechamento do ciclo."
+        };
+
+        function licoesTopicLabel(id) {
+          if (id === "prazo") return "Pontualidade do Acompanhamento";
+          if (id === "preenchimento") return "Preenchimento do Acompanhamento";
+          var t = TOPIC_INDICATOR_MAP.filter(function(x) { return x.scoreId === id; })[0];
+          return t ? t.name : id;
+        }
+
+        // Aba intencionalmente sem filtro de OS/Gestor -- lições e riscos precisam refletir o
+        // panorama completo, não apenas a OS selecionada no relatório. Usa dados reais apurados
+        // por calculateOSScore (mesma apuração da Aba 2), nunca texto mockado.
         function renderTab3Licoes() {
       var currentParams = new URLSearchParams(window.location.search);
-      var rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
-      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
-      var activeOSFilter = !isMultiOS ? extractPrimaryOSCode(rawOS) : "";
-
-      var allBPData = [
-        { os: "M00100", cliente: "CBMM - ARAXÁ", pilar: "Financeiro & Produtividade", color: "#15803d", texto: "Otimização de apontamentos e avanço diário de frentes de eletromecânica garantindo superávit de medição física." },
-        { os: "M02800", cliente: "VALE - VITORIA TUBARAO", pilar: "SSMA & Pessoas", color: "#1e40af", texto: "Implementação de DDS temático focado em percepção de risco e controle preventivo de horas extras em paradas." },
-        { os: "F09900", cliente: "MOSAIC - UBERABA", pilar: "Planejamento & Custos", color: "#d97706", texto: "Redução de custos indiretos através da otimização de rotas de transporte e alojamento dos colaboradores de parada." }
-      ];
-
-      var bpToRender = allBPData;
-      if (activeOSFilter) {
-        var filtered = allBPData.filter(function(b) { return extractPrimaryOSCode(b.os) === activeOSFilter; });
-        if (filtered.length > 0) {
-          bpToRender = filtered;
-        } else {
-          // If no pre-canned BP for this OS, create dynamic record
-          var cInfo = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; }) || { name: activeOSFilter };
-          bpToRender = [{
-            os: activeOSFilter,
-            cliente: cInfo.name,
-            pilar: "Operacional & Performance",
-            color: "#15803d",
-            texto: "Acompanhamento rigoroso de avanço físico, cumprimento do cronograma de manutenção e metas de segurança operacional."
-          }];
-        }
-      }
+      var selMonthNum = parseInt(currentParams.get("SelectedMesNo"), 10) || 7;
+      var monthNamesFull = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+      var monthLabel = monthNamesFull[selMonthNum] || "Julho";
 
       var badgeTotal = document.getElementById("tab3TotalEligibleOSBadge");
-      if (badgeTotal) {
-        badgeTotal.innerText = isMultiOS ? (ACTIVE_CONTRACTS_CATALOG.length + " Contratos Ativos") : "1 Contrato Selecionado (OS " + activeOSFilter + ")";
+      if (badgeTotal) badgeTotal.innerText = ACTIVE_CONTRACTS_CATALOG.length + " Contratos Ativos (Visão Corporativa Completa)";
+
+      var scored = ACTIVE_CONTRACTS_CATALOG.map(function(c) {
+        return { contract: c, score: calculateOSScore(c, selMonthNum) };
+      }).filter(function(x) { return x.score.hasEvaluableData; });
+
+      function weakTopicsOf(topics) {
+        var weak = [];
+        for (var id in topics) {
+          var t = topics[id];
+          if (t.applicable && t.earned < t.max - 0.01) weak.push({ id: id, label: licoesTopicLabel(id), lost: t.max - t.earned, max: t.max });
+        }
+        weak.sort(function(a, b) { return b.lost - a.lost; });
+        return weak;
+      }
+      function strongTopicsOf(topics) {
+        var strong = [];
+        for (var id in topics) {
+          var t = topics[id];
+          if (t.applicable && t.max > 0 && t.earned >= t.max - 0.01) strong.push({ id: id, label: licoesTopicLabel(id), max: t.max });
+        }
+        strong.sort(function(a, b) { return b.max - a.max; });
+        return strong;
+      }
+      // Se a OS destacada for a que está atualmente selecionada no Power BI, aproveita o
+      // comentário real do Gestor daquele tópico como evidência -- só existe para 1 OS por vez
+      // (limitação da medida DAX de histórico de comentários, que é single-OS).
+      function realQuoteFor(contract, topicId) {
+        if (!contract.commentHistory) return null;
+        var numId = topicId.charAt(0) === "t" ? topicId.slice(1) : null;
+        if (!numId) return null;
+        var txt = contract.commentHistory[numId];
+        return (txt && txt.trim().length > 3) ? txt : null;
       }
 
-      var rowsHTML = "";
-      bpToRender.forEach(function(b, idx) {
-        var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
-        rowsHTML += '<tr style="border-bottom:1px solid #e2e8f0; background:' + rowBg + ';">' +
-          '<td style="padding:10px; font-weight:800; color:#0f2b5c;">' + b.os + '</td>' +
-          '<td style="padding:10px; font-weight:600;">' + b.cliente + '</td>' +
-          '<td style="padding:10px; font-weight:700; color:' + b.color + ';">' + b.pilar + '</td>' +
-          '<td style="padding:10px;">' + b.texto + '</td>' +
-          '<td style="padding:10px; text-align:center;"><span style="background:#dcfce7; color:#15803d; font-weight:800; padding:2px 8px; border-radius:4px;">🟢 Implementada</span></td>' +
-          '</tr>';
-      });
+      var byScoreDesc = scored.slice().sort(function(a, b) { return b.score.monthScore - a.score.monthScore; });
+      var byScoreAsc = scored.slice().sort(function(a, b) { return a.score.monthScore - b.score.monthScore; });
+
+      // --- Destaques reais: top 5 OS do mês, com o que elas fizeram bem -----------------------
+      var destaquesHTML = byScoreDesc.slice(0, 5).map(function(x, idx) {
+        var c = x.contract, sc = x.score;
+        var strong = strongTopicsOf(sc.topics).slice(0, 3);
+        var strongChips = strong.map(function(s) { return '<span style="background:#dcfce7; color:#15803d; font-weight:700; font-size:0.72rem; padding:3px 9px; border-radius:12px; border:1px solid #86efac;">✓ ' + s.label + '</span>'; }).join(" ");
+        var quote = null;
+        for (var qi = 0; qi < strong.length && !quote; qi++) quote = realQuoteFor(c, strong[qi].id);
+        var quoteHTML = quote ? '<div style="margin-top:8px; font-size:0.80rem; color:#334155; background:#f0fdf4; border-left:3px solid #16a34a; padding:8px 10px; border-radius:0 6px 6px 0;">💬 "' + quote + '"</div>' : "";
+        return '<div style="background:#ffffff; border:1.5px solid #bbf7d0; border-left:5px solid #16a34a; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(15,43,92,0.06);">' +
+          '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap;">' +
+            '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">🥇 #' + (idx + 1) + ' &middot; ' + c.name + '</span>' +
+            '<span style="font-weight:800; color:#16a34a; font-size:0.95rem;">' + sc.monthScore.toFixed(1) + ' pts</span>' +
+          '</div>' +
+          '<div style="font-size:0.76rem; color:#64748b; margin:2px 0 8px;">' + c.negocio + ' &middot; ' + c.superintendencia + ' &middot; Gestor: ' + c.gestor + '</div>' +
+          '<div style="display:flex; gap:6px; flex-wrap:wrap;">' + (strongChips || '<span style="font-size:0.76rem; color:#64748b;">Desempenho equilibrado em todas as frentes.</span>') + '</div>' +
+          quoteHTML +
+          '</div>';
+      }).join("");
 
       var bpCont = document.getElementById("tab3BestPracticesContainer");
       if (bpCont) {
         bpCont.innerHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12);">' +
           '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
-            '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800;">💡 Destaques de Boas Práticas & Planos Mitigadores de Risco (Exercício 2026)</h3>' +
-            '<span style="background:#dcfce7; color:#15803d; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">Reconhecido pelos Clientes</span>' +
+            '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800;">🏆 Destaques Reais de ' + monthLabel + ' &ndash; Boas Práticas para Replicar</h3>' +
+            '<span style="background:#dcfce7; color:#15803d; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">Top 5 apurado com dados reais</span>' +
           '</div>' +
-          '<table style="width:100%; border-collapse:collapse; font-size:0.82rem;">' +
-            '<thead>' +
-              '<tr style="background:#0f2b5c; color:#ffffff; font-weight:700;">' +
-                '<th style="padding:10px; width:90px; text-align:left;">OS</th>' +
-                '<th style="padding:10px; width:160px; text-align:left;">CLIENTE</th>' +
-                '<th style="padding:10px; width:140px; text-align:left;">PILAR</th>' +
-                '<th style="padding:10px; text-align:left;">BOA PRÁTICA / AÇÃO MITIGADORA</th>' +
-                '<th style="padding:10px; width:120px; text-align:center;">STATUS</th>' +
-              '</tr>' +
-            '</thead>' +
-            '<tbody>' + rowsHTML + '</tbody>' +
-          '</table>' +
+          (destaquesHTML ? '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:12px;">' + destaquesHTML + '</div>' : '<div style="font-size:0.86rem; color:#64748b;">Ainda não há apuração suficiente neste mês para gerar destaques.</div>') +
+          '</div>';
+      }
+
+      // --- Riscos reais: ocorrências de segurança (sempre) + piores desempenhos do mês --------
+      var safetyFlagged = scored.filter(function(x) { return (x.contract.safCount || 0) > 0 || (x.contract.cafCount || 0) > 0; });
+      var worstN = byScoreAsc.filter(function(x) { return x.score.monthScore < 70; }).slice(0, 5);
+
+      function riskCard(x, isSafety) {
+        var c = x.contract, sc = x.score;
+        var weak = weakTopicsOf(sc.topics).slice(0, 3);
+        var weakRows = weak.map(function(w) {
+          var hint = LICOES_TOPIC_HINTS[w.id] || "Investigar causa raiz e ajustar plano de ação.";
+          var quote = realQuoteFor(c, w.id);
+          return '<div style="margin-top:6px; padding:8px 10px; background:#fef2f2; border-left:3px solid #ef4444; border-radius:0 6px 6px 0;">' +
+            '<div style="font-size:0.80rem; font-weight:800; color:#b91c1c;">⚠ ' + w.label + ' <span style="font-weight:600; color:#94a3b8;">(&minus;' + w.lost.toFixed(1) + 'p de ' + w.max + 'p)</span></div>' +
+            '<div style="font-size:0.78rem; color:#7f1d1d; margin-top:2px;">💡 Lição: ' + hint + '</div>' +
+            (quote ? '<div style="font-size:0.76rem; color:#57534e; margin-top:3px;">💬 "' + quote + '"</div>' : '') +
+          '</div>';
+        }).join("");
+        var safetyBadge = isSafety ? '<span style="background:#fee2e2; color:#b91c1c; font-weight:800; font-size:0.70rem; padding:3px 8px; border-radius:10px; border:1px solid #fca5a5;">🚨 SAF ' + (c.safCount || 0) + ' / CAF ' + (c.cafCount || 0) + '</span>' : '';
+        return '<div style="background:#ffffff; border:1.5px solid #fecaca; border-left:5px solid #dc2626; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(15,43,92,0.06);">' +
+          '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap;">' +
+            '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">' + c.name + '</span>' +
+            '<div style="display:flex; gap:6px; align-items:center;">' + safetyBadge + '<span style="font-weight:800; color:#b91c1c; font-size:0.95rem;">' + sc.monthScore.toFixed(1) + ' pts</span></div>' +
+          '</div>' +
+          '<div style="font-size:0.76rem; color:#64748b; margin:2px 0 4px;">' + c.negocio + ' &middot; ' + c.superintendencia + ' &middot; Gestor: ' + c.gestor + '</div>' +
+          (weakRows || '<div style="font-size:0.78rem; color:#64748b;">Sem tópicos críticos identificados neste mês.</div>') +
+          '</div>';
+      }
+
+      var riskHTML = safetyFlagged.map(function(x) { return riskCard(x, true); }).join("") +
+        worstN.filter(function(x) { return safetyFlagged.indexOf(x) === -1; }).map(function(x) { return riskCard(x, false); }).join("");
+
+      var riskCont = document.getElementById("tab3RiskAlertsContainer");
+      if (riskCont) {
+        riskCont.innerHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #0f2b5c; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12);">' +
+          '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
+            '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800;">⚠️ Pontos de Atenção Reais &ndash; Não Repetir o Mesmo Erro</h3>' +
+            '<span style="background:#fee2e2; color:#b91c1c; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">Ocorrências de segurança + piores notas de ' + monthLabel + '</span>' +
+          '</div>' +
+          (riskHTML ? '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:12px;">' + riskHTML + '</div>' : '<div style="font-size:0.86rem; color:#64748b;">Nenhuma ocorrência de segurança e nenhuma OS abaixo de 70 pts neste mês. 🎉</div>') +
           '</div>';
       }
 
