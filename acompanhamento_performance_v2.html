@@ -1115,7 +1115,11 @@ function hydrateFromPowerBI() {
       var el = document.getElementById("debugUserInfo");
       if (!el) return;
       var p = new URLSearchParams(window.location.search);
-      el.textContent = "Debug: UserEmail=\"" + (p.get("UserEmail") || "") + "\" | IsUserPerformance=" + (p.get("IsUserPerformance") || "") + " | SimRoleOverride=" + (p.get("SimRoleOverride") || "") + " | savedRoleAtStart=" + (savedRoleAtStart || "(nenhum)") + " | Papel resolvido=" + window.currentRoleSimulated;
+      var mh = p.get("OSMonthHistory") || "";
+      var mhMonths = mh ? mh.split("~").length : 0;
+      var ch = p.get("OSCommentHistory") || "";
+      el.textContent = "Debug: UserEmail=\"" + (p.get("UserEmail") || "") + "\" | IsUserPerformance=" + (p.get("IsUserPerformance") || "") + " | SimRoleOverride=" + (p.get("SimRoleOverride") || "") + " | savedRoleAtStart=" + (savedRoleAtStart || "(nenhum)") + " | Papel resolvido=" + window.currentRoleSimulated +
+        " | OSMonthHistory.len=" + mh.length + " (meses=" + mhMonths + ")" + " | OSCommentHistory.len=" + ch.length;
     })();
 
     var _roleToggleLock = false;
@@ -4540,6 +4544,17 @@ function hydrateFromPowerBI() {
     document.addEventListener("DOMContentLoaded", function() {
       hydrateFromPowerBI();
       if (typeof updateFromURLParams === "function") updateFromURLParams();
+
+      (function appendPostHydrateDebug() {
+        var el = document.getElementById("debugUserInfo");
+        if (!el) return;
+        var params = new URLSearchParams(window.location.search);
+        var rawOS = params.get("SelectedOS") || "";
+        var activeOS = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOS) : rawOS;
+        var c = (window.ACTIVE_CONTRACTS_CATALOG || []).filter(function(x) { return x.code === activeOS; })[0];
+        var mhAttached = c && c.monthHistory ? Object.keys(c.monthHistory).length : 0;
+        el.textContent += " | catalogLen=" + (window.ACTIVE_CONTRACTS_CATALOG || []).length + " | contractFound=" + (!!c) + " | monthHistoryAttached(meses)=" + mhAttached;
+      })();
 
       var eligibleCountStr = ACTIVE_CONTRACTS_CATALOG.length + "";
       ["bannerEligibleOSCount", "rankingHeaderOSCount", "slaModalOSCount"].forEach(function(id) {
