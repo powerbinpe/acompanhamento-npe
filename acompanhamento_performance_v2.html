@@ -2937,73 +2937,157 @@ function hydrateFromPowerBI() {
     // =========================================================================
     var MONTH_SHORT_NAMES = ["", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
+    // --- Helpers visuais compartilhados: gauge circular, barras de categoria, heatmap ---
+    function scoreTier(pct) {
+      if (pct >= 80) return { main: "#22c55e", dark: "#15803d", bg: "#dcfce7", label: "Excelente" };
+      if (pct >= 60) return { main: "#eab308", dark: "#b45309", bg: "#fef9c3", label: "Atenção" };
+      return { main: "#ef4444", dark: "#b91c1c", bg: "#fee2e2", label: "Crítico" };
+    }
+
+    function buildScoreGaugeSVG(value, max, size) {
+      size = size || 150;
+      var safeVal = (typeof value === "number" && !isNaN(value)) ? value : 0;
+      var pct = max > 0 ? Math.max(0, Math.min(1, safeVal / max)) : 0;
+      var tier = scoreTier(max > 0 ? (safeVal / max) * 100 : 0);
+      var r = (size / 2) - 13;
+      var c = 2 * Math.PI * r;
+      var offset = c * (1 - pct);
+      var cx = size / 2, cy = size / 2;
+      return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" style="display:block; overflow:visible;">' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="12"/>' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + tier.main + '" stroke-width="12" stroke-linecap="round" ' +
+          'stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + offset.toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>' +
+        '<text x="' + cx + '" y="' + (cy - 2) + '" text-anchor="middle" font-size="' + (size * 0.23).toFixed(0) + '" font-weight="900" fill="#ffffff" font-family="inherit">' + safeVal.toFixed(1) + '</text>' +
+        '<text x="' + cx + '" y="' + (cy + size * 0.16).toFixed(0) + '" text-anchor="middle" font-size="' + (size * 0.088).toFixed(0) + '" font-weight="700" fill="#bfdbfe" font-family="inherit">de ' + max + ' pts</text>' +
+      '</svg>';
+    }
+
+    function buildCategoryBarsHTML(cats) {
+      return cats.map(function(c) {
+        var pct = c.max > 0 ? Math.min(100, (c.val / c.max) * 100) : 0;
+        var tier = scoreTier(pct);
+        return '<div style="margin-bottom:9px;">' +
+          '<div style="display:flex; justify-content:space-between; font-size:0.76rem; font-weight:700; color:#e0e7ff; margin-bottom:3px;">' +
+            '<span>' + c.icon + ' ' + c.label + '</span><span>' + c.val.toFixed(1) + ' / ' + c.max + '</span>' +
+          '</div>' +
+          '<div style="height:8px; background:rgba(255,255,255,0.16); border-radius:5px; overflow:hidden;">' +
+            '<div style="height:100%; width:' + pct.toFixed(0) + '%; background:' + tier.main + '; border-radius:5px;"></div>' +
+          '</div>' +
+        '</div>';
+      }).join("");
+    }
+
+    // Categorias e pesos usados no cálculo real (calculateOSScoreUncached) -- mesma fonte da
+    // Aba 4/ranking, para que a matriz mês a mês agrupe os tópicos exatamente como são somados.
+    var SCORE_CATEGORIES = [
+      { key: "fin", label: "Financeiro", icon: "💰", color: "#0f2b5c", topics: ["t1", "t2", "t3", "t4", "t6", "t8", "t7"] },
+      { key: "gov", label: "Governança & SLA", icon: "📋", color: "#0e7490", topics: ["prazo", "preenchimento", "t5", "t18", "t21"] },
+      { key: "pes", label: "Pessoas", icon: "👥", color: "#7e22ce", topics: ["t9", "t10", "t11", "t12", "t13", "t14"] },
+      { key: "ssma", label: "SSMA & Qualidade", icon: "🦺", color: "#b45309", topics: ["t15", "t16", "t19", "t17", "t20"] }
+    ];
+
     // Matriz Tópico x Mês para UMA OS: mostra os pontos ganhos em cada mês fechado até o mês
     // selecionado, mais uma coluna de Acumulado -- é o detalhamento por trás do resumo da Aba 2.
     function buildTopicMonthMatrixHTML(contract, selMonthNum) {
-      var rows = [
-        { id: "prazo", name: "Prazo de Preenchimento", weight: TOPIC_WEIGHTS.prazo },
-        { id: "preenchimento", name: "Preenchimento Total", weight: TOPIC_WEIGHTS.preenchimento }
-      ].concat(TOPIC_INDICATOR_MAP.map(function(t) {
-        return { id: t.scoreId, name: t.id + ". " + t.name, weight: TOPIC_WEIGHTS[t.scoreId] };
-      }));
-
       var monthlyScores = [];
       for (var m = 1; m <= selMonthNum; m++) monthlyScores.push(calculateOSScore(contract, m));
 
-      var headerCells = '<th style="padding:8px 12px; font-size:0.72rem; text-align:left; position:sticky; left:0; background:#0f2b5c; z-index:1;">TÓPICO</th>';
+      var headerCells = '<th style="padding:11px 16px; font-size:0.82rem; text-align:left; position:sticky; left:0; background:#0f2b5c; z-index:2; min-width:220px;">TÓPICO</th>';
       for (var m2 = 1; m2 <= selMonthNum; m2++) {
-        headerCells += '<th style="padding:8px 6px; font-size:0.68rem; text-align:center; min-width:44px;">' + MONTH_SHORT_NAMES[m2] + '</th>';
+        headerCells += '<th style="padding:11px 6px; font-size:0.78rem; text-align:center; min-width:54px;">' + MONTH_SHORT_NAMES[m2] + '</th>';
       }
-      headerCells += '<th style="padding:8px 12px; font-size:0.70rem; text-align:center; background:#1e3a8a; min-width:80px;">ACUMULADO</th>';
+      headerCells += '<th style="padding:11px 16px; font-size:0.80rem; text-align:center; background:#1e3a8a; min-width:140px;">ACUMULADO</th>';
 
-      var bodyRows = rows.map(function(r, idx) {
-        var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
-        var cells = '<td style="padding:6px 12px; font-size:0.78rem; color:#334155; font-weight:600; white-space:nowrap; position:sticky; left:0; background:' + rowBg + ';">' + r.name + ' <span style="color:#94a3b8; font-weight:500;">(' + r.weight + 'p)</span></td>';
-        var earnedSum = 0, maxSum = 0, hasAny = false;
-        monthlyScores.forEach(function(sc) {
-          var t = sc.topics[r.id];
-          if (!t.applicable) {
-            cells += '<td style="padding:6px; font-size:0.75rem; text-align:center; color:#cbd5e1;">-</td>';
-            return;
-          }
-          hasAny = true;
-          earnedSum += t.earned;
-          maxSum += t.max;
-          var ok = t.earned >= t.max - 0.01;
-          cells += '<td style="padding:6px; font-size:0.75rem; text-align:center; font-weight:700; color:' + (ok ? '#15803d' : '#b91c1c') + ';">' + t.earned.toFixed(1) + '</td>';
-        });
-        var accumText = hasAny ? (earnedSum.toFixed(1) + ' / ' + maxSum.toFixed(1)) : '-';
-        cells += '<td style="padding:6px 12px; font-size:0.78rem; text-align:center; font-weight:800; color:#1e3a8a; background:#eff6ff;">' + accumText + '</td>';
-        return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' + cells + '</tr>';
+      function topicDef(id) {
+        if (id === "prazo") return { name: "Prazo de Preenchimento", weight: TOPIC_WEIGHTS.prazo };
+        if (id === "preenchimento") return { name: "Preenchimento Total", weight: TOPIC_WEIGHTS.preenchimento };
+        var t = TOPIC_INDICATOR_MAP.filter(function(x) { return x.scoreId === id; })[0];
+        return t ? { name: t.id + ". " + t.name, weight: TOPIC_WEIGHTS[id] } : { name: id, weight: TOPIC_WEIGHTS[id] || 0 };
+      }
+
+      function topicRowsFor(topicIds) {
+        return topicIds.map(function(id, idxInCat) {
+          var def = topicDef(id);
+          var rowBg = idxInCat % 2 === 1 ? '#f8fafc' : '#ffffff';
+          var cells = '<td style="padding:9px 16px; font-size:0.92rem; color:#1e293b; font-weight:700; white-space:nowrap; position:sticky; left:0; background:' + rowBg + ';">' + def.name + ' <span style="color:#94a3b8; font-weight:600; font-size:0.80rem;">(' + def.weight + 'p)</span></td>';
+          var earnedSum = 0, maxSum = 0, hasAny = false;
+          monthlyScores.forEach(function(sc) {
+            var t = sc.topics[id];
+            if (!t || !t.applicable) {
+              cells += '<td style="padding:9px 4px; font-size:0.84rem; text-align:center; color:#cbd5e1; background:' + rowBg + ';">–</td>';
+              return;
+            }
+            hasAny = true;
+            earnedSum += t.earned;
+            maxSum += t.max;
+            var pct = t.max > 0 ? (t.earned / t.max) * 100 : 100;
+            var tier = scoreTier(pct);
+            cells += '<td style="padding:9px 4px; font-size:0.90rem; text-align:center; font-weight:800; color:' + tier.dark + '; background:' + tier.bg + ';">' + t.earned.toFixed(1) + '</td>';
+          });
+          var accumPct = maxSum > 0 ? (earnedSum / maxSum) * 100 : 0;
+          var accumTier = scoreTier(accumPct);
+          var accumCell = hasAny
+            ? '<div style="display:flex; align-items:center; gap:7px; justify-content:center;">' +
+                '<span style="font-weight:800; color:' + accumTier.dark + '; font-size:0.88rem;">' + earnedSum.toFixed(1) + '/' + maxSum.toFixed(1) + '</span>' +
+                '<div style="width:40px; height:7px; background:#e2e8f0; border-radius:4px; overflow:hidden;"><div style="width:' + accumPct.toFixed(0) + '%; height:100%; background:' + accumTier.main + ';"></div></div>' +
+              '</div>'
+            : '<span style="color:#cbd5e1;">–</span>';
+          cells += '<td style="padding:9px 16px; text-align:center; background:#eff6ff;">' + accumCell + '</td>';
+          return '<tr style="border-bottom:1px solid #e2e8f0;">' + cells + '</tr>';
+        }).join("");
+      }
+
+      var colspan = selMonthNum + 2;
+      var groupsHTML = SCORE_CATEGORIES.map(function(cat) {
+        var catHeader = '<tr><td colspan="' + colspan + '" style="padding:8px 16px; font-size:0.82rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.4px;">' + cat.icon + ' ' + cat.label + '</td></tr>';
+        return catHeader + topicRowsFor(cat.topics);
       }).join("");
 
-      return '<div style="overflow-x:auto;"><table style="border-collapse:collapse; min-width:100%;">' +
+      return '<div style="overflow-x:auto; border-radius:10px; border:1px solid #cbd5e1; box-shadow:0 2px 8px rgba(15,43,92,0.08);"><table style="border-collapse:collapse; min-width:100%;">' +
         '<thead><tr style="background:#0f2b5c; color:#ffffff;">' + headerCells + '</tr></thead>' +
-        '<tbody>' + bodyRows + '</tbody></table></div>';
+        '<tbody>' + groupsHTML + '</tbody></table></div>';
     }
+
+        function topicCategoryColor(scoreId) {
+          for (var i = 0; i < SCORE_CATEGORIES.length; i++) {
+            if (SCORE_CATEGORIES[i].topics.indexOf(scoreId) !== -1) return SCORE_CATEGORIES[i].color;
+          }
+          return '#94a3b8';
+        }
 
         function buildTopicIndicatorTableHTML(breakdown) {
           var rows = breakdown.map(function(t, idx) {
             var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
-            var nameCell = '<td style="padding:10px 14px; font-size:0.92rem; color:#334155; font-weight:600;">' + t.id + '. ' + t.name + ' <span style="color:#94a3b8; font-weight:500; font-size:0.80rem;">(' + t.weight + ' pts)</span></td>';
+            var accentColor = topicCategoryColor("t" + t.id);
+            var nameCell = '<td style="padding:12px 16px; font-size:1.0rem; color:#1e293b; font-weight:700; border-left:4px solid ' + accentColor + ';">' + t.id + '. ' + t.name + ' <span style="color:#94a3b8; font-weight:600; font-size:0.82rem;">(' + t.weight + ' pts)</span></td>';
 
             if (t.maxSum === 0) {
               return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' + nameCell +
-                '<td colspan="2" style="padding:10px 14px; font-size:0.85rem; color:#94a3b8; text-align:center; font-style:italic;">Sem dado apurado no ano</td></tr>';
+                '<td colspan="2" style="padding:12px 16px; font-size:0.88rem; color:#94a3b8; text-align:center; font-style:italic;">Sem dado apurado no ano</td></tr>';
             }
 
-            var pctColor = t.pctAvg >= 80 ? '#15803d' : (t.pctAvg >= 50 ? '#b45309' : '#b91c1c');
+            var tier = scoreTier(t.pctAvg);
+            var pillBg = t.okCount === t.totalCount ? '#dcfce7' : (t.okCount === 0 ? '#fee2e2' : '#fef9c3');
+            var pillFg = t.okCount === t.totalCount ? '#15803d' : (t.okCount === 0 ? '#b91c1c' : '#b45309');
             return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' + nameCell +
-              '<td style="padding:10px 14px; font-size:0.92rem; text-align:center; font-weight:700; color:' + pctColor + ';">' + t.earnedSum.toFixed(1) + ' / ' + t.maxSum.toFixed(1) + ' pts (' + t.pctAvg.toFixed(0) + '%)</td>' +
-              '<td style="padding:10px 14px; font-size:0.92rem; text-align:center; color:#64748b;">' + t.okCount + ' de ' + t.totalCount + ' meses conforme</td></tr>';
+              '<td style="padding:12px 16px;">' +
+                '<div style="display:flex; align-items:center; gap:10px;">' +
+                  '<div style="flex:1; height:11px; background:#e2e8f0; border-radius:6px; overflow:hidden;"><div style="width:' + t.pctAvg.toFixed(0) + '%; height:100%; background:' + tier.main + '; border-radius:6px;"></div></div>' +
+                  '<span style="font-weight:800; font-size:0.95rem; color:' + tier.dark + '; min-width:38px; text-align:right;">' + t.pctAvg.toFixed(0) + '%</span>' +
+                '</div>' +
+                '<div style="font-size:0.78rem; color:#94a3b8; margin-top:3px; font-weight:600;">' + t.earnedSum.toFixed(1) + ' / ' + t.maxSum.toFixed(1) + ' pts</div>' +
+              '</td>' +
+              '<td style="padding:12px 16px; text-align:center;">' +
+                '<span style="display:inline-block; padding:5px 12px; border-radius:20px; font-weight:800; font-size:0.86rem; background:' + pillBg + '; color:' + pillFg + ';">' + t.okCount + ' de ' + t.totalCount + '</span>' +
+              '</td></tr>';
           }).join("");
 
-          return '<table style="width:100%; border-collapse:collapse; margin-top:6px; table-layout:fixed;">' +
-            '<colgroup><col style="width:42%;"><col style="width:32%;"><col style="width:26%;"></colgroup>' +
+          return '<table style="width:100%; border-collapse:collapse; margin-top:8px; table-layout:fixed; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(15,43,92,0.08);">' +
+            '<colgroup><col style="width:38%;"><col style="width:38%;"><col style="width:24%;"></colgroup>' +
             '<thead><tr style="background:#0f2b5c; color:#ffffff;">' +
-              '<th style="padding:10px 14px; font-size:0.80rem; text-align:left;">TÓPICO (PESO)</th>' +
-              '<th style="padding:10px 14px; font-size:0.80rem;">PONTUAÇÃO ACUMULADA NO ANO</th>' +
-              '<th style="padding:10px 14px; font-size:0.80rem;">CONFORMIDADE</th>' +
+              '<th style="padding:12px 16px; font-size:0.84rem; text-align:left;">TÓPICO (PESO)</th>' +
+              '<th style="padding:12px 16px; font-size:0.84rem;">PONTUAÇÃO ACUMULADA NO ANO</th>' +
+              '<th style="padding:12px 16px; font-size:0.84rem;">MESES CONFORME</th>' +
             '</tr></thead><tbody>' + rows + '</tbody></table>';
         }
 
@@ -3651,16 +3735,25 @@ function hydrateFromPowerBI() {
           var matchedItem = matchedIdx !== -1 ? allRankingData[matchedIdx] : allRankingData[0];
           var posDisplay = matchedIdx !== -1 ? (matchedIdx + 1) + "º LUGAR NO RANKING CORPORATIVO" : "OS SELECIONADA";
           
-          podiumCont.innerHTML = '<div style="grid-column: 1 / -1; background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:20px; color:#ffffff; border:2.5px solid #60a5fa; box-shadow:0 8px 24px rgba(0,0,0,0.25); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">' +
-            '<div>' +
-              '<div style="font-size:0.82rem; font-weight:800; color:#fde047; text-transform:uppercase;">🏆 ' + posDisplay + '</div>' +
-              '<div style="font-size:1.4rem; font-weight:900; margin:4px 0;">' + matchedItem.code + ' - ' + matchedItem.name + '</div>' +
-              '<div style="font-size:0.85rem; color:#bfdbfe;">' + matchedItem.negocio + ' • ' + matchedItem.superintendencia + ' • Gestor: ' + matchedItem.gestor + '</div>' +
+          podiumCont.innerHTML = '<div style="grid-column: 1 / -1; background:linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 55%, #1e40af 100%); border-radius:16px; padding:26px 30px; color:#ffffff; border:2.5px solid #60a5fa; box-shadow:0 10px 32px rgba(0,0,0,0.30); display:flex; align-items:center; gap:32px; flex-wrap:wrap;">' +
+            '<div style="flex-shrink:0;">' + buildScoreGaugeSVG(matchedItem.avgAccum, 100, 152) + '</div>' +
+            '<div style="flex:1.3; min-width:240px;">' +
+              '<div style="font-size:0.84rem; font-weight:800; color:#fde047; text-transform:uppercase; letter-spacing:0.5px;">🏆 ' + posDisplay + '</div>' +
+              '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + matchedItem.code + ' - ' + matchedItem.name + '</div>' +
+              '<div style="font-size:0.90rem; color:#bfdbfe; margin-bottom:12px;">' + matchedItem.negocio + ' • ' + matchedItem.superintendencia + ' • Gestor: ' + matchedItem.gestor + '</div>' +
+              '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
+                '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#86efac;">Nota do Mês: ' + matchedItem.monthScore + ' pts</div>' +
+                '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#fde047;">Média Acumulada: ' + matchedItem.avgAccum + ' pts</div>' +
+              '</div>' +
             '</div>' +
-            '<div style="text-align:right;">' +
-              '<div style="font-size:0.75rem; color:#cbd5e1; font-weight:700; text-transform:uppercase;">Média Geral Acumulada</div>' +
-              '<div style="font-size:2.2rem; font-weight:900; color:#ffffff;">' + matchedItem.avgAccum + ' <span style="font-size:1.0rem; color:#93c5fd;">pts</span></div>' +
-              '<div style="font-size:0.80rem; color:#86efac; font-weight:800;">Nota do Mês: ' + matchedItem.monthScore + ' pts</div>' +
+            '<div style="flex:1; min-width:250px; max-width:320px;">' +
+              '<div style="font-size:0.76rem; font-weight:800; color:#93c5fd; text-transform:uppercase; margin-bottom:9px; letter-spacing:0.4px;">Composição da Pontuação</div>' +
+              buildCategoryBarsHTML([
+                { label: 'Financeiro', icon: '💰', val: matchedItem.finPts, max: 48 },
+                { label: 'Governança & SLA', icon: '📋', val: matchedItem.govPts, max: 34 },
+                { label: 'Pessoas', icon: '👥', val: matchedItem.pesPts, max: 26 },
+                { label: 'SSMA & Qualidade', icon: '🦺', val: matchedItem.ssmaPts, max: 25 }
+              ]) +
             '</div>' +
             '</div>';
         } else if (allRankingData.length >= 3) {
