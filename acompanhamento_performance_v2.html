@@ -3025,10 +3025,26 @@ function hydrateFromPowerBI() {
 
     // Linha pequena mostrando o dado real por trás do ponto -- ex: "R$14,39M vs Exec R$18,57M" --
     // para os tópicos que têm apuração numérica de verdade (todos exceto os manuais listados acima).
+    function formatDateBR(isoDate) {
+      if (!isoDate) return "";
+      var parts = isoDate.split("-");
+      if (parts.length !== 3) return isoDate;
+      return parts[2] + "/" + parts[1] + "/" + parts[0];
+    }
+
     function buildTopicDetailLine(topicId, monthData, contract, m) {
       if (topicId === "prazo") {
         var pStatus = getSlaPeriodStatus(contract.code, m);
-        return pStatus === "NO_PRAZO" ? "No prazo" : (pStatus === "FORA_PRAZO" ? "Fora do prazo" : (pStatus === "INATIVO" ? "Período inativo" : "Sem período definido"));
+        var deadline = safeGetStorage("sla_deadline_date_m" + m, "");
+        var deadlineTxt = deadline ? (" (entrega: " + formatDateBR(deadline) + ")") : "";
+        if (pStatus === "NO_PRAZO") return "No prazo" + deadlineTxt;
+        if (pStatus === "FORA_PRAZO") return "Fora do prazo" + deadlineTxt;
+        if (pStatus === "INATIVO") return "Período inativo";
+        return "Sem período definido";
+      }
+      if (topicId === "preenchimento") {
+        var comp = getOSCompletionStatus(contract.code, m);
+        return comp.filledCount + " de " + comp.totalTopics + " preenchidos";
       }
       if (!monthData) return "";
       switch (topicId) {
