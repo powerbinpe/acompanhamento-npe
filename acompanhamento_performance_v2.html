@@ -724,6 +724,13 @@ function hydrateOSScoreDataFromPowerBI(params) {
   } else {
     window.ACTIVE_CONTRACTS_CATALOG = liveCatalog;
   }
+
+  // calculateOSScore() pode ter sido chamada (e memoizada) antes desta hidratação terminar --
+  // por exemplo por algum render inicial usando o catálogo estático de fallback. Sem isto, essas
+  // entradas "sem dado real ainda" ficam presas no cache para sempre, mesmo após OSScoreData/
+  // OSMonthHistory chegarem com os valores reais (bug real: mostrava "-" em vários meses na matriz
+  // da Aba 4 mesmo com o DAX retornando dados corretos).
+  window._scoreCache = {};
 }
 
 // Parseia o histórico mensal real (só existe/é enviado quando exatamente 1 OS está selecionada
