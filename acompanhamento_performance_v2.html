@@ -3046,6 +3046,12 @@ function hydrateFromPowerBI() {
         var comp = getOSCompletionStatus(contract.code, m);
         return comp.filledCount + " de " + comp.totalTopics + " preenchidos";
       }
+      if (topicId === "t17") {
+        // Satisfação é medição anual (não varia por mês) -- vem do snapshot do contrato, não do histórico mensal.
+        return (typeof contract.satVal === "number" && typeof contract.satMeta === "number")
+          ? formatPctBR(contract.satVal) + " (meta " + formatPctBR(contract.satMeta) + ")"
+          : "";
+      }
       if (!monthData) return "";
       switch (topicId) {
         case "t1": return formatCompactBRL(monthData.fatAnoRealV) + " · Exec " + formatCompactBRL(monthData.fatAnoExecV);
