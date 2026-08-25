@@ -711,11 +711,16 @@ function hydrateOSScoreDataFromPowerBI(params) {
   if (liveCatalog.length === 0) return;
 
   var monthHistory = hydrateOSMonthHistoryFromPowerBI(params);
-  if (monthHistory) {
+  var commentHistory = hydrateOSCommentHistoryFromPowerBI(params);
+  if (monthHistory || commentHistory) {
     var rawOSForHistory = params.get("SelectedOS") || "";
     var activeOSForHistory = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOSForHistory) : rawOSForHistory;
     for (var hi = 0; hi < liveCatalog.length; hi++) {
-      if (liveCatalog[hi].code === activeOSForHistory) { liveCatalog[hi].monthHistory = monthHistory; break; }
+      if (liveCatalog[hi].code === activeOSForHistory) {
+        if (monthHistory) liveCatalog[hi].monthHistory = monthHistory;
+        if (commentHistory) liveCatalog[hi].commentHistory = commentHistory;
+        break;
+      }
     }
   }
 
@@ -784,6 +789,26 @@ function hydrateOSMonthHistoryFromPowerBI(params) {
     };
   }
   return history;
+}
+
+// Parseia o resumo dos comentários do Gestor de todo o ano por tópico (só existe/é enviado
+// quando exatamente 1 OS está selecionada) -- concatenação mecânica das justificativas reais
+// registradas mês a mês, não uma síntese gerada por IA (isso é feito separadamente via
+// Power Automate/AI Builder, quando configurado). Formato: "topicId^resumo~topicId^resumo~...".
+function hydrateOSCommentHistoryFromPowerBI(params) {
+  var raw = params.get("OSCommentHistory") || "";
+  if (!raw) return null;
+
+  var summary = {};
+  var topicRows = raw.split("~");
+  for (var i = 0; i < topicRows.length; i++) {
+    var sep = topicRows[i].indexOf("^");
+    if (sep === -1) continue;
+    var tid = topicRows[i].slice(0, sep);
+    var text = topicRows[i].slice(sep + 1);
+    if (tid && text) summary[tid] = text;
+  }
+  return summary;
 }
 
 // 21-topic map (22 Renovação e 23 Observações saem da lista/score por serem só informativos).
@@ -3147,7 +3172,20 @@ function hydrateFromPowerBI() {
           return '#94a3b8';
         }
 
-        function buildTopicIndicatorTableHTML(breakdown) {
+        function buildTopicIndicatorTableHTML(breakdown, contract) {
+          var commentHistory = (contract && contract.commentHistory) ? contract.commentHistory : null;
+
+          function commentRowHTML(t, rowBg) {
+            var text = commentHistory ? commentHistory[String(t.id)] : null;
+            if (!text) return "";
+            return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' +
+              '<td colspan="3" style="padding:0 16px 10px 16px;">' +
+                '<details><summary style="cursor:pointer; font-size:0.78rem; font-weight:700; color:#1e40af;">📝 Ver justificativas do ano (' + contract.code + ')</summary>' +
+                '<div style="margin-top:6px; padding:8px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.80rem; color:#475569; line-height:1.5;">' + text + '</div>' +
+                '</details>' +
+              '</td></tr>';
+          }
+
           var rows = breakdown.map(function(t, idx) {
             var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
             var accentColor = topicCategoryColor("t" + t.id);
@@ -3155,7 +3193,8 @@ function hydrateFromPowerBI() {
 
             if (t.maxSum === 0) {
               return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' + nameCell +
-                '<td colspan="2" style="padding:12px 16px; font-size:0.88rem; color:#94a3b8; text-align:center; font-style:italic;">Sem dado apurado no ano</td></tr>';
+                '<td colspan="2" style="padding:12px 16px; font-size:0.88rem; color:#94a3b8; text-align:center; font-style:italic;">Sem dado apurado no ano</td></tr>' +
+                commentRowHTML(t, rowBg);
             }
 
             var tier = scoreTier(t.pctAvg);
@@ -3171,7 +3210,8 @@ function hydrateFromPowerBI() {
               '</td>' +
               '<td style="padding:12px 16px; text-align:center;">' +
                 '<span style="display:inline-block; padding:5px 12px; border-radius:20px; font-weight:800; font-size:0.86rem; background:' + pillBg + '; color:' + pillFg + ';">' + t.okCount + ' de ' + t.totalCount + '</span>' +
-              '</td></tr>';
+              '</td></tr>' +
+              commentRowHTML(t, rowBg);
           }).join("");
 
           return '<table style="width:100%; border-collapse:collapse; margin-top:8px; table-layout:fixed; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(15,43,92,0.08);">' +
@@ -3371,7 +3411,7 @@ function hydrateFromPowerBI() {
             '<span style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' + osScopeLabel + '</span>' +
           '</div>' +
           '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontuação acumulada de Janeiro até o mês selecionado, da(s) OS(s) selecionada(s) no Power BI, apurada mês a mês na Aba 4. Os cards de Superintendência/Negócio abaixo mostram apenas a média do grupo, como referência de comparação.</div>' +
-          '<div style="overflow-x:auto;">' + buildTopicIndicatorTableHTML(osTopicBreakdown) + '</div>' +
+          '<div style="overflow-x:auto;">' + buildTopicIndicatorTableHTML(osTopicBreakdown, activeContract) + '</div>' +
         '</div>';
       }
 
