@@ -3184,9 +3184,8 @@ function hydrateFromPowerBI() {
             if (!text) return "";
             return '<tr style="background:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' +
               '<td colspan="3" style="padding:0 16px 10px 16px;">' +
-                '<details><summary style="cursor:pointer; font-size:0.78rem; font-weight:700; color:#1e40af;">📝 Ver justificativas do ano (' + contract.code + ')</summary>' +
-                '<div style="margin-top:6px; padding:8px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.80rem; color:#475569; line-height:1.5;">' + text + '</div>' +
-                '</details>' +
+                '<div style="font-size:0.76rem; font-weight:700; color:#1e40af; margin-bottom:4px;">📝 Justificativas do ano (' + contract.code + ')</div>' +
+                '<div style="padding:8px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.80rem; color:#475569; line-height:1.5;">' + text + '</div>' +
               '</td></tr>';
           }
 
@@ -4554,6 +4553,23 @@ function hydrateFromPowerBI() {
         var c = (window.ACTIVE_CONTRACTS_CATALOG || []).filter(function(x) { return x.code === activeOS; })[0];
         var mhAttached = c && c.monthHistory ? Object.keys(c.monthHistory).length : 0;
         el.textContent += " | catalogLen=" + (window.ACTIVE_CONTRACTS_CATALOG || []).length + " | contractFound=" + (!!c) + " | monthHistoryAttached(meses)=" + mhAttached;
+
+        var rawEl = document.createElement("div");
+        rawEl.id = "debugRawMonthHistory";
+        rawEl.style.cssText = "font:10px monospace; color:#fbbf24; background:#0f172a; padding:2px 10px; white-space:nowrap; overflow-x:auto;";
+        var rawParam = params.get("OSMonthHistory") || "(vazio)";
+        rawEl.textContent = "RAW OSMonthHistory: " + rawParam;
+        el.parentNode.insertBefore(rawEl, el.nextSibling);
+
+        if (c && c.monthHistory) {
+          var m1 = c.monthHistory[1], m3 = c.monthHistory[3];
+          var parsedEl = document.createElement("div");
+          parsedEl.id = "debugParsedMonths";
+          parsedEl.style.cssText = "font:10px monospace; color:#86efac; background:#0f172a; padding:2px 10px 6px 10px; white-space:nowrap; overflow-x:auto;";
+          parsedEl.textContent = "Mes1.fatDifAnoPct=" + (m1 ? m1.fatDifAnoPct : "N/A") + " fatAnoRealV=" + (m1 ? m1.fatAnoRealV : "N/A") +
+            " | Mes3.fatDifAnoPct=" + (m3 ? m3.fatDifAnoPct : "N/A") + " fatAnoRealV=" + (m3 ? m3.fatAnoRealV : "N/A");
+          rawEl.parentNode.insertBefore(parsedEl, rawEl.nextSibling);
+        }
       })();
 
       var eligibleCountStr = ACTIVE_CONTRACTS_CATALOG.length + "";
