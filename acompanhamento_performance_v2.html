@@ -209,7 +209,7 @@
   </div>
 
   <!-- Modal: Exportar todos os comentários do ano para colar numa IA externa -->
-  <div id="copyAllModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:center; padding:20px;">
+  <div id="copyAllModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
     <div style="background:#ffffff; border-radius:14px; width:100%; max-width:820px; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #7c3aed; overflow:hidden; display:flex; flex-direction:column; max-height:90vh;">
       <div style="background:linear-gradient(135deg, #0f2b5c 0%, #5b21b6 100%); padding:14px 20px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
         <div>
@@ -361,9 +361,6 @@
     <!-- Cards de Resumo Corporativo Anual -->
     <div id="annualSummaryCardsContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:24px;"></div>
 
-    <!-- Resumo Anual (IA) por indicador -->
-    <div id="resumoAnualContainer" style="margin-bottom:24px;"></div>
-
     <!-- Resumos por Superintendência e Negócio -->
     <div id="tab2ExecutiveSummariesContainer"></div>
   </div>
@@ -381,11 +378,19 @@
           Visão corporativa de todas as OSs elegíveis, apurada com dados reais do mês -- não considera o filtro de OS/Gestor do Power BI, pois estas lições precisam ser visíveis para todos.
         </p>
       </div>
-      <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
-        <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS</span>
-        <div id="tab3TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <button type="button" id="btnCopyLicoes" onclick="openCopyLicoesModal()" style="background:linear-gradient(135deg,#10b981,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+          📋 Copiar p/ IA (Lições & Riscos)
+        </button>
+        <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
+          <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS</span>
+          <div id="tab3TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
+        </div>
       </div>
     </div>
+
+    <!-- Campos para colar os resumos de Lições Aprendidas / Gestão de Risco gerados pela IA -->
+    <div id="licoesResumoContainer" style="margin-bottom:24px;"></div>
 
     <!-- Destaques reais (top performers por categoria) -->
     <div id="tab3BestPracticesContainer" style="margin-bottom:24px;"></div>
@@ -399,7 +404,7 @@
 
 
   <!-- Modal Qualitativo -->
-  <div id="qualEvalModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:center; padding:20px;">
+  <div id="qualEvalModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
     <div style="background:#ffffff; border-radius:14px; width:100%; max-width:680px; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #0284c7; overflow:hidden; display:flex; flex-direction:column; max-height:90vh;">
       
       <div style="background:linear-gradient(135deg, #0f2b5c 0%, #0284c7 100%); padding:14px 20px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
@@ -605,7 +610,13 @@ window.isMaster = window.isMaster || false;
 // ATA_COMENTARIO SharePoint list) and seeds it into the same storage keys the
 // rest of the app already reads, since the iframe is recreated on every filter
 // change and browser storage does not reliably survive that reload.
+// O DAX envia só o PRIMEIRO NOME do superintendente (para encurtar a query string do iframe);
+// os nomes completos ficam aqui como alias para não quebrar dados/links antigos.
 var SUPERINTENDENTE_LABEL_MAP = {
+  "CIDINEY": "Superintendência de Rotina 01 - Cidney Araujo",
+  "FLAVIO": "Superintendência de Rotina 02 - Flávio Henrique",
+  "GILMAR": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio",
+  "NESTOR": "Superintendência de Parada 02 - Nestor Hiroshi",
   "CIDINEY MENDES DE ARAUJO": "Superintendência de Rotina 01 - Cidney Araujo",
   "FLAVIO HENRIQUE FERREIRA": "Superintendência de Rotina 02 - Flávio Henrique",
   "GILMAR SAMPAIO DA SILVA": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio",
@@ -3139,15 +3150,12 @@ function hydrateFromPowerBI() {
       }
     }
 
+    // Apuração mês a mês por indicador -- em vez de uma tabela larga com rolagem horizontal,
+    // cada indicador vira um card com um mini-gráfico de barras (uma barra por mês fechado),
+    // o valor apurado embaixo de cada barra e o acumulado do ano em destaque.
     function buildTopicMonthMatrixHTML(contract, selMonthNum) {
       var monthlyScores = [];
       for (var m = 1; m <= selMonthNum; m++) monthlyScores.push(calculateOSScore(contract, m));
-
-      var headerCells = '<th style="padding:13px 18px; font-size:1.0rem; text-align:left; position:sticky; left:0; background:#0f2b5c; z-index:2; min-width:250px;">TÓPICO</th>';
-      for (var m2 = 1; m2 <= selMonthNum; m2++) {
-        headerCells += '<th style="padding:13px 6px; font-size:0.95rem; text-align:center; min-width:135px;">' + MONTH_SHORT_NAMES[m2] + '</th>';
-      }
-      headerCells += '<th style="padding:13px 18px; font-size:0.98rem; text-align:center; background:#1e3a8a; min-width:160px;">ACUMULADO</th>';
 
       function topicDef(id) {
         if (id === "prazo") return { name: "Pontualidade do Acompanhamento", weight: TOPIC_WEIGHTS.prazo };
@@ -3156,56 +3164,89 @@ function hydrateFromPowerBI() {
         return t ? { name: t.id + ". " + t.name, weight: TOPIC_WEIGHTS[id] } : { name: id, weight: TOPIC_WEIGHTS[id] || 0 };
       }
 
-      function topicRowsFor(topicIds) {
-        return topicIds.map(function(id, idxInCat) {
-          var def = topicDef(id);
-          var isQualitative = QUALITATIVE_TOPIC_IDS.indexOf(id) !== -1;
-          var rowBg = idxInCat % 2 === 1 ? '#f8fafc' : '#ffffff';
-          var cells = '<td style="padding:12px 18px; font-size:1.05rem; color:#1e293b; font-weight:700; white-space:nowrap; position:sticky; left:0; background:' + rowBg + ';">' + def.name + ' <span style="color:#94a3b8; font-weight:600; font-size:0.86rem;">(' + def.weight + 'p)</span></td>';
-          var earnedSum = 0, maxSum = 0, hasAny = false;
-          monthlyScores.forEach(function(sc, idx) {
-            var m = idx + 1;
-            var t = sc.topics[id];
-            if (!t || !t.applicable) {
-              cells += '<td style="padding:12px 4px; font-size:0.95rem; text-align:center; color:#cbd5e1; background:' + rowBg + ';">–</td>';
-              return;
-            }
-            hasAny = true;
-            earnedSum += t.earned;
-            maxSum += t.max;
-            var pct = t.max > 0 ? (t.earned / t.max) * 100 : 100;
-            var tier = scoreTier(pct);
-            var ok = t.earned >= t.max - 0.01;
-            var monthData = contract.monthHistory ? contract.monthHistory[m] : null;
-            var mainLabel = isQualitative ? (ok ? "Conforme" : "Não Conforme") : t.earned.toFixed(1);
-            var detailLine = buildTopicDetailLine(id, monthData, contract, m);
-            cells += '<td style="padding:10px 5px; font-size:' + (isQualitative ? '0.88rem' : '1.15rem') + '; text-align:center; font-weight:800; color:' + tier.dark + '; background:' + tier.bg + ';">' +
-              '<div>' + mainLabel + '</div>' +
-              (detailLine ? '<div style="font-size:0.74rem; font-weight:700; color:' + tier.dark + '; opacity:0.9; white-space:nowrap; margin-top:2px;">' + detailLine + '</div>' : '') +
-            '</td>';
-          });
-          var accumPct = maxSum > 0 ? (earnedSum / maxSum) * 100 : 0;
-          var accumTier = scoreTier(accumPct);
-          var accumCell = hasAny
-            ? '<div style="display:flex; align-items:center; gap:9px; justify-content:center;">' +
-                '<span style="font-weight:800; color:' + accumTier.dark + '; font-size:1.05rem;">' + earnedSum.toFixed(1) + '/' + maxSum.toFixed(1) + '</span>' +
-                '<div style="width:48px; height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden;"><div style="width:' + accumPct.toFixed(0) + '%; height:100%; background:' + accumTier.main + ';"></div></div>' +
-              '</div>'
-            : '<span style="color:#cbd5e1;">–</span>';
-          cells += '<td style="padding:12px 18px; text-align:center; background:#eff6ff;">' + accumCell + '</td>';
-          return '<tr style="border-bottom:1px solid #e2e8f0;">' + cells + '</tr>';
-        }).join("");
+      var BAR_MAX_H = 62;
+
+      function topicCard(id, catColor) {
+        var def = topicDef(id);
+        var isQualitative = QUALITATIVE_TOPIC_IDS.indexOf(id) !== -1;
+        var earnedSum = 0, maxSum = 0, hasAny = false;
+        var barras = "";
+
+        monthlyScores.forEach(function(sc, idx) {
+          var m = idx + 1;
+          var t = sc.topics[id];
+          var rotulo = '<div style="font-size:0.76rem; font-weight:800; color:#64748b; margin-top:5px;">' + MONTH_SHORT_NAMES[m] + '</div>';
+
+          if (!t || !t.applicable) {
+            barras += '<div style="flex:1; min-width:44px; text-align:center;" title="' + MONTH_SHORT_NAMES[m] + ': não aplicável">' +
+                '<div style="height:' + BAR_MAX_H + 'px; display:flex; align-items:flex-end; justify-content:center;">' +
+                  '<div style="width:100%; height:5px; background:repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0 4px,#f1f5f9 4px,#f1f5f9 8px); border-radius:3px;"></div>' +
+                '</div>' +
+                '<div style="font-size:0.80rem; font-weight:800; color:#cbd5e1; margin-top:4px;">–</div>' + rotulo +
+              '</div>';
+            return;
+          }
+
+          hasAny = true;
+          earnedSum += t.earned;
+          maxSum += t.max;
+          var pct = t.max > 0 ? (t.earned / t.max) * 100 : 100;
+          var tier = scoreTier(pct);
+          var alturaPx = Math.max(6, Math.round((pct / 100) * BAR_MAX_H));
+          var monthData = contract.monthHistory ? contract.monthHistory[m] : null;
+          var detalhe = buildTopicDetailLine(id, monthData, contract, m);
+          var valorTopo = isQualitative ? (t.earned >= t.max - 0.01 ? "OK" : "NC") : t.earned.toFixed(1);
+          var tip = MONTH_SHORT_NAMES[m] + ": " + t.earned.toFixed(1) + " de " + t.max + " pts" + (detalhe ? " — " + detalhe : "");
+
+          barras += '<div style="flex:1; min-width:44px; text-align:center;" title="' + tip.replace(/"/g, "&quot;") + '">' +
+              '<div style="height:' + BAR_MAX_H + 'px; display:flex; align-items:flex-end; justify-content:center; background:linear-gradient(180deg,#f8fafc,#eef2f7); border-radius:5px 5px 0 0;">' +
+                '<div style="width:78%; height:' + alturaPx + 'px; background:' + tier.main + '; border-radius:5px 5px 0 0; box-shadow:inset 0 -2px 0 rgba(0,0,0,0.08);"></div>' +
+              '</div>' +
+              '<div style="font-size:0.86rem; font-weight:900; color:' + tier.dark + '; margin-top:4px;">' + valorTopo + '</div>' + rotulo +
+            '</div>';
+        });
+
+        var accumPct = maxSum > 0 ? (earnedSum / maxSum) * 100 : 0;
+        var accumTier = scoreTier(accumPct);
+
+        // Detalhe do mês selecionado (o mais recente), mostrado por extenso no rodapé do card.
+        var ultimoDetalhe = "";
+        var tUlt = monthlyScores[selMonthNum - 1] ? monthlyScores[selMonthNum - 1].topics[id] : null;
+        if (tUlt && tUlt.applicable) {
+          var mdUlt = contract.monthHistory ? contract.monthHistory[selMonthNum] : null;
+          ultimoDetalhe = buildTopicDetailLine(id, mdUlt, contract, selMonthNum) || "";
+        }
+
+        return '<div style="background:#ffffff; border:1px solid #e2e8f0; border-top:4px solid ' + catColor + '; border-radius:10px; padding:14px 16px; box-shadow:0 2px 6px rgba(15,43,92,0.07);">' +
+            '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:10px;">' +
+              '<span style="font-size:1.02rem; font-weight:800; color:#1e293b;">' + def.name + '</span>' +
+              '<span style="font-size:0.80rem; font-weight:800; color:#94a3b8; white-space:nowrap;">' + def.weight + ' pts/mês</span>' +
+            '</div>' +
+            '<div style="display:flex; gap:5px; align-items:flex-end;">' + barras + '</div>' +
+            (ultimoDetalhe ? '<div style="margin-top:9px; font-size:0.82rem; font-weight:700; color:#475569; background:#f8fafc; border-radius:6px; padding:6px 9px;">' + MONTH_SHORT_NAMES[selMonthNum] + ': ' + ultimoDetalhe + '</div>' : '') +
+            '<div style="margin-top:11px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; align-items:center; gap:10px;">' +
+              '<span style="font-size:0.76rem; font-weight:800; color:#64748b; text-transform:uppercase;">Acumulado</span>' +
+              '<div style="flex:1; height:11px; background:#eef2f7; border-radius:6px; overflow:hidden;"><div style="width:' + accumPct.toFixed(0) + '%; height:100%; background:' + accumTier.main + ';"></div></div>' +
+              '<span style="font-size:0.98rem; font-weight:900; color:' + accumTier.dark + '; white-space:nowrap;">' + (hasAny ? (earnedSum.toFixed(1) + '/' + maxSum.toFixed(1)) : '–') + '</span>' +
+            '</div>' +
+          '</div>';
       }
 
-      var colspan = selMonthNum + 2;
       var groupsHTML = SCORE_CATEGORIES.map(function(cat) {
-        var catHeader = '<tr><td colspan="' + colspan + '" style="padding:9px 18px; font-size:0.92rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.4px;">' + cat.icon + ' ' + cat.label + '</td></tr>';
-        return catHeader + topicRowsFor(cat.topics);
+        var cards = cat.topics.map(function(id) { return topicCard(id, cat.color); }).join("");
+        return '<div style="margin-bottom:24px;">' +
+          '<div style="padding:11px 18px; font-size:1.02rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px; border-radius:8px; margin-bottom:14px;">' + cat.icon + ' ' + cat.label + '</div>' +
+          '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(430px, 1fr)); gap:16px;">' + cards + '</div>' +
+        '</div>';
       }).join("");
 
-      return '<div style="overflow-x:auto; border-radius:10px; border:1px solid #cbd5e1; box-shadow:0 2px 8px rgba(15,43,92,0.08);"><table style="border-collapse:collapse; min-width:100%;">' +
-        '<thead><tr style="background:#0f2b5c; color:#ffffff;">' + headerCells + '</tr></thead>' +
-        '<tbody>' + groupsHTML + '</tbody></table></div>';
+      return '<div>' +
+        '<div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px; font-size:0.82rem; color:#475569; font-weight:700;">' +
+          '<span>📊 Cada barra = um mês fechado (altura = % dos pontos do indicador)</span>' +
+          '<span><span style="display:inline-block; width:12px; height:12px; background:#22c55e; border-radius:3px; vertical-align:middle;"></span> Excelente</span>' +
+          '<span><span style="display:inline-block; width:12px; height:12px; background:#eab308; border-radius:3px; vertical-align:middle;"></span> Atenção</span>' +
+          '<span><span style="display:inline-block; width:12px; height:12px; background:#ef4444; border-radius:3px; vertical-align:middle;"></span> Crítico</span>' +
+        '</div>' + groupsHTML + '</div>';
     }
 
         function topicCategoryColor(scoreId) {
@@ -3224,36 +3265,49 @@ function hydrateFromPowerBI() {
 
           var body;
           if (t.maxSum === 0) {
-            body = '<div style="padding:14px 0 4px; font-size:0.84rem; color:#94a3b8; font-style:italic; text-align:center;">Sem dado apurado no ano</div>';
+            body = '<div style="padding:14px 0 4px; font-size:0.98rem; color:#94a3b8; font-style:italic; text-align:center;">Sem dado apurado no ano</div>';
           } else {
             var tier = scoreTier(t.pctAvg);
             var pillBg = t.okCount === t.totalCount ? '#dcfce7' : (t.okCount === 0 ? '#fee2e2' : '#fef9c3');
             var pillFg = t.okCount === t.totalCount ? '#15803d' : (t.okCount === 0 ? '#b91c1c' : '#b45309');
             body =
-              '<div style="display:flex; align-items:center; gap:10px; margin-top:8px;">' +
-                '<div style="flex:1; height:12px; background:#eef2f7; border-radius:6px; overflow:hidden;"><div style="width:' + t.pctAvg.toFixed(0) + '%; height:100%; background:' + tier.main + '; border-radius:6px; transition:width 0.5s ease;"></div></div>' +
-                '<span style="font-weight:900; font-size:1.05rem; color:' + tier.dark + '; min-width:44px; text-align:right;">' + t.pctAvg.toFixed(0) + '%</span>' +
+              '<div style="display:flex; align-items:center; gap:12px; margin-top:10px;">' +
+                '<div style="flex:1; height:15px; background:#eef2f7; border-radius:8px; overflow:hidden;"><div style="width:' + t.pctAvg.toFixed(0) + '%; height:100%; background:' + tier.main + '; border-radius:8px; transition:width 0.5s ease;"></div></div>' +
+                '<span style="font-weight:900; font-size:1.35rem; color:' + tier.dark + '; min-width:56px; text-align:right;">' + t.pctAvg.toFixed(0) + '%</span>' +
               '</div>' +
-              '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">' +
-                '<span style="font-size:0.80rem; color:#64748b; font-weight:700;">' + t.earnedSum.toFixed(1) + ' / ' + t.maxSum.toFixed(1) + ' pts</span>' +
-                '<span style="display:inline-block; padding:4px 11px; border-radius:20px; font-weight:800; font-size:0.78rem; background:' + pillBg + '; color:' + pillFg + ';">' + t.okCount + ' de ' + t.totalCount + ' meses</span>' +
+              '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">' +
+                '<span style="font-size:0.95rem; color:#475569; font-weight:800;">' + t.earnedSum.toFixed(1) + ' / ' + t.maxSum.toFixed(1) + ' pts</span>' +
+                '<span style="display:inline-block; padding:5px 14px; border-radius:20px; font-weight:800; font-size:0.92rem; background:' + pillBg + '; color:' + pillFg + ';">' + t.okCount + ' de ' + t.totalCount + ' meses</span>' +
               '</div>';
           }
 
           var commentBlock = text
-            ? '<div style="margin-top:10px; padding:9px 11px; background:#eff6ff; border:1px solid #bfdbfe; border-left:3px solid #2563eb; border-radius:6px;">' +
-                '<div style="font-size:0.70rem; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:3px;">📝 Justificativas do ano</div>' +
-                '<div style="font-size:0.78rem; color:#334155; line-height:1.5;">' + text + '</div>' +
+            ? '<div style="margin-top:12px; padding:11px 13px; background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid #2563eb; border-radius:6px;">' +
+                '<div style="font-size:0.80rem; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">📝 Justificativas do ano</div>' +
+                '<div style="font-size:0.92rem; color:#334155; line-height:1.55;">' + text + '</div>' +
               '</div>'
             : '';
 
-          return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-left:4px solid ' + catColor + '; padding:14px 16px; box-shadow:0 1px 4px rgba(15,43,92,0.06);">' +
-            '<div style="display:flex; justify-content:space-between; align-items:baseline;">' +
-              '<span style="font-size:0.92rem; font-weight:800; color:#1e293b;">' + (isAcompTopic ? t.name : (t.id + '. ' + t.name)) + '</span>' +
-              '<span style="font-size:0.74rem; font-weight:700; color:#94a3b8;">' + t.weight + ' pts</span>' +
+          // Caixa do Resumo Anual (IA) -- fixa por OS+indicador, não muda com o mês selecionado.
+          // O Máster cola aqui o texto que a IA externa gerou a partir do "Copiar Tudo p/ IA".
+          var resumoBlock = "";
+          if (contractCode && !isAcompTopic) {
+            var resumoVal = getResumoAnualIA(contractCode, t.id);
+            resumoBlock = '<div style="margin-top:12px; padding:11px 13px; background:#faf5ff; border:1px solid #d8b4fe; border-left:4px solid #7c3aed; border-radius:6px;">' +
+              '<div style="font-size:0.80rem; font-weight:800; color:#6b21a8; text-transform:uppercase; margin-bottom:5px;">🤖 Resumo Anual (IA)</div>' +
+              '<textarea id="resumoIA_' + t.id + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este indicador..." style="width:100%; min-height:84px; font-size:0.92rem; line-height:1.5; padding:9px; border:1px solid #d8b4fe; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + resumoVal + '</textarea>' +
+              (window.isMaster ? '<button type="button" onclick="saveResumoAnualInline(' + t.id + ')" style="margin-top:7px; background:#7c3aed; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.86rem; cursor:pointer;">💾 Salvar Resumo</button>' : '') +
+            '</div>';
+          }
+
+          return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-left:5px solid ' + catColor + '; padding:16px 18px; box-shadow:0 1px 4px rgba(15,43,92,0.06);">' +
+            '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">' +
+              '<span style="font-size:1.10rem; font-weight:800; color:#1e293b;">' + (isAcompTopic ? t.name : (t.id + '. ' + t.name)) + '</span>' +
+              '<span style="font-size:0.88rem; font-weight:800; color:#94a3b8; white-space:nowrap;">' + t.weight + ' pts</span>' +
             '</div>' +
             body +
             commentBlock +
+            resumoBlock +
           '</div>';
         }
 
@@ -3270,9 +3324,11 @@ function hydrateFromPowerBI() {
               return buildTopicIndicatorCardHTML(byId[id], commentHistory, contract ? contract.code : "");
             }).join("");
             if (!cards) return "";
-            return '<div style="margin-bottom:18px;">' +
-              '<div style="padding:7px 14px; font-size:0.78rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.4px; border-radius:6px; margin-bottom:10px;">' + cat.icon + ' ' + cat.label + '</div>' +
-              '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px;">' + cards + '</div>' +
+            // Cada categoria começa numa faixa própria (linha nova), com os cards do grupo
+            // logo abaixo -- cards mais largos para o texto dos resumos caber melhor.
+            return '<div style="margin-bottom:26px;">' +
+              '<div style="padding:11px 18px; font-size:1.02rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px; border-radius:8px; margin-bottom:14px;">' + cat.icon + ' ' + cat.label + '</div>' +
+              '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(400px, 1fr)); gap:16px;">' + cards + '</div>' +
             '</div>';
           }).join("");
 
@@ -3535,7 +3591,6 @@ function hydrateFromPowerBI() {
           kpiCard("🛡️", "#e0f2fe", "Conformidade Governança", govVal, govSub, "#15803d");
       }
 
-      renderResumoAnualSection(isMultiOS, activeOSFilter);
       renderSuperintendenciaAndNegocioSummary("tab2ExecutiveSummariesContainer", "consolidacao");
     }
 
@@ -3697,6 +3752,7 @@ function hydrateFromPowerBI() {
           '</div>';
       }
 
+      renderLicoesResumoSection();
       renderSuperintendenciaAndNegocioSummary("tab3ExecutiveSummariesContainer", "licoes");
     }
 
@@ -4321,34 +4377,6 @@ function hydrateFromPowerBI() {
       showToast("✅ Resumo anual do tópico #" + topicId + " salvo (fixo, independente do mês).");
     }
 
-    // Aba 3 -- lista unificada dos 23 campos de Resumo Anual (IA), um por indicador. Cada um é
-    // independente do mês selecionado (mesma leitura/gravação de saveResumoAnualInline).
-    function renderResumoAnualSection(isMultiOS, activeOSFilter) {
-      var cont = document.getElementById("resumoAnualContainer");
-      if (!cont) return;
-      if (isMultiOS || !activeOSFilter) {
-        cont.innerHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #7c3aed; padding:16px 20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); font-size:0.85rem; color:#64748b;">🤖 Selecione uma OS específica no Power BI para ver e editar os Resumos Anuais (IA) por indicador.</div>';
-        return;
-      }
-
-      var cardsHTML = topicsData.filter(function(t) { return t.id <= 23; }).map(function(t) {
-        var val = getResumoAnualIA(activeOSFilter, t.id);
-        return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-left:4px solid #7c3aed; padding:14px 16px; box-shadow:0 1px 4px rgba(15,43,92,0.06);">' +
-          '<div style="font-size:0.90rem; font-weight:800; color:#1e293b; margin-bottom:8px;">#' + t.id + ' ' + t.name + '</div>' +
-          '<textarea id="resumoIA_' + t.id + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este indicador..." style="width:100%; min-height:80px; font-size:0.82rem; padding:8px; border:1px solid #d8b4fe; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#faf5ff' : '#f8fafc') + '; color:#0f172a;">' + val + '</textarea>' +
-          (window.isMaster ? '<button type="button" onclick="saveResumoAnualInline(' + t.id + ')" style="margin-top:6px; background:#7c3aed; color:#ffffff; border:none; padding:5px 12px; border-radius:6px; font-weight:700; font-size:0.76rem; cursor:pointer;">💾 Salvar</button>' : '') +
-        '</div>';
-      }).join("");
-
-      cont.innerHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #7c3aed; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12);">' +
-        '<div style="border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
-          '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">🤖 Resumo Anual (IA) por Indicador — OS ' + activeOSFilter + '</h3>' +
-          '<p style="margin:4px 0 0 0; font-size:0.78rem; color:#64748b;">Fixo por indicador -- não muda com o mês selecionado. Use "📋 Copiar Tudo p/ IA" acima para extrair o histórico do ano e colar o resumo de cada indicador aqui.</p>' +
-        '</div>' +
-        '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:12px;">' + cardsHTML + '</div>' +
-      '</div>';
-    }
-
     var MONTH_NAMES_FULL_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
     function buildFullYearExportText(activeOS, selMonthNum) {
@@ -4411,6 +4439,114 @@ function hydrateFromPowerBI() {
       lines.push("INSTRUÇÃO: para cada indicador acima, gere um resumo executivo (até 5 linhas) explicando a evolução ao longo do ano, principais causas de desvio e recomendações. Cole o resumo de cada indicador de volta no campo \"Resumo Anual (IA)\" correspondente no app.");
 
       return lines.join("\n");
+    }
+
+    // =========================================================================
+    // Aba 4 -- Lições Aprendidas & Gestão de Risco (corporativo, ignora filtro de OS)
+    // =========================================================================
+    var LICOES_BLOCOS = [
+      { key: "licoes_bom", titulo: "✅ O que deu certo — Boas Práticas a Replicar", cor: "#16a34a", bg: "#f0fdf4", borda: "#bbf7d0" },
+      { key: "licoes_ruim", titulo: "⚠️ O que não deu certo — Erros a Não Repetir", cor: "#dc2626", bg: "#fef2f2", borda: "#fecaca" },
+      { key: "licoes_risco", titulo: "🛡️ Gestão de Risco — Pontos de Atenção do Contrato", cor: "#b45309", bg: "#fffbeb", borda: "#fde68a" }
+    ];
+
+    function getLicoesResumo(key) { return safeGetStorage("licoes_resumo_" + key, ""); }
+
+    function saveLicoesResumoInline(key) {
+      if (!window.isMaster) { showToast("⚠️ Apenas usuários Máster podem salvar este resumo."); return; }
+      var ta = document.getElementById("licoesTA_" + key);
+      if (!ta) return;
+      safeSetStorage("licoes_resumo_" + key, ta.value);
+      showToast("✅ Resumo salvo (fixo, visível para todos os meses).");
+    }
+
+    // Estes resumos são corporativos: não dependem da OS nem do mês selecionado.
+    function renderLicoesResumoSection() {
+      var cont = document.getElementById("licoesResumoContainer");
+      if (!cont) return;
+      var blocos = LICOES_BLOCOS.map(function(b) {
+        var val = getLicoesResumo(b.key);
+        return '<div style="background:' + b.bg + '; border:1.5px solid ' + b.borda + '; border-left:5px solid ' + b.cor + '; border-radius:10px; padding:14px 16px;">' +
+          '<div style="font-size:1.00rem; font-weight:800; color:' + b.cor + '; margin-bottom:8px;">' + b.titulo + '</div>' +
+          '<textarea id="licoesTA_' + b.key + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este bloco..." style="width:100%; min-height:150px; font-size:0.95rem; line-height:1.55; padding:10px; border:1px solid ' + b.borda + '; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + val + '</textarea>' +
+          (window.isMaster ? '<button type="button" onclick="saveLicoesResumoInline(\'' + b.key + '\')" style="margin-top:7px; background:' + b.cor + '; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.86rem; cursor:pointer;">💾 Salvar</button>' : '') +
+        '</div>';
+      }).join("");
+
+      cont.innerHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #10b981; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12);">' +
+        '<div style="border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
+          '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800;">🤖 Resumos de Lições Aprendidas & Gestão de Risco</h3>' +
+          '<p style="margin:4px 0 0 0; font-size:0.84rem; color:#64748b;">Use "📋 Copiar p/ IA (Lições &amp; Riscos)" acima, cole numa IA externa e traga o resultado para os campos abaixo. Corporativo: não muda com a OS nem com o mês.</p>' +
+        '</div>' +
+        '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:16px;">' + blocos + '</div>' +
+      '</div>';
+    }
+
+    // Exporta TODAS as OS (ignora filtro), com indicadores, notas e comentários acumulados,
+    // e uma instrução específica de Lições Aprendidas / Gestão de Risco.
+    function openCopyLicoesModal() {
+      if (!window.isMaster) { showToast("⚠️ Apenas usuários Máster podem exportar."); return; }
+      var currentParams = new URLSearchParams(window.location.search);
+      var selMonthNum = getMonthNumberFromParams(currentParams);
+
+      var sep = "";
+      for (var s = 0; s < 70; s++) sep += "=";
+
+      var lines = [];
+      lines.push("LIÇÕES APRENDIDAS & GESTÃO DE RISCO -- VISÃO CORPORATIVA NPE");
+      lines.push("Ano 2026 -- Janeiro a " + (MONTH_NAMES_FULL_PT[selMonthNum] || selMonthNum) + " -- " + ACTIVE_CONTRACTS_CATALOG.length + " OSs");
+      lines.push(sep);
+
+      ACTIVE_CONTRACTS_CATALOG.forEach(function(c) {
+        var sc = calculateOSScore(c, selMonthNum);
+        if (!sc.hasEvaluableData) return;
+        lines.push("");
+        lines.push("### OS " + c.code + " -- " + c.name + " (" + c.negocio + " | " + c.superintendencia + " | Gestor: " + c.gestor + ")");
+        lines.push("Nota do mês: " + sc.monthScore.toFixed(1) + " pts");
+
+        var fortes = [], fracos = [];
+        for (var id in sc.topics) {
+          var tp = sc.topics[id];
+          if (!tp.applicable || tp.max <= 0) continue;
+          (tp.earned >= tp.max - 0.01 ? fortes : fracos).push(licoesTopicLabel(id));
+        }
+        if (fortes.length) lines.push("Indicadores OK: " + fortes.join("; "));
+        if (fracos.length) lines.push("Indicadores em falha: " + fracos.join("; "));
+
+        // Comentários do ano desta OS (só existem para a OS selecionada no Power BI).
+        var gh = c.commentHistory || {};
+        var mh = c.commentHistoryMaster || {};
+        TOPIC_INDICATOR_MAP.forEach(function(t) {
+          var g = gh[String(t.id)], m = mh[String(t.id)];
+          if (!g && !m) return;
+          lines.push("  [" + t.name + "]");
+          if (g) lines.push("    Gestor: " + g);
+          if (m) lines.push("    Performance: " + m);
+        });
+      });
+
+      lines.push("");
+      lines.push(sep);
+      lines.push("INSTRUÇÃO PARA A IA:");
+      lines.push("Analise os dados acima (todas as OSs, indicadores, notas e comentários) e produza TRÊS blocos separados e claramente identificados:");
+      lines.push("");
+      lines.push("BLOCO 1 -- O QUE DEU CERTO (Boas Práticas a Replicar):");
+      lines.push("Destaque tudo que foi apontado como BOM pelos indicadores. Para cada ponto, diga qual foi a AÇÃO relatada nos comentários que ajudou a melhorar o resultado, e em quais OSs isso aconteceu. Sugira quais outros contratos deveriam adotar essas mesmas ações.");
+      lines.push("");
+      lines.push("BLOCO 2 -- O QUE NÃO DEU CERTO (Erros a Não Repetir):");
+      lines.push("Destaque os indicadores que NÃO melhoraram ou pioraram. Identifique as ações que foram realizadas mas não surtiram efeito, e os casos em que nenhuma ação foi realizada. Diga em quais OSs ocorreram, para que não se repitam nem nesse contrato nem nos demais.");
+      lines.push("");
+      lines.push("BLOCO 3 -- GESTÃO DE RISCO:");
+      lines.push("A partir dos dois blocos anteriores, liste os pontos que precisam de atenção na gestão e administração dos contratos: riscos recorrentes, indicadores cronicamente ruins e falhas de acompanhamento. Seja objetivo e priorize por criticidade.");
+      lines.push("");
+      lines.push("Use apenas os dados fornecidos, não invente. Máximo 10 linhas por bloco.");
+
+      var modal = document.getElementById("copyAllModal");
+      var sub = document.getElementById("copyAllModalSubtitle");
+      var ta = document.getElementById("copyAllTextarea");
+      if (sub) sub.innerText = "Visão corporativa (" + ACTIVE_CONTRACTS_CATALOG.length + " OSs) • Cole numa IA externa e traga os 3 blocos para os campos da Aba 4.";
+      if (ta) ta.value = lines.join("\n");
+      if (modal) modal.style.display = "flex";
     }
 
     // Aba 1 -- copia só os 23 pareceres do Setor de Performance (Máster) do MÊS ATUAL, para
@@ -4741,6 +4877,8 @@ function hydrateFromPowerBI() {
     window.saveResumoAnualInline = saveResumoAnualInline;
     window.openCopyAllModal = openCopyAllModal;
     window.openCopyMonthPareceresModal = openCopyMonthPareceresModal;
+    window.openCopyLicoesModal = openCopyLicoesModal;
+    window.saveLicoesResumoInline = saveLicoesResumoInline;
     window.closeCopyAllModal = closeCopyAllModal;
     window.copyAllModalText = copyAllModalText;
     window.saveInlinePrazoDeadline = saveInlinePrazoDeadline;
