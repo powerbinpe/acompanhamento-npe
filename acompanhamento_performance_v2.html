@@ -433,8 +433,29 @@
   <div id="toast" class="toast">Notificação</div>
 
   <script>
-
-
+    // Capturador de erros globais -- fica visível na própria tela (não precisa de DevTools),
+    // já que o card branco/azul-em-branco reportado pelo usuário sugere um erro de JS não
+    // tratado que impede o resto do app de renderizar. Deve ficar registrado ANTES de
+    // qualquer outro código do app, para não perder erros que aconteçam cedo.
+    (function() {
+      var banner = document.createElement("div");
+      banner.id = "globalErrorBanner";
+      banner.style.cssText = "display:none; position:fixed; top:0; left:0; right:0; z-index:99999999; background:#7f1d1d; color:#fff; padding:12px 16px; font:12px monospace; white-space:pre-wrap; max-height:50vh; overflow-y:auto; border-bottom:4px solid #fca5a5;";
+      document.addEventListener("DOMContentLoaded", function() {
+        document.body.insertBefore(banner, document.body.firstChild);
+      });
+      function showBannerError(label, detail) {
+        banner.style.display = "block";
+        banner.textContent += "🔴 " + label + ": " + detail + "\n\n";
+      }
+      window.addEventListener("error", function(ev) {
+        showBannerError("Erro JS", (ev.message || "erro desconhecido") + " @ " + (ev.filename || "?") + ":" + (ev.lineno || "?") + ":" + (ev.colno || "?") + (ev.error && ev.error.stack ? "\n" + ev.error.stack : ""));
+      });
+      window.addEventListener("unhandledrejection", function(ev) {
+        var reason = ev.reason;
+        showBannerError("Promise rejeitada", (reason && reason.message) ? reason.message : String(reason));
+      });
+    })();
 
 
             // Lista Oficial de Usuários Máster (Setor de Performance / Diretoria)
