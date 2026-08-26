@@ -1137,8 +1137,8 @@ function hydrateFromPowerBI() {
           { label: "Faturamento Executivo Ano", val: "R$ 645.759.632" },
           { label: "Faturamento FCST Ano", val: "R$ 678.924.150" },
           { label: "Faturamento Real Ano", val: "R$ 740.570.832" },
-          { label: "Diferença Faturamento Ano", val: "+R$ 61.646.682", class: "positive" },
-          { label: "Diferença Faturamento Ano (%)", val: "+9,08%", class: "positive" }
+          { label: "Dif. Faturamento Ano", val: "+R$ 61.646.682", class: "positive" },
+          { label: "Dif. Faturamento Ano (%)", val: "+9,08%", class: "positive" }
         ],
         annualInsight: {
           badgeText: "🟢 Faturamento em Superávit (+14,68%)",
@@ -1151,11 +1151,11 @@ function hydrateFromPowerBI() {
           { label: "Resultado Executivo Ano", val: "R$ 30.110.075" },
           { label: "Resultado FCST Ano", val: "R$ 34.250.800" },
           { label: "Resultado Real Ano", val: "R$ 39.027.280" },
-          { label: "Diferença Resultado Ano", val: "+R$ 4.776.480", class: "positive" },
-          { label: "Margem Executivo Ano (%)", val: "4,66%" },
+          { label: "Dif. Resultado Ano", val: "+R$ 4.776.480", class: "positive" },
+          { label: "Margem Executivo (%)", val: "4,66%" },
           { label: "Margem FCST Ano (%)", val: "5,05%" },
           { label: "Margem Real Ano (%)", val: "5,27%" },
-          { label: "Diferença Margem Ano (%)", val: "+0,22%", class: "positive" }
+          { label: "Dif. Margem Ano (%)", val: "+0,22%", class: "positive" }
         ],
         annualInsight: {
           badgeText: "🟢 Rentabilidade em Alta (+29,62%)",
@@ -1165,10 +1165,10 @@ function hydrateFromPowerBI() {
       {
         id: 3, name: "Faturamento Mês",
         lines: [
-          { label: "Faturamento FCST Projetado", val: "845.278" },
+          { label: "Faturamento FCST Proj.", val: "845.278" },
           { label: "Faturamento Real Mês", val: "925.229" },
-          { label: "Diferença Faturamento Mês", val: "79.951", class: "positive" },
-          { label: "Diferença Faturamento Mês (%)", val: "9,46%", class: "positive" }
+          { label: "Dif. Faturamento Mês", val: "79.951", class: "positive" },
+          { label: "Dif. Faturamento Mês (%)", val: "9,46%", class: "positive" }
         ],
         annualInsight: {
           badge: "badge-andamento", badgeText: "🟢 Em Monitoramento (Estável)",
@@ -1180,14 +1180,14 @@ function hydrateFromPowerBI() {
       {
         id: 4, name: "Assertividade", isAssertividade: true,
         lines: [
-          { label: "Resultado FCST Projetado", val: "138.528" },
+          { label: "Resultado FCST Proj.", val: "138.528" },
           { label: "Resultado Real Mês", val: "242.066" },
-          { label: "Diferença Resultado", val: "103.537", class: "positive" },
+          { label: "Dif. Resultado", val: "103.537", class: "positive" },
           { label: "Margem Real do Mês (%)", val: "26,16%" },
-          { label: "Margem FCST Projetada (%)", val: "16,39%" },
-          { label: "Diferença na Margem (%)", val: "9,77%", class: "positive" },
+          { label: "Margem FCST Proj. (%)", val: "16,39%" },
+          { label: "Dif. na Margem (%)", val: "9,77%", class: "positive" },
           { label: "Assertividade Calculada (Mês)", val: "Assertivo", class: "positive" },
-          { label: "% Assertividade Acumulada Ano", val: "100,00%" }
+          { label: "% Assertiv. Acum. Ano", val: "100,00%" }
         ],
         annualInsight: {
           badge: "badge-efetiva", badgeText: "🟢 Assertividade Alta",
@@ -1211,7 +1211,7 @@ function hydrateFromPowerBI() {
         lines: [
           { label: "Perda de Receita (Mês)", val: "R$ 0" },
           { label: "% Perda de Receita (Mês)", val: "0,00%", class: "positive" },
-          { label: "Perda de Receita Acumulada Ano", val: "R$ 144.577", class: "negative" }
+          { label: "Perda Receita Acum. Ano", val: "R$ 144.577", class: "negative" }
         ],
         annualInsight: {
           badge: "badge-efetiva", badgeText: "🟢 Perda Mitigada",
@@ -1380,8 +1380,8 @@ function hydrateFromPowerBI() {
           { label: "Meta do Negócio (Rotina)", val: "3 aprovadas (mín. 1 rec.)" },
           { label: "BP Aprovadas no Mês", val: "0 iniciativas" },
           { label: "BP Reconhecidas no Mês", val: "0 iniciativas" },
-          { label: "BP Aprovadas Acumuladas", val: "3 iniciativas" },
-          { label: "BP Reconhecidas Acumuladas", val: "1 iniciativa" }
+          { label: "BP Aprovadas Acum.", val: "3 iniciativas" },
+          { label: "BP Reconhec. Acum.", val: "1 iniciativa" }
         ],
         annualInsight: {
           badge: "badge-efetiva", badgeText: "🟢 Meta Meritocracia Semestral",
@@ -2477,8 +2477,8 @@ function hydrateFromPowerBI() {
           { label: "Faturamento Executivo Ano", val: fmtMo(fExecAno) },
           { label: "Faturamento FCST Ano", val: fmtMo(fFcstAno) },
           { label: "Faturamento Real Ano", val: fmtMo(fRealAno) },
-          { label: "Diferença Faturamento Ano", val: (fDifAno >= 0 ? "+" : "") + fmtMo(fDifAno) },
-          { label: "Diferença Faturamento Ano (%)", val: (fPctAno >= 0 ? "+" : "") + fmtPct(fPctAno) }
+          { label: "Dif. Faturamento Ano", val: (fDifAno >= 0 ? "+" : "") + fmtMo(fDifAno) },
+          { label: "Dif. Faturamento Ano (%)", val: (fPctAno >= 0 ? "+" : "") + fmtPct(fPctAno) }
         ];
       } else if (topic.id === 2) { // Resultado Ano
         var rRealAno = biData ? biData.res_ano : 1208505;
@@ -2491,11 +2491,11 @@ function hydrateFromPowerBI() {
           { label: "Resultado Executivo Ano", val: fmtMo(rExecAno) },
           { label: "Resultado FCST Ano", val: fmtMo(rFcstAno) },
           { label: "Resultado Real Ano", val: fmtMo(rRealAno) },
-          { label: "Diferença Resultado Ano", val: (rDifAno >= 0 ? "+" : "") + fmtMo(rDifAno) },
-          { label: "Margem Executivo Ano (%)", val: "4,66%" },
+          { label: "Dif. Resultado Ano", val: (rDifAno >= 0 ? "+" : "") + fmtMo(rDifAno) },
+          { label: "Margem Executivo (%)", val: "4,66%" },
           { label: "Margem FCST Ano (%)", val: "5,05%" },
           { label: "Margem Real Ano (%)", val: fmtPct(mReal) },
-          { label: "Diferença Margem Ano (%)", val: (mReal >= 0.0505 ? "+" : "") + fmtPct(mReal - 0.0505) }
+          { label: "Dif. Margem Ano (%)", val: (mReal >= 0.0505 ? "+" : "") + fmtPct(mReal - 0.0505) }
         ];
       } else if (topic.id === 3) { // Faturamento Mês
         var fRealMes = biData ? biData.fat_mes : 1804654;
@@ -2503,10 +2503,10 @@ function hydrateFromPowerBI() {
         var fDifMes = fRealMes - fFcstMes;
         var fPctMes = fFcstMes > 0 ? (fDifMes / fFcstMes) : 0;
         lines = [
-          { label: "Faturamento FCST Projetado", val: fmtMo(fFcstMes) },
+          { label: "Faturamento FCST Proj.", val: fmtMo(fFcstMes) },
           { label: "Faturamento Real Mês", val: fmtMo(fRealMes) },
-          { label: "Diferença Faturamento Mês", val: (fDifMes >= 0 ? "+" : "") + fmtMo(fDifMes) },
-          { label: "Diferença Faturamento Mês (%)", val: (fPctMes >= 0 ? "+" : "") + fmtPct(fPctMes) }
+          { label: "Dif. Faturamento Mês", val: (fDifMes >= 0 ? "+" : "") + fmtMo(fDifMes) },
+          { label: "Dif. Faturamento Mês (%)", val: (fPctMes >= 0 ? "+" : "") + fmtPct(fPctMes) }
         ];
       } else if (topic.id === 4) { // Assertividade
         var rRealM = biData ? biData.res_mes : 160559;
@@ -2517,21 +2517,21 @@ function hydrateFromPowerBI() {
         var difMg = biData ? biData.dif_marg : (mgReal - mgFcst);
         var assText = biData ? biData.assertiv : (Math.abs(difMg) <= 0.05 ? "Assertivo" : "Não Assertivo");
         lines = [
-          { label: "Resultado FCST Projetado", val: fmtMo(rFcstM) },
+          { label: "Resultado FCST Proj.", val: fmtMo(rFcstM) },
           { label: "Resultado Real Mês", val: fmtMo(rRealM) },
-          { label: "Diferença Resultado", val: (rDifM >= 0 ? "+" : "") + fmtMo(rDifM) },
+          { label: "Dif. Resultado", val: (rDifM >= 0 ? "+" : "") + fmtMo(rDifM) },
           { label: "Margem Real do Mês (%)", val: fmtPct(mgReal) },
-          { label: "Margem FCST Projetada (%)", val: fmtPct(mgFcst) },
-          { label: "Diferença na Margem (%)", val: (difMg >= 0 ? "+" : "") + fmtPct(difMg) },
+          { label: "Margem FCST Proj. (%)", val: fmtPct(mgFcst) },
+          { label: "Dif. na Margem (%)", val: (difMg >= 0 ? "+" : "") + fmtPct(difMg) },
           { label: "Assertividade Calculada (Mês)", val: assText },
-          { label: "% Assertividade Acumulada Ano", val: "100,00%" }
+          { label: "% Assertiv. Acum. Ano", val: "100,00%" }
         ];
       } else if (topic.id === 6) { // Perda de Receita
         var pMes = biData ? biData.perda : 0;
         lines = [
           { label: "Perda de Receita (Mês)", val: fmtMo(pMes) },
           { label: "% Perda de Receita (Mês)", val: pMes > 0 ? "1,24%" : "0,00%" },
-          { label: "Perda de Receita Acumulada Ano", val: "R$ 144.577" }
+          { label: "Perda Receita Acum. Ano", val: "R$ 144.577" }
         ];
       } else if (topic.id === 8) { // Indenização
         var indMes = biData ? biData.indenizacao : 0;
@@ -2587,12 +2587,35 @@ function hydrateFromPowerBI() {
           { label: "Meta Semestral (Rotina)", val: "3 aprovadas (mín. 1 rec.)" },
           { label: "BP Aprovadas no Mês", val: bpA + (bpA === 1 ? " iniciativa" : " iniciativas") },
           { label: "BP Reconhecidas no Mês", val: bpR + (bpR === 1 ? " iniciativa" : " iniciativas") },
-          { label: "BP Aprovadas Acumuladas", val: "3 iniciativas" },
-          { label: "BP Reconhecidas Acumuladas", val: "1 iniciativa" }
+          { label: "BP Aprovadas Acum.", val: "3 iniciativas" },
+          { label: "BP Reconhec. Acum.", val: "1 iniciativa" }
         ];
       } else {
         lines = [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }];
       }
+
+      // No histórico o card precisa ser enxuto: mantemos só 3 linhas -- o valor de comparação
+      // (Executivo/FCST/Meta/Orçado), o valor realizado e o % de diferença. As demais linhas
+      // continuam disponíveis no card principal do mês corrente.
+      function compactarLinhas(todas) {
+        if (todas.length <= 3) return todas;
+        var comparacao = null, realizado = null, percentual = null;
+        todas.forEach(function(l) {
+          var lb = l.label || "";
+          if (!percentual && lb.indexOf("%") !== -1 && /(Dif\.|Diferen)/i.test(lb)) percentual = l;
+          if (!realizado && /Real|Realizad/i.test(lb)) realizado = l;
+          if (!comparacao && /Executivo|FCST|Meta|Orçad|Projetad|Referência/i.test(lb)) comparacao = l;
+        });
+        var sel = [];
+        if (comparacao) sel.push(comparacao);
+        if (realizado) sel.push(realizado);
+        if (percentual) sel.push(percentual);
+        for (var i = 0; i < todas.length && sel.length < 3; i++) {
+          if (sel.indexOf(todas[i]) === -1) sel.push(todas[i]);
+        }
+        return sel.slice(0, 3);
+      }
+      lines = compactarLinhas(lines);
 
       var tblHTML = '<div style="border:1.5px solid #0f2b5c; border-radius:6px; overflow:hidden; background:#ffffff; box-shadow:0 1px 4px rgba(0,0,0,0.06);">' +
         '<table style="width:100%; border-collapse:collapse; font-size:0.80rem; table-layout:fixed;"><tbody>';
@@ -2602,8 +2625,8 @@ function hydrateFromPowerBI() {
         var valColor = getLineColor(topic, l, rawVal);
         var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
         tblHTML += '<tr style="background-color:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' +
-          '<td style="padding:4px 8px; font-size:0.78rem; color:#334155; font-weight:700; width:58%;">' + l.label + ':</td>' +
-          '<td style="padding:4px 8px; font-size:0.82rem; color:' + valColor + '; font-weight:800; text-align:right; width:40%;">' + rawVal + '</td>' +
+          '<td style="padding:4px 7px; font-size:0.73rem; line-height:1.25; color:#334155; font-weight:700; width:64%;">' + l.label + ':</td>' +
+          '<td style="padding:4px 8px; font-size:0.79rem; color:' + valColor + '; font-weight:800; text-align:right; width:36%; white-space:nowrap;">' + rawVal + '</td>' +
           '</tr>';
       });
 
@@ -2755,8 +2778,8 @@ function hydrateFromPowerBI() {
 
             var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
             linesHTML += '<tr style="background-color: ' + rowBg + '; border-bottom: 1.5px solid #cbd5e1;">' +
-              '<td style="padding: 7px 10px; font-size: 0.95rem; color: #334155; font-weight: 700; width: 40%;">' + l.label + ':</td>' +
-              '<td style="padding: 7px 12px; font-size: 1.05rem; color: ' + valColor + '; font-weight: 800; text-align: right; width: 60%; white-space: nowrap;">' + rawVal + '</td>' +
+              '<td style="padding: 7px 10px; font-size: 0.92rem; color: #334155; font-weight: 700; width: 56%;">' + l.label + ':</td>' +
+              '<td style="padding: 7px 12px; font-size: 1.05rem; color: ' + valColor + '; font-weight: 800; text-align: right; width: 44%; white-space: nowrap;">' + rawVal + '</td>' +
               '</tr>';
           });
 
@@ -2968,7 +2991,9 @@ function hydrateFromPowerBI() {
         } else {
           tHtml += '<div style="display:flex; flex-direction:column; gap:12px;">';
           
-          for (var hm = 1; hm <= 7; hm++) {
+          // Histórico = meses ANTERIORES ao selecionado. O mês corrente já aparece no card
+          // principal logo acima, então repeti-lo aqui só aumentava o visual à toa.
+          for (var hm = 1; hm < monthNum; hm++) {
             var mName = monthNames[hm - 1];
             var gM = osHistRows.filter(function(r) { return r.tipo === "GESTOR"; }).find(function(r) { return r.mes === hm; });
             var mM = osHistRows.filter(function(r) { return r.tipo === "PERFORMANCE"; }).find(function(r) { return r.mes === hm; });
@@ -2980,21 +3005,21 @@ function hydrateFromPowerBI() {
 
             var metricsTableHTML = getTopicMonthlyFullTableHTML(topic, activeOS, hm, mName);
 
-            tHtml += '<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:14px; display:grid; grid-template-columns:360px 1fr 1fr; gap:16px; align-items:start; margin-bottom:10px;">' +
+            tHtml += '<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:11px 14px; display:grid; grid-template-columns:300px 1.5fr 1fr; gap:14px; align-items:start; margin-bottom:8px;">' +
               '<div style="border-right:1.5px solid #e2e8f0; padding-right:12px;">' +
-                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">' +
-                  '<span style="font-weight:800; font-size:0.90rem; color:#0f2b5c;">Mês ' + String(hm).padStart(2, '0') + ' • ' + mName + '</span>' +
-                  '<span class="status-pill status-validado" style="font-size:0.68rem;">🔒 Homologado</span>' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">' +
+                  '<span style="font-weight:800; font-size:0.86rem; color:#0f2b5c;">Mês ' + String(hm).padStart(2, '0') + ' • ' + mName + '</span>' +
+                  '<span class="status-pill status-validado" style="font-size:0.66rem;">🔒 Homologado</span>' +
                 '</div>' +
                 metricsTableHTML +
               '</div>' +
               '<div>' +
-                '<div style="font-size:0.75rem; font-weight:800; color:#0f2b5c; margin-bottom:4px;">👤 Parecer do Gestor de OS:</div>' +
-                '<div style="font-size:0.82rem; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; min-height:44px;">' + (gTxt || "<em>Sem parecer registrado</em>") + '</div>' +
+                '<div style="font-size:0.74rem; font-weight:800; color:#0f2b5c; margin-bottom:3px;">👤 Parecer do Gestor de OS:</div>' +
+                '<div style="font-size:0.82rem; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; min-height:34px;">' + (gTxt || "<em>Sem parecer registrado</em>") + '</div>' +
               '</div>' +
               '<div>' +
-                '<div style="font-size:0.75rem; font-weight:800; color:#0f2b5c; margin-bottom:4px;">🛡️ Parecer do Setor de Performance:</div>' +
-                '<div style="font-size:0.82rem; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; min-height:44px;">' + (mTxt || "<em>Acompanhamento regular</em>") + '</div>' +
+                '<div style="font-size:0.74rem; font-weight:800; color:#0f2b5c; margin-bottom:3px;">🛡️ Parecer do Setor de Performance:</div>' +
+                '<div style="font-size:0.78rem; color:#334155; background:#f8fafc; padding:5px 9px; border-radius:6px; border:1px solid #e2e8f0; min-height:34px;">' + (mTxt || "<em>Acompanhamento regular</em>") + '</div>' +
               '</div>' +
               '</div>';
           }
