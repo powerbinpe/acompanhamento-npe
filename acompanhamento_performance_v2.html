@@ -201,6 +201,30 @@
       <button type="button" class="save-btn" onclick="saveAllComments()">
         💾 Salvar Comentários
       </button>
+
+      <button type="button" id="btnCopyAllForAI" onclick="openCopyAllModal()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+        📋 Copiar Tudo p/ IA
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal: Exportar todos os comentários do ano para colar numa IA externa -->
+  <div id="copyAllModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:center; padding:20px;">
+    <div style="background:#ffffff; border-radius:14px; width:100%; max-width:820px; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #7c3aed; overflow:hidden; display:flex; flex-direction:column; max-height:90vh;">
+      <div style="background:linear-gradient(135deg, #0f2b5c 0%, #5b21b6 100%); padding:14px 20px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
+        <div>
+          <h3 style="margin:0; font-size:1.10rem; font-weight:800;">📋 Exportar Comentários do Ano (para IA externa)</h3>
+          <p id="copyAllModalSubtitle" style="margin:2px 0 0 0; font-size:0.78rem; color:#ddd6fe;">Copie o texto abaixo e cole numa IA (ChatGPT, Copilot, etc.) para gerar o resumo de cada indicador.</p>
+        </div>
+        <button type="button" onclick="closeCopyAllModal()" style="background:#ef4444; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; cursor:pointer; font-size:0.88rem;">✕ Fechar</button>
+      </div>
+      <div style="padding:16px 20px; overflow-y:auto; flex:1;">
+        <textarea id="copyAllTextarea" readonly style="width:100%; min-height:420px; font-family:monospace; font-size:0.80rem; padding:12px; border:1.5px solid #cbd5e1; border-radius:8px; color:#0f172a; box-sizing:border-box;"></textarea>
+      </div>
+      <div style="background:#f8fafc; padding:12px 20px; border-top:1.5px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:0.76rem; color:#64748b;">💡 Se o botão não copiar automaticamente, clique dentro do texto, Ctrl+A e Ctrl+C.</span>
+        <button type="button" onclick="copyAllModalText()" style="background:#7c3aed; color:#ffffff; border:none; padding:9px 20px; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer;">📋 Copiar</button>
+      </div>
     </div>
   </div>
 
@@ -2860,6 +2884,18 @@ function hydrateFromPowerBI() {
           '</div>';
         }
 
+        // Resumo Anual (IA) -- campo fixo por OS+tópico, não muda com o mês selecionado.
+        // Aplica-se aos 23 campos de comentário reais (não aos controles de status 26/27).
+        var resumoAnualHTML = "";
+        if (!isMultiOS && typeof topic.id === "number" && topic.id <= 23) {
+          var resumoAtual = getResumoAnualIA(activeOS, topic.id);
+          resumoAnualHTML = '<div style="margin-top:10px; background:#faf5ff; border:1.5px solid #d8b4fe; border-radius:8px; padding:10px;">' +
+            '<div style="font-size:0.76rem; font-weight:800; color:#6b21a8; text-transform:uppercase; margin-bottom:6px; display:flex; align-items:center; gap:6px;">🤖 Resumo Anual (IA) <span style="font-weight:600; text-transform:none; color:#94a3b8; font-size:0.70rem;">— fixo, não muda com o mês selecionado</span></div>' +
+            '<textarea id="resumoIA_' + topic.id + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este indicador..." style="width:100%; min-height:70px; font-size:0.82rem; padding:8px; border:1px solid #d8b4fe; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + resumoAtual + '</textarea>' +
+            (window.isMaster ? '<button type="button" onclick="saveResumoAnualInline(' + topic.id + ')" style="margin-top:6px; background:#7c3aed; color:#ffffff; border:none; padding:5px 12px; border-radius:6px; font-weight:700; font-size:0.76rem; cursor:pointer;">💾 Salvar Resumo Anual</button>' : '') +
+          '</div>';
+        }
+
         var catInfo = categoryInfoForTopicId(topic.id);
         row.innerHTML = '<div class="kpi-column">' +
           '<div>' +
@@ -2869,6 +2905,7 @@ function hydrateFromPowerBI() {
             '</div>' +
             '<div class="kpi-lines">' + linesHTML + '</div>' +
             qualBlockHTML +
+            resumoAnualHTML +
           '</div>' +
           '<button id="btn_hist_' + topic.id + '" type="button" class="timeline-btn" onclick="toggleInlineHistory(' + topic.id + ')">' +
             '📜 Histórico ATA_COMENTARIO' +
@@ -4330,6 +4367,119 @@ function hydrateFromPowerBI() {
     }
 
         // =========================================================================
+    // 11b. RESUMO ANUAL (IA) POR TÓPICO + EXPORTAÇÃO PARA IA EXTERNA
+    // =========================================================================
+    // Campo fixo por OS+tópico (não varia por mês) -- o Máster copia o histórico do ano
+    // (botão "Copiar Tudo p/ IA"), cola numa IA externa, e cola o resultado de volta aqui.
+    // Sempre sobrescreve o valor anterior; salvo neste navegador (localStorage), igual ao
+    // resto dos campos editáveis do app.
+    function getResumoAnualIA(osCode, topicId) {
+      return safeGetStorage("resumo_ia_" + osCode + "_" + topicId, "");
+    }
+
+    function saveResumoAnualInline(topicId) {
+      if (!window.isMaster) {
+        showToast("⚠️ Apenas usuários Máster podem salvar o resumo anual.");
+        return;
+      }
+      var currentParams = new URLSearchParams(window.location.search);
+      var rawOS = currentParams.get("SelectedOS") || "";
+      var activeOS = extractPrimaryOSCode(rawOS);
+      if (!activeOS) return;
+      var ta = document.getElementById("resumoIA_" + topicId);
+      if (!ta) return;
+      safeSetStorage("resumo_ia_" + activeOS + "_" + topicId, ta.value);
+      showToast("✅ Resumo anual do tópico #" + topicId + " salvo (fixo, independente do mês).");
+    }
+
+    var MONTH_NAMES_FULL_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+    function buildFullYearExportText(activeOS, selMonthNum) {
+      var contract = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return c.code === activeOS; });
+      if (!contract) return "OS não encontrada.";
+
+      var sep = "";
+      for (var s = 0; s < 70; s++) sep += "=";
+
+      var lines = [];
+      lines.push("RESUMO ANUAL DE ACOMPANHAMENTO -- OS " + activeOS + " (" + contract.name + ")");
+      lines.push("Ano 2026 -- Janeiro a " + (MONTH_NAMES_FULL_PT[selMonthNum] || selMonthNum));
+      lines.push(sep);
+
+      TOPIC_INDICATOR_MAP.forEach(function(t) {
+        lines.push("");
+        lines.push("### #" + t.id + " " + t.name);
+        var anyData = false;
+        for (var m = 1; m <= selMonthNum; m++) {
+          var monthData = contract.monthHistory ? contract.monthHistory[m] : null;
+          var detail = buildTopicDetailLine(t.scoreId, monthData, contract, m);
+          var tRows = (window.ATA_COMENTARIOS_DB && window.ATA_COMENTARIOS_DB[activeOS] && window.ATA_COMENTARIOS_DB[activeOS][String(t.id)]) ? window.ATA_COMENTARIOS_DB[activeOS][String(t.id)] : [];
+          var gRow = tRows.filter(function(r) { return r.tipo === "GESTOR"; }).find(function(r) { return r.mes === m; });
+          var mRow = tRows.filter(function(r) { return r.tipo === "PERFORMANCE"; }).find(function(r) { return r.mes === m; });
+          var gTxt = gRow ? gRow.comentario : safeGetStorage("g_" + activeOS + "_m" + m + "_" + t.id, "");
+          var mTxt = mRow ? mRow.comentario : safeGetStorage("m_" + activeOS + "_m" + m + "_" + t.id, "");
+          if (!detail && !gTxt && !mTxt) continue;
+          anyData = true;
+          lines.push("- " + MONTH_NAMES_FULL_PT[m] + (detail ? " (" + detail + ")" : "") + ":");
+          lines.push("  Gestor: " + (gTxt || "(sem justificativa)"));
+          lines.push("  Performance: " + (mTxt || "(sem parecer)"));
+        }
+        if (!anyData) lines.push("(sem dados registrados no período)");
+      });
+
+      lines.push("");
+      lines.push(sep);
+      lines.push("INSTRUÇÃO: para cada indicador acima, gere um resumo executivo (até 5 linhas) explicando a evolução ao longo do ano, principais causas de desvio e recomendações. Cole o resumo de cada indicador de volta no campo \"Resumo Anual (IA)\" correspondente no app.");
+
+      return lines.join("\n");
+    }
+
+    function openCopyAllModal() {
+      if (!window.isMaster) {
+        showToast("⚠️ Apenas usuários Máster podem exportar os comentários.");
+        return;
+      }
+      var currentParams = new URLSearchParams(window.location.search);
+      var rawOS = currentParams.get("SelectedOS") || "";
+      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      var activeOS = extractPrimaryOSCode(rawOS);
+      if (isMultiOS || !activeOS) {
+        showToast("⚠️ Selecione uma OS específica no Power BI para exportar os comentários.");
+        return;
+      }
+      var selMonthNum = getMonthNumberFromParams(currentParams);
+      var text = buildFullYearExportText(activeOS, selMonthNum);
+
+      var modal = document.getElementById("copyAllModal");
+      var sub = document.getElementById("copyAllModalSubtitle");
+      var ta = document.getElementById("copyAllTextarea");
+      if (sub) sub.innerText = "OS " + activeOS + " • Copie o texto abaixo e cole numa IA (ChatGPT, Copilot, etc.) para gerar o resumo de cada indicador.";
+      if (ta) ta.value = text;
+      if (modal) modal.style.display = "flex";
+    }
+
+    function closeCopyAllModal() {
+      var modal = document.getElementById("copyAllModal");
+      if (modal) modal.style.display = "none";
+    }
+
+    function copyAllModalText() {
+      var ta = document.getElementById("copyAllTextarea");
+      if (!ta) return;
+      ta.focus();
+      ta.select();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(ta.value).then(function() {
+          showToast("✅ Copiado para a área de transferência!");
+        }).catch(function() {
+          showToast("⚠️ Não deu para copiar automaticamente -- selecione o texto e use Ctrl+C.");
+        });
+      } else {
+        showToast("⚠️ Selecione o texto (já selecionado) e use Ctrl+C.");
+      }
+    }
+
+        // =========================================================================
     // 12. REAL PERSISTENT SAVE ALL COMMENTS (CLOUD WEBHOOK & SHAREPOINT SYNC)
     // =========================================================================
     window.CLOUD_WEBHOOK_URL = safeGetStorage("npe_cloud_webhook_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/bfaa9f5615144864914029734fbed5bd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=P-9LbSTlkgYK1spior6qlj8ejGES2_8pQRVn0JDjz-0");
@@ -4569,6 +4719,10 @@ function hydrateFromPowerBI() {
     window.saveAllComments = saveAllComments;
     window.filterRankingTable = filterRankingTable;
     window.setSlaPeriodStatusInline = setSlaPeriodStatusInline;
+    window.saveResumoAnualInline = saveResumoAnualInline;
+    window.openCopyAllModal = openCopyAllModal;
+    window.closeCopyAllModal = closeCopyAllModal;
+    window.copyAllModalText = copyAllModalText;
     window.saveInlinePrazoDeadline = saveInlinePrazoDeadline;
     window.getSlaPeriodStatus = getSlaPeriodStatus;
     window.getOSCompletionStatus = getOSCompletionStatus;
