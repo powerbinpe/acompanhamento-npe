@@ -3438,7 +3438,7 @@ function hydrateFromPowerBI() {
           return '#94a3b8';
         }
 
-        function buildTopicIndicatorCardHTML(t, commentHistory, contractCode) {
+        function buildTopicIndicatorCardHTML(t, commentHistory, contractCode, selMonthNum) {
           var isAcompTopic = (t.id === "prazo" || t.id === "preenchimento");
           var catColor = topicCategoryColor(isAcompTopic ? t.id : ("t" + t.id));
           // Prazo/Preenchimento não têm ComentarioGestor próprio no ATA_COMENTARIO (não são
@@ -3461,6 +3461,26 @@ function hydrateFromPowerBI() {
                 '<span style="font-size:0.95rem; color:#475569; font-weight:800;">' + t.earnedSum.toFixed(1) + ' / ' + t.maxSum.toFixed(1) + ' pts</span>' +
                 '<span style="display:inline-block; padding:5px 14px; border-radius:20px; font-weight:800; font-size:0.92rem; background:' + pillBg + '; color:' + pillFg + ';">' + t.okCount + ' de ' + t.totalCount + ' meses</span>' +
               '</div>';
+          }
+
+          // Acumulado Ano "real" -- a mesma conta usada no card principal da Aba 1, para que o
+          // número seja idêntico em todo o app (não uma média de pontos por mês).
+          var accumBlock = "";
+          if (contractCode && typeof selMonthNum === "number") {
+            var accumPct = null, accumLabel = "Acumulado Ano";
+            if (t.id === "prazo") { accumPct = computePrazoAccumPct(contractCode, selMonthNum); accumLabel = "Pontualidade Acum. Ano"; }
+            else if (t.id === "preenchimento") { accumPct = computePreenchimentoAccumPct(contractCode, selMonthNum); accumLabel = "Preenchimento Acum. Ano"; }
+            else if (t.id === 4) { var contractForAssert = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return c.code === contractCode; }); accumPct = (contractForAssert && typeof contractForAssert.assertividadeAcumPct === "number") ? contractForAssert.assertividadeAcumPct : null; accumLabel = "Assertividade Acum. Ano"; }
+            else if (t.id === 11) { var absP = new URLSearchParams(window.location.search).get("AbsenteismoAcum"); accumPct = (absP && absP !== "-") ? parseFloat(absP.replace("%", "").replace(",", ".")) / 100 : null; accumLabel = "Absenteísmo Acum. Ano"; }
+            else if (t.id === 12) { var turP = new URLSearchParams(window.location.search).get("TurnoverAcum"); accumPct = (turP && turP !== "-") ? parseFloat(turP.replace("%", "").replace(",", ".")) / 100 : null; accumLabel = "TurnOver Acum. Ano"; }
+            else if (TOPIC_ID_TO_QUAL_KEY[t.id]) { accumPct = computeQualAccumPct(contractCode, TOPIC_ID_TO_QUAL_KEY[t.id], selMonthNum); accumLabel = "Aderência Acum. Ano"; }
+            if (accumPct !== null && !isNaN(accumPct)) {
+              var accumIsGood = (t.id === 11 || t.id === 12) ? (accumPct <= 0.05) : (accumPct >= 0.8);
+              accumBlock = '<div style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; font-size:0.82rem;">' +
+                '<span style="color:#475569; font-weight:700;">' + accumLabel + ':</span>' +
+                '<span style="font-weight:800; color:' + (accumIsGood ? '#15803d' : '#b91c1c') + ';">' + (accumPct * 100).toFixed(t.id === 11 || t.id === 12 ? 2 : 0) + '%</span>' +
+              '</div>';
+            }
           }
 
           var commentBlock = text
@@ -3488,12 +3508,13 @@ function hydrateFromPowerBI() {
               '<span style="font-size:0.88rem; font-weight:800; color:#94a3b8; white-space:nowrap;">' + t.weight + ' pts</span>' +
             '</div>' +
             body +
+            accumBlock +
             commentBlock +
             resumoBlock +
           '</div>';
         }
 
-        function buildTopicIndicatorTableHTML(breakdown, contract) {
+        function buildTopicIndicatorTableHTML(breakdown, contract, selMonthNum) {
           var commentHistory = (contract && contract.commentHistory) ? contract.commentHistory : null;
           var byId = {};
           breakdown.forEach(function(t) { byId[t.id] = t; });
@@ -3503,7 +3524,7 @@ function hydrateFromPowerBI() {
             // demais tópicos (t1..t21) viram o número usado em TOPIC_INDICATOR_MAP/byId.
             var topicIds = cat.topics.map(function(tid) { return (tid === "prazo" || tid === "preenchimento") ? tid : parseInt(tid.slice(1), 10); });
             var cards = topicIds.filter(function(id) { return byId[id]; }).map(function(id) {
-              return buildTopicIndicatorCardHTML(byId[id], commentHistory, contract ? contract.code : "");
+              return buildTopicIndicatorCardHTML(byId[id], commentHistory, contract ? contract.code : "", selMonthNum);
             }).join("");
             if (!cards) return "";
             // Cada categoria começa numa faixa própria (linha nova), com os cards do grupo
@@ -3705,7 +3726,7 @@ function hydrateFromPowerBI() {
             '<span style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' + osScopeLabel + '</span>' +
           '</div>' +
           '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontuação acumulada de Janeiro até o mês selecionado, da(s) OS(s) selecionada(s) no Power BI, apurada mês a mês na Aba 2. Os cards de Superintendência/Negócio abaixo mostram apenas a média do grupo, como referência de comparação.</div>' +
-          '<div style="overflow-x:auto;">' + buildTopicIndicatorTableHTML(osTopicBreakdown, activeContract) + '</div>' +
+          '<div style="overflow-x:auto;">' + buildTopicIndicatorTableHTML(osTopicBreakdown, activeContract, selMonthNum) + '</div>' +
         '</div>';
       } else {
         // tabType === "licoes": Lições Aprendidas já tem seu próprio conteúdo completo (destaques
@@ -4155,10 +4176,10 @@ function hydrateFromPowerBI() {
       }
 
       // --- Prazo & Preenchimento (Governança/SLA da Aba "Painel de Preenchimentos & SLA") -- binário: preencheu tudo ou não ganha nada
-      // periodStatus="INATIVO" marca um mês retroativo em que o prazo não foi medido -- fica de fora
-      // do score (não conta nem a favor nem contra), igual ao padrão N/A usado nos demais tópicos.
-      var prazoApplicable = (periodStatus !== "INATIVO");
-      var prazoOk = (periodStatus === "NO_PRAZO" || periodStatus === "INDEFINIDO");
+      // "Sem Período Definido" e "Período Inativo" ficam de fora do score (não contam nem a favor
+      // nem contra) -- só "No Prazo"/"Fora do Prazo" são avaliáveis.
+      var prazoApplicable = (periodStatus === "NO_PRAZO" || periodStatus === "FORA_PRAZO");
+      var prazoOk = (periodStatus === "NO_PRAZO");
       addBinary("prazo", TOPIC_WEIGHTS.prazo, prazoApplicable, prazoOk);
       addBinary("preenchimento", TOPIC_WEIGHTS.preenchimento, true, comp.status === "OK");
 
