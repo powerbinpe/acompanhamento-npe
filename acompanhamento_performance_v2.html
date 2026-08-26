@@ -1329,7 +1329,8 @@ function hydrateFromPowerBI() {
             {
         id: 15, name: "SAF",
         lines: [
-          { label: "Ocorrências SAF", val: "0 casos", class: "positive" }
+          { label: "Ocorrências SAF", val: "0 casos", class: "positive" },
+          { label: "SAF Acum. Ano", val: "0 casos", class: "positive" }
         ],
         annualInsight: {
           badge: "badge-efetiva", badgeText: "🟢 Excelência em Segurança",
@@ -1341,7 +1342,8 @@ function hydrateFromPowerBI() {
             {
         id: 16, name: "CAF",
         lines: [
-          { label: "Ocorrências CAF", val: "0 casos", class: "positive" }
+          { label: "Ocorrências CAF", val: "0 casos", class: "positive" },
+          { label: "CAF Acum. Ano", val: "0 casos", class: "positive" }
         ],
         annualInsight: {
           badge: "badge-efetiva", badgeText: "🟢 Trataiva Concluída",
@@ -1600,6 +1602,28 @@ function hydrateFromPowerBI() {
 
       // Topic 15: SAF
       if (params.get("SAFTotalVal")) topicsData[14].lines[0].val = params.get("SAFTotalVal");
+      // SAF/CAF Acumulado Ano -- soma os contadores mensais já entregues via OSMonthHistory
+      // (não vem pronto do DAX; é só a soma dos meses 1..mês selecionado).
+      (function() {
+        var activeOSForSafCaf = extractPrimaryOSCode(rawOS);
+        var monthNumForSafCaf = parseInt(params.get("SelectedMesNo"), 10) || 0;
+        var contractForSafCaf = (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined" && ACTIVE_CONTRACTS_CATALOG) ?
+          ACTIVE_CONTRACTS_CATALOG.find(function(c) { return c.code === activeOSForSafCaf; }) : null;
+        var safAcum = 0, cafAcum = 0, temDado = false;
+        if (contractForSafCaf && contractForSafCaf.monthHistory) {
+          for (var msc = 1; msc <= monthNumForSafCaf; msc++) {
+            var row = contractForSafCaf.monthHistory[msc];
+            if (!row) continue;
+            temDado = true;
+            safAcum += (row.safCount || 0);
+            cafAcum += (row.cafCount || 0);
+          }
+        }
+        topicsData[14].lines[1].val = safAcum + (safAcum === 1 ? " caso" : " casos");
+        topicsData[14].lines[1].class = safAcum === 0 ? "positive" : "negative";
+        topicsData[15].lines[1].val = cafAcum + (cafAcum === 1 ? " caso" : " casos");
+        topicsData[15].lines[1].class = cafAcum === 0 ? "positive" : "negative";
+      })();
 
       // Topic 16: CAF
       if (params.get("CAFTotalVal")) topicsData[15].lines[0].val = params.get("CAFTotalVal");
@@ -2399,9 +2423,11 @@ function hydrateFromPowerBI() {
       var sLower = s.toLowerCase();
       var label = (line.label || "").toLowerCase();
 
-      // Assertividade (±5.00% Rule)
+      // Assertividade (±5.00% Rule) -- só se aplica a linhas de PERCENTUAL de margem; "dif" também
+      // batia em "Dif. Resultado" (um valor em R$, não %), pintando de vermelho um resultado
+      // positivo real só porque o número (ex.: "34.047") era > 5 quando lido como percentual.
       if (topic.isAssertividade) {
-        if (label.indexOf("diferença na margem") !== -1 || label.indexOf("dif") !== -1) {
+        if (s.indexOf("%") !== -1 && (label.indexOf("diferença na margem") !== -1 || label.indexOf("dif") !== -1) && label.indexOf("acum") === -1) {
           var numVal = parseFloat(s.replace("%", "").replace(",", ".").replace("+", ""));
           if (!isNaN(numVal)) {
             return (Math.abs(numVal) <= 5.0) ? "#15803d" : "#b91c1c";
@@ -3193,9 +3219,12 @@ function hydrateFromPowerBI() {
     var MONTH_SHORT_NAMES = ["", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
     // --- Helpers visuais compartilhados: gauge circular, barras de categoria, heatmap ---
+    // Meta padrão de performance: 70%. Usado em todo o app (gauge, barras de composição, matriz
+    // mês a mês) para que a mesma % sempre gere a mesma cor, em qualquer visual.
+    var PERFORMANCE_TARGET_PCT = 70;
     function scoreTier(pct) {
-      if (pct >= 80) return { main: "#22c55e", dark: "#15803d", bg: "#dcfce7", label: "Excelente" };
-      if (pct >= 60) return { main: "#eab308", dark: "#b45309", bg: "#fef9c3", label: "Atenção" };
+      if (pct >= PERFORMANCE_TARGET_PCT) return { main: "#22c55e", dark: "#15803d", bg: "#dcfce7", label: "Meta Atingida" };
+      if (pct >= 50) return { main: "#eab308", dark: "#b45309", bg: "#fef9c3", label: "Atenção" };
       return { main: "#ef4444", dark: "#b91c1c", bg: "#fee2e2", label: "Crítico" };
     }
 
@@ -3218,18 +3247,19 @@ function hydrateFromPowerBI() {
     }
 
     function buildCategoryBarsHTML(cats) {
-      return cats.map(function(c) {
+      var bars = cats.map(function(c) {
         var pct = c.max > 0 ? Math.min(100, (c.val / c.max) * 100) : 0;
         var tier = scoreTier(pct);
-        return '<div style="margin-bottom:9px;">' +
-          '<div style="display:flex; justify-content:space-between; font-size:0.76rem; font-weight:700; color:#e0e7ff; margin-bottom:3px;">' +
+        return '<div style="min-width:200px; flex:1 1 200px;">' +
+          '<div style="display:flex; justify-content:space-between; font-size:0.84rem; font-weight:700; color:#e0e7ff; margin-bottom:5px;">' +
             '<span>' + c.icon + ' ' + c.label + '</span><span>' + c.val.toFixed(1) + ' / ' + c.max + '</span>' +
           '</div>' +
-          '<div style="height:8px; background:rgba(255,255,255,0.16); border-radius:5px; overflow:hidden;">' +
-            '<div style="height:100%; width:' + pct.toFixed(0) + '%; background:' + tier.main + '; border-radius:5px;"></div>' +
+          '<div style="height:14px; background:rgba(255,255,255,0.16); border-radius:7px; overflow:hidden;">' +
+            '<div style="height:100%; width:' + pct.toFixed(0) + '%; background:' + tier.main + '; border-radius:7px;"></div>' +
           '</div>' +
         '</div>';
       }).join("");
+      return '<div style="display:flex; flex-wrap:wrap; gap:14px 22px;">' + bars + '</div>';
     }
 
     // Categorias e pesos usados no cálculo real (calculateOSScoreUncached) -- mesma fonte da
@@ -3481,23 +3511,40 @@ function hydrateFromPowerBI() {
                 '<span style="font-weight:800; color:' + (accumIsGood ? '#15803d' : '#b91c1c') + ';">' + (accumPct * 100).toFixed(t.id === 11 || t.id === 12 ? 2 : 0) + '%</span>' +
               '</div>';
             }
+            // SAF/CAF: contagem acumulada (não é percentual) -- soma dos meses 1..selMonthNum.
+            if (t.id === 15 || t.id === 16) {
+              var contractForSafCaf3 = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return c.code === contractCode; });
+              var acumCount = 0, temDado3 = false;
+              if (contractForSafCaf3 && contractForSafCaf3.monthHistory) {
+                for (var msc3 = 1; msc3 <= selMonthNum; msc3++) {
+                  var row3 = contractForSafCaf3.monthHistory[msc3];
+                  if (!row3) continue;
+                  temDado3 = true;
+                  acumCount += (t.id === 15 ? (row3.safCount || 0) : (row3.cafCount || 0));
+                }
+              }
+              if (temDado3) {
+                accumBlock = '<div style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; font-size:0.82rem;">' +
+                  '<span style="color:#475569; font-weight:700;">' + (t.id === 15 ? "SAF" : "CAF") + ' Acum. Ano:</span>' +
+                  '<span style="font-weight:800; color:' + (acumCount === 0 ? '#15803d' : '#b91c1c') + ';">' + acumCount + (acumCount === 1 ? ' caso' : ' casos') + '</span>' +
+                '</div>';
+              }
+            }
           }
 
-          var commentBlock = text
-            ? '<div style="margin-top:12px; padding:11px 13px; background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid #2563eb; border-radius:6px;">' +
-                '<div style="font-size:0.80rem; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">📝 Justificativas do ano</div>' +
-                '<div style="font-size:0.92rem; color:#334155; line-height:1.55;">' + text + '</div>' +
-              '</div>'
-            : '';
+          // As justificativas mês a mês não entram mais aqui -- o Resumo Anual agora é colado
+          // diretamente da IA (a partir do "Copiar Tudo p/ IA"), então repetir os comentários
+          // brutos do ano só duplicava informação.
+          var commentBlock = "";
 
-          // Caixa do Resumo Anual (IA) -- fixa por OS+indicador, não muda com o mês selecionado.
+          // Caixa do Resumo Anual -- fixa por OS+indicador, não muda com o mês selecionado.
           // O Máster cola aqui o texto que a IA externa gerou a partir do "Copiar Tudo p/ IA".
           var resumoBlock = "";
           if (contractCode && !isAcompTopic) {
             var resumoVal = getResumoAnualIA(contractCode, t.id);
             resumoBlock = '<div style="margin-top:12px; padding:11px 13px; background:#faf5ff; border:1px solid #d8b4fe; border-left:4px solid #7c3aed; border-radius:6px;">' +
-              '<div style="font-size:0.80rem; font-weight:800; color:#6b21a8; text-transform:uppercase; margin-bottom:5px;">🤖 Resumo Anual (IA)</div>' +
-              '<textarea id="resumoIA_' + t.id + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este indicador..." style="width:100%; min-height:84px; font-size:0.92rem; line-height:1.5; padding:9px; border:1px solid #d8b4fe; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + resumoVal + '</textarea>' +
+              '<div style="font-size:0.80rem; font-weight:800; color:#6b21a8; text-transform:uppercase; margin-bottom:5px;">🤖 Resumo Anual</div>' +
+              '<textarea id="resumoIA_' + t.id + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este indicador..." style="width:100%; min-height:180px; font-size:1.02rem; line-height:1.55; padding:11px; border:1px solid #d8b4fe; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + resumoVal + '</textarea>' +
               (window.isMaster ? '<button type="button" onclick="saveResumoAnualInline(' + t.id + ')" style="margin-top:7px; background:#7c3aed; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.86rem; cursor:pointer;">💾 Salvar Resumo</button>' : '') +
             '</div>';
           }
@@ -3735,7 +3782,11 @@ function hydrateFromPowerBI() {
         osTopicHTML = "";
       }
 
-      container.innerHTML = osTopicHTML + supsHTML + negsHTML;
+      // Os resumos de Superintendência/Negócio (supsHTML/negsHTML) saíram do visual por pedido
+      // do usuário -- esse tema será tratado à parte na Aba 5. O cálculo acima continua existindo
+      // (computeGroupStats/buildOSVsGroupCompareHTML) para ser reaproveitado quando essa aba for
+      // construída, só não é mais renderizado aqui.
+      container.innerHTML = osTopicHTML;
     }
 
     // =========================================================================
@@ -3767,8 +3818,33 @@ function hydrateFromPowerBI() {
       var efVal = isMultiOS ? "1.842 pax" : (currentParams.get("EfetivoReal") || "194 pax");
       var efSub = isMultiOS ? "Alocação operacional ativa" : ("Orçado: " + (currentParams.get("EfetivoPR") || "116 pax"));
 
-      var govVal = isMultiOS ? "94,8%" : "100,0%";
-      var govSub = isMultiOS ? "Aderência aos Prazos" : "Aderência Plena aos Prazos";
+      // Performance Acumulada -- % real apurado mês a mês na Aba 2 (mesma conta do "Média
+      // Acumulada" do ranking), não mais um número fixo de exemplo rotulado "Conformidade
+      // Governança" (esse rótulo não correspondia a nenhum cálculo real).
+      var selMonthNumGov = parseInt(currentParams.get("SelectedMesNo"), 10) || 7;
+      function accumPerfPct(contract) {
+        var sum = 0, n = 0;
+        for (var m = 1; m <= selMonthNumGov; m++) {
+          var sc = calculateOSScore(contract, m);
+          if (sc.hasEvaluableData) { sum += sc.monthScore; n++; }
+        }
+        return n > 0 ? (sum / n) : null;
+      }
+      var govVal, govSub;
+      if (isMultiOS) {
+        var corpSum = 0, corpN = 0;
+        ACTIVE_CONTRACTS_CATALOG.forEach(function(c) {
+          var p = accumPerfPct(c);
+          if (p !== null) { corpSum += p; corpN++; }
+        });
+        govVal = corpN > 0 ? (corpSum / corpN).toFixed(1).replace(".", ",") + "%" : "-";
+        govSub = "Performance Média Acumulada (Corporativo)";
+      } else {
+        var activeContractGov = activeOSFilter ? ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; }) : null;
+        var p2 = activeContractGov ? accumPerfPct(activeContractGov) : null;
+        govVal = p2 !== null ? p2.toFixed(1).replace(".", ",") + "%" : "-";
+        govSub = "Performance Acumulada da OS (Jan–" + (currentParams.get("SelectedMes") || "") + ")";
+      }
 
       var badgeTotal = document.getElementById("tab2TotalEligibleOSBadge");
       if (badgeTotal) {
@@ -3791,7 +3867,7 @@ function hydrateFromPowerBI() {
           kpiCard("💰", "#dbeafe", "Faturamento Anual " + (isMultiOS ? ('(' + ACTIVE_CONTRACTS_CATALOG.length + ' OSs)') : ('(OS ' + activeOSFilter + ')')), fatVal, fatSub, fatSubColor) +
           kpiCard("📈", "#dcfce7", "Resultado Bruto Anual", resVal, resSub, resSubColor) +
           kpiCard("👥", "#fef3c7", "Efetivo Total em Campo", efVal, efSub, "#475569") +
-          kpiCard("🛡️", "#e0f2fe", "Conformidade Governança", govVal, govSub, "#15803d");
+          kpiCard("🛡️", "#e0f2fe", "Performance Acumulada", govVal, govSub, "#15803d");
       }
 
       renderSuperintendenciaAndNegocioSummary("tab2ExecutiveSummariesContainer", "consolidacao");
@@ -3847,6 +3923,18 @@ function hydrateFromPowerBI() {
 
       var badgeTotal = document.getElementById("tab3TotalEligibleOSBadge");
       if (badgeTotal) badgeTotal.innerText = ACTIVE_CONTRACTS_CATALOG.length + " Contratos Ativos (Visão Corporativa Completa)";
+
+      // "Destaques Reais"/"Riscos" automáticos (derivados de calculateOSScore, variavam com o
+      // filtro de mês do Power BI) foram retirados por pedido do usuário -- a Aba 4 passa a
+      // conter só os resumos colados de uma IA externa (licoesResumoContainer), sem nenhum dado
+      // dependente de OS/mês. O código de cálculo abaixo fica sem uso (não é mais chamado); será
+      // limpo quando o novo desenho da aba (com a IA fazendo o resumo direto) estiver definido.
+      renderLicoesResumoSection();
+      ["tab3BestPracticesContainer", "tab3RiskAlertsContainer", "tab3ExecutiveSummariesContainer"].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.innerHTML = "";
+      });
+      return;
 
       var scored = ACTIVE_CONTRACTS_CATALOG.map(function(c) {
         return { contract: c, score: calculateOSScore(c, selMonthNum) };
@@ -4337,12 +4425,10 @@ function hydrateFromPowerBI() {
         if (!isMultiOS && activeOSFilter) {
           var matchedIdx = allRankingData.findIndex(function(r) { return extractPrimaryOSCode(r.code) === activeOSFilter; });
           var matchedItem = matchedIdx !== -1 ? allRankingData[matchedIdx] : allRankingData[0];
-          var posDisplay = matchedIdx !== -1 ? (matchedIdx + 1) + "º LUGAR NO RANKING CORPORATIVO" : "OS SELECIONADA";
-          
+
           podiumCont.innerHTML = '<div style="grid-column: 1 / -1; background:linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 55%, #1e40af 100%); border-radius:16px; padding:26px 30px; color:#ffffff; border:2.5px solid #60a5fa; box-shadow:0 10px 32px rgba(0,0,0,0.30); display:flex; align-items:center; gap:32px; flex-wrap:wrap;">' +
             '<div style="flex-shrink:0;">' + buildScoreGaugeSVG(matchedItem.avgAccum, 100, 152) + '</div>' +
-            '<div style="flex:1.3; min-width:240px;">' +
-              '<div style="font-size:0.84rem; font-weight:800; color:#fde047; text-transform:uppercase; letter-spacing:0.5px;">🏆 ' + posDisplay + '</div>' +
+            '<div style="flex:1; min-width:220px;">' +
               '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + matchedItem.name + '</div>' +
               '<div style="font-size:0.90rem; color:#bfdbfe; margin-bottom:12px;">' + matchedItem.negocio + ' • ' + matchedItem.superintendencia + ' • Gestor: ' + matchedItem.gestor + '</div>' +
               '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
@@ -4350,7 +4436,7 @@ function hydrateFromPowerBI() {
                 '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#fde047;">Média Acumulada: ' + matchedItem.avgAccum + ' pts</div>' +
               '</div>' +
             '</div>' +
-            '<div style="flex:1; min-width:250px; max-width:320px;">' +
+            '<div style="flex:2; min-width:440px;">' +
               '<div style="font-size:0.76rem; font-weight:800; color:#93c5fd; text-transform:uppercase; margin-bottom:9px; letter-spacing:0.4px;">Composição da Pontuação</div>' +
               buildCategoryBarsHTML([
                 { label: 'Financeiro', icon: '💰', val: matchedItem.finPts, max: 48 },
@@ -4710,10 +4796,10 @@ function hydrateFromPowerBI() {
       if (!cont) return;
       var blocos = LICOES_BLOCOS.map(function(b) {
         var val = getLicoesResumo(b.key);
-        return '<div style="background:' + b.bg + '; border:1.5px solid ' + b.borda + '; border-left:5px solid ' + b.cor + '; border-radius:10px; padding:14px 16px;">' +
-          '<div style="font-size:1.00rem; font-weight:800; color:' + b.cor + '; margin-bottom:8px;">' + b.titulo + '</div>' +
-          '<textarea id="licoesTA_' + b.key + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este bloco..." style="width:100%; min-height:150px; font-size:0.95rem; line-height:1.55; padding:10px; border:1px solid ' + b.borda + '; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + val + '</textarea>' +
-          (window.isMaster ? '<button type="button" onclick="saveLicoesResumoInline(\'' + b.key + '\')" style="margin-top:7px; background:' + b.cor + '; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.86rem; cursor:pointer;">💾 Salvar</button>' : '') +
+        return '<div style="background:' + b.bg + '; border:1.5px solid ' + b.borda + '; border-left:5px solid ' + b.cor + '; border-radius:10px; padding:16px 18px;">' +
+          '<div style="font-size:1.12rem; font-weight:800; color:' + b.cor + '; margin-bottom:10px;">' + b.titulo + '</div>' +
+          '<textarea id="licoesTA_' + b.key + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este bloco..." style="width:100%; min-height:340px; font-size:1.05rem; line-height:1.6; padding:12px; border:1px solid ' + b.borda + '; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + val + '</textarea>' +
+          (window.isMaster ? '<button type="button" onclick="saveLicoesResumoInline(\'' + b.key + '\')" style="margin-top:9px; background:' + b.cor + '; color:#ffffff; border:none; padding:8px 16px; border-radius:6px; font-weight:800; font-size:0.92rem; cursor:pointer;">💾 Salvar</button>' : '') +
         '</div>';
       }).join("");
 
@@ -4722,7 +4808,7 @@ function hydrateFromPowerBI() {
           '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800;">🤖 Resumos de Lições Aprendidas & Gestão de Risco</h3>' +
           '<p style="margin:4px 0 0 0; font-size:0.84rem; color:#64748b;">Use "📋 Copiar p/ IA (Lições &amp; Riscos)" acima, cole numa IA externa e traga o resultado para os campos abaixo. Corporativo: não muda com a OS nem com o mês.</p>' +
         '</div>' +
-        '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:16px;">' + blocos + '</div>' +
+        '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(400px, 1fr)); gap:18px;">' + blocos + '</div>' +
       '</div>';
     }
 
