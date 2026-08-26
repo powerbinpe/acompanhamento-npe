@@ -757,7 +757,9 @@ function hydrateOSMonthHistoryFromPowerBI(params) {
       perdaMesV: f[31] !== undefined && f[31] !== "" ? parseFloat(f[31]) : null,
       perdaAcumV: f[32] !== undefined && f[32] !== "" ? parseFloat(f[32]) : null,
       indenizMesV: f[33] !== undefined && f[33] !== "" ? parseFloat(f[33]) : null,
-      indenizAcumV: f[34] !== undefined && f[34] !== "" ? parseFloat(f[34]) : null
+      indenizAcumV: f[34] !== undefined && f[34] !== "" ? parseFloat(f[34]) : null,
+      turnoverAcumPct: f[35] !== undefined && f[35] !== "" ? (parseInt(f[35], 10) / 10000) : null,
+      absenteismoAcumPct: f[36] !== undefined && f[36] !== "" ? (parseInt(f[36], 10) / 10000) : null
     };
   }
   return history;
@@ -1280,7 +1282,8 @@ function hydrateFromPowerBI() {
         id: 11, name: "Absenteísmo",
         lines: [
           { label: "Taxa Absenteísmo Mês (%)", val: "0,00%" },
-          { label: "Referência", val: "0,00%" }
+          { label: "Referência", val: "0,00%" },
+          { label: "Absenteísmo Acum. Ano (%)", val: "-" }
         ],
         annualInsight: {
           badge: "badge-andamento", badgeText: "🟡 Ação em Andamento",
@@ -1293,7 +1296,8 @@ function hydrateFromPowerBI() {
         id: 12, name: "TurnOver",
         lines: [
           { label: "Taxa TurnOver Mês (%)", val: "2,46%", class: "positive" },
-          { label: "Referência", val: "2,50%" }
+          { label: "Referência", val: "2,50%" },
+          { label: "TurnOver Acum. Ano (%)", val: "-" }
         ],
         annualInsight: {
           badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva",
@@ -1587,10 +1591,12 @@ function hydrateFromPowerBI() {
       // Topic 11: Absenteísmo
       if (params.get("AbsenteismoVal")) topicsData[10].lines[0].val = params.get("AbsenteismoVal");
       if (params.get("AbsenteismoMeta")) topicsData[10].lines[1].val = params.get("AbsenteismoMeta");
+      topicsData[10].lines[2].val = params.get("AbsenteismoAcum") || "-";
 
       // Topic 12: Turnover
       if (params.get("TurnoverVal")) topicsData[11].lines[0].val = params.get("TurnoverVal");
       if (params.get("TurnoverMeta")) topicsData[11].lines[1].val = params.get("TurnoverMeta");
+      topicsData[11].lines[2].val = params.get("TurnoverAcum") || "-";
 
       // Topic 15: SAF
       if (params.get("SAFTotalVal")) topicsData[14].lines[0].val = params.get("SAFTotalVal");
@@ -2840,6 +2846,9 @@ function hydrateFromPowerBI() {
 
         // Assertiveness Override Logic & Colors (|diff| <= 5% = Assertivo, |diff| > 5% = Não Assertivo)
         var assertiveBarHTML = "";
+        // Blocos extras que entram na coluna de VALORES (ao lado de linesHTML), não na coluna de
+        // comentário -- ex.: meta acumulada de Boas Práticas.
+        var extraValueBlockHTML = "";
         if (topic.isAssertividade) {
           var difMargStr = currentParams.get("DifMargFcst") || "9,77%";
           var difMargNum = parseFloat(difMargStr.replace("%", "").replace(",", "."));
@@ -2917,7 +2926,7 @@ function hydrateFromPowerBI() {
           } else {
             corBP = "#b45309"; bgBP = "#fef9c3"; bdBP = "#fde68a"; txtBP = "🟡 Em andamento";
           }
-          assertiveBarHTML += '<div style="margin-top:12px; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1.5px solid #cbd5e1; border-left:4px solid ' + corBP + ';">' +
+          extraValueBlockHTML += '<div style="margin-top:12px; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1.5px solid #cbd5e1; border-left:4px solid ' + corBP + ';">' +
             '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">' +
               '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">Meta acumulada • ' + rotuloPeriodo + '</span>' +
               '<span style="background:' + bgBP + '; color:' + corBP + '; border:1.5px solid ' + bdBP + '; padding:4px 12px; border-radius:6px; font-weight:800; font-size:0.90rem;">' + txtBP + '</span>' +
@@ -2948,6 +2957,11 @@ function hydrateFromPowerBI() {
           qualBlockHTML = '<div style="margin-top:10px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px;">' +
             '<div style="font-size:0.76rem; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:6px;">✅ Avaliação Qualitativa (Score)</div>' +
             '<div style="display:flex; gap:5px; flex-wrap:wrap;">' + qualButtonsHTML + '</div>' +
+          '</div>';
+          var qualAccumPct = computeQualAccumPct(activeOS, qualKey, monthNum);
+          extraValueBlockHTML += '<div style="margin-top:10px; background:#f8fafc; padding:8px 14px; border-radius:8px; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:space-between;">' +
+            '<span style="font-weight:800; color:#0f2b5c; font-size:0.88rem;">Aderência Acum. Ano</span>' +
+            '<span style="font-weight:800; font-size:0.95rem; color:' + (qualAccumPct === null ? '#64748b' : (qualAccumPct >= 0.8 ? '#15803d' : '#b91c1c')) + ';">' + (qualAccumPct === null ? '-' : (qualAccumPct * 100).toFixed(0) + '%') + '</span>' +
           '</div>';
         }
 
@@ -2980,6 +2994,11 @@ function hydrateFromPowerBI() {
               : (curDeadline ? ('<div style="font-size:0.78rem; color:#475569; margin-top:6px;">📅 Data limite: <strong>' + curDeadline.split("-").reverse().join("/") + '</strong></div>') : '')
             ) +
           '</div>';
+          var prazoAccumPct = computePrazoAccumPct(activeOS, monthNum);
+          extraValueBlockHTML += '<div style="margin-top:10px; background:#f8fafc; padding:8px 14px; border-radius:8px; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:space-between;">' +
+            '<span style="font-weight:800; color:#0f2b5c; font-size:0.88rem;">Pontualidade Acum. Ano</span>' +
+            '<span style="font-weight:800; font-size:0.95rem; color:' + (prazoAccumPct === null ? '#64748b' : (prazoAccumPct >= 0.8 ? '#15803d' : '#b91c1c')) + ';">' + (prazoAccumPct === null ? '-' : (prazoAccumPct * 100).toFixed(0) + '%') + '</span>' +
+          '</div>';
         }
 
         if (topic.isPreenchimentoControl && !isMultiOS) {
@@ -2997,6 +3016,11 @@ function hydrateFromPowerBI() {
               '<span style="background:' + compBg + '; color:' + compColor + '; border:1.5px solid ' + compColor + '; padding:2px 10px; border-radius:6px; font-weight:800; font-size:0.78rem;">' + compLabel + '</span>' +
             '</div>' +
           '</div>';
+          var preenchAccumPct = computePreenchimentoAccumPct(activeOS, monthNum);
+          extraValueBlockHTML += '<div style="margin-top:10px; background:#f8fafc; padding:8px 14px; border-radius:8px; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:space-between;">' +
+            '<span style="font-weight:800; color:#0f2b5c; font-size:0.88rem;">Preenchimento Acum. Ano</span>' +
+            '<span style="font-weight:800; font-size:0.95rem; color:' + (preenchAccumPct === null ? '#64748b' : (preenchAccumPct >= 0.8 ? '#15803d' : '#b91c1c')) + ';">' + (preenchAccumPct === null ? '-' : (preenchAccumPct * 100).toFixed(0) + '%') + '</span>' +
+          '</div>';
         }
 
         var catInfo = categoryInfoForTopicId(topic.id);
@@ -3008,6 +3032,7 @@ function hydrateFromPowerBI() {
             '</div>' +
             '<div class="kpi-lines">' + linesHTML + '</div>' +
             qualBlockHTML +
+            extraValueBlockHTML +
           '</div>' +
           '<button id="btn_hist_' + topic.id + '" type="button" class="timeline-btn" onclick="toggleInlineHistory(' + topic.id + ')">' +
             '📜 Histórico ATA_COMENTARIO' +
@@ -3058,14 +3083,17 @@ function hydrateFromPowerBI() {
 
         if (topic.id === 17) {
           // Satisfação do Cliente é anual: em vez de repetir o mesmo valor mês a mês, mostra
-          // os anos anteriores já apurados (vindos de SatHistorico, real, via DAX).
+          // os anos anteriores já apurados (vindos de SatHistorico, real, via DAX), no mesmo
+          // formato de 3 colunas dos demais tópicos (valor + parecer Gestor + parecer Performance)
+          // -- anos anteriores a 2026 não têm parecer registrado (o acompanhamento por aqui
+          // começa neste ano), mas o espaço fica reservado igual aos demais.
           var satHistParams = new URLSearchParams(window.location.search);
           var satHistRaw = satHistParams.get("SatHistorico") || "";
           var satHistRows = satHistRaw ? satHistRaw.split("~").filter(Boolean) : [];
           if (satHistRows.length === 0) {
             tHtml += '<div style="font-size:0.88rem; color:#64748b; padding:10px 0;">Sem histórico de anos anteriores apurado para esta OS.</div>';
           } else {
-            tHtml += '<div style="display:flex; flex-direction:column; gap:8px;">';
+            tHtml += '<div style="display:flex; flex-direction:column; gap:12px;">';
             satHistRows.slice().reverse().forEach(function(r) {
               var parts = r.split("^");
               var ano = parts[0], sat = parts[1] || "-", meta = parts[2] || "-";
@@ -3073,10 +3101,26 @@ function hydrateFromPowerBI() {
               var metaNum = parseFloat(String(meta).replace("%", "").replace(",", "."));
               var okAno = (!isNaN(satNum) && !isNaN(metaNum)) ? (satNum >= metaNum) : null;
               var corAno = okAno === null ? "#334155" : (okAno ? "#15803d" : "#b91c1c");
-              tHtml += '<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px;">' +
-                '<span style="font-weight:800; font-size:0.88rem; color:#0f2b5c;">Ano ' + ano + '</span>' +
-                '<span style="font-size:0.82rem; color:#334155;">Referência: <strong>' + meta + '</strong></span>' +
-                '<span style="font-size:0.92rem; font-weight:800; color:' + corAno + ';">' + sat + '</span>' +
+              var satMetricsHTML = '<div style="border:1.5px solid #0f2b5c; border-radius:6px; overflow:hidden; background:#ffffff;">' +
+                '<table style="width:100%; border-collapse:collapse; font-size:0.80rem; table-layout:fixed;"><tbody>' +
+                '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:4px 7px; font-size:0.73rem; color:#334155; font-weight:700; width:64%;">Satisfação do Cliente:</td><td style="padding:4px 8px; font-size:0.79rem; color:' + corAno + '; font-weight:800; text-align:right; width:36%;">' + sat + '</td></tr>' +
+                '<tr style="background:#f8fafc;"><td style="padding:4px 7px; font-size:0.73rem; color:#334155; font-weight:700;">Referência:</td><td style="padding:4px 8px; font-size:0.79rem; color:#0f172a; font-weight:800; text-align:right;">' + meta + '</td></tr>' +
+                '</tbody></table></div>';
+              tHtml += '<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:11px 14px; display:grid; grid-template-columns:300px 1.5fr 1fr; gap:14px; align-items:start; margin-bottom:8px;">' +
+                '<div style="border-right:1.5px solid #e2e8f0; padding-right:12px;">' +
+                  '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">' +
+                    '<span style="font-weight:800; font-size:0.86rem; color:#0f2b5c;">Ano ' + ano + '</span>' +
+                  '</div>' +
+                  satMetricsHTML +
+                '</div>' +
+                '<div>' +
+                  '<div style="font-size:0.74rem; font-weight:800; color:#0f2b5c; margin-bottom:3px;">👤 Parecer do Gestor de OS:</div>' +
+                  '<div style="font-size:0.82rem; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; min-height:34px;"><em>Sem parecer registrado (acompanhamento iniciado em 2026)</em></div>' +
+                '</div>' +
+                '<div>' +
+                  '<div style="font-size:0.74rem; font-weight:800; color:#0f2b5c; margin-bottom:3px;">🛡️ Parecer do Setor de Performance:</div>' +
+                  '<div style="font-size:0.78rem; color:#334155; background:#f8fafc; padding:5px 9px; border-radius:6px; border:1px solid #e2e8f0; min-height:34px;"><em>Sem parecer registrado (acompanhamento iniciado em 2026)</em></div>' +
+                '</div>' +
                 '</div>';
             });
             tHtml += '</div>';
@@ -4423,6 +4467,47 @@ function hydrateFromPowerBI() {
         periodStatus: periodStatus
       };
     }
+
+    // % acumulado do ano (Jan até uptoMonth) para Pontualidade, Preenchimento e os tópicos
+    // qualitativos (Aderente/Não Aderente/N-A) -- usados tanto no card principal da Aba 1 quanto
+    // nos resumos anuais das Abas 2/3, para que o número seja sempre o mesmo em todo o app.
+    // Pontualidade: cada mês conta 0 (Fora do Prazo) ou 1 (No Prazo); "Sem Período Definido" e
+    // "Período Inativo" não entram no denominador.
+    function computePrazoAccumPct(osCode, uptoMonth) {
+      var num = 0, den = 0;
+      for (var m = 1; m <= uptoMonth; m++) {
+        var st = getSlaPeriodStatus(osCode, m);
+        if (st === "INDEFINIDO" || st === "INATIVO") continue;
+        den++;
+        if (st === "NO_PRAZO") num++;
+      }
+      return den > 0 ? (num / den) : null;
+    }
+    // Preenchimento: só conta 1 quando os 23 tópicos estão preenchidos (status "OK"); "Parcial"
+    // (e "Pendente") contam 0. Todo mês entra no denominador.
+    function computePreenchimentoAccumPct(osCode, uptoMonth) {
+      var num = 0, den = 0;
+      for (var m = 1; m <= uptoMonth; m++) {
+        den++;
+        if (getOSCompletionStatus(osCode, m).status === "OK") num++;
+      }
+      return den > 0 ? (num / den) : null;
+    }
+    // Tópicos qualitativos: "Aderente" conta 1, "Não Aderente" conta 0; "Pendente" e "N/A" não
+    // entram no denominador (mês ainda não avaliado, ou o critério não se aplica àquele mês).
+    function computeQualAccumPct(osCode, qualKey, uptoMonth) {
+      var num = 0, den = 0;
+      for (var m = 1; m <= uptoMonth; m++) {
+        var ev = getQualitativeEval(osCode, m, qualKey);
+        if (!ev || ev === "PENDENTE" || ev === "NA") continue;
+        den++;
+        if (ev === "ADERENTE") num++;
+      }
+      return den > 0 ? (num / den) : null;
+    }
+    window.computePrazoAccumPct = computePrazoAccumPct;
+    window.computePreenchimentoAccumPct = computePreenchimentoAccumPct;
+    window.computeQualAccumPct = computeQualAccumPct;
 
     function showToast(msg) {
       var toast = document.getElementById("toast");
