@@ -340,9 +340,6 @@
     <!-- Cards de Resumo Corporativo Anual -->
     <div id="annualSummaryCardsContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:24px;"></div>
 
-    <!-- Síntese Anual gerada por IA (exclusivo Máster) -->
-    <div id="aiSynthesisContainer" style="margin-bottom:24px;"></div>
-
     <!-- Resumos por Superintendência e Negócio -->
     <div id="tab2ExecutiveSummariesContainer"></div>
   </div>
@@ -1368,7 +1365,7 @@ function hydrateFromPowerBI() {
         }
       },
       {
-        id: 24, name: "Pontualidade do Acompanhamento", onlyComments: true, isPrazoControl: true,
+        id: 26, name: "Pontualidade do Acompanhamento", onlyComments: true, isPrazoControl: true,
         lines: [{ label: "Tipo de Controle", val: "Status de Prazo definido pelo Setor de Performance (Máster)" }],
         annualInsight: {
           badge: "badge-andamento", badgeText: "⚪ Status Definido por Mês",
@@ -1378,7 +1375,7 @@ function hydrateFromPowerBI() {
         }
       },
       {
-        id: 25, name: "Preenchimento do Acompanhamento", onlyComments: true, isPreenchimentoControl: true,
+        id: 27, name: "Preenchimento do Acompanhamento", onlyComments: true, isPreenchimentoControl: true,
         lines: [{ label: "Tipo de Controle", val: "Apurado automaticamente pela quantidade de justificativas do Gestor" }],
         annualInsight: {
           badge: "badge-andamento", badgeText: "⚪ Apuração Automática",
@@ -3025,8 +3022,8 @@ function hydrateFromPowerBI() {
     // explícito abaixo, em vez de derivar "t"+id como os demais tópicos.
     function scoreIdForTopicId(id) {
       if (id === "prazo" || id === "preenchimento") return id;
-      if (id === 24) return "prazo";
-      if (id === 25) return "preenchimento";
+      if (id === 26) return "prazo";
+      if (id === 27) return "preenchimento";
       return "t" + id;
     }
     function categoryInfoForTopicId(id) {
@@ -3503,107 +3500,7 @@ function hydrateFromPowerBI() {
           kpiCard("🛡️", "#e0f2fe", "Conformidade Governança", govVal, govSub, "#15803d");
       }
 
-      renderAiSynthesisSection(isMultiOS, activeOSFilter);
       renderSuperintendenciaAndNegocioSummary("tab2ExecutiveSummariesContainer", "consolidacao");
-    }
-
-    // =========================================================================
-    // 8b. SÍNTESE ANUAL POR IA (Power Automate + AI Builder, exclusivo Máster)
-    // =========================================================================
-    // URL de disparo direto do fluxo "IA - Síntese de Performance - V2" (gatilho manual/HTTP).
-    // Fica exposta no JS público -- protegida só pela visibilidade do botão (window.isMaster),
-    // igual a todo o resto do controle Máster deste app (nenhuma trava server-side de verdade).
-    var AI_SYNTHESIS_FLOW_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/02/workflows/81b4ac593e804733be129ea47deda7f6/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Px-CzKn2iScT7U2qmDG_QebZAlmIBuRdYHyQw_0GSZQ";
-
-    function aiSynthesisCacheKey(osCode, ano) {
-      return "ai_sintese_" + osCode + "_" + ano;
-    }
-
-    function buildAiSynthesisPayload(contract, selMonthNum, ano) {
-      var gestorHist = contract.commentHistory || {};
-      // TODO: comentarioMaster ainda vai vazio -- falta estender _mOSCommentHistory (DAX) para
-      // também concatenar ATA_COMENTARIO[ComentarioMaster] por tópico, igual já faz com o Gestor.
-      var masterHist = contract.commentHistoryMaster || {};
-      var topicos = TOPIC_INDICATOR_MAP.map(function(t) {
-        return {
-          id: t.id,
-          nome: t.name,
-          comentarioGestor: gestorHist[String(t.id)] || "Sem justificativas registradas.",
-          comentarioMaster: masterHist[String(t.id)] || "Sem parecer registrado."
-        };
-      });
-      return { modo: "SINTESE_ANUAL", os: contract.code, mes: selMonthNum, ano: ano, topicos: topicos };
-    }
-
-    function formatAiSynthesisHTML(text) {
-      var escaped = String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      return '<div style="font-size:0.86rem; color:#1e293b; line-height:1.7; white-space:pre-wrap;">' + escaped + '</div>';
-    }
-
-    function renderAiSynthesisResult(text) {
-      var el = document.getElementById("aiSynthesisResult");
-      if (el) el.innerHTML = formatAiSynthesisHTML(text);
-    }
-
-    function renderAiSynthesisSection(isMultiOS, activeOSFilter) {
-      var cont = document.getElementById("aiSynthesisContainer");
-      if (!cont) return;
-      if (isMultiOS || !window.isMaster) { cont.innerHTML = ""; return; }
-
-      var ano = 2026;
-      var cached = safeGetStorage(aiSynthesisCacheKey(activeOSFilter, ano), "");
-
-      cont.innerHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #7c3aed; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12);">' +
-        '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">' +
-          '<div>' +
-            '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">🤖 Síntese Anual por IA</h3>' +
-            '<p style="margin:2px 0 0 0; font-size:0.78rem; color:#64748b;">Gerada sob demanda a partir dos comentários reais desta OS • fica salva só neste navegador até você gerar de novo.</p>' +
-          '</div>' +
-          '<button id="aiSynthesisBtn" type="button" onclick="generateAiSynthesis()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:9px 18px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; box-shadow:0 2px 8px rgba(124,58,237,0.3); white-space:nowrap;">🤖 Gerar Síntese com IA</button>' +
-        '</div>' +
-        '<div id="aiSynthesisResult" style="margin-top:' + (cached ? '14px' : '10px') + ';">' +
-          (cached ? formatAiSynthesisHTML(cached) : '<div style="font-size:0.84rem; color:#94a3b8; font-style:italic;">Nenhuma síntese gerada ainda nesta sessão para a OS ' + activeOSFilter + '.</div>') +
-        '</div>' +
-      '</div>';
-    }
-
-    function generateAiSynthesis() {
-      if (!window.isMaster) { showToast("⚠️ Apenas usuários Máster podem gerar a síntese com IA."); return; }
-
-      var currentParams = new URLSearchParams(window.location.search);
-      var rawOS = currentParams.get("SelectedOS") || "";
-      var activeOS = extractPrimaryOSCode(rawOS);
-      var selMonthNum = getMonthNumberFromParams(currentParams);
-      var ano = 2026;
-      var contract = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return c.code === activeOS; });
-      if (!contract) { showToast("⚠️ Selecione uma OS específica para gerar a síntese."); return; }
-
-      var btn = document.getElementById("aiSynthesisBtn");
-      if (btn) { btn.disabled = true; btn.innerText = "⏳ Gerando síntese..."; btn.style.opacity = "0.7"; btn.style.cursor = "wait"; }
-      var resultBox = document.getElementById("aiSynthesisResult");
-      if (resultBox) resultBox.innerHTML = '<div style="font-size:0.84rem; color:#7c3aed; font-weight:700;">⏳ Consultando IA, aguarde alguns segundos...</div>';
-
-      var payload = buildAiSynthesisPayload(contract, selMonthNum, ano);
-
-      fetch(AI_SYNTHESIS_FLOW_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      }).then(function(resp) {
-        if (!resp.ok) { throw new Error("HTTP " + resp.status + " " + resp.statusText); }
-        return resp.json();
-      }).then(function(data) {
-        var sintese = data && data.sintese ? data.sintese : "";
-        if (!sintese) { throw new Error("A resposta da IA veio vazia."); }
-        safeSetStorage(aiSynthesisCacheKey(activeOS, ano), sintese);
-        renderAiSynthesisResult(sintese);
-        showToast("✅ Síntese gerada com sucesso.");
-      }).catch(function(err) {
-        if (resultBox) resultBox.innerHTML = '<div style="color:#b91c1c; font-weight:700; font-size:0.84rem; padding:4px 0;">❌ Erro ao gerar síntese: ' + err.message + '</div>';
-        showToast("❌ Erro ao gerar síntese: " + err.message);
-      }).finally(function() {
-        if (btn) { btn.disabled = false; btn.innerText = "🤖 Gerar Síntese com IA"; btn.style.opacity = "1"; btn.style.cursor = "pointer"; }
-      });
     }
 
     // =========================================================================
@@ -4672,7 +4569,6 @@ function hydrateFromPowerBI() {
     window.saveAllComments = saveAllComments;
     window.filterRankingTable = filterRankingTable;
     window.setSlaPeriodStatusInline = setSlaPeriodStatusInline;
-    window.generateAiSynthesis = generateAiSynthesis;
     window.saveInlinePrazoDeadline = saveInlinePrazoDeadline;
     window.getSlaPeriodStatus = getSlaPeriodStatus;
     window.getOSCompletionStatus = getOSCompletionStatus;
