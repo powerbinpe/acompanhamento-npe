@@ -254,14 +254,6 @@
             Parecer executivo do Setor de Performance com direcionamentos estratégicos, governança e planos de ação para a diretoria.
           </div>
         </div>
-        <div style="margin-top: 12px; display:flex; gap:8px;">
-          <button id="btnGenerateSummary" type="button" onclick="generatePerformanceSummary()" style="background:linear-gradient(135deg, #1e40af, #2563eb); color:#ffffff; border:none; padding:8px 14px; border-radius:6px; font-weight:700; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-            🤖 Gerar Síntese com IA
-          </button>
-          <button type="button" onclick="configureAiSummaryWebhook()" title="Configurar o Webhook do Power Automate (AI Builder)" style="background:#f1f5f9; color:#334155; border:1.5px solid #cbd5e1; padding:8px 12px; border-radius:6px; font-weight:700; font-size:0.85rem; cursor:pointer;">
-            ⚙️
-          </button>
-        </div>
       </div>
 
       <div class="comment-column" style="grid-column: 2 / -1;">
@@ -2320,15 +2312,15 @@ function hydrateFromPowerBI() {
         if (p1) { p1.style.display = "block"; p1.classList.add("active"); }
         renderRows();
       } else if (tabId === 'tabConsolidacao') {
-        if (tabButtons[1]) tabButtons[1].classList.add("active");
+        if (tabButtons[2]) tabButtons[2].classList.add("active");
         if (p2) { p2.style.display = "block"; p2.classList.add("active"); }
         renderAnnualConsolidation();
       } else if (tabId === 'tabLicoes') {
-        if (tabButtons[2]) tabButtons[2].classList.add("active");
+        if (tabButtons[3]) tabButtons[3].classList.add("active");
         if (p3) { p3.style.display = "block"; p3.classList.add("active"); }
         renderTab3Licoes();
       } else if (tabId === 'tabRanking') {
-        if (tabButtons[3]) tabButtons[3].classList.add("active");
+        if (tabButtons[1]) tabButtons[1].classList.add("active");
         if (p4) { p4.style.display = "block"; p4.classList.add("active"); }
         renderTab4Scorecard();
       }
@@ -2657,16 +2649,6 @@ function hydrateFromPowerBI() {
       if (finalLock) {
         finalLock.innerHTML = isMultiOS ? "🔒 Consolidado Geral" : (window.isMaster ? "✍️ Modo Edição Máster" : "🔒 Exclusivo Máster");
         finalLock.className = window.isMaster ? "status-pill status-reaberto" : "status-pill status-validado";
-      }
-
-      var btnGenSum = document.getElementById("btnGenerateSummary");
-      if (btnGenSum) {
-        var canGenerate = window.isMaster && !isMultiOS;
-        btnGenSum.style.display = "inline-flex";
-        btnGenSum.disabled = !canGenerate;
-        btnGenSum.style.cursor = canGenerate ? "pointer" : "not-allowed";
-        btnGenSum.style.opacity = canGenerate ? "1" : "0.55";
-        btnGenSum.style.background = canGenerate ? "linear-gradient(135deg, #1e40af, #2563eb)" : "#94a3b8";
       }
 
       function topicSortRank(t) {
@@ -4313,76 +4295,6 @@ function hydrateFromPowerBI() {
       safeSetStorage("m_" + activeOS + "_m" + monthNum + "_24", value);
     }
 
-    window.AI_SUMMARY_WEBHOOK_URL = safeGetStorage("npe_ai_summary_webhook_url", "");
-
-    function configureAiSummaryWebhook() {
-      var curUrl = window.AI_SUMMARY_WEBHOOK_URL || "";
-      var newUrl = prompt("🤖 Digite a URL do Webhook do Power Automate (AI Builder) que gera a síntese automática:", curUrl);
-      if (newUrl !== null) {
-        window.AI_SUMMARY_WEBHOOK_URL = newUrl.trim();
-        safeSetStorage("npe_ai_summary_webhook_url", window.AI_SUMMARY_WEBHOOK_URL);
-        showToast(window.AI_SUMMARY_WEBHOOK_URL ? "🔗 Webhook de IA configurado com sucesso!" : "ℹ️ Webhook de IA removido.");
-      }
-    }
-
-    async function generatePerformanceSummary() {
-      if (!window.isMaster) {
-        showToast("⚠️ Apenas o perfil Máster Performance pode gerar a síntese.");
-        return;
-      }
-      var finalTA = document.getElementById("finalPerformanceComment");
-      if (!finalTA) return;
-
-      var currentParams = new URLSearchParams(window.location.search);
-      var rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
-      var activeOS = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOS) : rawOS;
-      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
-      if (isMultiOS || !activeOS) {
-        showToast("⚠️ Selecione uma OS específica no Power BI para gerar a síntese com IA.");
-        return;
-      }
-      var monthNum = getMonthNumberFromParams(currentParams);
-
-      if (!window.AI_SUMMARY_WEBHOOK_URL) {
-        showToast("⚠️ Configure o Webhook de IA primeiro (⚙️ Configurar IA).");
-        return;
-      }
-
-      var topicosPayload = topicsData.map(function(t) {
-        return {
-          id: t.id,
-          nome: t.name,
-          comentarioGestor: safeGetStorage("g_" + activeOS + "_m" + monthNum + "_" + t.id, ""),
-          comentarioMaster: safeGetStorage("m_" + activeOS + "_m" + monthNum + "_" + t.id, "")
-        };
-      });
-
-      var originalValue = finalTA.value;
-      finalTA.value = "⏳ Gerando síntese com IA...";
-      finalTA.disabled = true;
-
-      try {
-        var resp = await fetch(window.AI_SUMMARY_WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ modo: "OS", os: activeOS, mes: monthNum, ano: 2026, topicos: topicosPayload })
-        });
-        if (!resp.ok) throw new Error("HTTP " + resp.status);
-        var data = await resp.json();
-        var summaryText = (data && (data.sintese || data.Sintese)) || "";
-        if (!summaryText) throw new Error("Resposta vazia da IA");
-
-        finalTA.value = summaryText;
-        handleFinalCommentInput(summaryText);
-        showToast("🤖 Síntese gerada por IA com sucesso!");
-      } catch (e) {
-        finalTA.value = originalValue;
-        showToast("❌ Erro ao gerar síntese via IA: " + e.message);
-      } finally {
-        finalTA.disabled = false;
-      }
-    }
-
         // =========================================================================
     // 11b. RESUMO ANUAL (IA) POR TÓPICO + EXPORTAÇÃO PARA IA EXTERNA
     // =========================================================================
@@ -4823,8 +4735,6 @@ function hydrateFromPowerBI() {
     window.toggleInlineHistory = toggleInlineHistory;
     window.handleCommentInput = handleCommentInput;
     window.handleFinalCommentInput = handleFinalCommentInput;
-    window.generatePerformanceSummary = generatePerformanceSummary;
-    window.configureAiSummaryWebhook = configureAiSummaryWebhook;
     window.saveAllComments = saveAllComments;
     window.filterRankingTable = filterRankingTable;
     window.setSlaPeriodStatusInline = setSlaPeriodStatusInline;
