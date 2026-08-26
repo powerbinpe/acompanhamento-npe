@@ -202,8 +202,8 @@
         💾 Salvar Comentários
       </button>
 
-      <button type="button" id="btnCopyAllForAI" onclick="openCopyAllModal()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-        📋 Copiar Tudo p/ IA
+      <button type="button" id="btnCopyMonthPareceres" onclick="openCopyMonthPareceresModal()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+        📋 Copiar Pareceres do Mês
       </button>
     </div>
   </div>
@@ -355,14 +355,22 @@
           Visão financeira e operacional consolidada do exercício 2026 • Acompanhamento corporativo de todas as OSs
         </p>
       </div>
-      <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
-        <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS ELEGÍVEIS</span>
-        <div id="tab2TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <button type="button" id="btnCopyAllForAI" onclick="openCopyAllModal()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+          📋 Copiar Tudo p/ IA
+        </button>
+        <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
+          <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS ELEGÍVEIS</span>
+          <div id="tab2TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
+        </div>
       </div>
     </div>
 
     <!-- Cards de Resumo Corporativo Anual -->
     <div id="annualSummaryCardsContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:24px;"></div>
+
+    <!-- Resumo Anual (IA) por indicador -->
+    <div id="resumoAnualContainer" style="margin-bottom:24px;"></div>
 
     <!-- Resumos por Superintendência e Negócio -->
     <div id="tab2ExecutiveSummariesContainer"></div>
@@ -2905,18 +2913,6 @@ function hydrateFromPowerBI() {
           '</div>';
         }
 
-        // Resumo Anual (IA) -- campo fixo por OS+tópico, não muda com o mês selecionado.
-        // Aplica-se aos 23 campos de comentário reais (não aos controles de status 26/27).
-        var resumoAnualHTML = "";
-        if (!isMultiOS && typeof topic.id === "number" && topic.id <= 23) {
-          var resumoAtual = getResumoAnualIA(activeOS, topic.id);
-          resumoAnualHTML = '<div style="margin-top:10px; background:#faf5ff; border:1.5px solid #d8b4fe; border-radius:8px; padding:10px;">' +
-            '<div style="font-size:0.76rem; font-weight:800; color:#6b21a8; text-transform:uppercase; margin-bottom:6px; display:flex; align-items:center; gap:6px;">🤖 Resumo Anual (IA) <span style="font-weight:600; text-transform:none; color:#94a3b8; font-size:0.70rem;">— fixo, não muda com o mês selecionado</span></div>' +
-            '<textarea id="resumoIA_' + topic.id + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este indicador..." style="width:100%; min-height:70px; font-size:0.82rem; padding:8px; border:1px solid #d8b4fe; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + resumoAtual + '</textarea>' +
-            (window.isMaster ? '<button type="button" onclick="saveResumoAnualInline(' + topic.id + ')" style="margin-top:6px; background:#7c3aed; color:#ffffff; border:none; padding:5px 12px; border-radius:6px; font-weight:700; font-size:0.76rem; cursor:pointer;">💾 Salvar Resumo Anual</button>' : '') +
-          '</div>';
-        }
-
         var catInfo = categoryInfoForTopicId(topic.id);
         row.innerHTML = '<div class="kpi-column">' +
           '<div>' +
@@ -2926,7 +2922,6 @@ function hydrateFromPowerBI() {
             '</div>' +
             '<div class="kpi-lines">' + linesHTML + '</div>' +
             qualBlockHTML +
-            resumoAnualHTML +
           '</div>' +
           '<button id="btn_hist_' + topic.id + '" type="button" class="timeline-btn" onclick="toggleInlineHistory(' + topic.id + ')">' +
             '📜 Histórico ATA_COMENTARIO' +
@@ -3558,6 +3553,7 @@ function hydrateFromPowerBI() {
           kpiCard("🛡️", "#e0f2fe", "Conformidade Governança", govVal, govSub, "#15803d");
       }
 
+      renderResumoAnualSection(isMultiOS, activeOSFilter);
       renderSuperintendenciaAndNegocioSummary("tab2ExecutiveSummariesContainer", "consolidacao");
     }
 
@@ -4413,6 +4409,34 @@ function hydrateFromPowerBI() {
       showToast("✅ Resumo anual do tópico #" + topicId + " salvo (fixo, independente do mês).");
     }
 
+    // Aba 3 -- lista unificada dos 23 campos de Resumo Anual (IA), um por indicador. Cada um é
+    // independente do mês selecionado (mesma leitura/gravação de saveResumoAnualInline).
+    function renderResumoAnualSection(isMultiOS, activeOSFilter) {
+      var cont = document.getElementById("resumoAnualContainer");
+      if (!cont) return;
+      if (isMultiOS || !activeOSFilter) {
+        cont.innerHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #7c3aed; padding:16px 20px; box-shadow:0 6px 18px rgba(0,0,0,0.12); font-size:0.85rem; color:#64748b;">🤖 Selecione uma OS específica no Power BI para ver e editar os Resumos Anuais (IA) por indicador.</div>';
+        return;
+      }
+
+      var cardsHTML = topicsData.filter(function(t) { return t.id <= 23; }).map(function(t) {
+        var val = getResumoAnualIA(activeOSFilter, t.id);
+        return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-left:4px solid #7c3aed; padding:14px 16px; box-shadow:0 1px 4px rgba(15,43,92,0.06);">' +
+          '<div style="font-size:0.90rem; font-weight:800; color:#1e293b; margin-bottom:8px;">#' + t.id + ' ' + t.name + '</div>' +
+          '<textarea id="resumoIA_' + t.id + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este indicador..." style="width:100%; min-height:80px; font-size:0.82rem; padding:8px; border:1px solid #d8b4fe; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#faf5ff' : '#f8fafc') + '; color:#0f172a;">' + val + '</textarea>' +
+          (window.isMaster ? '<button type="button" onclick="saveResumoAnualInline(' + t.id + ')" style="margin-top:6px; background:#7c3aed; color:#ffffff; border:none; padding:5px 12px; border-radius:6px; font-weight:700; font-size:0.76rem; cursor:pointer;">💾 Salvar</button>' : '') +
+        '</div>';
+      }).join("");
+
+      cont.innerHTML = '<div style="background:#ffffff; border-radius:12px; border:2px solid #7c3aed; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.12);">' +
+        '<div style="border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">' +
+          '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">🤖 Resumo Anual (IA) por Indicador — OS ' + activeOSFilter + '</h3>' +
+          '<p style="margin:4px 0 0 0; font-size:0.78rem; color:#64748b;">Fixo por indicador -- não muda com o mês selecionado. Use "📋 Copiar Tudo p/ IA" acima para extrair o histórico do ano e colar o resumo de cada indicador aqui.</p>' +
+        '</div>' +
+        '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:12px;">' + cardsHTML + '</div>' +
+      '</div>';
+    }
+
     var MONTH_NAMES_FULL_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
     function buildFullYearExportText(activeOS, selMonthNum) {
@@ -4448,11 +4472,75 @@ function hydrateFromPowerBI() {
         if (!anyData) lines.push("(sem dados registrados no período)");
       });
 
+      // Tópicos 22/23 (Renovação, Observações -- só comentário, sem valor comparativo) e 24
+      // (Síntese e Recomendações da Performance, um parecer por mês) entram do mesmo jeito.
+      [22, 23, 24].forEach(function(tid) {
+        var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
+        lines.push("");
+        lines.push("### #" + tid + " " + topicObj.name);
+        var anyData = false;
+        for (var m = 1; m <= selMonthNum; m++) {
+          var tRows = (window.ATA_COMENTARIOS_DB && window.ATA_COMENTARIOS_DB[activeOS] && window.ATA_COMENTARIOS_DB[activeOS][String(tid)]) ? window.ATA_COMENTARIOS_DB[activeOS][String(tid)] : [];
+          var gRow = tRows.filter(function(r) { return r.tipo === "GESTOR"; }).find(function(r) { return r.mes === m; });
+          var mRow = tRows.filter(function(r) { return r.tipo === "PERFORMANCE"; }).find(function(r) { return r.mes === m; });
+          var gTxt = gRow ? gRow.comentario : safeGetStorage("g_" + activeOS + "_m" + m + "_" + tid, "");
+          var mTxt = mRow ? mRow.comentario : safeGetStorage("m_" + activeOS + "_m" + m + "_" + tid, "");
+          if (!gTxt && !mTxt) continue;
+          anyData = true;
+          lines.push("- " + MONTH_NAMES_FULL_PT[m] + ":");
+          if (gTxt) lines.push("  Gestor: " + gTxt);
+          if (mTxt) lines.push("  Performance: " + mTxt);
+        }
+        if (!anyData) lines.push("(sem dados registrados no período)");
+      });
+
       lines.push("");
       lines.push(sep);
       lines.push("INSTRUÇÃO: para cada indicador acima, gere um resumo executivo (até 5 linhas) explicando a evolução ao longo do ano, principais causas de desvio e recomendações. Cole o resumo de cada indicador de volta no campo \"Resumo Anual (IA)\" correspondente no app.");
 
       return lines.join("\n");
+    }
+
+    // Aba 1 -- copia só os 23 pareceres do Setor de Performance (Máster) do MÊS ATUAL, para
+    // colar numa IA externa e gerar a Síntese e Recomendações (tópico #24). Não tenta colar
+    // de volta automaticamente -- o usuário mesmo cola o resultado no campo de Síntese.
+    function openCopyMonthPareceresModal() {
+      if (!window.isMaster) {
+        showToast("⚠️ Apenas usuários Máster podem exportar os pareceres.");
+        return;
+      }
+      var currentParams = new URLSearchParams(window.location.search);
+      var rawOS = currentParams.get("SelectedOS") || "";
+      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      var activeOS = extractPrimaryOSCode(rawOS);
+      if (isMultiOS || !activeOS) {
+        showToast("⚠️ Selecione uma OS específica no Power BI para exportar os pareceres.");
+        return;
+      }
+      var monthNum = getMonthNumberFromParams(currentParams);
+      var monthName = currentParams.get("SelectedMes") || "";
+
+      var lines = [];
+      lines.push("PARECERES DO SETOR DE PERFORMANCE -- OS " + activeOS + " -- " + (monthName || ("Mês " + monthNum)) + "/2026");
+      lines.push("");
+
+      for (var tid = 1; tid <= 23; tid++) {
+        var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
+        var mEl = document.getElementById("master_" + tid);
+        var mVal = mEl ? mEl.value : safeGetStorage("m_" + activeOS + "_m" + monthNum + "_" + tid, "");
+        lines.push("### #" + tid + " " + topicObj.name);
+        lines.push(mVal && mVal.trim() ? mVal.trim() : "(sem parecer registrado)");
+        lines.push("");
+      }
+
+      lines.push("INSTRUÇÃO: com base nos pareceres acima, escreva uma Síntese e Recomendações Finais da Performance para o mês, destacando pontos-chave e direcionamentos. Cole o resultado no campo \"Síntese e Recomendações da Performance\" (tópico #24) no app.");
+
+      var modal = document.getElementById("copyAllModal");
+      var sub = document.getElementById("copyAllModalSubtitle");
+      var ta = document.getElementById("copyAllTextarea");
+      if (sub) sub.innerText = "OS " + activeOS + " • " + (monthName || monthNum) + "/2026 • Copie e cole numa IA externa; o resultado vai manualmente no campo de Síntese (tópico #24).";
+      if (ta) ta.value = lines.join("\n");
+      if (modal) modal.style.display = "flex";
     }
 
     function openCopyAllModal() {
@@ -4742,6 +4830,7 @@ function hydrateFromPowerBI() {
     window.setSlaPeriodStatusInline = setSlaPeriodStatusInline;
     window.saveResumoAnualInline = saveResumoAnualInline;
     window.openCopyAllModal = openCopyAllModal;
+    window.openCopyMonthPareceresModal = openCopyMonthPareceresModal;
     window.closeCopyAllModal = closeCopyAllModal;
     window.copyAllModalText = copyAllModalText;
     window.saveInlinePrazoDeadline = saveInlinePrazoDeadline;
