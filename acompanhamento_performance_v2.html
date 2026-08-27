@@ -234,6 +234,18 @@
   <!-- ABA 1: ACOMPANHAMENTO MENSAL -->
   <!-- ========================================================================= -->
   <div id="tabMensal" class="tab-page active">
+    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #38bdf8; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+      <div>
+        <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
+          📊 Aba 1: Acompanhamento Mensal
+        </h2>
+        <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
+          Apuração detalhada por tópico da OS selecionada no filtro do Power BI
+        </p>
+      </div>
+      <div id="tab1OSIndicator" style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;"></div>
+    </div>
+
     <!-- Container dos 23 Tópicos -->
     <div id="topicsContainer"></div>
 
@@ -276,49 +288,10 @@
           🏆 Aba 2: Gestão de Pontuação & Ranking de Performance das OSs
         </h2>
       </div>
-      <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
-        <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS ELEGÍVEIS</span>
-        <div id="tab4TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
-      </div>
     </div>
 
-    <!-- Pódio dos Vencedores (Top 3) -->
+    <!-- Card da OS selecionada (pontuação, gauge e composição) -->
     <div id="scorecardPodiumContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:24px;"></div>
-
-    <!-- Tabela Geral de Ranking -->
-    <div style="background:#ffffff; border-radius:12px; border:1.5px solid #cbd5e1; box-shadow:0 6px 20px rgba(0,0,0,0.12); overflow:hidden; margin-bottom:24px;">
-      <div style="padding:12px 20px; background:#f8fafc; border-bottom:1.5px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <input type="text" id="rankingSearchInput" oninput="filterRankingTable()" placeholder="🔍 Pesquisar OS no Ranking..." style="padding:7px 14px; border-radius:6px; border:1.5px solid #94a3b8; font-size:0.88rem; width:340px; color:#0f172a; outline:none;" />
-          <span style="font-size:0.80rem; color:#64748b; font-weight:600;">(Classificação das <span id="rankingHeaderOSCount">68</span> OSs operacionais elegíveis)</span>
-        </div>
-        <div style="font-size:0.82rem; color:#0f2b5c; font-weight:700;">
-          📊 Pontuação máxima: 100 pontos
-        </div>
-      </div>
-
-      <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:center;">
-          <thead>
-            <tr style="background:#0f2b5c; color:#ffffff; font-weight:800;">
-              <th style="padding:12px 8px; width:85px;">CÓDIGO</th>
-              <th style="padding:12px 10px; text-align:left; min-width:200px;">DESCRIÇÃO DA OS</th>
-              <th style="padding:12px 8px; width:95px;">NEGÓCIO</th>
-              <th style="padding:12px 8px; min-width:140px; text-align:left;">SUPERINTENDÊNCIA</th>
-              <th style="padding:12px 8px; width:110px; background:#1e3a8a;">FINANCEIRO (48P)</th>
-              <th style="padding:12px 8px; width:110px; background:#1e3a8a;">GOVERNANÇA (9P)</th>
-              <th style="padding:12px 8px; width:110px; background:#1e3a8a;">ACOMPANHAMENTO (25P)</th>
-              <th style="padding:12px 8px; width:100px; background:#1e3a8a;">PESSOAS (26P)</th>
-              <th style="padding:12px 8px; width:100px; background:#1e3a8a;">SSMA (25P)</th>
-              <th style="padding:12px 8px; width:110px; background:#0f2b5c;">NOTA DO MÊS</th>
-              <th style="padding:12px 8px; width:130px; background:#f59e0b; color:#0f2b5c;">MÉDIA ACUMULADA</th>
-              <th style="padding:12px 8px; width:110px; background:#0284c7;">AÇÕES MÁSTER</th>
-            </tr>
-          </thead>
-          <tbody id="rankingTableBody"></tbody>
-        </table>
-      </div>
-    </div>
 
     <!-- Resumos por Superintendência e Negócio -->
     <div id="tab4ExecutiveSummariesContainer"></div>
@@ -334,17 +307,14 @@
           📊 Aba 3: Consolidação Anual de Performance
         </h2>
         <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
-          Visão financeira e operacional consolidada do exercício 2026 • Acompanhamento corporativo de todas as OSs
+          Visão financeira e operacional consolidada do exercício 2026 da OS selecionada no filtro do Power BI
         </p>
       </div>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <button type="button" id="btnCopyAllForAI" onclick="openCopyAllModal()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
           📋 Copiar Tudo p/ IA
         </button>
-        <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
-          <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS ELEGÍVEIS</span>
-          <div id="tab2TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
-        </div>
+        <div id="tab2TotalEligibleOSBadge" style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;"></div>
       </div>
     </div>
 
@@ -2384,6 +2354,22 @@ function hydrateFromPowerBI() {
       return clean || "M00100";
     }
 
+    // Indicador de OS ativa usado nos cabeçalhos das Abas 1 e 3 -- mostra a OS selecionada no
+    // filtro do Power BI, ou o aviso de seleção múltipla no mesmo lugar (ver pedido do usuário).
+    function renderOSIndicatorBadge(elId, isMultiOS, activeOSFilter) {
+      var el = document.getElementById(elId);
+      if (!el) return;
+      if (isMultiOS) {
+        el.innerHTML = '<span style="font-size:0.72rem; color:#fde68a; font-weight:700; text-transform:uppercase;">⚠️ Múltiplas OSs</span>' +
+          '<div style="font-size:0.90rem; font-weight:800; color:#ffffff;">Selecione 1 OS</div>';
+        return;
+      }
+      var contract = (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined") ? ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; }) : null;
+      var osName = contract ? contract.name : activeOSFilter;
+      el.innerHTML = '<span style="font-size:0.72rem; color:#93c5fd; font-weight:700; text-transform:uppercase;">OS Selecionada</span>' +
+        '<div style="font-size:1.02rem; font-weight:800; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px;">' + osName + '</div>';
+    }
+
     function toggleInlineHistory(topicId) {
       var historyRow = document.getElementById("hist_row_" + topicId);
       var btn = document.getElementById("btn_hist_" + topicId);
@@ -2708,6 +2694,7 @@ function hydrateFromPowerBI() {
       // Aba 1 só mostra resultado com exatamente 1 OS selecionada no Power BI -- com mais de uma
       // (ou nenhuma), os dados apurados por aqui não são confiáveis (não é o mesmo tipo de
       // agregação que a visão corporativa vai precisar; isso fica para a Aba 5).
+      renderOSIndicatorBadge("tab1OSIndicator", isMultiOS, !isMultiOS ? extractPrimaryOSCode(rawOS) : "");
       if (isMultiOS) {
         container.innerHTML = '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e;">' +
           '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">⚠️ Selecione apenas 1 OS</div>' +
@@ -3809,6 +3796,7 @@ function hydrateFromPowerBI() {
       // que apareciam aqui sem OS selecionada eram números fixos de exemplo, não dado real
       // (visão multi-OS confiável fica para a Aba 5).
       var cardsContGate = document.getElementById("annualSummaryCardsContainer");
+      renderOSIndicatorBadge("tab2TotalEligibleOSBadge", isMultiOS, activeOSFilter);
       if (isMultiOS) {
         if (cardsContGate) {
           cardsContGate.innerHTML = '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e; grid-column:1 / -1;">' +
@@ -3869,9 +3857,6 @@ function hydrateFromPowerBI() {
         govSub = "Performance Acumulada da OS (Jan–" + (currentParams.get("SelectedMes") || "") + ")";
       }
 
-      var badgeTotal = document.getElementById("tab2TotalEligibleOSBadge");
-      if (badgeTotal) badgeTotal.innerText = "OS " + activeOSFilter;
-
       function kpiCard(icon, iconBg, label, val, sub, subColor) {
         return '<div style="background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%); border-radius:14px; border:1px solid #e2e8f0; padding:18px 20px; box-shadow:0 3px 10px rgba(15,43,92,0.08); display:flex; gap:14px; align-items:flex-start;">' +
           '<div style="flex-shrink:0; width:44px; height:44px; border-radius:12px; background:' + iconBg + '; display:flex; align-items:center; justify-content:center; font-size:1.3rem;">' + icon + '</div>' +
@@ -3885,7 +3870,7 @@ function hydrateFromPowerBI() {
       var cardsCont = document.getElementById("annualSummaryCardsContainer");
       if (cardsCont) {
         cardsCont.innerHTML =
-          kpiCard("💰", "#dbeafe", "Faturamento Anual " + (isMultiOS ? ('(' + ACTIVE_CONTRACTS_CATALOG.length + ' OSs)') : ('(OS ' + activeOSFilter + ')')), fatVal, fatSub, fatSubColor) +
+          kpiCard("💰", "#dbeafe", "Faturamento Anual", fatVal, fatSub, fatSubColor) +
           kpiCard("📈", "#dcfce7", "Resultado Bruto Anual", resVal, resSub, resSubColor) +
           kpiCard("👥", "#fef3c7", "Efetivo Total em Campo", efVal, efSub, "#475569") +
           kpiCard("🛡️", "#e0f2fe", "Performance Acumulada", govVal, govSub, "#15803d");
@@ -4379,20 +4364,9 @@ function hydrateFromPowerBI() {
       };
     }
 
-    function filterRankingTable() {
-      var inp = document.getElementById("rankingSearchInput");
-      if (!inp) return;
-      var term = inp.value.toLowerCase();
-      var rows = document.querySelectorAll("#rankingTableBody tr");
-      rows.forEach(function(r) {
-        r.style.display = r.innerText.toLowerCase().indexOf(term) !== -1 ? "" : "none";
-      });
-    }
-
         function renderTab4Scorecard() {
-      var tbody = document.getElementById("rankingTableBody");
-      if (!tbody) return;
-      tbody.innerHTML = "";
+      var podiumCont = document.getElementById("scorecardPodiumContainer");
+      if (!podiumCont) return;
 
       var currentParams = new URLSearchParams(window.location.search);
       var selMonthNum = parseInt(currentParams.get("SelectedMesNo")) || 7;
@@ -4400,174 +4374,51 @@ function hydrateFromPowerBI() {
       var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
       var activeOSFilter = !isMultiOS ? extractPrimaryOSCode(rawOS) : "";
 
-      var badgeTotal = document.getElementById("tab4TotalEligibleOSBadge");
-      if (badgeTotal) badgeTotal.innerText = "";
-
       // Aba 2 só mostra resultado com exatamente 1 OS selecionada -- ranking/pontuação
       // multi-OS confiável fica para a Aba 5.
-      var podiumContGate = document.getElementById("scorecardPodiumContainer");
       if (isMultiOS) {
-        if (podiumContGate) {
-          podiumContGate.style.display = "block";
-          podiumContGate.innerHTML = '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e; grid-column:1 / -1;">' +
-            '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">⚠️ Selecione apenas 1 OS</div>' +
-            '<div style="font-size:0.95rem;">Os dados desta aba só são exibidos quando exatamente uma OS está selecionada no filtro do Power BI. Selecione uma única OS para continuar.</div>' +
-          '</div>';
-        }
+        podiumCont.style.display = "block";
+        podiumCont.innerHTML = '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e; grid-column:1 / -1;">' +
+          '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">⚠️ Selecione apenas 1 OS</div>' +
+          '<div style="font-size:0.95rem;">Os dados desta aba só são exibidos quando exatamente uma OS está selecionada no filtro do Power BI. Selecione uma única OS para continuar.</div>' +
+        '</div>';
         var execContGate = document.getElementById("tab4ExecutiveSummariesContainer");
         if (execContGate) execContGate.innerHTML = "";
         return;
-      } else if (podiumContGate) {
-        podiumContGate.style.display = "grid";
       }
+      podiumCont.style.display = "grid";
 
-      var osList = ACTIVE_CONTRACTS_CATALOG;
+      var contract = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; }) || ACTIVE_CONTRACTS_CATALOG[0];
+      var curScore = calculateOSScore(contract, selMonthNum);
 
-      var allRankingData = osList.map(function(contract) {
-        var curScore = calculateOSScore(contract, selMonthNum);
-
-        var totalScoreSum = 0;
-        var evaluatedMonthsCount = 0;
-
-        for (var m = 1; m <= selMonthNum; m++) {
-          var scM = calculateOSScore(contract, m);
-          if (scM.hasEvaluableData) {
-            evaluatedMonthsCount++;
-            totalScoreSum += scM.monthScore;
-          }
-        }
-
-        var avgAccum = evaluatedMonthsCount > 0 ? (totalScoreSum / evaluatedMonthsCount).toFixed(1) : curScore.monthScore.toFixed(1);
-
-        return {
-          code: contract.code,
-          name: contract.name,
-          negocio: contract.negocio,
-          superintendencia: contract.superintendencia,
-          gestor: contract.gestor,
-          finPts: curScore.finPts,
-          govPts: curScore.govPts,
-          acompPts: curScore.acompPts,
-          pesPts: curScore.pesPts,
-          ssmaPts: curScore.ssmaPts,
-          monthScore: curScore.monthScore,
-          avgAccum: parseFloat(avgAccum)
-        };
-      });
-
-      allRankingData.sort(function(a, b) { return b.avgAccum - a.avgAccum; });
-
-      var podiumCont = document.getElementById("scorecardPodiumContainer");
-      if (podiumCont) {
-        if (!isMultiOS && activeOSFilter) {
-          var matchedIdx = allRankingData.findIndex(function(r) { return extractPrimaryOSCode(r.code) === activeOSFilter; });
-          var matchedItem = matchedIdx !== -1 ? allRankingData[matchedIdx] : allRankingData[0];
-
-          podiumCont.innerHTML = '<div style="grid-column: 1 / -1; background:linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 55%, #1e40af 100%); border-radius:16px; padding:26px 30px; color:#ffffff; border:2.5px solid #60a5fa; box-shadow:0 10px 32px rgba(0,0,0,0.30); display:flex; align-items:center; gap:32px; flex-wrap:wrap;">' +
-            '<div style="flex-shrink:0;">' + buildScoreGaugeSVG(matchedItem.avgAccum, 100, 152) + '</div>' +
-            '<div style="flex:1; min-width:220px;">' +
-              '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + matchedItem.name + '</div>' +
-              '<div style="font-size:0.90rem; color:#bfdbfe; margin-bottom:12px;">' + matchedItem.negocio + ' • ' + matchedItem.superintendencia + ' • Gestor: ' + matchedItem.gestor + '</div>' +
-              '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
-                '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#86efac;">Nota do Mês: ' + matchedItem.monthScore + ' pts</div>' +
-                '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#fde047;">Média Acumulada: ' + matchedItem.avgAccum + ' pts</div>' +
-              '</div>' +
-            '</div>' +
-            '<div style="flex:2; min-width:440px;">' +
-              '<div style="font-size:0.76rem; font-weight:800; color:#93c5fd; text-transform:uppercase; margin-bottom:9px; letter-spacing:0.4px;">Composição da Pontuação</div>' +
-              buildCategoryBarsHTML([
-                { label: 'Financeiro', icon: '💰', val: matchedItem.finPts, max: 48 },
-                { label: 'Governança do Contrato', icon: '📋', val: matchedItem.govPts, max: 9 },
-                { label: 'Gestão e Acompanhamento', icon: '🗓️', val: matchedItem.acompPts, max: 25 },
-                { label: 'Pessoas', icon: '👥', val: matchedItem.pesPts, max: 26 },
-                { label: 'SSMA e Qualidade', icon: '🦺', val: matchedItem.ssmaPts, max: 25 }
-              ]) +
-            '</div>' +
-            '</div>';
-        } else if (allRankingData.length >= 3) {
-          function podiumCatBars(item) {
-            return buildCategoryBarsHTML([
-              { label: 'Financeiro', icon: '💰', val: item.finPts, max: 48 },
-              { label: 'Governança', icon: '📋', val: item.govPts, max: 9 },
-              { label: 'Acompanhamento', icon: '🗓️', val: item.acompPts, max: 25 },
-              { label: 'Pessoas', icon: '👥', val: item.pesPts, max: 26 },
-              { label: 'SSMA', icon: '🦺', val: item.ssmaPts, max: 25 }
-            ]);
-          }
-          function podiumCard(item, place, bg, border, medal, scale) {
-            return '<div style="background:' + bg + '; border-radius:14px; padding:18px 20px; color:#ffffff; border:2.5px solid ' + border + '; box-shadow:0 8px 22px rgba(0,0,0,0.22); transform:scale(' + scale + '); display:flex; flex-direction:column; gap:10px;">' +
-              '<div style="display:flex; align-items:center; gap:10px;">' +
-                '<div style="width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,0.22); display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0;">' + medal + '</div>' +
-                '<div style="min-width:0;">' +
-                  '<div style="font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.4px; opacity:0.85;">' + place + '</div>' +
-                  '<div style="font-size:0.98rem; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + item.name + '</div>' +
-                '</div>' +
-              '</div>' +
-              '<div style="font-size:0.74rem; opacity:0.85;">' + item.negocio + ' &middot; ' + item.superintendencia + '</div>' +
-              '<div style="font-size:1.5rem; font-weight:900;">' + item.avgAccum + ' <span style="font-size:0.72rem; font-weight:700; opacity:0.85;">pts (média acum.)</span></div>' +
-              '<div>' + podiumCatBars(item) + '</div>' +
-            '</div>';
-          }
-          podiumCont.innerHTML =
-            podiumCard(allRankingData[1], "2º LUGAR", "linear-gradient(160deg, #334155 0%, #1e293b 100%)", "#94a3b8", "🥈", "0.97") +
-            podiumCard(allRankingData[0], "1º LUGAR &middot; CAMPEÃO", "linear-gradient(160deg, #d97706 0%, #92400e 100%)", "#fde047", "🥇", "1.03") +
-            podiumCard(allRankingData[2], "3º LUGAR", "linear-gradient(160deg, #92400e 0%, #78350f 100%)", "#fdba74", "🥉", "0.97");
-        }
+      var totalScoreSum = 0, evaluatedMonthsCount = 0;
+      for (var m = 1; m <= selMonthNum; m++) {
+        var scM = calculateOSScore(contract, m);
+        if (scM.hasEvaluableData) { evaluatedMonthsCount++; totalScoreSum += scM.monthScore; }
       }
+      var avgAccum = parseFloat((evaluatedMonthsCount > 0 ? (totalScoreSum / evaluatedMonthsCount) : curScore.monthScore).toFixed(1));
 
-      var itemsToRenderInTable = allRankingData;
-      if (!isMultiOS && activeOSFilter) {
-        var singleFiltered = allRankingData.filter(function(r) { return extractPrimaryOSCode(r.code) === activeOSFilter; });
-        if (singleFiltered.length > 0) itemsToRenderInTable = singleFiltered;
-      }
-
-      itemsToRenderInTable.forEach(function(item, idx) {
-        var globalIdx = allRankingData.findIndex(function(r) { return r.code === item.code; });
-        var pos = globalIdx !== -1 ? (globalIdx + 1) : (idx + 1);
-        var medal = pos === 1 ? "🥇 1º" : (pos === 2 ? "🥈 2º" : (pos === 3 ? "🥉 3º" : pos + "º"));
-        var rowBg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
-
-        var scoreBadgeClass = item.avgAccum >= 85 ? "background:#dcfce7; color:#15803d; border:1.5px solid #86efac;" :
-          (item.avgAccum >= 70 ? "background:#fef3c7; color:#b45309; border:1.5px solid #fde68a;" : "background:#fee2e2; color:#b91c1c; border:1.5px solid #fca5a5;");
-
-        var medalBg = pos === 1 ? "linear-gradient(135deg,#fde047,#d97706)" : (pos === 2 ? "linear-gradient(135deg,#e2e8f0,#94a3b8)" : (pos === 3 ? "linear-gradient(135deg,#fdba74,#b45309)" : "#e2e8f0"));
-        var medalFg = pos <= 3 ? "#ffffff" : "#475569";
-        var medalHTML = '<div style="width:34px; height:34px; border-radius:50%; background:' + medalBg + '; color:' + medalFg + '; font-weight:800; font-size:' + (pos <= 3 ? '0.80rem' : '0.78rem') + '; display:flex; align-items:center; justify-content:center; margin:0 auto; box-shadow:0 2px 5px rgba(0,0,0,0.18);">' + (pos <= 3 ? ["🥇","🥈","🥉"][pos - 1] : pos) + '</div>';
-
-        function miniBarCell(val, max) {
-          var pct = max > 0 ? Math.min(100, (val / max) * 100) : 0;
-          var tier = scoreTier(pct);
-          return '<td style="padding:9px 10px;">' +
-            '<div style="display:flex; align-items:center; justify-content:flex-end; gap:2px; font-size:0.74rem; font-weight:800; color:' + tier.dark + ';">' + val.toFixed(1) + '<span style="font-weight:600; color:#94a3b8;">/' + max + '</span></div>' +
-            '<div style="width:100%; height:5px; background:#e2e8f0; border-radius:3px; overflow:hidden; margin-top:3px;"><div style="width:' + pct.toFixed(0) + '%; height:100%; background:' + tier.main + ';"></div></div>' +
-          '</td>';
-        }
-
-        var tr = document.createElement("tr");
-        tr.style.background = rowBg;
-        tr.style.borderBottom = "1px solid #cbd5e1";
-        tr.innerHTML = '<td style="padding:10px; font-weight:800; color:#0f2b5c;">' + item.code + '</td>' +
-          '<td style="padding:10px; font-weight:600; color:#334155; text-align:left;">' + item.name + '</td>' +
-          '<td style="padding:10px; font-size:0.80rem; font-weight:700; color:#64748b;">' + item.negocio + '</td>' +
-          '<td style="padding:10px; font-size:0.75rem; font-weight:600; color:#334155; text-align:left;">' + item.superintendencia + '</td>' +
-          miniBarCell(item.finPts, 48) +
-          miniBarCell(item.govPts, 9) +
-          miniBarCell(item.acompPts, 25) +
-          miniBarCell(item.pesPts, 26) +
-          miniBarCell(item.ssmaPts, 25) +
-          '<td style="padding:10px; text-align:right; font-weight:800; color:#1e40af; font-size:0.95rem;">' + item.monthScore + ' pts</td>' +
-          '<td style="padding:10px; text-align:center;">' +
-            '<span style="display:inline-block; padding:4px 10px; border-radius:6px; font-weight:800; font-size:0.92rem; ' + scoreBadgeClass + '">' +
-              item.avgAccum + ' pts' +
-            '</span>' +
-          '</td>' +
-          '<td style="padding:10px; text-align:center;">' +
-            '<button type="button" onclick="openQualitativeEvalModal(\'' + item.code + '\')" style="background:#0284c7; color:#ffffff; border:none; padding:4px 8px; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 4px rgba(2,132,199,0.3);">' +
-              '⚙️ Apurar (Máster)' +
-            '</button>' +
-          '</td>';
-        tbody.appendChild(tr);
-      });
+      podiumCont.innerHTML = '<div style="grid-column: 1 / -1; background:linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 55%, #1e40af 100%); border-radius:16px; padding:26px 30px; color:#ffffff; border:2.5px solid #60a5fa; box-shadow:0 10px 32px rgba(0,0,0,0.30); display:flex; align-items:center; gap:32px; flex-wrap:wrap;">' +
+        '<div style="flex-shrink:0;">' + buildScoreGaugeSVG(avgAccum, 100, 152) + '</div>' +
+        '<div style="flex:1; min-width:220px;">' +
+          '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + contract.name + '</div>' +
+          '<div style="font-size:0.90rem; color:#bfdbfe; margin-bottom:12px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>' +
+          '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
+            '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#86efac;">Nota do Mês: ' + curScore.monthScore + ' pts</div>' +
+            '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#fde047;">Média Acumulada: ' + avgAccum + ' pts</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="flex:2; min-width:440px;">' +
+          '<div style="font-size:0.76rem; font-weight:800; color:#93c5fd; text-transform:uppercase; margin-bottom:9px; letter-spacing:0.4px;">Composição da Pontuação</div>' +
+          buildCategoryBarsHTML([
+            { label: 'Financeiro', icon: '💰', val: curScore.finPts, max: 48 },
+            { label: 'Governança do Contrato', icon: '📋', val: curScore.govPts, max: 9 },
+            { label: 'Gestão e Acompanhamento', icon: '🗓️', val: curScore.acompPts, max: 25 },
+            { label: 'Pessoas', icon: '👥', val: curScore.pesPts, max: 26 },
+            { label: 'SSMA e Qualidade', icon: '🦺', val: curScore.ssmaPts, max: 25 }
+          ]) +
+        '</div>' +
+        '</div>';
 
       renderSuperintendenciaAndNegocioSummary("tab4ExecutiveSummariesContainer", "ranking");
     }
@@ -5196,12 +5047,6 @@ function hydrateFromPowerBI() {
       hydrateFromPowerBI();
       if (typeof updateFromURLParams === "function") updateFromURLParams();
 
-      var eligibleCountStr = ACTIVE_CONTRACTS_CATALOG.length + "";
-      ["bannerEligibleOSCount", "rankingHeaderOSCount"].forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el) el.innerText = eligibleCountStr;
-      });
-      
       var savedRole = safeGetStorage("npe_active_role", null);
       if (savedRole === "GESTOR") {
         window.isMaster = false;
@@ -5240,7 +5085,6 @@ function hydrateFromPowerBI() {
     window.handleCommentInput = handleCommentInput;
     window.handleFinalCommentInput = handleFinalCommentInput;
     window.saveAllComments = saveAllComments;
-    window.filterRankingTable = filterRankingTable;
     window.setSlaPeriodStatusInline = setSlaPeriodStatusInline;
     window.saveResumoAnualInline = saveResumoAnualInline;
     window.openCopyAllModal = openCopyAllModal;
