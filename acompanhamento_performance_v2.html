@@ -304,7 +304,7 @@
   <div id="tabLicoes" class="tab-page">
     <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #10b981; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
       <div>
-        <p style="margin:0; font-size:0.84rem; color:#93c5fd;">
+        <p style="margin:0; font-size:1.05rem; color:#93c5fd;">
           Visão corporativa de todas as OSs elegíveis, apurada com dados reais do mês -- não considera o filtro de OS/Gestor do Power BI, pois estas lições precisam ser visíveis para todos.
         </p>
       </div>
@@ -312,10 +312,6 @@
         <button type="button" id="btnCopyLicoes" onclick="openCopyLicoesModal()" style="background:linear-gradient(135deg,#10b981,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
           📋 Copiar p/ IA (Lições & Riscos)
         </button>
-        <div style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;">
-          <span style="font-size:0.72rem; color:#fef08a; font-weight:700; text-transform:uppercase;">TOTAL DE OSS</span>
-          <div id="tab3TotalEligibleOSBadge" style="font-size:1.30rem; font-weight:800; color:#ffffff;">68 Contratos Ativos</div>
-        </div>
       </div>
     </div>
 
@@ -3380,7 +3376,7 @@ function hydrateFromPowerBI() {
         return t ? { name: t.id + ". " + t.name, weight: TOPIC_WEIGHTS[id] } : { name: id, weight: TOPIC_WEIGHTS[id] || 0 };
       }
 
-      var BAR_MAX_H = 62;
+      var BAR_MAX_H = 93; // +50% (era 62) para deixar as barras/caixas mais altas e legíveis
 
       function topicCard(id, catColor) {
         var def = topicDef(id);
@@ -3452,7 +3448,7 @@ function hydrateFromPowerBI() {
         var cards = cat.topics.map(function(id) { return topicCard(id, cat.color); }).join("");
         return '<div style="margin-bottom:24px;">' +
           '<div style="padding:11px 18px; font-size:1.02rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px; border-radius:8px; margin-bottom:14px;">' + cat.icon + ' ' + cat.label + '</div>' +
-          '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(430px, 1fr)); gap:16px;">' + cards + '</div>' +
+          '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">' + cards + '</div>' +
         '</div>';
       }).join("");
 
@@ -3556,14 +3552,19 @@ function hydrateFromPowerBI() {
             '</div>';
           }
 
-          return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-left:5px solid ' + catColor + '; padding:16px 18px; box-shadow:0 1px 4px rgba(15,43,92,0.06);">' +
-            '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">' +
-              '<span style="font-size:1.10rem; font-weight:800; color:#1e293b;">' + (isAcompTopic ? t.name : (t.id + '. ' + t.name)) + '</span>' +
-              '<span style="font-size:0.88rem; font-weight:800; color:#94a3b8; white-space:nowrap;">' + t.weight + ' pts</span>' +
+          // O topo (título + corpo + acumulado) fica num bloco de altura fixa, para que o Resumo
+          // Anual (resumoBlock) sempre comece na mesma posição em todos os cards da linha,
+          // independente de quanto conteúdo cada indicador tem acima dele.
+          return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-left:5px solid ' + catColor + '; padding:16px 18px; box-shadow:0 1px 4px rgba(15,43,92,0.06); display:flex; flex-direction:column;">' +
+            '<div style="min-height:172px;">' +
+              '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">' +
+                '<span style="font-size:1.10rem; font-weight:800; color:#1e293b;">' + (isAcompTopic ? t.name : (t.id + '. ' + t.name)) + '</span>' +
+                '<span style="font-size:0.88rem; font-weight:800; color:#94a3b8; white-space:nowrap;">' + t.weight + ' pts</span>' +
+              '</div>' +
+              body +
+              accumBlock +
+              commentBlock +
             '</div>' +
-            body +
-            accumBlock +
-            commentBlock +
             resumoBlock +
           '</div>';
         }
@@ -3585,7 +3586,7 @@ function hydrateFromPowerBI() {
             // logo abaixo -- cards mais largos para o texto dos resumos caber melhor.
             return '<div style="margin-bottom:26px;">' +
               '<div style="padding:11px 18px; font-size:1.02rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px; border-radius:8px; margin-bottom:14px;">' + cat.icon + ' ' + cat.label + '</div>' +
-              '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(400px, 1fr)); gap:16px;">' + cards + '</div>' +
+              '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">' + cards + '</div>' +
             '</div>';
           }).join("");
 
@@ -3939,9 +3940,6 @@ function hydrateFromPowerBI() {
       var selMonthNum = parseInt(currentParams.get("SelectedMesNo"), 10) || 7;
       var monthNamesFull = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
       var monthLabel = monthNamesFull[selMonthNum] || "Julho";
-
-      var badgeTotal = document.getElementById("tab3TotalEligibleOSBadge");
-      if (badgeTotal) badgeTotal.innerText = ACTIVE_CONTRACTS_CATALOG.length + " Contratos Ativos (Visão Corporativa Completa)";
 
       // "Destaques Reais"/"Riscos" automáticos (derivados de calculateOSScore, variavam com o
       // filtro de mês do Power BI) foram retirados por pedido do usuário -- a Aba 4 passa a
@@ -4687,7 +4685,7 @@ function hydrateFromPowerBI() {
           '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800;">🤖 Resumos de Lições Aprendidas & Gestão de Risco</h3>' +
           '<p style="margin:4px 0 0 0; font-size:0.84rem; color:#64748b;">Use "📋 Copiar p/ IA (Lições &amp; Riscos)" acima, cole numa IA externa e traga o resultado para os campos abaixo. Corporativo: não muda com a OS nem com o mês.</p>' +
         '</div>' +
-        '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(400px, 1fr)); gap:18px;">' + blocos + '</div>' +
+        '<div style="display:grid; grid-template-columns:1fr; gap:18px;">' + blocos + '</div>' +
       '</div>';
     }
 
