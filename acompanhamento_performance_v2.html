@@ -2355,11 +2355,11 @@ function hydrateFromPowerBI() {
         '<div style="flex:2; min-width:440px;">' +
           '<div style="font-size:0.76rem; font-weight:800; color:#93c5fd; text-transform:uppercase; margin-bottom:9px; letter-spacing:0.4px;">Composição da Pontuação</div>' +
           buildCategoryBarsHTML([
-            { label: 'Financeiro', icon: '💰', val: curScore.finPts, max: 48, color: '#0f2b5c' },
-            { label: 'Governança do Contrato', icon: '📋', val: curScore.govPts, max: 9, color: '#0e7490' },
-            { label: 'Gestão e Acompanhamento', icon: '🗓️', val: curScore.acompPts, max: 25, color: '#1d4ed8' },
-            { label: 'Pessoas', icon: '👥', val: curScore.pesPts, max: 26, color: '#7e22ce' },
-            { label: 'SSMA e Qualidade', icon: '🦺', val: curScore.ssmaPts, max: 25, color: '#b45309' }
+            { label: 'Financeiro', icon: '💰', val: curScore.finPts, max: 48, color: catColorByKey('fin') },
+            { label: 'Governança do Contrato', icon: '📋', val: curScore.govPts, max: 9, color: catColorByKey('gov') },
+            { label: 'Gestão e Acompanhamento', icon: '🗓️', val: curScore.acompPts, max: 25, color: catColorByKey('acomp') },
+            { label: 'Pessoas', icon: '👥', val: curScore.pesPts, max: 26, color: catColorByKey('pes') },
+            { label: 'SSMA e Qualidade', icon: '🦺', val: curScore.ssmaPts, max: 25, color: catColorByKey('ssma') }
           ]) +
         '</div>' +
       '</div>';
@@ -3294,9 +3294,16 @@ function hydrateFromPowerBI() {
       { key: "fin", label: "Financeiro", icon: "💰", color: "#0f2b5c", topics: ["t1", "t2", "t3", "t4", "t6", "t8", "t7"] },
       { key: "gov", label: "Governança do Contrato", icon: "📋", color: "#0e7490", topics: ["t5", "t21", "t19"] },
       { key: "acomp", label: "Gestão e Acompanhamento", icon: "🗓️", color: "#1d4ed8", topics: ["prazo", "preenchimento"] },
-      { key: "pes", label: "Pessoas", icon: "👥", color: "#7e22ce", topics: ["t9", "t10", "t11", "t12", "t13", "t14"] },
+      { key: "pes", label: "Pessoas", icon: "👥", color: "#a855f7", topics: ["t9", "t10", "t11", "t12", "t13", "t14"] },
       { key: "ssma", label: "SSMA e Qualidade", icon: "🦺", color: "#b45309", topics: ["t15", "t16", "t17", "t20", "t18"] }
     ];
+
+    // Cor da categoria por key -- fonte única para qualquer lugar que precise da cor sem
+    // percorrer o array manualmente (ex.: as barras de Composição da Pontuação no card de OS).
+    function catColorByKey(key) {
+      var c = SCORE_CATEGORIES.filter(function(x) { return x.key === key; })[0];
+      return c ? c.color : '#94a3b8';
+    }
 
     // Envelope visual único para agrupar os cards de uma categoria (Financeiro, Governança...)
     // numa caixa grande, com o ícone e o nome da categoria maiores no topo -- usado tanto na
