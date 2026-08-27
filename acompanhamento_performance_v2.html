@@ -234,16 +234,8 @@
   <!-- ABA 1: ACOMPANHAMENTO MENSAL -->
   <!-- ========================================================================= -->
   <div id="tabMensal" class="tab-page active">
-    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #38bdf8; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-      <div>
-        <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
-          📊 Aba 1: Acompanhamento Mensal
-        </h2>
-        <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
-          Apuração detalhada por tópico da OS selecionada no filtro do Power BI
-        </p>
-      </div>
-      <div id="tab1OSIndicator" style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;"></div>
+    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #38bdf8; box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+      <div id="tab1OSIndicator"></div>
     </div>
 
     <!-- Container dos 23 Tópicos -->
@@ -282,14 +274,6 @@
   <!-- ABA 2: GESTÃO DE PONTUAÇÃO & RANKING -->
   <!-- ========================================================================= -->
   <div id="tabRanking" class="tab-page">
-    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #f59e0b; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-      <div>
-        <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
-          🏆 Aba 2: Gestão de Pontuação & Ranking de Performance das OSs
-        </h2>
-      </div>
-    </div>
-
     <!-- Card da OS selecionada (pontuação, gauge e composição) -->
     <div id="scorecardPodiumContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:24px;"></div>
 
@@ -302,20 +286,10 @@
   <!-- ========================================================================= -->
   <div id="tabConsolidacao" class="tab-page">
     <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #3b82f6; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-      <div>
-        <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
-          📊 Aba 3: Consolidação Anual de Performance
-        </h2>
-        <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
-          Visão financeira e operacional consolidada do exercício 2026 da OS selecionada no filtro do Power BI
-        </p>
-      </div>
-      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <button type="button" id="btnCopyAllForAI" onclick="openCopyAllModal()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
-          📋 Copiar Tudo p/ IA
-        </button>
-        <div id="tab2TotalEligibleOSBadge" style="background:rgba(255,255,255,0.12); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.25); text-align:right;"></div>
-      </div>
+      <div id="tab2TotalEligibleOSBadge"></div>
+      <button type="button" id="btnCopyAllForAI" onclick="openCopyAllModal()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+        📋 Copiar Tudo p/ IA
+      </button>
     </div>
 
     <!-- Cards de Resumo Corporativo Anual -->
@@ -331,10 +305,7 @@
   <div id="tabLicoes" class="tab-page">
     <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #10b981; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
       <div>
-        <h2 style="margin:0; font-size:1.35rem; font-weight:800; display:flex; align-items:center; gap:10px;">
-          💡 Aba 4: Lições Aprendidas & Gestão de Risco
-        </h2>
-        <p style="margin:4px 0 0 0; font-size:0.84rem; color:#93c5fd;">
+        <p style="margin:0; font-size:0.84rem; color:#93c5fd;">
           Visão corporativa de todas as OSs elegíveis, apurada com dados reais do mês -- não considera o filtro de OS/Gestor do Power BI, pois estas lições precisam ser visíveis para todos.
         </p>
       </div>
@@ -2354,20 +2325,24 @@ function hydrateFromPowerBI() {
       return clean || "M00100";
     }
 
-    // Indicador de OS ativa usado nos cabeçalhos das Abas 1 e 3 -- mostra a OS selecionada no
-    // filtro do Power BI, ou o aviso de seleção múltipla no mesmo lugar (ver pedido do usuário).
+    // Indicador de OS ativa usado nos cabeçalhos das Abas 1 e 3 -- mesmo estilo de identificação
+    // da OS já usado no card/pódio da Aba 2 (nome em destaque + negócio/superintendência/gestor),
+    // ou o aviso de seleção múltipla no mesmo lugar quando aplicável.
     function renderOSIndicatorBadge(elId, isMultiOS, activeOSFilter) {
       var el = document.getElementById(elId);
       if (!el) return;
       if (isMultiOS) {
-        el.innerHTML = '<span style="font-size:0.72rem; color:#fde68a; font-weight:700; text-transform:uppercase;">⚠️ Múltiplas OSs</span>' +
-          '<div style="font-size:0.90rem; font-weight:800; color:#ffffff;">Selecione 1 OS</div>';
+        el.innerHTML = '<div style="font-size:1.15rem; font-weight:900; color:#fde68a;">⚠️ Selecione apenas 1 OS</div>' +
+          '<div style="font-size:0.84rem; color:#fde68a; margin-top:2px;">Os dados desta aba dependem do filtro de OS do Power BI estar em uma única OS.</div>';
         return;
       }
       var contract = (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined") ? ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; }) : null;
-      var osName = contract ? contract.name : activeOSFilter;
-      el.innerHTML = '<span style="font-size:0.72rem; color:#93c5fd; font-weight:700; text-transform:uppercase;">OS Selecionada</span>' +
-        '<div style="font-size:1.02rem; font-weight:800; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px;">' + osName + '</div>';
+      if (!contract) {
+        el.innerHTML = '<div style="font-size:1.35rem; font-weight:900; color:#ffffff;">' + activeOSFilter + '</div>';
+        return;
+      }
+      el.innerHTML = '<div style="font-size:1.35rem; font-weight:900; color:#ffffff;">' + contract.name + '</div>' +
+        '<div style="font-size:0.84rem; color:#93c5fd; margin-top:2px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>';
     }
 
     function toggleInlineHistory(topicId) {
