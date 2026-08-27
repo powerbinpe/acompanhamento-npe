@@ -232,7 +232,7 @@
 
   <!-- Banner Informativo -->
   <div class="sim-banner">
-    ℹ️ <strong>Painel Integrado NPE:</strong> Selecione a OS e o Mês nos filtros do Power BI para atualizar o acompanhamento em tempo real! (<span id="bannerEligibleOSCount">68</span> Contratos Operacionais Elegíveis)
+    ℹ️ <strong>Painel Integrado NPE:</strong> Selecione a OS e o Mês nos filtros do Power BI para atualizar o acompanhamento em tempo real! (<span id="bannerEligibleOSCount" style="padding-right:2px;">68</span> Contratos Operacionais Elegíveis)
   </div>
 
 
@@ -310,7 +310,6 @@
         <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:center;">
           <thead>
             <tr style="background:#0f2b5c; color:#ffffff; font-weight:800;">
-              <th style="padding:12px 8px; width:65px;">POSIÇÃO</th>
               <th style="padding:12px 8px; width:85px;">CÓDIGO</th>
               <th style="padding:12px 10px; text-align:left; min-width:200px;">DESCRIÇÃO DA OS</th>
               <th style="padding:12px 8px; width:95px;">NEGÓCIO</th>
@@ -2471,8 +2470,10 @@ function hydrateFromPowerBI() {
 
       // General Differences (Revenue, Result, Margin, Headcount, HHT)
       if (label.indexOf("diferença") !== -1 || label.indexOf("dif") !== -1) {
-        if (s.indexOf("-") === 0 || s.indexOf("(") === 0) return "#b91c1c";
-        if (s.indexOf("+") === 0) return "#15803d";
+        // O sinal/parêntese de negativo nem sempre fica no índice 0 (ex.: "R$ (4.176.180)" tem
+        // o "R$ " na frente) -- procura em qualquer posição, não só no início da string.
+        if (s.indexOf("-") !== -1 || s.indexOf("(") !== -1) return "#b91c1c";
+        if (s.indexOf("+") !== -1) return "#15803d";
         var n = parseFloat(s.replace("R$", "").replace("%", "").replace("pax", "").replace("h", "").replace(/\./g, "").replace(",", ".").trim());
         if (!isNaN(n)) {
           return n >= 0 ? "#15803d" : "#b91c1c";
@@ -4509,8 +4510,7 @@ function hydrateFromPowerBI() {
         var tr = document.createElement("tr");
         tr.style.background = rowBg;
         tr.style.borderBottom = "1px solid #cbd5e1";
-        tr.innerHTML = '<td style="padding:8px; text-align:center;">' + medalHTML + '</td>' +
-          '<td style="padding:10px; font-weight:800; color:#0f2b5c;">' + item.code + '</td>' +
+        tr.innerHTML = '<td style="padding:10px; font-weight:800; color:#0f2b5c;">' + item.code + '</td>' +
           '<td style="padding:10px; font-weight:600; color:#334155; text-align:left;">' + item.name + '</td>' +
           '<td style="padding:10px; font-size:0.80rem; font-weight:700; color:#64748b;">' + item.negocio + '</td>' +
           '<td style="padding:10px; font-size:0.75rem; font-weight:600; color:#334155; text-align:left;">' + item.superintendencia + '</td>' +
