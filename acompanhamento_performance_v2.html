@@ -2346,7 +2346,7 @@ function hydrateFromPowerBI() {
         '<div style="flex-shrink:0;">' + buildScoreGaugeSVG(avgAccum, 100, 152) + '</div>' +
         '<div style="flex:1; min-width:220px;">' +
           '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + contract.name + '</div>' +
-          '<div style="font-size:1.35rem; color:#bfdbfe; margin-bottom:12px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>' +
+          '<div style="font-size:1.02rem; color:#bfdbfe; margin-bottom:12px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>' +
           '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
             '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#86efac;">Nota do Mês: ' + curScore.monthScore + ' pts</div>' +
             '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#fde047;">Média Acumulada: ' + avgAccum + ' pts</div>' +
@@ -3271,17 +3271,21 @@ function hydrateFromPowerBI() {
         var pct = c.max > 0 ? Math.min(100, (c.val / c.max) * 100) : 0;
         var tier = scoreTier(pct);
         var catColor = c.color || '#94a3b8';
-        return '<div style="min-width:200px; flex:1 1 200px;">' +
-          '<div style="display:flex; justify-content:space-between; align-items:baseline; font-size:1.30rem; font-weight:800; color:#e0e7ff; margin-bottom:7px;">' +
-            '<span><span style="font-size:1.6rem; vertical-align:middle;">' + c.icon + '</span> ' + c.label + '</span>' +
-            '<span style="font-size:1.10rem;">' + c.val.toFixed(1) + ' / ' + c.max + '</span>' +
+        // Rótulo enxuto acima (fonte menor, sem quebrar linha) e o valor "32.0 / 48" abaixo da
+        // barra -- tirar o valor de cima do rótulo foi o que resolveu o texto espremendo/quebrando.
+        // Borda de 4px (era 2px, quase invisível) para a cor de referência da categoria ficar
+        // bem visível ao redor da barra, sem se misturar com a cor de preenchimento.
+        return '<div style="min-width:160px; flex:1 1 160px;">' +
+          '<div style="font-size:0.86rem; font-weight:800; color:#e0e7ff; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' +
+            '<span style="font-size:1.05rem; vertical-align:middle;">' + c.icon + '</span> ' + c.label +
           '</div>' +
-          '<div style="height:42px; background:rgba(255,255,255,0.16); border:2px solid ' + catColor + '; border-radius:9px; overflow:hidden;">' +
-            '<div style="height:100%; width:' + pct.toFixed(0) + '%; background:' + tier.main + '; border-radius:7px;"></div>' +
+          '<div style="height:42px; background:rgba(255,255,255,0.16); border:4px solid ' + catColor + '; border-radius:9px; overflow:hidden;">' +
+            '<div style="height:100%; width:' + pct.toFixed(0) + '%; background:' + tier.main + '; border-radius:5px;"></div>' +
           '</div>' +
+          '<div style="text-align:right; font-size:0.82rem; font-weight:700; color:#e0e7ff; margin-top:4px;">' + c.val.toFixed(1) + ' / ' + c.max + '</div>' +
         '</div>';
       }).join("");
-      return '<div style="display:flex; flex-wrap:wrap; gap:14px 22px;">' + bars + '</div>';
+      return '<div style="display:flex; flex-wrap:wrap; gap:10px 16px;">' + bars + '</div>';
     }
 
     // Categorias e pesos usados no cálculo real (calculateOSScoreUncached) -- mesma fonte da
@@ -3299,15 +3303,21 @@ function hydrateFromPowerBI() {
     // Aba 2 (gráficos de barra mês a mês) quanto na Aba 3 (resumo anual dos indicadores), para
     // manter o mesmo padrão visual e as mesmas cores em todo o app.
     function buildCategoryGroupWrapper(cat, innerCardsHTML) {
-      // Borda fina em cima/nos lados, e uma faixa grossa na cor da categoria embaixo -- mesma
-      // ideia da linha colorida atrás das barras de "Composição da Pontuação", agora aplicada
-      // como "rodapé" da caixa grande do indicador.
-      return '<div style="background:#ffffff; border:1.5px solid #e2e8f0; border-bottom:8px solid ' + cat.color + '; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);">' +
+      // Mesma metodologia da borda usada em "Composição da Pontuação": 4px, ao redor de toda a
+      // caixa, na cor de referência da própria categoria -- para ser fácil de enxergar qual
+      // categoria é qual, com o mesmo padrão em todos os lugares do app.
+      return '<div style="background:#ffffff; border:4px solid ' + cat.color + '; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);">' +
         '<div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">' +
           '<span style="font-size:2.1rem; line-height:1;">' + cat.icon + '</span>' +
           '<span style="font-size:1.35rem; font-weight:900; color:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px;">' + cat.label + '</span>' +
         '</div>' +
         '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">' + innerCardsHTML + '</div>' +
+        // Rodapé repetindo o nome da categoria (na mesma cor) abaixo das caixas dos indicadores,
+        // espelhando o cabeçalho -- deixa claro a que categoria aquele bloco pertence mesmo
+        // depois de rolar a página para baixo.
+        '<div style="margin-top:16px; padding-top:14px; border-top:2px solid ' + cat.color + '; text-align:center; font-size:1.05rem; font-weight:900; color:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px;">' +
+          cat.icon + ' ' + cat.label +
+        '</div>' +
       '</div>';
     }
 
