@@ -2282,6 +2282,11 @@ function hydrateFromPowerBI() {
       if (p3) { p3.style.display = "none"; p3.classList.remove("active"); }
       if (p4) { p4.style.display = "none"; p4.classList.remove("active"); }
 
+      // "Copiar Pareceres do Mês" é específico da OS filtrada (o único fluxo de cópia que
+      // depende do filtro de OS do Power BI) -- só faz sentido na Aba 1.
+      var btnCopyMonthPareceresEl = document.getElementById("btnCopyMonthPareceres");
+      if (btnCopyMonthPareceresEl) btnCopyMonthPareceresEl.style.display = (tabId === 'tabMensal') ? "inline-flex" : "none";
+
       if (tabId === 'tabMensal') {
         if (tabButtons[0]) tabButtons[0].classList.add("active");
         if (p1) { p1.style.display = "block"; p1.classList.add("active"); }
@@ -2350,11 +2355,11 @@ function hydrateFromPowerBI() {
         '<div style="flex:2; min-width:440px;">' +
           '<div style="font-size:0.76rem; font-weight:800; color:#93c5fd; text-transform:uppercase; margin-bottom:9px; letter-spacing:0.4px;">Composição da Pontuação</div>' +
           buildCategoryBarsHTML([
-            { label: 'Financeiro', icon: '💰', val: curScore.finPts, max: 48 },
-            { label: 'Governança do Contrato', icon: '📋', val: curScore.govPts, max: 9 },
-            { label: 'Gestão e Acompanhamento', icon: '🗓️', val: curScore.acompPts, max: 25 },
-            { label: 'Pessoas', icon: '👥', val: curScore.pesPts, max: 26 },
-            { label: 'SSMA e Qualidade', icon: '🦺', val: curScore.ssmaPts, max: 25 }
+            { label: 'Financeiro', icon: '💰', val: curScore.finPts, max: 48, color: '#0f2b5c' },
+            { label: 'Governança do Contrato', icon: '📋', val: curScore.govPts, max: 9, color: '#0e7490' },
+            { label: 'Gestão e Acompanhamento', icon: '🗓️', val: curScore.acompPts, max: 25, color: '#1d4ed8' },
+            { label: 'Pessoas', icon: '👥', val: curScore.pesPts, max: 26, color: '#7e22ce' },
+            { label: 'SSMA e Qualidade', icon: '🦺', val: curScore.ssmaPts, max: 25, color: '#b45309' }
           ]) +
         '</div>' +
       '</div>';
@@ -3257,15 +3262,21 @@ function hydrateFromPowerBI() {
       '</svg>';
     }
 
+    // Barras de "Composição da Pontuação" (dentro do card de OS, Abas 1/2/3) -- cada categoria
+    // com seu ícone/nome maiores, barra 3x mais alta (era 14px), e uma borda na cor própria da
+    // categoria por trás da barra (trilho), diferenciando visualmente cada categoria sem
+    // interferir na cor de preenchimento (verde/amarelo/vermelho) da barra em si.
     function buildCategoryBarsHTML(cats) {
       var bars = cats.map(function(c) {
         var pct = c.max > 0 ? Math.min(100, (c.val / c.max) * 100) : 0;
         var tier = scoreTier(pct);
+        var catColor = c.color || '#94a3b8';
         return '<div style="min-width:200px; flex:1 1 200px;">' +
-          '<div style="display:flex; justify-content:space-between; font-size:0.84rem; font-weight:700; color:#e0e7ff; margin-bottom:5px;">' +
-            '<span>' + c.icon + ' ' + c.label + '</span><span>' + c.val.toFixed(1) + ' / ' + c.max + '</span>' +
+          '<div style="display:flex; justify-content:space-between; align-items:baseline; font-size:1.30rem; font-weight:800; color:#e0e7ff; margin-bottom:7px;">' +
+            '<span><span style="font-size:1.6rem; vertical-align:middle;">' + c.icon + '</span> ' + c.label + '</span>' +
+            '<span style="font-size:1.10rem;">' + c.val.toFixed(1) + ' / ' + c.max + '</span>' +
           '</div>' +
-          '<div style="height:14px; background:rgba(255,255,255,0.16); border-radius:7px; overflow:hidden;">' +
+          '<div style="height:42px; background:rgba(255,255,255,0.16); border:2px solid ' + catColor + '; border-radius:9px; overflow:hidden;">' +
             '<div style="height:100%; width:' + pct.toFixed(0) + '%; background:' + tier.main + '; border-radius:7px;"></div>' +
           '</div>' +
         '</div>';
@@ -3288,7 +3299,10 @@ function hydrateFromPowerBI() {
     // Aba 2 (gráficos de barra mês a mês) quanto na Aba 3 (resumo anual dos indicadores), para
     // manter o mesmo padrão visual e as mesmas cores em todo o app.
     function buildCategoryGroupWrapper(cat, innerCardsHTML) {
-      return '<div style="background:#ffffff; border:2px solid ' + cat.color + '; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);">' +
+      // Borda fina em cima/nos lados, e uma faixa grossa na cor da categoria embaixo -- mesma
+      // ideia da linha colorida atrás das barras de "Composição da Pontuação", agora aplicada
+      // como "rodapé" da caixa grande do indicador.
+      return '<div style="background:#ffffff; border:1.5px solid #e2e8f0; border-bottom:8px solid ' + cat.color + '; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);">' +
         '<div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">' +
           '<span style="font-size:2.1rem; line-height:1;">' + cat.icon + '</span>' +
           '<span style="font-size:1.35rem; font-weight:900; color:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px;">' + cat.label + '</span>' +
@@ -4818,20 +4832,48 @@ function hydrateFromPowerBI() {
       var monthNum = getMonthNumberFromParams(currentParams);
       var monthName = currentParams.get("SelectedMes") || "";
 
+      var contract = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return c.code === activeOS; });
+      var monthData = contract && contract.monthHistory ? contract.monthHistory[monthNum] : null;
+      var sc = contract ? calculateOSScore(contract, monthNum) : null;
+
       var lines = [];
       lines.push("PARECERES DO SETOR DE PERFORMANCE -- OS " + activeOS + " -- " + (monthName || ("Mês " + monthNum)) + "/2026");
       lines.push("");
 
       for (var tid = 1; tid <= 23; tid++) {
         var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
+        var tMap = TOPIC_INDICATOR_MAP.find(function(t) { return t.id === tid; });
+        var detalhe = (tMap && contract && monthData) ? buildTopicDetailLine(tMap.scoreId, monthData, contract, monthNum) : "";
+
+        var gEl = document.getElementById("gestor_" + tid);
+        var gVal = gEl ? gEl.value : safeGetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, "");
         var mEl = document.getElementById("master_" + tid);
         var mVal = mEl ? mEl.value : safeGetStorage("m_" + activeOS + "_m" + monthNum + "_" + tid, "");
+
         lines.push("### #" + tid + " " + topicObj.name);
-        lines.push(mVal && mVal.trim() ? mVal.trim() : "(sem parecer registrado)");
+        if (detalhe) lines.push("Valor apurado: " + detalhe);
+        lines.push("Gestor: " + (gVal && gVal.trim() ? gVal.trim() : "(sem justificativa)"));
+        lines.push("Performance: " + (mVal && mVal.trim() ? mVal.trim() : "(sem parecer registrado)"));
         lines.push("");
       }
 
-      lines.push("INSTRUÇÃO: com base nos pareceres acima, escreva uma Síntese e Recomendações Finais da Performance para o mês, destacando pontos-chave e direcionamentos. Cole o resultado no campo \"Síntese e Recomendações da Performance\" (tópico #24) no app.");
+      // Indicadores que não bateram a meta no mês -- para a IA considerar não só o que foi
+      // escrito nos pareceres, mas também o que os números em si estão apontando.
+      if (sc) {
+        var problemas = [];
+        for (var scId in sc.topics) {
+          var tp = sc.topics[scId];
+          if (tp.applicable && tp.max > 0 && tp.earned < tp.max - 0.01) problemas.push(licoesTopicLabel(scId));
+        }
+        lines.push(sep2());
+        lines.push("INDICADORES ABAIXO DA META NESTE MÊS: " + (problemas.length ? problemas.join("; ") : "Nenhum -- todos os indicadores avaliáveis bateram a meta."));
+        lines.push("Nota do mês: " + sc.monthScore.toFixed(1) + " pts");
+        lines.push("");
+      }
+
+      lines.push("INSTRUÇÃO: com base nos valores apurados, nas justificativas do Gestor e nos pareceres do Setor de Performance acima -- e considerando também os indicadores abaixo da meta listados, mesmo que não tenham comentário registrado -- escreva uma Síntese e Recomendações Finais da Performance para o mês, destacando pontos-chave e direcionamentos concretos para os indicadores em situação crítica. Cole o resultado no campo \"Síntese e Recomendações da Performance\" (tópico #24) no app.");
+
+      function sep2() { var s = ""; for (var i = 0; i < 50; i++) s += "-"; return s; }
 
       var modal = document.getElementById("copyAllModal");
       var sub = document.getElementById("copyAllModalSubtitle");
