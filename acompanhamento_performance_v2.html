@@ -5026,6 +5026,13 @@ function hydrateFromPowerBI() {
           primaryIndicador = topicObj.name;
         }
 
+        // Texto padrão quando o campo estiver vazio -- só no que é enviado ao SharePoint (o
+        // histórico local/ATA_COMENTARIOS_DB continua registrando só quando há texto real,
+        // pra não poluir o histórico com "Sem justificativas"/"Sem parecer registrado" em
+        // todo tópico que ninguém tocou).
+        var gValForPayload = (gVal && gVal.trim()) ? gVal : "Sem justificativas";
+        var mValForPayload = (mVal && mVal.trim()) ? mVal : "Sem parecer registrado";
+
         payloadItems.push({
           Title: activeOS,
           os: activeOS,
@@ -5037,10 +5044,10 @@ function hydrateFromPowerBI() {
           topicoId: tid,
           Indicador: topicObj.name,
           indicador: topicObj.name,
-          ComentarioGestor: gVal,
-          comentarioGestor: gVal,
-          ComentarioMaster: mVal,
-          comentarioMaster: mVal,
+          ComentarioGestor: gValForPayload,
+          comentarioGestor: gValForPayload,
+          ComentarioMaster: mValForPayload,
+          comentarioMaster: mValForPayload,
           StatusValidacao: curStatus,
           statusValidacao: curStatus,
           AvaliacaoQualitativa: avaliacaoQualitativaForSave,
