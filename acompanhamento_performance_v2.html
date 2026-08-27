@@ -4984,6 +4984,10 @@ function hydrateFromPowerBI() {
       var primaryMaster = "";
       var primaryIndicador = "Faturamento Ano";
 
+      // Status de prazo (SLA) é por OS+mês, não por tópico -- mesmo valor repetido em todas as
+      // linhas do lote, pra não precisar de uma linha "fantasma" só pra guardar isso.
+      var slaStatusForSave = getSlaPeriodStatus(activeOS, monthNum);
+
       for (var tid = 1; tid <= 23; tid++) {
         var gEl = document.getElementById("gestor_" + tid);
         var mEl = document.getElementById("master_" + tid);
@@ -4994,6 +4998,13 @@ function hydrateFromPowerBI() {
         // Todo mês começa Pendente até o Máster clicar em "Validar e Travar" -- nunca grava um
         // mês como já validado por padrão (ainda podemos ter ajustes nos meses já fechados).
         var curStatus = safeGetStorage("status_" + activeOS + "_m" + monthNum + "_" + tid, "Pendente");
+
+        // Avaliação qualitativa (só nos tópicos que têm qualKey) e override de Assertividade (só
+        // no tópico 4) -- gravados junto com o comentário, pra sincronizar com o SharePoint e
+        // ficarem visíveis pra qualquer OS via DAX (não só no navegador de quem avaliou).
+        var qualKeyForSave = (typeof TOPIC_ID_TO_QUAL_KEY !== "undefined") ? TOPIC_ID_TO_QUAL_KEY[tid] : null;
+        var avaliacaoQualitativaForSave = qualKeyForSave ? getQualitativeEval(activeOS, monthNum, qualKeyForSave) : "";
+        var assertividadeOverrideForSave = (tid === 4) ? safeGetStorage("assertiv_override_" + activeOS + "_m" + monthNum, "AUTOMATICO") : "";
 
         safeSetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, gVal);
         safeSetStorage("m_" + activeOS + "_m" + monthNum + "_" + tid, mVal);
@@ -5031,7 +5042,13 @@ function hydrateFromPowerBI() {
           ComentarioMaster: mVal,
           comentarioMaster: mVal,
           StatusValidacao: curStatus,
-          statusValidacao: curStatus
+          statusValidacao: curStatus,
+          AvaliacaoQualitativa: avaliacaoQualitativaForSave,
+          avaliacaoQualitativa: avaliacaoQualitativaForSave,
+          AssertividadeOverride: assertividadeOverrideForSave,
+          assertividadeOverride: assertividadeOverrideForSave,
+          SlaPeriodStatus: slaStatusForSave,
+          slaPeriodStatus: slaStatusForSave
         });
       }
 
