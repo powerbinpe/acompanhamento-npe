@@ -230,12 +230,6 @@
 
   <div id="debugUserInfo" style="font:11px monospace; color:#94a3b8; background:#0f172a; padding:3px 10px; white-space:nowrap; overflow-x:auto;"></div>
 
-  <!-- Banner Informativo -->
-  <div class="sim-banner">
-    ℹ️ <strong>Painel Integrado NPE:</strong> Selecione a OS e o Mês nos filtros do Power BI para atualizar o acompanhamento em tempo real! (<span id="bannerEligibleOSCount">68</span> Contratos Operacionais Elegíveis<span style="padding-right:3px;"></span>)
-  </div>
-
-
   <!-- ========================================================================= -->
   <!-- ABA 1: ACOMPANHAMENTO MENSAL -->
   <!-- ========================================================================= -->
@@ -2710,7 +2704,19 @@ function hydrateFromPowerBI() {
       }
 
       var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
-      var activeOS = isMultiOS ? (allowedOSArray.length > 0 ? allowedOSArray[0] : "M00100") : (extractPrimaryOSCode(rawOS) || "M00100");
+
+      // Aba 1 só mostra resultado com exatamente 1 OS selecionada no Power BI -- com mais de uma
+      // (ou nenhuma), os dados apurados por aqui não são confiáveis (não é o mesmo tipo de
+      // agregação que a visão corporativa vai precisar; isso fica para a Aba 5).
+      if (isMultiOS) {
+        container.innerHTML = '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e;">' +
+          '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">⚠️ Selecione apenas 1 OS</div>' +
+          '<div style="font-size:0.95rem;">Os dados desta aba só são exibidos quando exatamente uma OS está selecionada no filtro do Power BI. Selecione uma única OS para continuar.</div>' +
+        '</div>';
+        return;
+      }
+
+      var activeOS = extractPrimaryOSCode(rawOS) || "M00100";
 
       var monthNum = getMonthNumberFromParams(currentParams);
       var monthNames = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
@@ -3799,6 +3805,22 @@ function hydrateFromPowerBI() {
       var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
       var activeOSFilter = !isMultiOS ? extractPrimaryOSCode(rawOS) : "";
 
+      // Aba 3 só mostra resultado com exatamente 1 OS selecionada -- os valores "corporativos"
+      // que apareciam aqui sem OS selecionada eram números fixos de exemplo, não dado real
+      // (visão multi-OS confiável fica para a Aba 5).
+      var cardsContGate = document.getElementById("annualSummaryCardsContainer");
+      if (isMultiOS) {
+        if (cardsContGate) {
+          cardsContGate.innerHTML = '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e; grid-column:1 / -1;">' +
+            '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">⚠️ Selecione apenas 1 OS</div>' +
+            '<div style="font-size:0.95rem;">Os dados desta aba só são exibidos quando exatamente uma OS está selecionada no filtro do Power BI. Selecione uma única OS para continuar.</div>' +
+          '</div>';
+        }
+        var tab2ExecGate = document.getElementById("tab2ExecutiveSummariesContainer");
+        if (tab2ExecGate) tab2ExecGate.innerHTML = "";
+        return;
+      }
+
       var fatDifRaw = currentParams.get("FatDifAno") || "-";
       var fatPctRaw = currentParams.get("FatPctAno") || "-";
       var fatIsUp = fatDifRaw.indexOf("-") === -1 && fatDifRaw.indexOf("(") === -1 && fatDifRaw !== "-";
@@ -3848,9 +3870,7 @@ function hydrateFromPowerBI() {
       }
 
       var badgeTotal = document.getElementById("tab2TotalEligibleOSBadge");
-      if (badgeTotal) {
-        badgeTotal.innerText = isMultiOS ? (ACTIVE_CONTRACTS_CATALOG.length + " Contratos Ativos") : "1 Contrato Selecionado (OS " + activeOSFilter + ")";
-      }
+      if (badgeTotal) badgeTotal.innerText = "OS " + activeOSFilter;
 
       function kpiCard(icon, iconBg, label, val, sub, subColor) {
         return '<div style="background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%); border-radius:14px; border:1px solid #e2e8f0; padding:18px 20px; box-shadow:0 3px 10px rgba(15,43,92,0.08); display:flex; gap:14px; align-items:flex-start;">' +
@@ -4381,8 +4401,24 @@ function hydrateFromPowerBI() {
       var activeOSFilter = !isMultiOS ? extractPrimaryOSCode(rawOS) : "";
 
       var badgeTotal = document.getElementById("tab4TotalEligibleOSBadge");
-      if (badgeTotal) {
-        badgeTotal.innerText = isMultiOS ? (ACTIVE_CONTRACTS_CATALOG.length + " Contratos Ativos") : "1 Contrato Selecionado (OS " + activeOSFilter + ")";
+      if (badgeTotal) badgeTotal.innerText = "";
+
+      // Aba 2 só mostra resultado com exatamente 1 OS selecionada -- ranking/pontuação
+      // multi-OS confiável fica para a Aba 5.
+      var podiumContGate = document.getElementById("scorecardPodiumContainer");
+      if (isMultiOS) {
+        if (podiumContGate) {
+          podiumContGate.style.display = "block";
+          podiumContGate.innerHTML = '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e; grid-column:1 / -1;">' +
+            '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">⚠️ Selecione apenas 1 OS</div>' +
+            '<div style="font-size:0.95rem;">Os dados desta aba só são exibidos quando exatamente uma OS está selecionada no filtro do Power BI. Selecione uma única OS para continuar.</div>' +
+          '</div>';
+        }
+        var execContGate = document.getElementById("tab4ExecutiveSummariesContainer");
+        if (execContGate) execContGate.innerHTML = "";
+        return;
+      } else if (podiumContGate) {
+        podiumContGate.style.display = "grid";
       }
 
       var osList = ACTIVE_CONTRACTS_CATALOG;
