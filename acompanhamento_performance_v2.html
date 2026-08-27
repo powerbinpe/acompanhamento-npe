@@ -4109,8 +4109,7 @@ function hydrateFromPowerBI() {
       var monthNum = getMonthNumberFromParams(currentParams);
       safeSetStorage("qual_eval_" + activeOS + "_m" + monthNum + "_" + qualKey, value);
       showToast("✅ Tópico #" + topicId + " marcado como: " + value.replace("_", " "));
-      renderRows();
-      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
+      refreshAllScoreViews();
     }
 
     // Botão inline de Status de Prazo na Aba 1 (mesma função de toggleSlaPeriodStatus, mas por
@@ -4123,8 +4122,7 @@ function hydrateFromPowerBI() {
       safeSetStorage("sla_period_status_" + osCode + "_m" + monthNum, value);
       var label = value === "INDEFINIDO" ? "⚪ Sem Período Definido" : (value === "NO_PRAZO" ? "⏱️ No Prazo" : (value === "INATIVO" ? "⛔ Período Inativo" : "⚠️ Fora do Prazo"));
       showToast("OS " + osCode + " (Mês " + monthNum + "): Prazo alterado para " + label);
-      renderRows();
-      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
+      refreshAllScoreViews();
     }
 
     function saveInlinePrazoDeadline(monthNum) {
@@ -4211,7 +4209,7 @@ function hydrateFromPowerBI() {
 
       showToast("💾 Apuração qualitativa da OS " + currentQualEvalOS + " salva com sucesso!");
       closeQualitativeEvalModal();
-      renderTab4Scorecard();
+      refreshAllScoreViews();
     }
 
     // Peso de cada tópico "verdict" (indicador numérico real) e qualitativo, e a que bucket de exibição
@@ -4231,6 +4229,17 @@ function hydrateFromPowerBI() {
       var result = calculateOSScoreUncached(contract, monthNum);
       window._scoreCache[cacheKey] = result;
       return result;
+    }
+
+    // Toda ação do Máster que altera algo usado no cálculo do score (qualitativo, prazo,
+    // assertividade, preenchimento de comentários) precisa passar por aqui: invalida o cache e
+    // re-renderiza as 3 abas que dependem do score (mesmo as que não estão visíveis agora --
+    // assim já ficam corretas quando o usuário trocar de aba), não só a aba onde o clique ocorreu.
+    function refreshAllScoreViews() {
+      window._scoreCache = {};
+      if (typeof renderRows === "function") renderRows();
+      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
+      if (typeof renderAnnualConsolidation === "function") renderAnnualConsolidation();
     }
 
     var MONTH_HISTORY_FIELDS = [
@@ -4528,10 +4537,8 @@ function hydrateFromPowerBI() {
       }
 
       safeSetStorage("assertiv_override_" + activeOS + "_m" + monthNum, newOverride);
-      window._scoreCache = {}; // invalida o cache -- o override muda o cálculo do tópico 4 (t4)
       showToast(newOverride !== "AUTOMATICO" ? "🛡️ Assertividade ajustada manualmente para \"" + newOverride + "\"!" : "🔄 Assertividade revertida para a Apuração Automática!");
-      renderRows();
-      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
+      refreshAllScoreViews();
     }
 
     function handleCommentInput(topicId, tipo, value) {
@@ -5020,9 +5027,8 @@ function hydrateFromPowerBI() {
         showToast("💾 Comentários da OS " + activeOS + " (Mês " + monthNum + ") gravados com sucesso!");
       }
 
-      if (typeof renderRows === "function") renderRows();
       if (typeof renderSlaModalMatrix === "function") renderSlaModalMatrix();
-      if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
+      refreshAllScoreViews(); // comentários preenchidos contam para o tópico "Preenchimento" do score
     }
 
     // =========================================================================
