@@ -1496,6 +1496,17 @@ function hydrateFromPowerBI() {
       
       if (params.get("AssertivMes")) topicsData[3].lines[6].val = params.get("AssertivMes");
       if (params.get("AssertivAcum")) topicsData[3].lines[7].val = params.get("AssertivAcum");
+      // "% Assertiv. Acum. Ano" acima vem pronto do DAX (puramente automático, sem noção do
+      // override manual do Máster). Recalcula aqui no cliente -- mesma regra usada no score
+      // (calculateOSScoreUncached/t4) -- para que o override também reflita neste campo.
+      if (!isMultiOS && typeof computeAssertividadeAccumPct === "function") {
+        var assertActiveOS = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOS) : rawOS;
+        var assertMonthNum = parseInt(params.get("SelectedMesNo"), 10) || 7;
+        var assertAccumPct = computeAssertividadeAccumPct(assertActiveOS, assertMonthNum);
+        if (assertAccumPct !== null) {
+          topicsData[3].lines[7].val = (assertAccumPct * 100).toFixed(2).replace(".", ",") + "%";
+        }
+      }
 
       // Topic 6: Perda de Receita
       if (params.get("PerdaMes")) topicsData[5].lines[0].val = params.get("PerdaMes");
@@ -2330,7 +2341,7 @@ function hydrateFromPowerBI() {
         '<div style="flex-shrink:0;">' + buildScoreGaugeSVG(avgAccum, 100, 152) + '</div>' +
         '<div style="flex:1; min-width:220px;">' +
           '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + contract.name + '</div>' +
-          '<div style="font-size:0.90rem; color:#bfdbfe; margin-bottom:12px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>' +
+          '<div style="font-size:1.35rem; color:#bfdbfe; margin-bottom:12px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>' +
           '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
             '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#86efac;">Nota do Mês: ' + curScore.monthScore + ' pts</div>' +
             '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#fde047;">Média Acumulada: ' + avgAccum + ' pts</div>' +
@@ -3272,6 +3283,20 @@ function hydrateFromPowerBI() {
       { key: "ssma", label: "SSMA e Qualidade", icon: "🦺", color: "#b45309", topics: ["t15", "t16", "t17", "t20", "t18"] }
     ];
 
+    // Envelope visual único para agrupar os cards de uma categoria (Financeiro, Governança...)
+    // numa caixa grande, com o ícone e o nome da categoria maiores no topo -- usado tanto na
+    // Aba 2 (gráficos de barra mês a mês) quanto na Aba 3 (resumo anual dos indicadores), para
+    // manter o mesmo padrão visual e as mesmas cores em todo o app.
+    function buildCategoryGroupWrapper(cat, innerCardsHTML) {
+      return '<div style="background:#ffffff; border:2px solid ' + cat.color + '; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);">' +
+        '<div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">' +
+          '<span style="font-size:2.1rem; line-height:1;">' + cat.icon + '</span>' +
+          '<span style="font-size:1.35rem; font-weight:900; color:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px;">' + cat.label + '</span>' +
+        '</div>' +
+        '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">' + innerCardsHTML + '</div>' +
+      '</div>';
+    }
+
     // Ordem de exibição dos cards da Aba 1 -- segue a ordem das categorias de score. Tópicos
     // administrativos sem peso no score (Renovação do Contrato, Observações Gerais) ficam no fim.
     var TOPIC_CATEGORY_ORDER = ["fin", "gov", "acomp", "pes", "ssma", "outros"];
@@ -3387,14 +3412,14 @@ function hydrateFromPowerBI() {
         monthlyScores.forEach(function(sc, idx) {
           var m = idx + 1;
           var t = sc.topics[id];
-          var rotulo = '<div style="font-size:0.76rem; font-weight:800; color:#64748b; margin-top:5px;">' + MONTH_SHORT_NAMES[m] + '</div>';
+          var rotulo = '<div style="font-size:1.14rem; font-weight:800; color:#64748b; margin-top:5px;">' + MONTH_SHORT_NAMES[m] + '</div>';
 
           if (!t || !t.applicable) {
-            barras += '<div style="flex:1; min-width:44px; text-align:center;" title="' + MONTH_SHORT_NAMES[m] + ': não aplicável">' +
+            barras += '<div style="flex:1; min-width:0; text-align:center;" title="' + MONTH_SHORT_NAMES[m] + ': não aplicável">' +
                 '<div style="height:' + BAR_MAX_H + 'px; display:flex; align-items:flex-end; justify-content:center;">' +
                   '<div style="width:100%; height:5px; background:repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0 4px,#f1f5f9 4px,#f1f5f9 8px); border-radius:3px;"></div>' +
                 '</div>' +
-                '<div style="font-size:0.80rem; font-weight:800; color:#cbd5e1; margin-top:4px;">–</div>' + rotulo +
+                '<div style="font-size:1.20rem; font-weight:800; color:#cbd5e1; margin-top:4px;">–</div>' + rotulo +
               '</div>';
             return;
           }
@@ -3410,11 +3435,14 @@ function hydrateFromPowerBI() {
           var valorTopo = isQualitative ? (t.earned >= t.max - 0.01 ? "OK" : "NC") : t.earned.toFixed(1);
           var tip = MONTH_SHORT_NAMES[m] + ": " + t.earned.toFixed(1) + " de " + t.max + " pts" + (detalhe ? " — " + detalhe : "");
 
-          barras += '<div style="flex:1; min-width:44px; text-align:center;" title="' + tip.replace(/"/g, "&quot;") + '">' +
+          // Barra ocupa quase todo o slot do mês (~92%, era 78%) para ficar bem mais "grossa";
+          // o slot em si não tem min-width fixo, então mesmo mais grossas as barras de todos os
+          // meses continuam cabendo numa única linha no card.
+          barras += '<div style="flex:1; min-width:0; text-align:center;" title="' + tip.replace(/"/g, "&quot;") + '">' +
               '<div style="height:' + BAR_MAX_H + 'px; display:flex; align-items:flex-end; justify-content:center; background:linear-gradient(180deg,#f8fafc,#eef2f7); border-radius:5px 5px 0 0;">' +
-                '<div style="width:78%; height:' + alturaPx + 'px; background:' + tier.main + '; border-radius:5px 5px 0 0; box-shadow:inset 0 -2px 0 rgba(0,0,0,0.08);"></div>' +
+                '<div style="width:92%; height:' + alturaPx + 'px; background:' + tier.main + '; border-radius:5px 5px 0 0; box-shadow:inset 0 -2px 0 rgba(0,0,0,0.08);"></div>' +
               '</div>' +
-              '<div style="font-size:0.86rem; font-weight:900; color:' + tier.dark + '; margin-top:4px;">' + valorTopo + '</div>' + rotulo +
+              '<div style="font-size:1.29rem; font-weight:900; color:' + tier.dark + '; margin-top:4px;">' + valorTopo + '</div>' + rotulo +
             '</div>';
         });
 
@@ -3431,25 +3459,25 @@ function hydrateFromPowerBI() {
 
         return '<div style="background:#ffffff; border:1px solid #e2e8f0; border-top:4px solid ' + catColor + '; border-radius:10px; padding:14px 16px; box-shadow:0 2px 6px rgba(15,43,92,0.07);">' +
             '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:10px;">' +
-              '<span style="font-size:1.02rem; font-weight:800; color:#1e293b;">' + def.name + '</span>' +
-              '<span style="font-size:0.80rem; font-weight:800; color:#94a3b8; white-space:nowrap;">' + def.weight + ' pts/mês</span>' +
+              '<span style="font-size:1.53rem; font-weight:800; color:#1e293b;">' + def.name + '</span>' +
+              '<span style="font-size:1.20rem; font-weight:800; color:#94a3b8; white-space:nowrap;">' + def.weight + ' pts/mês</span>' +
             '</div>' +
-            '<div style="display:flex; gap:5px; align-items:flex-end;">' + barras + '</div>' +
-            (ultimoDetalhe ? '<div style="margin-top:9px; font-size:0.82rem; font-weight:700; color:#475569; background:#f8fafc; border-radius:6px; padding:6px 9px;">' + MONTH_SHORT_NAMES[selMonthNum] + ': ' + ultimoDetalhe + '</div>' : '') +
+            '<div style="display:flex; gap:3px; align-items:flex-end;">' + barras + '</div>' +
+            // Faixa na cor da categoria logo abaixo das barras -- só um "chão" de identificação
+            // visual, sem entrar em contato com as cores verde/amarelo/vermelho das barras.
+            '<div style="height:4px; border-radius:3px; background:' + catColor + '; margin-top:6px; opacity:0.55;"></div>' +
+            (ultimoDetalhe ? '<div style="margin-top:9px; font-size:1.23rem; font-weight:700; color:#475569; background:#f8fafc; border-radius:6px; padding:6px 9px;">' + MONTH_SHORT_NAMES[selMonthNum] + ': ' + ultimoDetalhe + '</div>' : '') +
             '<div style="margin-top:11px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; align-items:center; gap:10px;">' +
-              '<span style="font-size:0.76rem; font-weight:800; color:#64748b; text-transform:uppercase;">Acumulado</span>' +
+              '<span style="font-size:1.14rem; font-weight:800; color:#64748b; text-transform:uppercase;">Acumulado</span>' +
               '<div style="flex:1; height:11px; background:#eef2f7; border-radius:6px; overflow:hidden;"><div style="width:' + accumPct.toFixed(0) + '%; height:100%; background:' + accumTier.main + ';"></div></div>' +
-              '<span style="font-size:0.98rem; font-weight:900; color:' + accumTier.dark + '; white-space:nowrap;">' + (hasAny ? (earnedSum.toFixed(1) + '/' + maxSum.toFixed(1)) : '–') + '</span>' +
+              '<span style="font-size:1.47rem; font-weight:900; color:' + accumTier.dark + '; white-space:nowrap;">' + (hasAny ? (earnedSum.toFixed(1) + '/' + maxSum.toFixed(1)) : '–') + '</span>' +
             '</div>' +
           '</div>';
       }
 
       var groupsHTML = SCORE_CATEGORIES.map(function(cat) {
         var cards = cat.topics.map(function(id) { return topicCard(id, cat.color); }).join("");
-        return '<div style="margin-bottom:24px;">' +
-          '<div style="padding:11px 18px; font-size:1.02rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px; border-radius:8px; margin-bottom:14px;">' + cat.icon + ' ' + cat.label + '</div>' +
-          '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">' + cards + '</div>' +
-        '</div>';
+        return buildCategoryGroupWrapper(cat, cards);
       }).join("");
 
       return '<div>' +
@@ -3503,7 +3531,7 @@ function hydrateFromPowerBI() {
             var accumPct = null, accumLabel = "Acumulado Ano";
             if (t.id === "prazo") { accumPct = computePrazoAccumPct(contractCode, selMonthNum); accumLabel = "Pontualidade Acum. Ano"; }
             else if (t.id === "preenchimento") { accumPct = computePreenchimentoAccumPct(contractCode, selMonthNum); accumLabel = "Preenchimento Acum. Ano"; }
-            else if (t.id === 4) { var contractForAssert = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return c.code === contractCode; }); accumPct = (contractForAssert && typeof contractForAssert.assertividadeAcumPct === "number") ? contractForAssert.assertividadeAcumPct : null; accumLabel = "Assertividade Acum. Ano"; }
+            else if (t.id === 4) { accumPct = computeAssertividadeAccumPct(contractCode, selMonthNum); accumLabel = "Assertividade Acum. Ano"; }
             else if (t.id === 11) { var absP = new URLSearchParams(window.location.search).get("AbsenteismoAcum"); accumPct = (absP && absP !== "-") ? parseFloat(absP.replace("%", "").replace(",", ".")) / 100 : null; accumLabel = "Absenteísmo Acum. Ano"; }
             else if (t.id === 12) { var turP = new URLSearchParams(window.location.search).get("TurnoverAcum"); accumPct = (turP && turP !== "-") ? parseFloat(turP.replace("%", "").replace(",", ".")) / 100 : null; accumLabel = "TurnOver Acum. Ano"; }
             else if (TOPIC_ID_TO_QUAL_KEY[t.id]) { accumPct = computeQualAccumPct(contractCode, TOPIC_ID_TO_QUAL_KEY[t.id], selMonthNum); accumLabel = "Aderência Acum. Ano"; }
@@ -3582,12 +3610,7 @@ function hydrateFromPowerBI() {
               return buildTopicIndicatorCardHTML(byId[id], commentHistory, contract ? contract.code : "", selMonthNum);
             }).join("");
             if (!cards) return "";
-            // Cada categoria começa numa faixa própria (linha nova), com os cards do grupo
-            // logo abaixo -- cards mais largos para o texto dos resumos caber melhor.
-            return '<div style="margin-bottom:26px;">' +
-              '<div style="padding:11px 18px; font-size:1.02rem; font-weight:800; color:#ffffff; background:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px; border-radius:8px; margin-bottom:14px;">' + cat.icon + ' ' + cat.label + '</div>' +
-              '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">' + cards + '</div>' +
-            '</div>';
+            return buildCategoryGroupWrapper(cat, cards);
           }).join("");
 
           return '<div style="margin-top:8px;">' + groupsHTML + '</div>';
@@ -4490,9 +4513,29 @@ function hydrateFromPowerBI() {
       }
       return den > 0 ? (num / den) : null;
     }
+    // Assertividade: mesma regra do score (calculateOSScoreUncached/t4) -- respeita o override
+    // manual do Máster mês a mês (assertiv_override_<os>_m<mês>), caindo para o cálculo
+    // automático (|dif margem| <= 5%) só quando não há override para aquele mês.
+    function computeAssertividadeAccumPct(osCode, uptoMonth) {
+      var contract = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return c.code === osCode; });
+      if (!contract) return null;
+      var num = 0, den = 0;
+      for (var m = 1; m <= uptoMonth; m++) {
+        var override = safeGetStorage("assertiv_override_" + osCode + "_m" + m, "AUTOMATICO");
+        var monthData = contract.monthHistory ? contract.monthHistory[m] : null;
+        var autoApplicable = monthData && typeof monthData.resDifMesPct === "number";
+        var applicable = override !== "AUTOMATICO" ? true : autoApplicable;
+        if (!applicable) continue;
+        den++;
+        var isOk = override === "Assertivo" ? true : (override === "Não Assertivo" ? false : (monthData.resDifMesPct >= -0.05));
+        if (isOk) num++;
+      }
+      return den > 0 ? (num / den) : null;
+    }
     window.computePrazoAccumPct = computePrazoAccumPct;
     window.computePreenchimentoAccumPct = computePreenchimentoAccumPct;
     window.computeQualAccumPct = computeQualAccumPct;
+    window.computeAssertividadeAccumPct = computeAssertividadeAccumPct;
 
     function showToast(msg) {
       var toast = document.getElementById("toast");
