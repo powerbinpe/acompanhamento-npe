@@ -234,9 +234,7 @@
   <!-- ABA 1: ACOMPANHAMENTO MENSAL -->
   <!-- ========================================================================= -->
   <div id="tabMensal" class="tab-page active">
-    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #38bdf8; box-shadow:0 8px 24px rgba(0,0,0,0.3);">
-      <div id="tab1OSIndicator"></div>
-    </div>
+    <div id="tab1OSIndicator" style="margin-bottom:20px;"></div>
 
     <!-- Container dos 23 Tópicos -->
     <div id="topicsContainer"></div>
@@ -285,8 +283,9 @@
   <!-- ABA 3: CONSOLIDAÇÃO ANUAL -->
   <!-- ========================================================================= -->
   <div id="tabConsolidacao" class="tab-page">
-    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e40af 100%); border-radius:12px; padding:18px 24px; color:#ffffff; margin-bottom:20px; border:2px solid #3b82f6; box-shadow:0 8px 24px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-      <div id="tab2TotalEligibleOSBadge"></div>
+    <div id="tab2TotalEligibleOSBadge" style="margin-bottom:14px;"></div>
+
+    <div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
       <button type="button" id="btnCopyAllForAI" onclick="openCopyAllModal()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
         📋 Copiar Tudo p/ IA
       </button>
@@ -2325,24 +2324,63 @@ function hydrateFromPowerBI() {
       return clean || "M00100";
     }
 
-    // Indicador de OS ativa usado nos cabeçalhos das Abas 1 e 3 -- mesmo estilo de identificação
-    // da OS já usado no card/pódio da Aba 2 (nome em destaque + negócio/superintendência/gestor),
-    // ou o aviso de seleção múltipla no mesmo lugar quando aplicável.
-    function renderOSIndicatorBadge(elId, isMultiOS, activeOSFilter) {
+    // Card de identificação/pontuação da OS ativa -- gauge + nome + negócio/superintendência/gestor
+    // + composição da pontuação. É o MESMO card, byte a byte, usado nas Abas 1, 2 e 3 (pedido
+    // explícito do usuário: "exatamente o mesmo visual da Aba2"), única fonte de verdade para
+    // não divergir entre painéis. Aba 2 o coloca num container próprio (grid); Abas 1/3 num
+    // container simples -- o card em si é idêntico nos três lugares.
+    function buildOSScorecardCardHTML(contract, curScore, avgAccum) {
+      return '<div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 55%, #1e40af 100%); border-radius:16px; padding:26px 30px; color:#ffffff; border:2.5px solid #60a5fa; box-shadow:0 10px 32px rgba(0,0,0,0.30); display:flex; align-items:center; gap:32px; flex-wrap:wrap;">' +
+        '<div style="flex-shrink:0;">' + buildScoreGaugeSVG(avgAccum, 100, 152) + '</div>' +
+        '<div style="flex:1; min-width:220px;">' +
+          '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + contract.name + '</div>' +
+          '<div style="font-size:0.90rem; color:#bfdbfe; margin-bottom:12px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>' +
+          '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
+            '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#86efac;">Nota do Mês: ' + curScore.monthScore + ' pts</div>' +
+            '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#fde047;">Média Acumulada: ' + avgAccum + ' pts</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="flex:2; min-width:440px;">' +
+          '<div style="font-size:0.76rem; font-weight:800; color:#93c5fd; text-transform:uppercase; margin-bottom:9px; letter-spacing:0.4px;">Composição da Pontuação</div>' +
+          buildCategoryBarsHTML([
+            { label: 'Financeiro', icon: '💰', val: curScore.finPts, max: 48 },
+            { label: 'Governança do Contrato', icon: '📋', val: curScore.govPts, max: 9 },
+            { label: 'Gestão e Acompanhamento', icon: '🗓️', val: curScore.acompPts, max: 25 },
+            { label: 'Pessoas', icon: '👥', val: curScore.pesPts, max: 26 },
+            { label: 'SSMA e Qualidade', icon: '🦺', val: curScore.ssmaPts, max: 25 }
+          ]) +
+        '</div>' +
+      '</div>';
+    }
+
+    // Aviso padrão de "selecione 1 OS", usado no mesmo lugar do card quando aplicável.
+    function buildMultiOSWarningHTML() {
+      return '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e;">' +
+        '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">⚠️ Selecione apenas 1 OS</div>' +
+        '<div style="font-size:0.95rem;">Os dados desta aba só são exibidos quando exatamente uma OS está selecionada no filtro do Power BI. Selecione uma única OS para continuar.</div>' +
+      '</div>';
+    }
+
+    // Renderiza o card de OS (ou o aviso de múltiplas OSs) dentro do elemento indicado -- usado
+    // nos cabeçalhos das Abas 1 e 3, e (via renderTab4Scorecard) no pódio da Aba 2.
+    function renderOSScorecardInto(elId, isMultiOS, activeOSFilter) {
       var el = document.getElementById(elId);
       if (!el) return;
       if (isMultiOS) {
-        el.innerHTML = '<div style="font-size:1.15rem; font-weight:900; color:#fde68a;">⚠️ Selecione apenas 1 OS</div>' +
-          '<div style="font-size:0.84rem; color:#fde68a; margin-top:2px;">Os dados desta aba dependem do filtro de OS do Power BI estar em uma única OS.</div>';
+        el.innerHTML = buildMultiOSWarningHTML();
         return;
       }
       var contract = (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined") ? ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; }) : null;
-      if (!contract) {
-        el.innerHTML = '<div style="font-size:1.35rem; font-weight:900; color:#ffffff;">' + activeOSFilter + '</div>';
-        return;
+      if (!contract) contract = ACTIVE_CONTRACTS_CATALOG[0];
+      var selMonthNum = parseInt(new URLSearchParams(window.location.search).get("SelectedMesNo"), 10) || 7;
+      var curScore = calculateOSScore(contract, selMonthNum);
+      var totalScoreSum = 0, evaluatedMonthsCount = 0;
+      for (var m = 1; m <= selMonthNum; m++) {
+        var scM = calculateOSScore(contract, m);
+        if (scM.hasEvaluableData) { evaluatedMonthsCount++; totalScoreSum += scM.monthScore; }
       }
-      el.innerHTML = '<div style="font-size:1.35rem; font-weight:900; color:#ffffff;">' + contract.name + '</div>' +
-        '<div style="font-size:0.84rem; color:#93c5fd; margin-top:2px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>';
+      var avgAccum = parseFloat((evaluatedMonthsCount > 0 ? (totalScoreSum / evaluatedMonthsCount) : curScore.monthScore).toFixed(1));
+      el.innerHTML = buildOSScorecardCardHTML(contract, curScore, avgAccum);
     }
 
     function toggleInlineHistory(topicId) {
@@ -2669,7 +2707,7 @@ function hydrateFromPowerBI() {
       // Aba 1 só mostra resultado com exatamente 1 OS selecionada no Power BI -- com mais de uma
       // (ou nenhuma), os dados apurados por aqui não são confiáveis (não é o mesmo tipo de
       // agregação que a visão corporativa vai precisar; isso fica para a Aba 5).
-      renderOSIndicatorBadge("tab1OSIndicator", isMultiOS, !isMultiOS ? extractPrimaryOSCode(rawOS) : "");
+      renderOSScorecardInto("tab1OSIndicator", isMultiOS, !isMultiOS ? extractPrimaryOSCode(rawOS) : "");
       if (isMultiOS) {
         container.innerHTML = '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e;">' +
           '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">⚠️ Selecione apenas 1 OS</div>' +
@@ -3771,7 +3809,7 @@ function hydrateFromPowerBI() {
       // que apareciam aqui sem OS selecionada eram números fixos de exemplo, não dado real
       // (visão multi-OS confiável fica para a Aba 5).
       var cardsContGate = document.getElementById("annualSummaryCardsContainer");
-      renderOSIndicatorBadge("tab2TotalEligibleOSBadge", isMultiOS, activeOSFilter);
+      renderOSScorecardInto("tab2TotalEligibleOSBadge", isMultiOS, activeOSFilter);
       if (isMultiOS) {
         if (cardsContGate) {
           cardsContGate.innerHTML = '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e; grid-column:1 / -1;">' +
@@ -4260,7 +4298,16 @@ function hydrateFromPowerBI() {
 
       // --- 3/4. Faturamento Mês / Assertividade Mês (FCST Atual vs FCST Anterior, margem de -5%) ---
       addBinary("t3", TOPIC_WEIGHTS.t3, typeof contract.fatDifMesPct === "number", contract.fatDifMesPct >= -0.05);
-      addBinary("t4", TOPIC_WEIGHTS.t4, typeof contract.resDifMesPct === "number", contract.resDifMesPct >= -0.05);
+
+      // Assertividade (t4) respeita o override manual do Máster (toggleAssertiveness) -- sem
+      // override, usa o cálculo automático (|dif margem| <= 5%); com override, o julgamento do
+      // Máster decide o ponto, independente do valor automático.
+      var assertOverride = safeGetStorage("assertiv_override_" + contract.code + "_m" + monthNum, "AUTOMATICO");
+      var t4AutoApplicable = typeof contract.resDifMesPct === "number";
+      var t4AutoOk = t4AutoApplicable && contract.resDifMesPct >= -0.05;
+      var t4Applicable = assertOverride !== "AUTOMATICO" ? true : t4AutoApplicable;
+      var t4Ok = assertOverride === "Assertivo" ? true : (assertOverride === "Não Assertivo" ? false : t4AutoOk);
+      addBinary("t4", TOPIC_WEIGHTS.t4, t4Applicable, t4Ok);
 
       addQual("rec_ideal", "t7", TOPIC_WEIGHTS.t7);
 
@@ -4344,56 +4391,18 @@ function hydrateFromPowerBI() {
       if (!podiumCont) return;
 
       var currentParams = new URLSearchParams(window.location.search);
-      var selMonthNum = parseInt(currentParams.get("SelectedMesNo")) || 7;
       var rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
       var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
       var activeOSFilter = !isMultiOS ? extractPrimaryOSCode(rawOS) : "";
 
       // Aba 2 só mostra resultado com exatamente 1 OS selecionada -- ranking/pontuação
       // multi-OS confiável fica para a Aba 5.
+      renderOSScorecardInto("scorecardPodiumContainer", isMultiOS, activeOSFilter);
       if (isMultiOS) {
-        podiumCont.style.display = "block";
-        podiumCont.innerHTML = '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e; grid-column:1 / -1;">' +
-          '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">⚠️ Selecione apenas 1 OS</div>' +
-          '<div style="font-size:0.95rem;">Os dados desta aba só são exibidos quando exatamente uma OS está selecionada no filtro do Power BI. Selecione uma única OS para continuar.</div>' +
-        '</div>';
         var execContGate = document.getElementById("tab4ExecutiveSummariesContainer");
         if (execContGate) execContGate.innerHTML = "";
         return;
       }
-      podiumCont.style.display = "grid";
-
-      var contract = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; }) || ACTIVE_CONTRACTS_CATALOG[0];
-      var curScore = calculateOSScore(contract, selMonthNum);
-
-      var totalScoreSum = 0, evaluatedMonthsCount = 0;
-      for (var m = 1; m <= selMonthNum; m++) {
-        var scM = calculateOSScore(contract, m);
-        if (scM.hasEvaluableData) { evaluatedMonthsCount++; totalScoreSum += scM.monthScore; }
-      }
-      var avgAccum = parseFloat((evaluatedMonthsCount > 0 ? (totalScoreSum / evaluatedMonthsCount) : curScore.monthScore).toFixed(1));
-
-      podiumCont.innerHTML = '<div style="grid-column: 1 / -1; background:linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 55%, #1e40af 100%); border-radius:16px; padding:26px 30px; color:#ffffff; border:2.5px solid #60a5fa; box-shadow:0 10px 32px rgba(0,0,0,0.30); display:flex; align-items:center; gap:32px; flex-wrap:wrap;">' +
-        '<div style="flex-shrink:0;">' + buildScoreGaugeSVG(avgAccum, 100, 152) + '</div>' +
-        '<div style="flex:1; min-width:220px;">' +
-          '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + contract.name + '</div>' +
-          '<div style="font-size:0.90rem; color:#bfdbfe; margin-bottom:12px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>' +
-          '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
-            '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#86efac;">Nota do Mês: ' + curScore.monthScore + ' pts</div>' +
-            '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#fde047;">Média Acumulada: ' + avgAccum + ' pts</div>' +
-          '</div>' +
-        '</div>' +
-        '<div style="flex:2; min-width:440px;">' +
-          '<div style="font-size:0.76rem; font-weight:800; color:#93c5fd; text-transform:uppercase; margin-bottom:9px; letter-spacing:0.4px;">Composição da Pontuação</div>' +
-          buildCategoryBarsHTML([
-            { label: 'Financeiro', icon: '💰', val: curScore.finPts, max: 48 },
-            { label: 'Governança do Contrato', icon: '📋', val: curScore.govPts, max: 9 },
-            { label: 'Gestão e Acompanhamento', icon: '🗓️', val: curScore.acompPts, max: 25 },
-            { label: 'Pessoas', icon: '👥', val: curScore.pesPts, max: 26 },
-            { label: 'SSMA e Qualidade', icon: '🦺', val: curScore.ssmaPts, max: 25 }
-          ]) +
-        '</div>' +
-        '</div>';
 
       renderSuperintendenciaAndNegocioSummary("tab4ExecutiveSummariesContainer", "ranking");
     }
@@ -4519,6 +4528,7 @@ function hydrateFromPowerBI() {
       }
 
       safeSetStorage("assertiv_override_" + activeOS + "_m" + monthNum, newOverride);
+      window._scoreCache = {}; // invalida o cache -- o override muda o cálculo do tópico 4 (t4)
       showToast(newOverride !== "AUTOMATICO" ? "🛡️ Assertividade ajustada manualmente para \"" + newOverride + "\"!" : "🔄 Assertividade revertida para a Apuração Automática!");
       renderRows();
       if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
