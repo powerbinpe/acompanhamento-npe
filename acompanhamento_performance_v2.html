@@ -2110,6 +2110,78 @@ function hydrateFromPowerBI() {
       });
     }
 
+    // === FASE 4: historico completo vindo da lista ATA_COMENTARIO (fluxo Power Automate) ===
+    // A query-string do Power BI so comporta ~1200 chars de historico (limite de URL do
+    // servidor, HTTP 414), o que truncava o historico a poucos topicos. Aqui buscamos a
+    // lista inteira da OS/ano direto do SharePoint, sem limite de tamanho e sem truncar texto.
+    window.FLOW_HISTORICO_URL = safeGetStorage("npe_flow_historico_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/494d3774413b461bb6abb91d2156c80b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=LO52s96KHpF-4PXargsM6U-GQfsNhuGBDDpb70zMJ8A");
+
+    function seedOverridesFromRow(osCode, r) {
+      // Avaliacao qualitativa / override de assertividade / status de prazo continuam sendo
+      // lidos de storage pelo resto do app -- aqui so semeamos o que ja esta gravado na lista.
+      var mes = parseInt(r.mes, 10);
+      var tid = parseInt(r.topico, 10);
+      if (!mes || !tid) return;
+      if (r.qual && typeof TOPIC_ID_TO_QUAL_KEY !== "undefined" && TOPIC_ID_TO_QUAL_KEY[tid]) {
+        safeSetStorage("qual_eval_" + osCode + "_m" + mes + "_" + TOPIC_ID_TO_QUAL_KEY[tid], r.qual);
+      }
+      if (r.assertOverride && tid === 4) {
+        safeSetStorage("assertiv_override_" + osCode + "_m" + mes, r.assertOverride);
+      }
+      if (r.sla) safeSetStorage("sla_period_status_" + osCode + "_m" + mes, r.sla);
+    }
+
+    function applyHistoryRows(osCode, rows) {
+      if (!osCode || !rows || !rows.length) return 0;
+      window.ATA_COMENTARIOS_DB[osCode] = window.ATA_COMENTARIOS_DB[osCode] || {};
+      var db = window.ATA_COMENTARIOS_DB[osCode];
+      var n = 0;
+      rows.forEach(function(r) {
+        var mes = parseInt(r.mes, 10);
+        var tid = parseInt(r.topico, 10);
+        if (!mes || !tid) return;
+        var key = String(tid);
+        db[key] = db[key] || [];
+        [["GESTOR", r.gestor], ["PERFORMANCE", r.master]].forEach(function(par) {
+          var tipo = par[0], txt = (par[1] == null ? "" : String(par[1])).trim();
+          if (!txt || txt === "Sem justificativas" || txt === "Sem parecer registrado") return;
+          txt = txt.replace(/\[[^\]]*\]\s*/g, "").trim();
+          if (!txt) return;
+          var ex = db[key].find(function(x) { return x.mes === mes && x.tipo === tipo; });
+          if (ex) { ex.comentario = txt; ex.status = r.status || ex.status; }
+          else { db[key].push({ mes: mes, tipo: tipo, comentario: txt, status: r.status || "Pendente" }); n++; }
+        });
+        seedOverridesFromRow(osCode, r);
+      });
+      return n;
+    }
+
+    async function carregarHistoricoCompleto() {
+      var params = new URLSearchParams(window.location.search);
+      var rawOS = params.get("SelectedOS") || "";
+      var osCode = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOS) : rawOS;
+      var ano = parseInt(params.get("SelectedAno"), 10);
+      var url = window.FLOW_HISTORICO_URL;
+      if (!osCode || osCode === "TODAS_OS" || osCode === "TODAS" || !ano || !url) return;
+      try {
+        var resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ os: osCode, ano: ano })
+        });
+        if (!resp.ok) { console.warn("Historico: fluxo respondeu", resp.status); return; }
+        var rows = await resp.json();
+        if (!Array.isArray(rows)) return;
+        var novos = applyHistoryRows(osCode, rows);
+        window.__historicoCompletoCarregado = true;
+        if (typeof refreshAllScoreViews === "function") refreshAllScoreViews();
+        console.log("Historico completo carregado da ATA_COMENTARIO:", rows.length, "linhas,", novos, "comentarios novos");
+      } catch (err) {
+        // Falha aqui nao quebra a tela: o historico curto vindo da query-string continua valendo.
+        console.warn("Historico: falha ao consultar o fluxo --", err);
+      }
+    }
+
     function rebuildAtaHistory() {
       window.ATA_COMENTARIOS_DB = {};
       var params = new URLSearchParams(window.location.search);
@@ -5184,6 +5256,7 @@ function hydrateFromPowerBI() {
     // =========================================================================
     document.addEventListener("DOMContentLoaded", function() {
       hydrateFromPowerBI();
+      if (typeof carregarHistoricoCompleto === "function") carregarHistoricoCompleto();
       if (typeof updateFromURLParams === "function") updateFromURLParams();
 
       var savedRole = safeGetStorage("npe_active_role", null);
