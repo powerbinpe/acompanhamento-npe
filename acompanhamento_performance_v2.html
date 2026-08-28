@@ -2778,6 +2778,11 @@ function hydrateFromPowerBI() {
         var row = document.createElement("div");
         row.className = "topic-row";
         row.id = "row_" + topic.id;
+        // Mesmo padrão de caixa da Aba 2/3: borda fina cinza + faixa de 4px na cor da própria
+        // categoria do tópico no topo, em vez da borda azul-marinho fixa igual para todos.
+        var catInfoForRow = categoryInfoForTopicId(topic.id);
+        row.style.border = "1px solid #e2e8f0";
+        row.style.borderTop = "4px solid " + catInfoForRow.color;
 
         var finalGestorText = "";
         var finalMasterText = "";
@@ -3264,9 +3269,10 @@ function hydrateFromPowerBI() {
     }
 
     // Barras de "Composição da Pontuação" (dentro do card de OS, Abas 1/2/3) -- cada categoria
-    // com seu ícone/nome maiores, barra 3x mais alta (era 14px), e uma borda na cor própria da
-    // categoria por trás da barra (trilho), diferenciando visualmente cada categoria sem
-    // interferir na cor de preenchimento (verde/amarelo/vermelho) da barra em si.
+    // com seu ícone/nome maiores, barra 3x mais alta (era 14px). O TRILHO por trás da barra é
+    // preenchido com a cor da própria categoria (não uma borda) -- assim, sempre que a barra de
+    // progresso (verde/amarelo/vermelho) não estiver 100% cheia, a parte restante do trilho
+    // mostra a cor de referência da categoria por trás dela.
     function buildCategoryBarsHTML(cats) {
       var bars = cats.map(function(c) {
         var pct = c.max > 0 ? Math.min(100, (c.val / c.max) * 100) : 0;
@@ -3274,14 +3280,15 @@ function hydrateFromPowerBI() {
         var catColor = c.color || '#94a3b8';
         // Rótulo enxuto acima (fonte menor, sem quebrar linha) e o valor "32.0 / 48" abaixo da
         // barra -- tirar o valor de cima do rótulo foi o que resolveu o texto espremendo/quebrando.
-        // Borda de 4px (era 2px, quase invisível) para a cor de referência da categoria ficar
-        // bem visível ao redor da barra, sem se misturar com a cor de preenchimento.
         return '<div style="min-width:160px; flex:1 1 160px;">' +
           '<div style="font-size:0.86rem; font-weight:800; color:#e0e7ff; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' +
-            '<span style="font-size:1.05rem; vertical-align:middle;">' + c.icon + '</span> ' + c.label +
+            // Emoji não aceita ser recolorido via CSS "color" -- o 👥 de Pessoas sempre renderiza
+            // cinza/escuro pela fonte do sistema, então um badge redondo na cor da categoria por
+            // trás do ícone é o jeito de toda categoria (inclusive Pessoas) ficar identificável.
+            '<span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:' + catColor + '; font-size:0.95rem; vertical-align:middle;">' + c.icon + '</span> ' + c.label +
           '</div>' +
-          '<div style="height:42px; background:rgba(255,255,255,0.16); border:4px solid ' + catColor + '; border-radius:9px; overflow:hidden;">' +
-            '<div style="height:100%; width:' + pct.toFixed(0) + '%; background:' + tier.main + '; border-radius:5px;"></div>' +
+          '<div style="height:42px; background:' + catColor + '; border-radius:9px; overflow:hidden;">' +
+            '<div style="height:100%; width:' + pct.toFixed(0) + '%; background:' + tier.main + '; border-radius:9px 0 0 9px;"></div>' +
           '</div>' +
           '<div style="text-align:right; font-size:0.82rem; font-weight:700; color:#e0e7ff; margin-top:4px;">' + c.val.toFixed(1) + ' / ' + c.max + '</div>' +
         '</div>';
@@ -3316,7 +3323,9 @@ function hydrateFromPowerBI() {
       // categoria é qual, com o mesmo padrão em todos os lugares do app.
       return '<div style="background:#ffffff; border:4px solid ' + cat.color + '; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);">' +
         '<div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">' +
-          '<span style="font-size:2.1rem; line-height:1;">' + cat.icon + '</span>' +
+          // Badge redondo na cor da categoria por trás do ícone -- emoji não aceita ser
+          // recolorido via CSS, então sem o badge o 👥 de Pessoas sempre fica cinza/escuro.
+          '<span style="display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%; background:' + cat.color + '; font-size:1.7rem; line-height:1; flex-shrink:0;">' + cat.icon + '</span>' +
           '<span style="font-size:1.35rem; font-weight:900; color:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px;">' + cat.label + '</span>' +
         '</div>' +
         '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">' + innerCardsHTML + '</div>' +
@@ -3615,7 +3624,9 @@ function hydrateFromPowerBI() {
           // O topo (título + corpo + acumulado) fica num bloco de altura fixa, para que o Resumo
           // Anual (resumoBlock) sempre comece na mesma posição em todos os cards da linha,
           // independente de quanto conteúdo cada indicador tem acima dele.
-          return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-left:5px solid ' + catColor + '; padding:16px 18px; box-shadow:0 1px 4px rgba(15,43,92,0.06); display:flex; flex-direction:column;">' +
+          // Mesmo padrão de caixa da Aba 2 (borda fina cinza + faixa de 4px na cor da categoria
+          // no topo), para manter a identidade visual igual em todas as abas.
+          return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-top:4px solid ' + catColor + '; padding:16px 18px; box-shadow:0 1px 4px rgba(15,43,92,0.06); display:flex; flex-direction:column;">' +
             '<div style="min-height:172px;">' +
               '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">' +
                 '<span style="font-size:1.10rem; font-weight:800; color:#1e293b;">' + (isAcompTopic ? t.name : (t.id + '. ' + t.name)) + '</span>' +
