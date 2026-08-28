@@ -2078,7 +2078,21 @@ function hydrateFromPowerBI() {
         if (!tid || !blob) return;
         window.ATA_COMENTARIOS_DB[osCode][tid] = window.ATA_COMENTARIOS_DB[osCode][tid] || [];
         var arr = window.ATA_COMENTARIOS_DB[osCode][tid];
-        blob.split(" | ").forEach(function(entry) {
+        // O separador de meses agora e "|", mas o proprio texto do comentario pode conter "|"
+        // (ex.: "Sem justificativas | [Margem (ano)] ..."), entao so inicia entrada nova quando
+        // o pedaco comeca com "<mes>:" ou "<Nome do mes>:"; senao, concatena na anterior.
+        var entradas = [];
+        blob.split("|").forEach(function(pedaco) {
+          var ci = pedaco.indexOf(":");
+          var head = ci === -1 ? "" : pedaco.slice(0, ci).trim().toUpperCase();
+          var ehNova = ci !== -1 && (
+            /^M[\u00caE]S\s+\d{1,2}$/.test(head) || /^\d{1,2}(?:[.,]0+)?$/.test(head) ||
+            Object.keys(MESES).some(function(k) { return head.indexOf(k) === 0; })
+          );
+          if (ehNova) { entradas.push(pedaco); }
+          else if (entradas.length) { entradas[entradas.length - 1] += "|" + pedaco; }
+        });
+        entradas.forEach(function(entry) {
           var c = entry.indexOf(":");
           if (c === -1) return;
           var label = entry.slice(0, c).trim().toUpperCase();
@@ -2221,6 +2235,7 @@ function hydrateFromPowerBI() {
         '<div style="flex-shrink:0;">' + buildScoreGaugeSVG(avgAccum, 100, 152) + '</div>' +
         '<div style="flex:1; min-width:220px;">' +
           '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + contract.name + '</div>' +
+          (META.desemp ? '' : '<div style="background:#fef9c3; color:#92400e; border:1px solid #fde68a; border-radius:6px; padding:4px 10px; font-size:0.8rem; font-weight:700; margin-bottom:8px;">⚠️ Metas de ' + (META.ano || 'ano selecionado') + ' não cadastradas — nota calculada com o padrão.</div>') +
           '<div style="font-size:1.02rem; color:#bfdbfe; margin-bottom:12px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>' +
           '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
             '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#86efac;">Nota do Mês: ' + curScore.monthScore + ' pts</div>' +
@@ -2306,7 +2321,7 @@ function hydrateFromPowerBI() {
         if (s.indexOf("%") !== -1 && (label.indexOf("diferença na margem") !== -1 || label.indexOf("dif") !== -1) && label.indexOf("acum") === -1) {
           var numVal = parseFloat(s.replace("%", "").replace(",", ".").replace("+", ""));
           if (!isNaN(numVal)) {
-            return (Math.abs(numVal) <= 5.0) ? "#15803d" : "#b91c1c";
+            return (Math.abs(numVal) <= (_tol("TOL_ASSERTIV_MARGEM", 0.05) * 100)) ? "#15803d" : "#b91c1c";
           }
         }
         if (label.indexOf("assertividade calculada") !== -1 || label.indexOf("status") !== -1) {
@@ -2315,7 +2330,7 @@ function hydrateFromPowerBI() {
         if (label.indexOf("assertividade acumulada") !== -1) {
           var numAcum = parseFloat(s.replace("%", "").replace(",", ".").replace("+", ""));
           if (!isNaN(numAcum)) {
-            return (numAcum >= 80.0) ? "#15803d" : "#b91c1c";
+            return (numAcum >= (_tol("MIN_ASSERTIV_ACUM", 0.80) * 100)) ? "#15803d" : "#b91c1c";
           }
         }
       }
@@ -2815,7 +2830,7 @@ function hydrateFromPowerBI() {
           var difMargNum = parseFloat(difMargStr.replace("%", "").replace(",", "."));
           if (isNaN(difMargNum)) difMargNum = 9.77;
 
-          var autoAssertive = (Math.abs(difMargNum) <= 5.0) ? "Assertivo" : "Não Assertivo";
+          var autoAssertive = (Math.abs(difMargNum) <= (_tol("TOL_ASSERTIV_MARGEM", 0.05) * 100)) ? "Assertivo" : "Não Assertivo";
           var calculatedStatus = autoAssertive;
 
           var savedOverride = safeGetStorage("assertiv_override_" + activeOS + "_m" + monthNum, "AUTOMATICO");
@@ -2863,7 +2878,7 @@ function hydrateFromPowerBI() {
         // Verde quando a meta é batida; vermelho se o período fechou sem bater.
         if (topic.id === 20 && !isMultiOS) {
           var contratoBP = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return c.code === activeOS; }) || {};
-          var ehParada = (contratoBP.negocio === "PARADA");
+          var ehParada = (_bpPerio(contratoBP) === "E");
           var aprovAcum = 0, reconAcum = 0;
           var iniPeriodo = ehParada ? 1 : (monthNum >= 7 ? 7 : 1);
           var fimPeriodo = ehParada ? 12 : (monthNum >= 7 ? 12 : 6);
@@ -2876,7 +2891,7 @@ function hydrateFromPowerBI() {
             aprovAcum = Math.max(0, (mhAtualBP.bpAprovAcum || 0) - (mhBaseBP ? (mhBaseBP.bpAprovAcum || 0) : 0));
             reconAcum = Math.max(0, (mhAtualBP.bpReconAcum || 0) - (mhBaseBP ? (mhBaseBP.bpReconAcum || 0) : 0));
           }
-          var metaBatida = (aprovAcum >= 3 && reconAcum >= 1);
+          var metaBatida = (aprovAcum >= _bpAprov() && reconAcum >= _bpRecon());
           var periodoFechado = ehParada ? (contratoBP.estagio === "FINALIZADA") : (monthNum >= fimPeriodo);
           var rotuloPeriodo = ehParada ? "Evento (fechamento da OS)" : ("Semestre " + (iniPeriodo === 1 ? "1 (Jan–Jun)" : "2 (Jul–Dez)"));
           var corBP, bgBP, bdBP, txtBP;
@@ -2893,8 +2908,8 @@ function hydrateFromPowerBI() {
               '<span style="background:' + bgBP + '; color:' + corBP + '; border:1.5px solid ' + bdBP + '; padding:4px 12px; border-radius:6px; font-weight:800; font-size:0.90rem;">' + txtBP + '</span>' +
             '</div>' +
             '<div style="margin-top:7px; font-size:0.88rem; color:#334155; font-weight:700;">' +
-              'Aprovadas: <span style="color:' + (aprovAcum >= 3 ? '#15803d' : '#b45309') + ';">' + aprovAcum + ' / 3</span>' +
-              ' &nbsp;•&nbsp; Reconhecidas pelo cliente: <span style="color:' + (reconAcum >= 1 ? '#15803d' : '#b45309') + ';">' + reconAcum + ' / 1</span>' +
+              'Aprovadas: <span style="color:' + (aprovAcum >= _bpAprov() ? '#15803d' : '#b45309') + ';">' + aprovAcum + ' / ' + _bpAprov() + '</span>' +
+              ' &nbsp;•&nbsp; Reconhecidas pelo cliente: <span style="color:' + (reconAcum >= _bpRecon() ? '#15803d' : '#b45309') + ';">' + reconAcum + ' / ' + _bpRecon() + '</span>' +
             '</div>' +
           '</div>';
         }
@@ -4045,7 +4060,7 @@ function hydrateFromPowerBI() {
 
       // --- Riscos reais: ocorrências de segurança (sempre) + piores desempenhos do mês --------
       var safetyFlagged = scored.filter(function(x) { return (x.contract.safCount || 0) > 0 || (x.contract.cafCount || 0) > 0; });
-      var worstN = byScoreAsc.filter(function(x) { return x.score.monthScore < 70; }).slice(0, 5);
+      var worstN = byScoreAsc.filter(function(x) { return x.score.monthScore < _metaGeral(); }).slice(0, 5);
 
       function riskCard(x, isSafety) {
         var c = x.contract, sc = x.score;
@@ -4234,9 +4249,42 @@ function hydrateFromPowerBI() {
       refreshAllScoreViews();
     }
 
+    // === FASE 3D: metas vindas dos params MetaBP / MetaDesemp (nada estatico) ===
+    function parseMetaParams(params) {
+      var bpRaw = String(params.get("MetaBP") || "").split(";");
+      var deRaw = String(params.get("MetaDesemp") || "").split(";");
+      var bp = { aprov: parseInt(bpRaw[0], 10), recon: parseInt(bpRaw[1], 10),
+                 perio: (bpRaw[2] || "").trim().toUpperCase() || null };
+      if (isNaN(bp.aprov)) bp.aprov = null;
+      if (isNaN(bp.recon)) bp.recon = null;
+      var desemp = null;
+      var K = ["PRAZO","PREENCHIMENTO","T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12",
+               "T13","T14","T15","T16","T17","T18","T19","T20","T21","META_GERAL","TOL_FAT_ANO",
+               "TOL_RES_ANO","TOL_FAT_MES","TOL_ASSERTIV_MARGEM","MIN_ASSERTIV_ACUM","MAX_PERDA_RECEITA",
+               "TOL_EFETIVO","TOL_HHT"];
+      if (deRaw.length >= K.length && deRaw[0] !== "") {
+        desemp = {};
+        for (var i = 0; i < K.length; i++) desemp[K[i]] = parseFloat(deRaw[i]);
+      }
+      return { bp: bp, desemp: desemp, ano: parseInt(params.get("SelectedAno"), 10) || null };
+    }
+    var META = parseMetaParams(new URLSearchParams(window.location.search));
+    function _tol(k, fb) { return (META.desemp && isFinite(META.desemp[k])) ? META.desemp[k] : fb; }
+    function _metaGeral() { return (META.desemp && isFinite(META.desemp.META_GERAL)) ? META.desemp.META_GERAL : 70; }
+    function _bpAprov() { return (META.bp && META.bp.aprov != null) ? META.bp.aprov : 3; }
+    function _bpRecon() { return (META.bp && META.bp.recon != null) ? META.bp.recon : 1; }
+    function _bpPerio(c) { return (META.bp && META.bp.perio) ? META.bp.perio : ((c && c.negocio === "PARADA") ? "E" : "S"); }
+
     // Peso de cada tópico "verdict" (indicador numérico real) e qualitativo, e a que bucket de exibição
     // (finPts/govPts/pesPts/ssmaPts) cada um pertence na tabela da Aba 2.
-    var TOPIC_WEIGHTS = {
+    var TOPIC_WEIGHTS = META.desemp ? {
+      prazo: META.desemp.PRAZO, preenchimento: META.desemp.PREENCHIMENTO,
+      t1: META.desemp.T1, t2: META.desemp.T2, t3: META.desemp.T3, t4: META.desemp.T4, t5: META.desemp.T5,
+      t6: META.desemp.T6, t7: META.desemp.T7, t8: META.desemp.T8, t9: META.desemp.T9, t10: META.desemp.T10,
+      t11: META.desemp.T11, t12: META.desemp.T12, t13: META.desemp.T13, t14: META.desemp.T14,
+      t15: META.desemp.T15, t16: META.desemp.T16, t17: META.desemp.T17, t18: META.desemp.T18,
+      t19: META.desemp.T19, t20: META.desemp.T20, t21: META.desemp.T21
+    } : {
       prazo: 12, preenchimento: 13,
       t1: 8, t2: 15, t3: 6, t4: 6, t6: 5, t8: 5,
       t9: 5, t10: 5, t11: 5, t12: 5,
@@ -4324,18 +4372,18 @@ function hydrateFromPowerBI() {
       // --- 1/2. Faturamento Ano / Resultado Ano (FCST Atual vs Executivo, margem de -5%) ---
       // Igual ou acima do Executivo, ou até 5% abaixo, conta como conforme -- só perde ponto se cair
       // mais de 5% abaixo do Executivo. Ficar acima nunca penaliza (sem teto).
-      addBinary("t1", TOPIC_WEIGHTS.t1, typeof contract.fatDifAnoPct === "number", contract.fatDifAnoPct >= -0.05);
-      addBinary("t2", TOPIC_WEIGHTS.t2, typeof contract.resDifAnoPct === "number", contract.resDifAnoPct >= -0.05);
+      addBinary("t1", TOPIC_WEIGHTS.t1, typeof contract.fatDifAnoPct === "number", contract.fatDifAnoPct >= _tol("TOL_FAT_ANO", -0.05));
+      addBinary("t2", TOPIC_WEIGHTS.t2, typeof contract.resDifAnoPct === "number", contract.resDifAnoPct >= _tol("TOL_RES_ANO", -0.05));
 
       // --- 3/4. Faturamento Mês / Assertividade Mês (FCST Atual vs FCST Anterior, margem de -5%) ---
-      addBinary("t3", TOPIC_WEIGHTS.t3, typeof contract.fatDifMesPct === "number", contract.fatDifMesPct >= -0.05);
+      addBinary("t3", TOPIC_WEIGHTS.t3, typeof contract.fatDifMesPct === "number", contract.fatDifMesPct >= _tol("TOL_FAT_MES", -0.05));
 
       // Assertividade (t4) respeita o override manual do Máster (toggleAssertiveness) -- sem
       // override, usa o cálculo automático (|dif margem| <= 5%); com override, o julgamento do
       // Máster decide o ponto, independente do valor automático.
       var assertOverride = safeGetStorage("assertiv_override_" + contract.code + "_m" + monthNum, "AUTOMATICO");
       var t4AutoApplicable = typeof contract.resDifMesPct === "number";
-      var t4AutoOk = t4AutoApplicable && contract.resDifMesPct >= -0.05;
+      var t4AutoOk = t4AutoApplicable && contract.resDifMesPct >= -_tol("TOL_ASSERTIV_MARGEM", 0.05);
       var t4Applicable = assertOverride !== "AUTOMATICO" ? true : t4AutoApplicable;
       var t4Ok = assertOverride === "Assertivo" ? true : (assertOverride === "Não Assertivo" ? false : t4AutoOk);
       addBinary("t4", TOPIC_WEIGHTS.t4, t4Applicable, t4Ok);
@@ -4344,14 +4392,14 @@ function hydrateFromPowerBI() {
 
       // --- 6. Perda de Receita (≤2% acumulado = OK, senão 0 -- binário) ---
       var perdaPct100 = (contract.perdaPctAcum || 0) * 100;
-      addBinary("t6", TOPIC_WEIGHTS.t6, true, perdaPct100 <= 2);
+      addBinary("t6", TOPIC_WEIGHTS.t6, true, perdaPct100 <= (_tol("MAX_PERDA_RECEITA", 0.02) * 100));
 
       // --- 8. Indenização (meta zero, usa a COR real do modelo já comparada ao acumulado do ano) ---
       addBinary("t8", TOPIC_WEIGHTS.t8, true, contract.indenizOk);
 
       // --- 9/10. Efetivo / HHT (Real vs Executivo, tolerância ±10%) ---
-      addBinary("t9", TOPIC_WEIGHTS.t9, typeof contract.efetivoDifPct === "number", Math.abs(contract.efetivoDifPct) <= 0.10);
-      addBinary("t10", TOPIC_WEIGHTS.t10, typeof contract.hhtDifPct === "number", Math.abs(contract.hhtDifPct) <= 0.10);
+      addBinary("t9", TOPIC_WEIGHTS.t9, typeof contract.efetivoDifPct === "number", Math.abs(contract.efetivoDifPct) <= _tol("TOL_EFETIVO", 0.10));
+      addBinary("t10", TOPIC_WEIGHTS.t10, typeof contract.hhtDifPct === "number", Math.abs(contract.hhtDifPct) <= _tol("TOL_HHT", 0.10));
 
       // --- 11/12. Absenteísmo / Turnover (vs Meta real) ---
       var absApplicable = (typeof contract.absenteismoPct === "number" && typeof contract.absenteismoMetaPct === "number");
@@ -4377,15 +4425,15 @@ function hydrateFromPowerBI() {
       // Rotina/Oficina: apurado por SEMESTRE calendário (só nos meses 6 e 12, fechamento do S1/S2).
       // Parada: apurado por EVENTO -- só quando a OS fecha (Estágio = FINALIZADA).
       var bpApplicable, bpMet;
-      if (contract.negocio === "PARADA") {
+      if (_bpPerio(contract) === "E") {
         bpApplicable = (contract.estagio === "FINALIZADA");
-        bpMet = (contract.bpAprovAcum || 0) >= 3 && (contract.bpReconAcum || 0) >= 1;
+        bpMet = (contract.bpAprovAcum || 0) >= _bpAprov() && (contract.bpReconAcum || 0) >= _bpRecon();
       } else {
         bpApplicable = (monthNum === 6 || monthNum === 12);
         if (monthNum === 6) {
-          bpMet = (contract.bpAprovS1 || 0) >= 3 && (contract.bpReconS1 || 0) >= 1;
+          bpMet = (contract.bpAprovS1 || 0) >= _bpAprov() && (contract.bpReconS1 || 0) >= _bpRecon();
         } else if (monthNum === 12) {
-          bpMet = (contract.bpAprovS2 || 0) >= 3 && (contract.bpReconS2 || 0) >= 1;
+          bpMet = (contract.bpAprovS2 || 0) >= _bpAprov() && (contract.bpReconS2 || 0) >= _bpRecon();
         }
       }
       addBinary("t20", TOPIC_WEIGHTS.t20, bpApplicable, bpMet);
@@ -4528,7 +4576,7 @@ function hydrateFromPowerBI() {
         var applicable = override !== "AUTOMATICO" ? true : autoApplicable;
         if (!applicable) continue;
         den++;
-        var isOk = override === "Assertivo" ? true : (override === "Não Assertivo" ? false : (monthData.resDifMesPct >= -0.05));
+        var isOk = override === "Assertivo" ? true : (override === "Não Assertivo" ? false : (monthData.resDifMesPct >= -_tol("TOL_ASSERTIV_MARGEM", 0.05)));
         if (isOk) num++;
       }
       return den > 0 ? (num / den) : null;
