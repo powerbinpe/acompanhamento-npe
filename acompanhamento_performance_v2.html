@@ -2774,13 +2774,45 @@ function hydrateFromPowerBI() {
         return topicSortRank(a) - topicSortRank(b);
       });
 
+      // Agrupamento por categoria (mesma caixa grande colorida da Aba 2/3): como sortedTopicsData
+      // já vem ordenado por categoria (topicSortRank), basta abrir uma caixa nova sempre que a
+      // categoria do tópico mudar, e empilhar os topic-rows dentro dela.
+      var currentCatKey = null, currentCatWrapper = null, currentCatStack = null;
+      var currentCatColor = null, currentCatIcon = null, currentCatLabel = null;
+      function closeCurrentCategoryGroup() {
+        if (!currentCatWrapper) return;
+        var footer = document.createElement("div");
+        footer.style.cssText = "margin-top:16px; padding-top:14px; border-top:2px solid " + currentCatColor + "; text-align:center; font-size:1.05rem; font-weight:900; color:" + currentCatColor + "; text-transform:uppercase; letter-spacing:0.5px;";
+        footer.textContent = currentCatIcon + " " + currentCatLabel;
+        currentCatWrapper.appendChild(footer);
+        container.appendChild(currentCatWrapper);
+      }
+
       sortedTopicsData.forEach(function(topic) {
+        var catInfoForRow = categoryInfoForTopicId(topic.id);
+        if (catInfoForRow.key !== currentCatKey) {
+          closeCurrentCategoryGroup();
+          currentCatKey = catInfoForRow.key;
+          currentCatColor = catInfoForRow.color;
+          currentCatIcon = catInfoForRow.icon;
+          currentCatLabel = catInfoForRow.label;
+          currentCatWrapper = document.createElement("div");
+          currentCatWrapper.style.cssText = "background:#ffffff; border:4px solid " + currentCatColor + "; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);";
+          var header = document.createElement("div");
+          header.style.cssText = "display:flex; align-items:center; gap:12px; margin-bottom:16px;";
+          header.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%; background:' + currentCatColor + '; font-size:1.7rem; line-height:1; flex-shrink:0;">' + currentCatIcon + '</span>' +
+            '<span style="font-size:1.35rem; font-weight:900; color:' + currentCatColor + '; text-transform:uppercase; letter-spacing:0.5px;">' + currentCatLabel + '</span>';
+          currentCatWrapper.appendChild(header);
+          currentCatStack = document.createElement("div");
+          currentCatStack.style.cssText = "display:flex; flex-direction:column; gap:20px;";
+          currentCatWrapper.appendChild(currentCatStack);
+        }
+
         var row = document.createElement("div");
         row.className = "topic-row";
         row.id = "row_" + topic.id;
         // Mesmo padrão de caixa da Aba 2/3: borda fina cinza + faixa de 4px na cor da própria
         // categoria do tópico no topo, em vez da borda azul-marinho fixa igual para todos.
-        var catInfoForRow = categoryInfoForTopicId(topic.id);
         row.style.border = "1px solid #e2e8f0";
         row.style.borderTop = "4px solid " + catInfoForRow.color;
 
@@ -3103,7 +3135,7 @@ function hydrateFromPowerBI() {
             '<textarea id="master_' + topic.id + '" class="comment-textarea" placeholder="' + (isMultiOS ? "Visão multi-OS consolidada..." : (window.isMaster ? "Digite a validação e orientações da Performance..." : "🔒 Campo exclusivo para validação e diretrizes do Setor de Performance.")) + '" ' + ((window.isMaster && !isMultiOS) ? "" : "disabled") + ' style="background:' + ((window.isMaster && !isMultiOS) ? "#ffffff" : "#f8fafc") + '; color:#0f172a; cursor:' + ((window.isMaster && !isMultiOS) ? "text" : "not-allowed") + ';" oninput="handleCommentInput(' + topic.id + ', \'MASTER\', this.value)">' + finalMasterText + '</textarea>' +
           '</div>';
 
-        container.appendChild(row);
+        currentCatStack.appendChild(row);
 
         // Explicitly set textarea DOM values to guarantee persistence
         var gTextEl = document.getElementById("gestor_" + topic.id);
@@ -3174,7 +3206,7 @@ function hydrateFromPowerBI() {
             tHtml += '</div>';
           }
           histRow.innerHTML = tHtml;
-          container.appendChild(histRow);
+          currentCatStack.appendChild(histRow);
           return;
         }
 
@@ -3231,8 +3263,9 @@ function hydrateFromPowerBI() {
           tHtml += '</div>';
         }
         histRow.innerHTML = tHtml;
-        container.appendChild(histRow);
+        currentCatStack.appendChild(histRow);
       });
+      closeCurrentCategoryGroup();
     }
 
     // =========================================================================
@@ -3287,8 +3320,11 @@ function hydrateFromPowerBI() {
             // trás do ícone é o jeito de toda categoria (inclusive Pessoas) ficar identificável.
             '<span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:' + catColor + '; font-size:0.95rem; vertical-align:middle;">' + c.icon + '</span> ' + c.label +
           '</div>' +
-          '<div style="height:42px; background:' + catColor + '; border-radius:9px; overflow:hidden;">' +
-            '<div style="height:100%; width:' + pct.toFixed(0) + '%; background:' + tier.main + '; border-radius:9px 0 0 9px;"></div>' +
+          // A caixa (trilho) é maior que a barra em si -- padding de 6px em volta -- pra cor da
+          // categoria aparecer como uma moldura visível ao redor da barra de progresso, não só
+          // ficar do mesmo tamanho dela.
+          '<div style="height:54px; background:' + catColor + '; border-radius:12px; padding:6px; box-sizing:border-box;">' +
+            '<div style="height:100%; width:' + pct.toFixed(0) + '%; background:' + tier.main + '; border-radius:6px 0 0 6px; overflow:hidden;"></div>' +
           '</div>' +
           '<div style="text-align:right; font-size:0.82rem; font-weight:700; color:#e0e7ff; margin-top:4px;">' + c.val.toFixed(1) + ' / ' + c.max + '</div>' +
         '</div>';
