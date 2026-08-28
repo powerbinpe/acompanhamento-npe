@@ -2878,12 +2878,12 @@ function hydrateFromPowerBI() {
         // KPI Box Color Rules
         var linesHTML = '';
         if (topic.onlyComments || (topic.lines.length === 1 && topic.lines[0].label === "Tipo de Controle")) {
-          linesHTML = '<div style="width: 100%; box-sizing: border-box; margin-top: 6px; background: #f8fafc; border: 2px solid #0f2b5c; border-radius: 8px; padding: 12px 14px;">' +
+          linesHTML = '<div style="width: 100%; box-sizing: border-box; margin-top: 6px; background: #f8fafc; border: 2px solid ' + catInfoForRow.color + '; border-radius: 8px; padding: 12px 14px;">' +
             '<div style="font-size: 0.82rem; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Tipo de Controle:</div>' +
             '<div style="font-size: 0.98rem; font-weight: 700; color: #0f2b5c;">📝 Acompanhamento via Comentários da OS</div>' +
             '</div>';
         } else {
-          linesHTML = '<div style="border: 2px solid #0f2b5c; border-radius: 8px; overflow: hidden; margin-top: 6px;">' +
+          linesHTML = '<div style="border: 2px solid ' + catInfoForRow.color + '; border-radius: 8px; overflow: hidden; margin-top: 6px;">' +
             '<table style="width: 100%; border-collapse: collapse; background: #ffffff; table-layout: fixed;"><tbody>';
           
           topic.lines.forEach(function(l, idx) {
@@ -3103,12 +3103,13 @@ function hydrateFromPowerBI() {
           '</div>';
         }
 
-        var catInfo = categoryInfoForTopicId(topic.id);
+        // O selo com o nome da categoria (ex.: "FINANCEIRO") foi removido daqui -- é redundante
+        // agora que o card já fica dentro da caixa grande da categoria, que mostra o nome uma
+        // vez só no cabeçalho (e no rodapé) da caixa.
         row.innerHTML = '<div class="kpi-column">' +
           '<div>' +
             '<div class="topic-header" style="margin-bottom: 6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
               '<span class="topic-title" style="font-size:1.15rem; font-weight:800; color:#0f2b5c;">#' + String(topic.id).padStart(2, '0') + ' ' + topic.name + '</span>' +
-              '<span style="font-size:0.68rem; font-weight:800; color:#ffffff; background:' + catInfo.color + '; padding:2px 9px; border-radius:20px; text-transform:uppercase; letter-spacing:0.3px;">' + catInfo.icon + ' ' + catInfo.label + '</span>' +
             '</div>' +
             '<div class="kpi-lines">' + linesHTML + '</div>' +
             qualBlockHTML +
