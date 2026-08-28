@@ -2131,7 +2131,7 @@ function hydrateFromPowerBI() {
       if (r.sla) safeSetStorage("sla_period_status_" + osCode + "_m" + mes, r.sla);
     }
 
-    function applyHistoryRows(osCode, rows) {
+    function applyHistoryRows(osCode, rows, anoAlvo) {
       if (!osCode || !rows || !rows.length) return 0;
       window.ATA_COMENTARIOS_DB[osCode] = window.ATA_COMENTARIOS_DB[osCode] || {};
       var db = window.ATA_COMENTARIOS_DB[osCode];
@@ -2140,6 +2140,9 @@ function hydrateFromPowerBI() {
         var mes = parseInt(r.mes, 10);
         var tid = parseInt(r.topico, 10);
         if (!mes || !tid) return;
+        // O fluxo filtra so por OS (o filtro por Ano no SharePoint esbarra no limite de 5000
+        // itens em coluna nao indexada e derrubava os meses mais recentes) -- o ano e filtrado aqui.
+        if (anoAlvo && parseInt(r.ano, 10) !== anoAlvo) return;
         var key = String(tid);
         db[key] = db[key] || [];
         [["GESTOR", r.gestor], ["PERFORMANCE", r.master]].forEach(function(par) {
@@ -2172,7 +2175,7 @@ function hydrateFromPowerBI() {
         if (!resp.ok) { console.warn("Historico: fluxo respondeu", resp.status); return; }
         var rows = await resp.json();
         if (!Array.isArray(rows)) return;
-        var novos = applyHistoryRows(osCode, rows);
+        var novos = applyHistoryRows(osCode, rows, ano);
         window.__historicoCompletoCarregado = true;
         if (typeof refreshAllScoreViews === "function") refreshAllScoreViews();
         console.log("Historico completo carregado da ATA_COMENTARIO:", rows.length, "linhas,", novos, "comentarios novos");
