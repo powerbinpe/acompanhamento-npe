@@ -2740,11 +2740,12 @@ function hydrateFromPowerBI() {
       
       var dbFinalEntry = (window.ATA_COMENTARIOS_DB && window.ATA_COMENTARIOS_DB[activeOS] && window.ATA_COMENTARIOS_DB[activeOS]["24"]) ? 
         window.ATA_COMENTARIOS_DB[activeOS]["24"].find(function(r) { return r.mes === monthNum; }) : null;
+      // Não existe mais texto de exemplo hardcoded aqui -- um texto "de mentira" sentado no campo
+      // (sem ninguém ter digitado) era enviado como se fosse um parecer real do Master sempre que
+      // alguém salvasse comentários com esse campo ainda sem edição (causa real dos pareceres
+      // fantasmas de Julho/M00100 vistos no SharePoint).
       var defaultFinal = dbFinalEntry ? dbFinalEntry.comentario : "";
-      if (!defaultFinal && activeOS === "M00100" && monthNum === 7) {
-        defaultFinal = "Recomendações Finais da Performance (Julho/2026): Aderência excelente às metas operacionais e financeiras na OS M00100 (CBMM Araxá). Manter o rigor no acompanhamento diário dos apontamentos e avanço de medição física.";
-      }
-      
+
       var finalMasterText = safeGetStorage("m_" + activeOS + "_m" + monthNum + "_24", defaultFinal);
 
       if (finalTA) {
