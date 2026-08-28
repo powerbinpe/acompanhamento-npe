@@ -2355,11 +2355,11 @@ function hydrateFromPowerBI() {
         '<div style="flex:2; min-width:440px;">' +
           '<div style="font-size:0.76rem; font-weight:800; color:#93c5fd; text-transform:uppercase; margin-bottom:9px; letter-spacing:0.4px;">Composição da Pontuação</div>' +
           buildCategoryBarsHTML([
-            { label: 'Financeiro', icon: '💰', val: curScore.finPts, max: 48, color: catColorByKey('fin') },
-            { label: 'Governança do Contrato', icon: '📋', val: curScore.govPts, max: 9, color: catColorByKey('gov') },
-            { label: 'Gestão e Acompanhamento', icon: '🗓️', val: curScore.acompPts, max: 25, color: catColorByKey('acomp') },
-            { label: 'Pessoas', icon: '👥', val: curScore.pesPts, max: 26, color: catColorByKey('pes') },
-            { label: 'SSMA e Qualidade', icon: '🦺', val: curScore.ssmaPts, max: 25, color: catColorByKey('ssma') }
+            categoryBarSpec('fin', '💰', 'Financeiro', curScore.finPts, 48, curScore.topics),
+            categoryBarSpec('gov', '📋', 'Governança do Contrato', curScore.govPts, 9, curScore.topics),
+            categoryBarSpec('acomp', '🗓️', 'Gestão e Acompanhamento', curScore.acompPts, 25, curScore.topics),
+            categoryBarSpec('pes', '👥', 'Pessoas', curScore.pesPts, 26, curScore.topics),
+            categoryBarSpec('ssma', '🦺', 'SSMA e Qualidade', curScore.ssmaPts, 25, curScore.topics)
           ]) +
         '</div>' +
       '</div>';
@@ -2797,7 +2797,7 @@ function hydrateFromPowerBI() {
           currentCatIcon = catInfoForRow.icon;
           currentCatLabel = catInfoForRow.label;
           currentCatWrapper = document.createElement("div");
-          currentCatWrapper.style.cssText = "background:#ffffff; border:4px solid " + currentCatColor + "; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);";
+          currentCatWrapper.style.cssText = "background:" + tintColor(currentCatColor, 0.10) + "; border:4px solid " + currentCatColor + "; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);";
           var header = document.createElement("div");
           header.style.cssText = "display:flex; align-items:center; gap:12px; margin-bottom:16px;";
           header.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%; background:' + currentCatColor + '; font-size:1.7rem; line-height:1; flex-shrink:0;">' + currentCatIcon + '</span>' +
@@ -3303,14 +3303,17 @@ function hydrateFromPowerBI() {
     }
 
     // Barras de "Composição da Pontuação" (dentro do card de OS, Abas 1/2/3) -- cada categoria
-    // com seu ícone/nome maiores, barra 3x mais alta (era 14px). O TRILHO por trás da barra é
-    // preenchido com a cor da própria categoria (não uma borda) -- assim, sempre que a barra de
-    // progresso (verde/amarelo/vermelho) não estiver 100% cheia, a parte restante do trilho
-    // mostra a cor de referência da categoria por trás dela.
+    // com seu ícone/nome maiores. O TRILHO atrás da barra é a caixa maior, preenchida com a cor
+    // da própria categoria; a barra em si é mais fina e centralizada dentro dele, com uma borda
+    // branca para se destacar da caixa, e mostra dentro dela o % de itens positivos (indicadores
+    // que bateram a meta) sobre o total de itens aplicáveis da categoria -- não a soma ponderada
+    // de pontos (essa continua aparecendo, junto da contagem de itens, no rodapé da barra).
     function buildCategoryBarsHTML(cats) {
       var bars = cats.map(function(c) {
-        var pct = c.max > 0 ? Math.min(100, (c.val / c.max) * 100) : 0;
-        var tier = scoreTier(pct);
+        var itemTotal = (typeof c.itemsTotal === 'number') ? c.itemsTotal : 0;
+        var itemPositive = (typeof c.itemsPositive === 'number') ? c.itemsPositive : 0;
+        var itemPct = itemTotal > 0 ? Math.min(100, (itemPositive / itemTotal) * 100) : 0;
+        var tier = scoreTier(itemPct);
         var catColor = c.color || '#94a3b8';
         // Rótulo enxuto acima (fonte menor, sem quebrar linha) e o valor "32.0 / 48" abaixo da
         // barra -- tirar o valor de cima do rótulo foi o que resolveu o texto espremendo/quebrando.
@@ -3321,13 +3324,12 @@ function hydrateFromPowerBI() {
             // trás do ícone é o jeito de toda categoria (inclusive Pessoas) ficar identificável.
             '<span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:' + catColor + '; font-size:0.95rem; vertical-align:middle;">' + c.icon + '</span> ' + c.label +
           '</div>' +
-          // A caixa (trilho) é maior que a barra em si -- padding de 6px em volta -- pra cor da
-          // categoria aparecer como uma moldura visível ao redor da barra de progresso, não só
-          // ficar do mesmo tamanho dela.
-          '<div style="height:54px; background:' + catColor + '; border-radius:12px; padding:6px; box-sizing:border-box;">' +
-            '<div style="height:100%; width:' + pct.toFixed(0) + '%; background:' + tier.main + '; border-radius:6px 0 0 6px; overflow:hidden;"></div>' +
+          '<div style="height:54px; background:' + catColor + '; border-radius:14px; padding:0 8px; box-sizing:border-box; display:flex; align-items:center;">' +
+            '<div style="height:26px; width:' + itemPct.toFixed(0) + '%; min-width:34px; background:' + tier.main + '; border:2px solid #ffffff; border-radius:7px; display:flex; align-items:center; justify-content:center; box-sizing:border-box; transition:width 0.4s ease;">' +
+              '<span style="font-size:0.78rem; font-weight:900; color:#ffffff; text-shadow:0 1px 2px rgba(0,0,0,0.35); white-space:nowrap;">' + itemPct.toFixed(0) + '%</span>' +
+            '</div>' +
           '</div>' +
-          '<div style="text-align:right; font-size:0.82rem; font-weight:700; color:#e0e7ff; margin-top:4px;">' + c.val.toFixed(1) + ' / ' + c.max + '</div>' +
+          '<div style="text-align:right; font-size:0.82rem; font-weight:700; color:#e0e7ff; margin-top:4px;">' + itemPositive + '/' + itemTotal + ' itens &middot; ' + c.val.toFixed(1) + '/' + c.max + ' pts</div>' +
         '</div>';
       }).join("");
       return '<div style="display:flex; flex-wrap:wrap; gap:10px 16px;">' + bars + '</div>';
@@ -3350,6 +3352,44 @@ function hydrateFromPowerBI() {
       return c ? c.color : '#94a3b8';
     }
 
+    // Mistura uma cor hex com branco (pct = fração da cor original, 0-1) -- usado pra dar um
+    // fundo levemente tingido na cor da categoria nas caixas grandes, sem perder a legibilidade
+    // do texto escuro que fica em cima.
+    function tintColor(hex, pct) {
+      var h = (hex || '#94a3b8').replace('#', '');
+      if (h.length === 3) h = h.split('').map(function(ch) { return ch + ch; }).join('');
+      var r = parseInt(h.substring(0, 2), 16) || 0;
+      var g = parseInt(h.substring(2, 4), 16) || 0;
+      var b = parseInt(h.substring(4, 6), 16) || 0;
+      var mix = function(c) { return Math.round(c * pct + 255 * (1 - pct)); };
+      var toHex = function(v) { var s = v.toString(16); return s.length === 1 ? '0' + s : s; };
+      return '#' + toHex(mix(r)) + toHex(mix(g)) + toHex(mix(b));
+    }
+
+    // Conta, dentro de uma categoria, quantos tópicos aplicáveis estão "positivos" (ganharam o
+    // peso cheio) sobre o total de tópicos aplicáveis -- usado no % de dentro da barra de
+    // Composição da Pontuação, que segue essa contagem de itens, não a soma ponderada de pontos.
+    function categoryItemStats(topicKeys, topicsMap) {
+      var total = 0, positive = 0;
+      (topicKeys || []).forEach(function(k) {
+        var t = topicsMap ? topicsMap[k] : null;
+        if (t && t.applicable) {
+          total++;
+          if (t.earned >= t.max - 0.001) positive++;
+        }
+      });
+      return { positive: positive, total: total, pct: total > 0 ? (positive / total) * 100 : 0 };
+    }
+
+    // Monta um item pronto pra buildCategoryBarsHTML a partir da key da categoria -- resolve cor,
+    // ícone e a contagem de itens positivos/total de uma vez, pra não repetir a mesma lógica nas
+    // 5 categorias todo lugar que monta essa barra (card de OS na Aba 1/2/3).
+    function categoryBarSpec(key, icon, label, val, max, topicsMap) {
+      var cat = SCORE_CATEGORIES.filter(function(x) { return x.key === key; })[0];
+      var s = categoryItemStats(cat ? cat.topics : [], topicsMap);
+      return { label: label, icon: icon, val: val, max: max, color: catColorByKey(key), itemsPositive: s.positive, itemsTotal: s.total };
+    }
+
     // Envelope visual único para agrupar os cards de uma categoria (Financeiro, Governança...)
     // numa caixa grande, com o ícone e o nome da categoria maiores no topo -- usado tanto na
     // Aba 2 (gráficos de barra mês a mês) quanto na Aba 3 (resumo anual dos indicadores), para
@@ -3358,7 +3398,7 @@ function hydrateFromPowerBI() {
       // Mesma metodologia da borda usada em "Composição da Pontuação": 4px, ao redor de toda a
       // caixa, na cor de referência da própria categoria -- para ser fácil de enxergar qual
       // categoria é qual, com o mesmo padrão em todos os lugares do app.
-      return '<div style="background:#ffffff; border:4px solid ' + cat.color + '; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);">' +
+      return '<div style="background:' + tintColor(cat.color, 0.10) + '; border:4px solid ' + cat.color + '; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);">' +
         '<div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">' +
           // Badge redondo na cor da categoria por trás do ícone -- emoji não aceita ser
           // recolorido via CSS, então sem o badge o 👥 de Pessoas sempre fica cinza/escuro.
