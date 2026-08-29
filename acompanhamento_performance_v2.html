@@ -202,9 +202,49 @@
         💾 Salvar Comentários
       </button>
 
+      <button type="button" id="btnCadastroMetas" onclick="openMetasModal()" style="display:none; background:linear-gradient(135deg,#0f766e,#065f46); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+        &#127919; Cadastro de Metas
+      </button>
+
       <button type="button" id="btnCopyMonthPareceres" onclick="openCopyMonthPareceresModal()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
         📋 Copiar Pareceres do Mês
       </button>
+    </div>
+  </div>
+
+
+  <!-- Modal: Cadastro de Metas (Master) -- le e grava nas listas META_DESEMPENHO / META_BOAS_PRATICAS -->
+  <div id="metasModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
+    <div style="background:#ffffff; border-radius:14px; width:100%; max-width:1060px; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #0f766e; overflow:hidden; display:flex; flex-direction:column; max-height:92vh;">
+      <div style="background:linear-gradient(135deg, #0f2b5c 0%, #065f46 100%); padding:14px 20px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
+        <div>
+          <h3 style="margin:0; font-size:1.10rem; font-weight:800;">&#127919; Cadastro de Metas</h3>
+          <p style="margin:2px 0 0 0; font-size:0.78rem; color:#a7f3d0;">Pesos, metas e toler&acirc;ncias por ano e por neg&oacute;cio. Grava direto nas listas do SharePoint.</p>
+        </div>
+        <button type="button" onclick="closeMetasModal()" style="background:#ef4444; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; cursor:pointer; font-size:0.88rem;">&#10005; Fechar</button>
+      </div>
+
+      <div style="padding:12px 20px; border-bottom:1px solid #e2e8f0; display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; background:#f8fafc;">
+        <div>
+          <label style="display:block; font-size:0.72rem; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:3px;">Ano</label>
+          <select id="metasAnoSelect" onchange="renderMetasPanel()" style="padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:7px; font-size:0.90rem; font-weight:700; min-width:110px;"></select>
+        </div>
+        <button type="button" onclick="criarAnoDeMetas()" style="background:#0369a1; color:#ffffff; border:none; padding:8px 14px; border-radius:7px; font-weight:800; font-size:0.84rem; cursor:pointer;">+ Novo ano</button>
+        <div>
+          <label style="display:block; font-size:0.72rem; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:3px;">Neg&oacute;cio</label>
+          <select id="metasNegocioSelect" onchange="renderMetasPanel()" style="padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:7px; font-size:0.90rem; font-weight:700; min-width:140px;">
+            <option value="ROTINA">ROTINA</option>
+            <option value="PARADA">PARADA</option>
+            <option value="OFICINA">OFICINA</option>
+          </select>
+        </div>
+        <div style="margin-left:auto; text-align:right;">
+          <div id="metasDirtyInfo" style="font-size:0.78rem; color:#64748b; font-weight:700; margin-bottom:4px;">Nenhuma altera&ccedil;&atilde;o pendente</div>
+          <button type="button" id="metasSaveBtn" onclick="salvarMetasPanel()" style="background:linear-gradient(135deg,#16a34a,#15803d); color:#ffffff; border:none; padding:9px 20px; border-radius:7px; font-weight:800; font-size:0.90rem; cursor:pointer;">&#128190; Salvar Metas</button>
+        </div>
+      </div>
+
+      <div id="metasPanelBody" style="padding:16px 20px; overflow-y:auto; flex:1;"></div>
     </div>
   </div>
 
@@ -964,6 +1004,8 @@ function hydrateFromPowerBI() {
         if (roleText) roleText.innerText = "Máster Performance";
         if (roleIcon) roleIcon.innerText = "🛡️";
         if (toggleBtn) toggleBtn.style.background = "#0284c7";
+        var btnMetas = document.getElementById("btnCadastroMetas");
+        if (btnMetas) btnMetas.style.display = "inline-flex";
         if (slaCtrlBar) slaCtrlBar.style.display = "flex";
         if (deadlineInput) deadlineInput.disabled = false;
         if (monthSelect) monthSelect.disabled = false;
@@ -972,6 +1014,8 @@ function hydrateFromPowerBI() {
         if (roleText) roleText.innerText = "Gestor de OS";
         if (roleIcon) roleIcon.innerText = "👤";
         if (toggleBtn) toggleBtn.style.background = "#1e40af";
+        var btnMetasOff = document.getElementById("btnCadastroMetas");
+        if (btnMetasOff) btnMetasOff.style.display = "none";
         if (slaCtrlBar) slaCtrlBar.style.display = "none";
         if (deadlineInput) deadlineInput.disabled = true;
         if (monthSelect) monthSelect.disabled = true;
@@ -1193,6 +1237,8 @@ function hydrateFromPowerBI() {
         window.isMaster = false;
         safeSetStorage("npe_active_role", "GESTOR");
         if (toggleBtn) toggleBtn.style.display = "none"; // HIDE MASTER BUTTON FROM REGULAR USERS
+        var btnMetasHide = document.getElementById("btnCadastroMetas");
+        if (btnMetasHide) btnMetasHide.style.display = "none";
       } else {
         if (toggleBtn) {
           toggleBtn.style.display = "inline-flex";
@@ -4597,11 +4643,349 @@ function hydrateFromPowerBI() {
     }
 
     // =========================================================================
+    // 12.5 CADASTRO DE METAS (FASE 3F) -- Master edita as listas do SharePoint
+    // =========================================================================
+    // O calculo do score continua lendo META (query-string, vinda do modelo). Quando o fluxo
+    // devolve o conjunto completo do ano/negocio da OS aberta, ele sobrescreve META: a lista e
+    // mais atual que o modelo, que so muda no proximo refresh do Power BI.
+    // As URLs abaixo podem ser trocadas por localStorage (chaves npe_flow_*), para tirar as
+    // assinaturas de gravacao do codigo publico sem precisar republicar a pagina.
+    window.FLOW_LER_METAS_URL    = safeGetStorage("npe_flow_ler_metas_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/eee057e0905d4712aa0317bb0acd74c3/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xDFTcuw4PksmljQDhYgPLtMDZtUeOWxXHojiUPzGCR0");
+    window.FLOW_GRAVAR_METAS_URL = safeGetStorage("npe_flow_gravar_metas_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/29/workflows/0376d742f6084d02b9d10f582d872291/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=ThVtSfOJcemz5ZrqM8KX2otyzL5xZsEZosUJ7gBOGfc");
+    window.FLOW_GRAVAR_BP_URL    = safeGetStorage("npe_flow_gravar_bp_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/20/workflows/8be63f6a1840435fa7d73333b15840a6/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Q0mllJYQDAblki2krxp2QgKcCUs227WhhCFbOoONQi4");
+
+    window.METAS_DB = { desempenho: [], boaspraticas: [], carregado: false };
+    var METAS_NEGOCIOS = ["ROTINA", "PARADA", "OFICINA"];
+    var METAS_IND_PESO = ["PESO_PRAZO","PESO_PREENCHIMENTO","PESO_T1","PESO_T2","PESO_T3","PESO_T4",
+      "PESO_T5","PESO_T6","PESO_T7","PESO_T8","PESO_T9","PESO_T10","PESO_T11","PESO_T12","PESO_T13",
+      "PESO_T14","PESO_T15","PESO_T16","PESO_T17","PESO_T18","PESO_T19","PESO_T20","PESO_T21"];
+    var METAS_IND_REGRA = ["META_GERAL","TOL_FAT_ANO","TOL_RES_ANO","TOL_FAT_MES","TOL_ASSERTIV_MARGEM",
+      "MIN_ASSERTIV_ACUM","MAX_PERDA_RECEITA","TOL_EFETIVO","TOL_HHT"];
+    var METAS_CHAVES = ["PRAZO","PREENCHIMENTO","T1","T2","T3","T4","T5","T6","T7","T8","T9","T10",
+      "T11","T12","T13","T14","T15","T16","T17","T18","T19","T20","T21","META_GERAL","TOL_FAT_ANO",
+      "TOL_RES_ANO","TOL_FAT_MES","TOL_ASSERTIV_MARGEM","MIN_ASSERTIV_ACUM","MAX_PERDA_RECEITA",
+      "TOL_EFETIVO","TOL_HHT"];
+
+    // PESO_T7 -> T7, PESO_PRAZO -> PRAZO; os demais ja tem o nome da chave.
+    function metaKeyFromIndicador(ind) {
+      if (ind === "PESO_PRAZO") return "PRAZO";
+      if (ind === "PESO_PREENCHIMENTO") return "PREENCHIMENTO";
+      var m = /^PESO_(T\d+)$/.exec(String(ind));
+      return m ? m[1] : String(ind);
+    }
+
+    function metasLinha(ano, negocio, indicador) {
+      var lst = window.METAS_DB.desempenho;
+      for (var i = 0; i < lst.length; i++) {
+        if (parseInt(lst[i].ano, 10) === ano &&
+            String(lst[i].negocio).toUpperCase() === negocio &&
+            String(lst[i].indicador) === indicador) return lst[i];
+      }
+      return null;
+    }
+    function metasLinhaBP(ano, negocio) {
+      var lst = window.METAS_DB.boaspraticas;
+      for (var i = 0; i < lst.length; i++) {
+        if (parseInt(lst[i].ano, 10) === ano &&
+            String(lst[i].negocio).toUpperCase() === negocio) return lst[i];
+      }
+      return null;
+    }
+    function metasAnosCadastrados() {
+      var s = {};
+      window.METAS_DB.desempenho.forEach(function(r) { s[parseInt(r.ano, 10)] = 1; });
+      return Object.keys(s).map(Number).filter(function(a) { return !!a; }).sort();
+    }
+
+    async function carregarMetasDoFluxo() {
+      var url = window.FLOW_LER_METAS_URL;
+      if (!url) return;
+      try {
+        var resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+        if (!resp.ok) { console.warn("Metas: fluxo respondeu", resp.status); return; }
+        var data = await resp.json();
+        window.METAS_DB.desempenho   = Array.isArray(data.desempenho)   ? data.desempenho   : [];
+        window.METAS_DB.boaspraticas = Array.isArray(data.boaspraticas) ? data.boaspraticas : [];
+        window.METAS_DB.carregado = true;
+        aplicarMetasNoCalculo();
+        var mod = document.getElementById("metasModal");
+        if (mod && mod.style.display === "flex") renderMetasPanel();
+      } catch (err) {
+        // Falha aqui nao quebra a tela: o score continua usando as metas da query-string.
+        console.warn("Metas: falha ao consultar o fluxo --", err);
+      }
+    }
+
+    // Em "todas as OSs" nao existe um negocio unico, entao nao ha o que sobrescrever.
+    function negocioDaSelecao() {
+      var cat = window.ACTIVE_CONTRACTS_CATALOG || [];
+      if (cat.length !== 1) return null;
+      return String(cat[0].negocio || "").toUpperCase() || null;
+    }
+
+    function aplicarMetasNoCalculo() {
+      if (!window.METAS_DB.carregado) return;
+      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+      var neg = negocioDaSelecao();
+      if (!ano || !neg) return;
+      var novo = {};
+      window.METAS_DB.desempenho.forEach(function(r) {
+        if (parseInt(r.ano, 10) !== ano) return;
+        if (String(r.negocio).toUpperCase() !== neg) return;
+        if (String(r.ativo) === "Nao" || String(r.ativo) === "N\u00e3o") return;
+        var v = parseFloat(r.valor);
+        if (isFinite(v)) novo[metaKeyFromIndicador(r.indicador)] = v;
+      });
+      // Meta pela metade e pior que a meta do modelo: so troca com o conjunto completo.
+      var faltando = METAS_CHAVES.filter(function(k) { return !isFinite(novo[k]); });
+      if (faltando.length) return;
+
+      META.desemp = novo;
+      META.ano = ano;
+      TOPIC_WEIGHTS.prazo = novo.PRAZO;
+      TOPIC_WEIGHTS.preenchimento = novo.PREENCHIMENTO;
+      for (var i = 1; i <= 21; i++) TOPIC_WEIGHTS["t" + i] = novo["T" + i];
+
+      var bp = metasLinhaBP(ano, neg);
+      if (bp) {
+        META.bp = META.bp || {};
+        META.bp.aprov = parseInt(bp.aprovadas, 10);
+        META.bp.recon = parseInt(bp.reconhecidas, 10);
+      }
+      window._scoreCache = {};
+      if (typeof refreshAllScoreViews === "function") refreshAllScoreViews();
+    }
+
+    function openMetasModal() {
+      if (!window.isMaster) { showToast("\u26d4 Apenas o perfil M\u00e1ster pode cadastrar metas."); return; }
+      var mod = document.getElementById("metasModal");
+      if (!mod) return;
+      mod.style.display = "flex";
+      if (!window.METAS_DB.carregado) {
+        document.getElementById("metasPanelBody").innerHTML =
+          '<div style="padding:40px; text-align:center; color:#64748b; font-weight:700;">Carregando metas do SharePoint...</div>';
+        carregarMetasDoFluxo().then(function() { renderMetasPanel(); });
+      } else {
+        renderMetasPanel();
+      }
+    }
+    function closeMetasModal() {
+      var mod = document.getElementById("metasModal");
+      if (mod) mod.style.display = "none";
+    }
+
+    function criarAnoDeMetas() {
+      var anos = metasAnosCadastrados();
+      if (!anos.length) { showToast("\u26a0\ufe0f Nenhum ano carregado ainda."); return; }
+      var base = anos[anos.length - 1];
+      var txt = prompt("Ano novo (as metas ser\u00e3o copiadas de " + base + " e voc\u00ea ajusta antes de salvar):", String(base + 1));
+      if (!txt) return;
+      var novoAno = parseInt(txt, 10);
+      if (!novoAno || novoAno < 2000 || novoAno > 2100) { showToast("\u26a0\ufe0f Ano inv\u00e1lido."); return; }
+      if (anos.indexOf(novoAno) !== -1) { showToast("\u26a0\ufe0f O ano " + novoAno + " j\u00e1 est\u00e1 cadastrado."); return; }
+      // id = 0 sinaliza linha nova para o fluxo de grava\u00e7\u00e3o (que decide entre criar e atualizar).
+      METAS_NEGOCIOS.forEach(function(neg) {
+        METAS_IND_PESO.concat(METAS_IND_REGRA).forEach(function(ind) {
+          var b = metasLinha(base, neg, ind);
+          if (!b) return;
+          window.METAS_DB.desempenho.push({ id: 0, ano: novoAno, negocio: neg, indicador: ind,
+            operador: b.operador, valor: b.valor, descricao: b.descricao, ativo: "Sim", _dirty: true });
+        });
+        var bb = metasLinhaBP(base, neg);
+        if (bb) {
+          window.METAS_DB.boaspraticas.push({ id: 0, ano: novoAno, negocio: neg,
+            periodicidade: bb.periodicidade, aprovadas: bb.aprovadas, reconhecidas: bb.reconhecidas,
+            ativo: "Sim", _dirty: true });
+        }
+      });
+      renderMetasPanel(novoAno);
+      showToast("\u2705 Ano " + novoAno + " criado a partir de " + base + ". Ajuste os valores e clique em Salvar Metas.");
+    }
+
+    function metasContaPendentes() {
+      var n = 0;
+      window.METAS_DB.desempenho.forEach(function(r) { if (r._dirty) n++; });
+      window.METAS_DB.boaspraticas.forEach(function(r) { if (r._dirty) n++; });
+      return n;
+    }
+    function metasAtualizaDirtyInfo() {
+      var el = document.getElementById("metasDirtyInfo");
+      if (!el) return;
+      var n = metasContaPendentes();
+      el.innerHTML = n === 0 ? "Nenhuma altera\u00e7\u00e3o pendente"
+        : '<span style="color:#b45309;">' + n + (n === 1 ? " altera\u00e7\u00e3o pendente" : " altera\u00e7\u00f5es pendentes") + '</span>';
+    }
+
+    function onMetaValorChange(inp) {
+      var ano = parseInt(inp.getAttribute("data-ano"), 10);
+      var neg = inp.getAttribute("data-negocio");
+      var ind = inp.getAttribute("data-indicador");
+      var linha = metasLinha(ano, neg, ind);
+      if (!linha) return;
+      var v = parseFloat(String(inp.value).replace(",", "."));
+      if (!isFinite(v)) { inp.value = linha.valor; return; }
+      if (parseFloat(linha.valor) !== v) { linha.valor = v; linha._dirty = true; }
+      metasAtualizaDirtyInfo();
+      metasAtualizaSomaPesos();
+    }
+    function onMetaBPChange(inp) {
+      var ano = parseInt(inp.getAttribute("data-ano"), 10);
+      var neg = inp.getAttribute("data-negocio");
+      var campo = inp.getAttribute("data-campo");
+      var linha = metasLinhaBP(ano, neg);
+      if (!linha) return;
+      var v = parseInt(inp.value, 10);
+      if (!isFinite(v) || v < 0) { inp.value = linha[campo]; return; }
+      if (parseInt(linha[campo], 10) !== v) { linha[campo] = v; linha._dirty = true; }
+      metasAtualizaDirtyInfo();
+    }
+    function metasAtualizaSomaPesos() {
+      var el = document.getElementById("metasSomaPesos");
+      if (!el) return;
+      var s = 0;
+      document.querySelectorAll(".meta-peso-input").forEach(function(i) {
+        var v = parseFloat(String(i.value).replace(",", "."));
+        if (isFinite(v)) s += v;
+      });
+      el.innerText = String(Math.round(s * 100) / 100);
+    }
+
+    function renderMetasPanel(anoForcado) {
+      var body = document.getElementById("metasPanelBody");
+      var selAno = document.getElementById("metasAnoSelect");
+      var selNeg = document.getElementById("metasNegocioSelect");
+      if (!body || !selAno || !selNeg) return;
+
+      var anos = metasAnosCadastrados();
+      if (!anos.length) {
+        body.innerHTML = '<div style="padding:40px; text-align:center; color:#b91c1c; font-weight:700;">Nenhuma meta encontrada nas listas do SharePoint.</div>';
+        return;
+      }
+      var anoAtual = anoForcado || parseInt(selAno.value, 10);
+      if (!anoAtual || anos.indexOf(anoAtual) === -1) {
+        var anoURL = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+        anoAtual = (anoURL && anos.indexOf(anoURL) !== -1) ? anoURL : anos[anos.length - 1];
+      }
+      selAno.innerHTML = anos.map(function(a) {
+        return '<option value="' + a + '"' + (a === anoAtual ? " selected" : "") + ">" + a + "</option>";
+      }).join("");
+      var neg = selNeg.value || "ROTINA";
+
+      function inputValor(ind, classe) {
+        var r = metasLinha(anoAtual, neg, ind);
+        if (!r) return '<span style="color:#b91c1c; font-weight:700;">nao cadastrado</span>';
+        return '<input type="number" step="any" class="' + classe + '" value="' + r.valor + '"' +
+          ' data-ano="' + anoAtual + '" data-negocio="' + neg + '" data-indicador="' + ind + '"' +
+          ' onchange="onMetaValorChange(this)" style="width:110px; padding:5px 8px; border:1.5px solid ' +
+          (r._dirty ? "#f59e0b" : "#cbd5e1") + '; border-radius:6px; font-size:0.88rem; font-weight:700; text-align:right;">';
+      }
+      // As descrições foram cadastradas na lista com escapes de markdown ("\>=", "\|", "\<=").
+      // Tiramos a barra só na exibição — o texto original continua indo inteiro na gravação.
+      function limpaDesc(s) {
+        return String(s || "").replace(/\\(?=[^a-zA-Z0-9\s])/g, "");
+      }
+      function linhaTabela(ind) {
+        var r = metasLinha(anoAtual, neg, ind);
+        var desc = r ? limpaDesc(r.descricao) : "";
+        var oper = r ? (r.operador || "") : "";
+        return '<tr style="border-bottom:1px solid #f1f5f9;">' +
+          '<td style="padding:6px 8px; font-weight:800; color:#0f2b5c; font-size:0.84rem; white-space:nowrap;">' + ind + '</td>' +
+          '<td style="padding:6px 8px; color:#475569; font-size:0.82rem;">' + desc + '</td>' +
+          '<td style="padding:6px 8px; color:#64748b; font-size:0.76rem; white-space:nowrap;">' + oper + '</td>' +
+          '<td style="padding:6px 8px; text-align:right;">' + inputValor(ind, ind.indexOf("PESO_") === 0 ? "meta-peso-input" : "meta-regra-input") + '</td>' +
+        '</tr>';
+      }
+
+      var bp = metasLinhaBP(anoAtual, neg) || { aprovadas: "", reconhecidas: "", periodicidade: "" };
+      var bpHtml =
+        '<div style="background:#ecfdf5; border:1.5px solid #6ee7b7; border-radius:10px; padding:12px 14px; margin-bottom:16px;">' +
+          '<div style="font-size:0.80rem; font-weight:800; color:#065f46; text-transform:uppercase; margin-bottom:8px;">Boas Pr&aacute;ticas &mdash; ' + neg + ' / ' + anoAtual + '</div>' +
+          '<div style="display:flex; gap:22px; flex-wrap:wrap; align-items:flex-end;">' +
+            '<div><label style="display:block; font-size:0.74rem; color:#475569; font-weight:700; margin-bottom:3px;">Aprovadas (m&iacute;nimo)</label>' +
+              '<input type="number" min="0" value="' + bp.aprovadas + '" data-ano="' + anoAtual + '" data-negocio="' + neg + '" data-campo="aprovadas" onchange="onMetaBPChange(this)" style="width:90px; padding:6px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-weight:700; text-align:right;"></div>' +
+            '<div><label style="display:block; font-size:0.74rem; color:#475569; font-weight:700; margin-bottom:3px;">Reconhecidas pelo cliente (m&iacute;nimo)</label>' +
+              '<input type="number" min="0" value="' + bp.reconhecidas + '" data-ano="' + anoAtual + '" data-negocio="' + neg + '" data-campo="reconhecidas" onchange="onMetaBPChange(this)" style="width:90px; padding:6px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-weight:700; text-align:right;"></div>' +
+            '<div style="font-size:0.76rem; color:#047857; max-width:420px;">A periodicidade (semestre ou evento) n&atilde;o se cadastra aqui: ela vem do <b>Tp Contrato</b> da OS &mdash; <b>LD</b> conta por semestre, <b>CD</b> por evento.</div>' +
+          '</div>' +
+        '</div>';
+
+      var cab = '<tr style="background:#f1f5f9;"><th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">INDICADOR</th>' +
+        '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">DESCRI&Ccedil;&Atilde;O</th>' +
+        '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">OPERADOR</th>' +
+        '<th style="padding:7px 8px; text-align:right; font-size:0.74rem; color:#334155;">VALOR</th></tr>';
+
+      body.innerHTML = bpHtml +
+        '<div style="font-size:0.80rem; font-weight:800; color:#0f2b5c; text-transform:uppercase; margin:0 0 6px;">Pesos dos indicadores (pontos)</div>' +
+        '<table style="width:100%; border-collapse:collapse; margin-bottom:6px;">' + cab +
+          METAS_IND_PESO.map(linhaTabela).join("") +
+        '</table>' +
+        '<div style="text-align:right; font-size:0.82rem; color:#475569; font-weight:700; margin-bottom:18px;">Soma dos pesos: <span id="metasSomaPesos" style="color:#0f2b5c;">0</span> pts</div>' +
+        '<div style="font-size:0.80rem; font-weight:800; color:#0f2b5c; text-transform:uppercase; margin:0 0 6px;">Metas e toler&acirc;ncias</div>' +
+        '<div style="font-size:0.76rem; color:#64748b; margin-bottom:6px;">Percentuais em fra&ccedil;&atilde;o: <b>-0,05</b> = -5%. <b>ABS_MENOR_IGUAL</b> compara o valor absoluto (para mais ou para menos).</div>' +
+        '<table style="width:100%; border-collapse:collapse;">' + cab +
+          METAS_IND_REGRA.map(linhaTabela).join("") +
+        '</table>' +
+        '<div style="margin-top:16px; background:#fef9c3; border:1px solid #fde68a; border-radius:8px; padding:10px 12px; font-size:0.80rem; color:#92400e;">' +
+          '<b>Depois de salvar:</b> as metas passam a valer na hora para quem abrir o relat&oacute;rio (o app l&ecirc; direto da lista). Os visuais que dependem do modelo do Power BI s&oacute; refletem na pr&oacute;xima atualiza&ccedil;&atilde;o dele.' +
+        '</div>';
+
+      metasAtualizaSomaPesos();
+      metasAtualizaDirtyInfo();
+    }
+
+    async function salvarMetasPanel() {
+      var btn = document.getElementById("metasSaveBtn");
+      var desemp = window.METAS_DB.desempenho.filter(function(r) { return r._dirty; });
+      var bps    = window.METAS_DB.boaspraticas.filter(function(r) { return r._dirty; });
+      if (!desemp.length && !bps.length) { showToast("\u2139\ufe0f Nenhuma altera\u00e7\u00e3o para salvar."); return; }
+      if (btn) { btn.disabled = true; btn.innerHTML = "\u23f3 Salvando..."; btn.style.opacity = "0.7"; }
+      var usuario = (window.CURRENT_USER_EMAIL || safeGetStorage("npe_user_email", "") || "app-acompanhamento");
+      var okD = true, okB = true;
+      try {
+        if (desemp.length) {
+          var rD = await fetch(window.FLOW_GRAVAR_METAS_URL, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ usuario: usuario, desempenho: desemp.map(function(r) {
+              return { id: parseInt(r.id, 10) || 0, ano: parseInt(r.ano, 10), negocio: r.negocio,
+                indicador: r.indicador, operador: r.operador, valor: parseFloat(r.valor),
+                descricao: r.descricao || "", ativo: r.ativo || "Sim" };
+            }) })
+          });
+          okD = rD.ok;
+        }
+        if (bps.length) {
+          var rB = await fetch(window.FLOW_GRAVAR_BP_URL, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ usuario: usuario, boaspraticas: bps.map(function(r) {
+              return { id: parseInt(r.id, 10) || 0, ano: parseInt(r.ano, 10), negocio: r.negocio,
+                periodicidade: r.periodicidade || "", aprovadas: parseInt(r.aprovadas, 10),
+                reconhecidas: parseInt(r.reconhecidas, 10), ativo: r.ativo || "Sim" };
+            }) })
+          });
+          okB = rB.ok;
+        }
+      } catch (err) {
+        okD = okB = false;
+        console.warn("Metas: falha ao gravar --", err);
+      }
+      if (btn) { btn.disabled = false; btn.innerHTML = "\ud83d\udcbe Salvar Metas"; btn.style.opacity = "1"; }
+      if (okD && okB) {
+        showToast("\u2705 Metas gravadas (" + (desemp.length + bps.length) + " linhas).");
+        window.METAS_DB.carregado = false;
+        await carregarMetasDoFluxo();
+        renderMetasPanel();
+      } else {
+        showToast("\u274c Falha ao gravar as metas. Nada foi perdido \u2014 tente novamente.");
+      }
+    }
+
+    // =========================================================================
     // 13. INITIALIZATION & GLOBAL WINDOW EXPORTS
     // =========================================================================
     document.addEventListener("DOMContentLoaded", function() {
       hydrateFromPowerBI();
       if (typeof carregarHistoricoCompleto === "function") carregarHistoricoCompleto();
+      if (typeof carregarMetasDoFluxo === "function") carregarMetasDoFluxo();
       if (typeof updateFromURLParams === "function") updateFromURLParams();
 
       var savedRole = safeGetStorage("npe_active_role", null);
@@ -4624,6 +5008,7 @@ function hydrateFromPowerBI() {
     document.addEventListener("keydown", function(e) {
       if (e.key === "Escape") {
         closeQualitativeEvalModal();
+        closeMetasModal();
       }
     });
 
@@ -4661,6 +5046,14 @@ function hydrateFromPowerBI() {
     window.safeGetStorage = safeGetStorage;
     window.safeSetStorage = safeSetStorage;
     window.checkPerformanceAccess = checkPerformanceAccess;
+    window.openMetasModal = openMetasModal;
+    window.closeMetasModal = closeMetasModal;
+    window.renderMetasPanel = renderMetasPanel;
+    window.criarAnoDeMetas = criarAnoDeMetas;
+    window.salvarMetasPanel = salvarMetasPanel;
+    window.onMetaValorChange = onMetaValorChange;
+    window.onMetaBPChange = onMetaBPChange;
+    window.carregarMetasDoFluxo = carregarMetasDoFluxo;
     window.ACTIVE_CONTRACTS_CATALOG = ACTIVE_CONTRACTS_CATALOG;
 
   
