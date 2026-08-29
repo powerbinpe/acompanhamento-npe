@@ -3010,7 +3010,13 @@ function hydrateFromPowerBI() {
               ' style="flex:1; padding:6px 4px; font-size:0.76rem; font-weight:800; border-radius:6px; cursor:' + (clickable ? 'pointer' : 'not-allowed') + '; background:' + (active ? o.bg : '#ffffff') + '; color:' + (active ? o.fg : '#94a3b8') + '; border:1.5px solid ' + (active ? o.border : '#e2e8f0') + ';">' + o.label + '</button>';
           }).join("");
           qualBlockHTML = '<div style="margin-top:10px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px;">' +
-            '<div style="font-size:0.76rem; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:6px;">✅ Avaliação Qualitativa (Score)</div>' +
+            '<div style="font-size:0.76rem; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:6px;">' +
+              (QUALITATIVE_TOPIC_IDS.indexOf("t" + topic.id) !== -1
+                ? '✅ Avaliação Qualitativa (Score)'
+                : '✅ Aderência (Máster) — sobrepõe o cálculo automático') +
+            '</div>' +
+            (QUALITATIVE_TOPIC_IDS.indexOf("t" + topic.id) !== -1 ? '' :
+              '<div style="font-size:0.72rem; color:#64748b; margin-bottom:6px;">Em <b>Pendente</b> vale o cálculo automático. Marque <b>Aderente</b> para reverter uma nota negativa quando a justificativa for aceita ou o desvio tiver origem em outro setor.</div>') +
             '<div style="display:flex; gap:5px; flex-wrap:wrap;">' + qualButtonsHTML + '</div>' +
           '</div>';
           var qualAccumPct = computeQualAccumPct(activeOS, qualKey, monthNum);
@@ -4206,6 +4212,15 @@ function hydrateFromPowerBI() {
       if (idMatch) TOPIC_ID_TO_QUAL_KEY[parseInt(idMatch[1], 10)] = t.key;
     });
 
+    // A aderencia deixou de ser exclusiva dos 7 topicos qualitativos: agora TODO indicador
+    // pontuado tem os botoes, para o Master poder reverter uma nota negativa vinda do calculo
+    // automatico (justificativa aceita, ou desvio causado por outro setor). Os 7 originais
+    // mantem suas chaves antigas -- o que ja esta gravado continua valendo; os numericos usam "t<id>".
+    var TOPICOS_NUMERICOS_COM_ADERENCIA = [1, 2, 3, 4, 6, 8, 9, 10, 11, 12, 15, 16, 17, 20];
+    TOPICOS_NUMERICOS_COM_ADERENCIA.forEach(function(id) {
+      if (!TOPIC_ID_TO_QUAL_KEY[id]) TOPIC_ID_TO_QUAL_KEY[id] = "t" + id;
+    });
+
     // Enquanto o Máster não avaliar explicitamente, o indicador fica "PENDENTE" (fora do score,
     // igual a N/A) -- nunca conta como conforme por padrão. Só passa a valer ponto quando alguém
     // realmente marcar "Aderente".
@@ -4436,7 +4451,22 @@ function hydrateFromPowerBI() {
       }
 
       // applicable=false -> N/A (exclui o tópico do score). applicable=true -> ganha o peso cheio se ok=true, senão 0.
+      // Antes de cair no automático, respeita a ADERÊNCIA marcada pelo Máster para o indicador:
+      //   PENDENTE (padrão) -> usa o cálculo automático, exatamente como antes
+      //   ADERENTE          -> força conforme (justificativa aceita / desvio de outro setor)
+      //   NAO_ADERENTE      -> força não conforme
+      //   NA                -> sai do score (não conta nem a favor nem contra)
       function addBinary(id, weight, applicable, ok) {
+        var numMatch = /^t(\d+)$/.exec(id);
+        if (numMatch) {
+          var chaveAder = TOPIC_ID_TO_QUAL_KEY[parseInt(numMatch[1], 10)];
+          if (chaveAder) {
+            var ader = getQualitativeEval(contract.code, monthNum, chaveAder);
+            if (ader === "ADERENTE")     { addTopic(id, weight, weight, true);  return; }
+            if (ader === "NAO_ADERENTE") { addTopic(id, weight, 0, true);       return; }
+            if (ader === "NA")           { addTopic(id, weight, 0, false);      return; }
+          }
+        }
         addTopic(id, weight, applicable && ok ? weight : 0, applicable);
       }
 
