@@ -940,7 +940,11 @@ function hydrateFromPowerBI() {
       var el = document.getElementById("debugUserInfo");
       if (!el) return;
       var p = new URLSearchParams(window.location.search);
-      el.textContent = "Debug: UserEmail=\"" + (p.get("UserEmail") || "") + "\" | IsUserPerformance=" + (p.get("IsUserPerformance") || "") + " | SimRoleOverride=" + (p.get("SimRoleOverride") || "") + " | savedRoleAtStart=" + (savedRoleAtStart || "(nenhum)") + " | Papel resolvido=" + window.currentRoleSimulated;
+      el.textContent = "Debug: UserEmail=\"" + (p.get("UserEmail") || "") + "\" | IsUserPerformance=" + (p.get("IsUserPerformance") || "") + " | SimRoleOverride=" + (p.get("SimRoleOverride") || "") + " | savedRoleAtStart=" + (savedRoleAtStart || "(nenhum)") + " | Papel resolvido=" + window.currentRoleSimulated +
+        " | URL_LEN=" + window.location.search.length +
+        " | PARAMS=" + Array.from(p.keys()).length +
+        " | OS=" + JSON.stringify(p.get("SelectedOS")) +
+        " | ULT_PARAM=" + (Array.from(p.keys()).pop() || "-");
     })();
 
     var _roleToggleLock = false;
