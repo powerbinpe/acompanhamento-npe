@@ -4979,6 +4979,43 @@ function hydrateFromPowerBI() {
       metasAtualizaDirtyInfo();
     }
 
+    // Candidatos vem do param GruposCandidatos, no formato
+    // "GESTOR;CLIENTE;PLANTA;OS1|OS2~GESTOR;CLIENTE;PLANTA;OS3|OS4" -- so o Master recebe.
+    function candidatosDeAgrupamento() {
+      var raw = new URLSearchParams(window.location.search).get("GruposCandidatos") || "";
+      if (!raw) return [];
+      return raw.split("~").map(function(bloco) {
+        var p = bloco.split(";");
+        if (p.length < 4) return null;
+        var oss = osDoGrupo(p[3]);
+        if (oss.length < 2) return null;
+        return { gestor: p[0], cliente: p[1], planta: p[2], oss: oss, chave: oss.join("|") };
+      }).filter(Boolean);
+    }
+    // Um candidato some da lista quando ja virou grupo OU quando o Master decidiu manter separadas.
+    function candidatoDecidido(cand) {
+      var params = window.METAS_DB.parametros || [];
+      for (var i = 0; i < params.length; i++) {
+        var p = params[i];
+        if (String(p.tipo) !== "GRUPO_OS" && String(p.tipo) !== "GRUPO_NAO") continue;
+        var mesmasOSs = osDoGrupo(p.valor).slice().sort().join("|") === cand.oss.slice().sort().join("|");
+        if (mesmasOSs) return String(p.tipo) === "GRUPO_OS" ? "agrupado" : "separado";
+      }
+      // basta uma das OSs ja estar em outro grupo para a sugestao nao fazer mais sentido
+      for (var j = 0; j < cand.oss.length; j++) if (grupoDaOS(cand.oss[j])) return "agrupado";
+      return null;
+    }
+    function decidirCandidato(chave, agrupar) {
+      var oss = osDoGrupo(chave);
+      if (oss.length < 2) return;
+      window.METAS_DB.parametros.push({ id: -(Date.now()), tipo: agrupar ? "GRUPO_OS" : "GRUPO_NAO",
+        valor: oss.join("|"), ativo: "Sim", _dirty: true, _novo: true });
+      renderMetasPanel();
+      metasAtualizaDirtyInfo();
+      showToast(agrupar ? ("\u2705 " + oss.join(" + ") + " ser\u00e1 um bloco \u2014 clique em Salvar.")
+                        : ("\u2705 " + oss.join(" + ") + " ficam separadas \u2014 clique em Salvar."));
+    }
+
     function adicionarGrupo() {
       var txt = prompt("C\u00f3digos das OSs do grupo, separados por v\u00edrgula (a primeira \u00e9 a \u00e2ncora, onde o coment\u00e1rio fica gravado):", "");
       if (!txt) return;
@@ -4994,10 +5031,32 @@ function hydrateFromPowerBI() {
     }
 
     function renderAgrupamentosPanel(body) {
+      var separadas = (window.METAS_DB.parametros || []).filter(function(p) {
+        return String(p.tipo) === "GRUPO_NAO" && String(p.ativo) === "Sim";
+      });
       var grupos = (window.METAS_DB.parametros || []).filter(function(p) { return String(p.tipo) === "GRUPO_OS"; });
       grupos.sort(function(a, b) { return String(a.valor).localeCompare(String(b.valor)); });
 
-      var html = '<div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:0.82rem; color:#1e3a8a;">' +
+      var pendentes = candidatosDeAgrupamento().filter(function(c) { return !candidatoDecidido(c); });
+      var htmlSug = "";
+      if (pendentes.length) {
+        htmlSug = '<div style="border:1.5px solid #fbbf24; background:#fffbeb; border-radius:10px; padding:12px 14px; margin-bottom:18px;">' +
+          '<div style="font-size:0.82rem; font-weight:800; color:#92400e; text-transform:uppercase; margin-bottom:4px;">Sugest\u00f5es pendentes de decis\u00e3o (' + pendentes.length + ')</div>' +
+          '<div style="font-size:0.76rem; color:#92400e; margin-bottom:10px;">Mesmo gestor, mesmo cliente e mesma planta. Decida uma vez: a sugest\u00e3o n\u00e3o volta a aparecer.</div>';
+        pendentes.forEach(function(c) {
+          htmlSug += '<div style="background:#fff; border:1px solid #fde68a; border-radius:8px; padding:9px 12px; margin-bottom:7px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">' +
+            '<div style="flex:1; min-width:240px;">' +
+              '<div style="font-weight:800; font-size:0.88rem; color:#0f2b5c;">' + c.oss.join(" + ") + '</div>' +
+              '<div style="font-size:0.74rem; color:#64748b;">' + c.gestor + ' &middot; ' + c.cliente + ' &middot; ' + c.planta + '</div>' +
+            '</div>' +
+            '<button type="button" onclick="decidirCandidato(\'' + c.chave + '\', true)" style="background:#16a34a; color:#fff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.80rem; cursor:pointer;">Agrupar</button>' +
+            '<button type="button" onclick="decidirCandidato(\'' + c.chave + '\', false)" style="background:#e2e8f0; color:#475569; border:none; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.80rem; cursor:pointer;">Manter separadas</button>' +
+          '</div>';
+        });
+        htmlSug += '</div>';
+      }
+
+      var html = htmlSug + '<div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:0.82rem; color:#1e3a8a;">' +
         'Quando o mesmo gestor toca OSs que passam pelo <b>mesmo processo</b>, elas podem virar um bloco s\u00f3: os valores somam, o coment\u00e1rio \u00e9 \u00fanico e o cabe\u00e7alho mostra os c\u00f3digos juntos. ' +
         'O agrupamento \u00e9 <b>expl\u00edcito</b> \u2014 nada \u00e9 juntado sozinho por gestor, para n\u00e3o misturar neg\u00f3cios diferentes (peso, meta e periodicidade s\u00e3o por neg\u00f3cio).' +
       '</div>' +
@@ -5030,9 +5089,19 @@ function hydrateFromPowerBI() {
         html += '</table>';
       }
 
+      if (separadas.length) {
+        html += '<div style="margin-top:18px;">' +
+          '<div style="font-size:0.80rem; font-weight:800; color:#64748b; text-transform:uppercase; margin-bottom:6px;">Decididas como separadas (' + separadas.length + ')</div>' +
+          '<div style="font-size:0.78rem; color:#64748b;">' +
+            separadas.map(function(p) { return osDoGrupo(p.valor).join(" + "); }).join(" &nbsp;&middot;&nbsp; ") +
+          '</div>' +
+          '<div style="font-size:0.72rem; color:#94a3b8; margin-top:4px;">Para voltar a sugerir, marque a linha como Inativa na lista PARAM_ELEGIBILIDADE.</div>' +
+        '</div>';
+      }
+
       html += '<div style="margin-top:16px; background:#fef9c3; border:1px solid #fde68a; border-radius:8px; padding:10px 12px; font-size:0.80rem; color:#92400e;">' +
         '<b>Aten\u00e7\u00e3o:</b> como a elegibilidade, o agrupamento s\u00f3 vale <b>na pr\u00f3xima atualiza\u00e7\u00e3o do modelo</b> \u2014 no Desktop, fechar e reabrir o arquivo. ' +
-        'O filtro de OS do relat\u00f3rio precisa estar apontando para o campo de <b>grupo</b>, sen\u00e3o cada OS continua sendo vista separadamente.' +
+        'O filtro de OS do relat\u00f3rio continua o mesmo: selecionar <b>qualquer</b> OS do bloco traz o bloco inteiro.' +
       '</div>';
       body.innerHTML = html;
       metasAtualizaDirtyInfo();
@@ -5272,6 +5341,8 @@ function hydrateFromPowerBI() {
     window.onParamAtivoChange = onParamAtivoChange;
     window.adicionarParametro = adicionarParametro;
     window.adicionarGrupo = adicionarGrupo;
+    window.decidirCandidato = decidirCandidato;
+    window.candidatosDeAgrupamento = candidatosDeAgrupamento;
     window.gruposCadastrados = gruposCadastrados;
     window.grupoDaOS = grupoDaOS;
     window.osDoGrupo = osDoGrupo;
