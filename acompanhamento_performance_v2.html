@@ -986,327 +986,173 @@ function hydrateFromPowerBI() {
       {
         id: 1, name: "Faturamento Ano",
         lines: [
-          { label: "Faturamento Executivo Ano", val: "R$ 645.759.632" },
-          { label: "Faturamento FCST Ano", val: "R$ 678.924.150" },
-          { label: "Faturamento Real Ano", val: "R$ 740.570.832" },
-          { label: "Dif. Faturamento Ano", val: "+R$ 61.646.682", class: "positive" },
-          { label: "Dif. Faturamento Ano (%)", val: "+9,08%", class: "positive" }
-        ],
-        annualInsight: {
-          badgeText: "🟢 Faturamento em Superávit (+14,68%)",
-          performanceInsight: "Superação orçamentária consistente impulsionada por aditivos e paradas industriais."
-        }
+          { label: "Faturamento Executivo Ano", val: "-" },
+          { label: "Faturamento FCST Ano", val: "-" },
+          { label: "Faturamento Real Ano", val: "-" },
+          { label: "Dif. Faturamento Ano", val: "-" },
+          { label: "Dif. Faturamento Ano (%)", val: "-" }
+        ]
       },
       {
         id: 2, name: "Resultado Ano",
         lines: [
-          { label: "Resultado Executivo Ano", val: "R$ 30.110.075" },
-          { label: "Resultado FCST Ano", val: "R$ 34.250.800" },
-          { label: "Resultado Real Ano", val: "R$ 39.027.280" },
-          { label: "Dif. Resultado Ano", val: "+R$ 4.776.480", class: "positive" },
-          { label: "Margem Executivo (%)", val: "4,66%" },
-          { label: "Margem FCST Ano (%)", val: "5,05%" },
-          { label: "Margem Real Ano (%)", val: "5,27%" },
-          { label: "Dif. Margem Ano (%)", val: "+0,22%", class: "positive" }
-        ],
-        annualInsight: {
-          badgeText: "🟢 Rentabilidade em Alta (+29,62%)",
-          performanceInsight: "Resultado bruto atingindo R$ 39,02M com expansão de margem para 5,27%."
-        }
+          { label: "Resultado Executivo Ano", val: "-" },
+          { label: "Resultado FCST Ano", val: "-" },
+          { label: "Resultado Real Ano", val: "-" },
+          { label: "Dif. Resultado Ano", val: "-" },
+          { label: "Margem Executivo (%)", val: "-" },
+          { label: "Margem FCST Ano (%)", val: "-" },
+          { label: "Margem Real Ano (%)", val: "-" },
+          { label: "Dif. Margem Ano (%)", val: "-" }
+        ]
       },
       {
         id: 3, name: "Faturamento Mês",
         lines: [
-          { label: "Faturamento FCST Proj.", val: "845.278" },
-          { label: "Faturamento Real Mês", val: "925.229" },
-          { label: "Dif. Faturamento Mês", val: "79.951", class: "positive" },
-          { label: "Dif. Faturamento Mês (%)", val: "9,46%", class: "positive" }
-        ],
-        annualInsight: {
-          badge: "badge-andamento", badgeText: "🟢 Em Monitoramento (Estável)",
-          evolução: "Faturamento do mês acompanhando e superando a projeção do FCST da competência.",
-          gestorResumo: "Medição concluída com êxito dentro do cronograma do cliente.",
-          performanceInsight: "Aderência plena à curva de faturamento do ciclo."
-        }
+          { label: "Faturamento FCST Proj.", val: "-" },
+          { label: "Faturamento Real Mês", val: "-" },
+          { label: "Dif. Faturamento Mês", val: "-" },
+          { label: "Dif. Faturamento Mês (%)", val: "-" }
+        ]
       },
       {
         id: 4, name: "Assertividade", isAssertividade: true,
         lines: [
-          { label: "Resultado FCST Proj.", val: "138.528" },
-          { label: "Resultado Real Mês", val: "242.066" },
-          { label: "Dif. Resultado", val: "103.537", class: "positive" },
-          { label: "Margem Real do Mês (%)", val: "26,16%" },
-          { label: "Margem FCST Proj. (%)", val: "16,39%" },
-          { label: "Dif. na Margem (%)", val: "9,77%", class: "positive" },
-          { label: "Assertividade Calculada (Mês)", val: "Assertivo", class: "positive" },
-          { label: "% Assertiv. Acum. Ano", val: "100,00%" }
-        ],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Assertividade Alta",
-          evolução: "Margem apurada dentro dos parâmetros operacionais do contrato.",
-          gestorResumo: "Projeções revisadas conforme demanda de campo.",
-          performanceInsight: "Variação sob controle da gerência de performance."
-        }
+          { label: "Resultado FCST Proj.", val: "-" },
+          { label: "Resultado Real Mês", val: "-" },
+          { label: "Dif. Resultado", val: "-" },
+          { label: "Margem Real do Mês (%)", val: "-" },
+          { label: "Margem FCST Proj. (%)", val: "-" },
+          { label: "Dif. na Margem (%)", val: "-" },
+          { label: "Assertividade Calculada (Mês)", val: "-" },
+          { label: "% Assertiv. Acum. Ano", val: "-" }
+        ]
       },
       {
         id: 5, name: "Notificação/SLA", onlyComments: true,
-        lines: [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva",
-          evolução: "SLA mantido dentro dos padrões exigidos no contrato.",
-          gestorResumo: "Cumprimento tempestivo de todas as notificações recebidas.",
-          performanceInsight: "Gestão proativa evitou aplicação de penalidades contratuais."
-        }
+        lines: [{ label: "Tipo de Controle", val: "-" }]
       },
             {
         id: 6, name: "Perda de Receita",
         lines: [
-          { label: "Perda de Receita (Mês)", val: "R$ 0" },
-          { label: "% Perda de Receita (Mês)", val: "0,00%", class: "positive" },
-          { label: "Perda Receita Acum. Ano", val: "R$ 0" }
-        ],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Perda Mitigada",
-          evolução: "Acompanhamento contínuo de perda de receita ao longo do ano.",
-          gestorResumo: "Tratativas de absenteísmo implementadas contiveram novas perdas operacionais.",
-          performanceInsight: "Acompanhamento rigoroso evitando novas penalidades por indisponibilidade."
-        }
+          { label: "Perda de Receita (Mês)", val: "-" },
+          { label: "% Perda de Receita (Mês)", val: "-" },
+          { label: "Perda Receita Acum. Ano", val: "-" }
+        ]
       },
       {
         id: 7, name: "Receita Ideal", onlyComments: true,
-        lines: [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }],
-        annualInsight: {
-          badge: "badge-andamento", badgeText: "🟡 Em Acompanhamento",
-          evolução: "Desempenho mantido alinhado ao cronograma físico do projeto.",
-          gestorResumo: "Acompanhamento das etapas construtivas junto ao cliente.",
-          performanceInsight: "Avanços regulares sem sobressaltos contratuais."
-        }
+        lines: [{ label: "Tipo de Controle", val: "-" }]
       },
       {
         id: 8, name: "Indenização",
         lines: [
-          { label: "Indenização Mês", val: "R$ 0" },
-          { label: "Acumulado Ano", val: "R$ 0" }
-        ],
-        annualInsight: {
-          badge: "badge-inefetiva", badgeText: "🔴 Requer Atenção Máster",
-          evolução: "Acompanhamento contínuo de indenizações ao longo do ano.",
-          gestorResumo: "Indenizações decorrentes de paralisações não programadas pelo cliente.",
-          performanceInsight: "Equipe jurídica e de performance atuando no dossiê de cobrança."
-        }
+          { label: "Indenização Mês", val: "-" },
+          { label: "Acumulado Ano", val: "-" }
+        ]
       },
       {
         id: 9, name: "Efetivo",
         lines: [
-          { label: "Efetivo Orçado (PR)", val: "350 pax" },
-          { label: "Efetivo Realizado", val: "342 pax" },
-          { label: "Diferença Efetivo", val: "-8 pax", class: "negative" }
-        ],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva (Aderente ao Orçamento)",
-          evolução: "Aderência de 97.7% do efetivo em relação ao dimensionamento da PR.",
-          gestorResumo: "Reposição rápida de vagas pelo RH.",
-          performanceInsight: "Capacidade operacional preservada sem gargalos."
-        }
+          { label: "Efetivo Orçado (PR)", val: "-" },
+          { label: "Efetivo Realizado", val: "-" },
+          { label: "Diferença Efetivo", val: "-" }
+        ]
       },
       {
         id: 10, name: "HHT",
         lines: [
-          { label: "HHT Orçado (PR)", val: "58.400h" },
-          { label: "HHT Realizado", val: "57.120h" },
-          { label: "Diferença HHT", val: "-1.280h", class: "negative" }
-        ],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva",
-          evolução: "Aproveitamento de HHT dentro da curva planejada.",
-          gestorResumo: "Controle rígido de apontamentos de horas por equipe.",
-          performanceInsight: "Produtividade mantida com bom índice de utilização das equipes."
-        }
+          { label: "HHT Orçado (PR)", val: "-" },
+          { label: "HHT Realizado", val: "-" },
+          { label: "Diferença HHT", val: "-" }
+        ]
       },
       {
         id: 11, name: "Absenteísmo",
         lines: [
-          { label: "Taxa Absenteísmo Mês (%)", val: "0,00%" },
-          { label: "Referência", val: "0,00%" },
+          { label: "Taxa Absenteísmo Mês (%)", val: "-" },
+          { label: "Referência", val: "-" },
           { label: "Absenteísmo Acum. Ano (%)", val: "-" }
-        ],
-        annualInsight: {
-          badge: "badge-andamento", badgeText: "🟡 Ação em Andamento",
-          evolução: "Taxa de absenteísmo sob monitoramento contínuo.",
-          gestorResumo: "Campanha de conscientização de saúde e programa de presença premiada.",
-          performanceInsight: "Ações iniciadas em Junho devem apresentar redução a partir do próximo ciclo."
-        }
+        ]
       },
             {
         id: 12, name: "TurnOver",
         lines: [
-          { label: "Taxa TurnOver Mês (%)", val: "2,46%", class: "positive" },
-          { label: "Referência", val: "2,50%" },
+          { label: "Taxa TurnOver Mês (%)", val: "-" },
+          { label: "Referência", val: "-" },
           { label: "TurnOver Acum. Ano (%)", val: "-" }
-        ],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva",
-          evolução: "Rotatividade mantida dentro do limite de referência (2,46% vs Meta 2,50%).",
-          gestorResumo: "Melhoria no clima organizacional e benefícios de retenção.",
-          performanceInsight: "Estabilidade da equipe garantindo continuidade dos serviços."
-        }
+        ]
       },
       {
         id: 13, name: "Excesso Hora Extra", onlyComments: true,
-        lines: [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva",
-          evolução: "Redução de horas extras após readequação de turnos.",
-          gestorResumo: "Revisão de escalas de trabalho operacionais.",
-          performanceInsight: "Controle eficaz evitando extrapolação orçamentária."
-        }
+        lines: [{ label: "Tipo de Controle", val: "-" }]
       },
       {
         id: 14, name: "Acúmulo de Férias", onlyComments: true,
-        lines: [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Ação Efetiva",
-          evolução: "Zerar férias vencidas até o final do exercício.",
-          gestorResumo: "Escala anual de férias aprovada e em execução.",
-          performanceInsight: "Passivo trabalhista controlado com sucesso."
-        }
+        lines: [{ label: "Tipo de Controle", val: "-" }]
       },
             {
         id: 15, name: "SAF",
         lines: [
-          { label: "Ocorrências SAF", val: "0 casos", class: "positive" },
-          { label: "SAF Acum. Ano", val: "0 casos", class: "positive" }
-        ],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Excelência em Segurança",
-          evolução: "Zero acidentes sem afastamento registrados no período.",
-          gestorResumo: "Diálogos diários de segurança (DDS) e fiscalização constante.",
-          performanceInsight: "Cultura de prevenção consolidada no contrato."
-        }
+          { label: "Ocorrências SAF", val: "-" },
+          { label: "SAF Acum. Ano", val: "-" }
+        ]
       },
             {
         id: 16, name: "CAF",
         lines: [
-          { label: "Ocorrências CAF", val: "0 casos", class: "positive" },
-          { label: "CAF Acum. Ano", val: "0 casos", class: "positive" }
-        ],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Trataiva Concluída",
-          evolução: "Zero acidentes com afastamento registrados no período.",
-          gestorResumo: "Revisão imediata dos procedimentos operacionais.",
-          performanceInsight: "Ação corretiva homologada pelo setor de SSMA."
-        }
+          { label: "Ocorrências CAF", val: "-" },
+          { label: "CAF Acum. Ano", val: "-" }
+        ]
       },
       {
         id: 17, name: "Satisfação do Cliente",
         lines: [
-          { label: "Satisfação do Cliente", val: "0,00%" },
-          { label: "Referência", val: "0,00%" }
-        ],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Satisfação Elevada",
-          evolução: "Avaliação mantida dentro da faixa de excelência.",
-          gestorResumo: "Reuniões semanais de alinhamento e transparência com a fiscalização.",
-          performanceInsight: "Relacionamento forte sustentando alta probabilidade de renovação."
-        }
+          { label: "Satisfação do Cliente", val: "-" },
+          { label: "Referência", val: "-" }
+        ]
       },
       {
         id: 18, name: "LTCAT/LIPAE", onlyComments: true,
-        lines: [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Conformidade 100%",
-          evolução: "Laudos 100% atualizados no sistema.",
-          gestorResumo: "Renovação antecipada dos laudos de engenharia de segurança.",
-          performanceInsight: "Auditoria interna aprovada sem não-conformidades."
-        }
+        lines: [{ label: "Tipo de Controle", val: "-" }]
       },
             {
         id: 19, name: "PBI/PBD", onlyComments: true,
-        lines: [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Sem Mobilização",
-          evolução: "Sem mobilização de novos contratos ou aplicação de premiação no período.",
-          gestorResumo: "Sem necessidade de aplicação no ciclo.",
-          performanceInsight: "Aderente às diretrizes de PBI/PBD."
-        }
+        lines: [{ label: "Tipo de Controle", val: "-" }]
       },
       {
         id: 20, name: "Boas Práticas",
         lines: [
-          { label: "BP Aprovadas no Mês", val: "0 iniciativas" },
-          { label: "BP Reconhecidas no Mês", val: "0 iniciativas" },
-          { label: "BP Aprovadas Acum. Período", val: "0 iniciativas" },
-          { label: "BP Reconhec. Acum. Período", val: "0 iniciativas" }
-        ],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Meta Meritocracia Semestral",
-          evolução: "Meta semestral de 3 BPs com no mínimo 1 reconhecida pelo cliente.",
-          gestorResumo: "Mapeamento contínuo de inovações e melhorias operacionais em campo.",
-          performanceInsight: "Boas práticas auditadas e validadas conforme critérios de meritocracia."
-        }
+          { label: "BP Aprovadas no Mês", val: "-" },
+          { label: "BP Reconhecidas no Mês", val: "-" },
+          { label: "BP Aprovadas Acum. Período", val: "-" },
+          { label: "BP Reconhec. Acum. Período", val: "-" }
+        ]
       },
       {
         id: 21, name: "Gestão de Risco", onlyComments: true,
-        lines: [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Riscos Mitigados",
-          evolução: "Matriz de risco sem itens de criticidade alta.",
-          gestorResumo: "Monitoramento quinzenal de riscos contratuais e operacionais.",
-          performanceInsight: "Gestão de riscos eficiente e preventiva."
-        }
+        lines: [{ label: "Tipo de Controle", val: "-" }]
       },
       {
         id: 22, name: "Renovação do Contrato", onlyComments: true,
-        lines: [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Probabilidade 95%",
-          evolução: "Minuta de aditivo em tramitação final junto ao cliente.",
-          gestorResumo: "Apresentação do balanço positivo de entregas ao cliente.",
-          performanceInsight: "Renovação contratual encaminhada com sucesso."
-        }
+        lines: [{ label: "Tipo de Controle", val: "-" }]
       },
       {
         id: 23, name: "Observações Gerais", onlyComments: true,
-        lines: [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }],
-        annualInsight: {
-          badge: "badge-efetiva", badgeText: "🟢 Desempenho Global Positivo",
-          evolução: "Exercício com saldo operacional e financeiro altamente satisfatório.",
-          gestorResumo: "Alinhamento mantido em todas as frentes de trabalho.",
-          performanceInsight: "Contrato referência para o grupo NPE."
-        }
+        lines: [{ label: "Tipo de Controle", val: "-" }]
       },
       {
         id: 26, name: "Pontualidade do Acompanhamento", onlyComments: true, isPrazoControl: true,
-        lines: [{ label: "Tipo de Controle", val: "Status de Prazo definido pelo Setor de Performance (Máster)" }],
-        annualInsight: {
-          badge: "badge-andamento", badgeText: "⚪ Status Definido por Mês",
-          evolução: "Prazo de apuração mensal configurado pelo Máster.",
-          gestorResumo: "Cumprimento do prazo de preenchimento do acompanhamento.",
-          performanceInsight: "Controle de pontualidade do ciclo de apuração mensal."
-        }
+        lines: [{ label: "Tipo de Controle", val: "-" }]
       },
       {
         id: 27, name: "Preenchimento do Acompanhamento", onlyComments: true, isPreenchimentoControl: true,
-        lines: [{ label: "Tipo de Controle", val: "Apurado automaticamente pela quantidade de justificativas do Gestor" }],
-        annualInsight: {
-          badge: "badge-andamento", badgeText: "⚪ Apuração Automática",
-          evolução: "Percentual de tópicos preenchidos pelo Gestor no mês.",
-          gestorResumo: "Completude do acompanhamento mensal da OS.",
-          performanceInsight: "Indicador de completude do ciclo de apuração mensal."
-        }
+        lines: [{ label: "Tipo de Controle", val: "-" }]
       }
     ];
 
     // Dummy Monthly Recommendations DB
-    var monthlyRecommendations = window.monthlyRecommendations = [
-      { mes: "JANEIRO / 2026", text: "Alinhamento inicial das metas de faturamento e implantação do acompanhamento por OS." },
-      { mes: "FEVEREIRO / 2026", text: "Ajuste na curva de HHT e reforço no controle de absenteísmo." },
-      { mes: "MARÇO / 2026", text: "Foco na redução de glosas de faturamento e aprovação das primeiras boas práticas." },
-      { mes: "ABRIL / 2026", text: "Acompanhamento rígido do FCST e auditoria nas indenizações de paralisação." },
-      { mes: "MAIO / 2026", text: "Revisão dos acordos de frete (redução da perda de receita) e controle do turnover." },
-      { mes: "JUNHO / 2026", text: "Implementação do plano de presença premiada e homologação da tratativa de SSMA." },
-      { mes: "JULHO / 2026 (Atual)", text: "🟢 FECHAMENTO DO PERÍODO: Contrato com superávit de resultado (+0,08% na margem) e aditivo de renovação em fase final. Desempenho geral aprovado com distinção pelo Setor de Performance." }
-    ];
+    // (monthlyRecommendations removido: era texto fixo de exemplo e nao tinha nenhum leitor)
 
 
             
@@ -1507,552 +1353,9 @@ function hydrateFromPowerBI() {
 
 
 
-    var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [
-  {
-    "code": "F09900",
-    "name": "F09900 - RHODIA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "HERISON SOARES",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M00100",
-    "name": "M00100 - CBMM - ARAXA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "SEM INFORMAÇÂO",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M00101",
-    "name": "M00101 - CBMM - PARADA - ARAXA",
-    "estagio": "NOVA",
-    "negocio": "ROTINA",
-    "gestor": "CARLOS CASTILHO",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M00200",
-    "name": "M00200 - YARA - PAULINIA",
-    "estagio": "DESMOBILIZAÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "AILSON MOTA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M00500",
-    "name": "M00500 - CMOC - SANTALUZ",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ORLANDO FILHO",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M00600",
-    "name": "M00600 - HEXION - CURITIBA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "CLERTON ARAUJO",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M00700",
-    "name": "M00700 - STRATOS - ROSARIO DO CATETE",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ANDRE SILVA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M00900",
-    "name": "M00900 - DOW - BREU BRANCO",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "FRANCISCO ANTUNES",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M01009",
-    "name": "M01009 - BRASKEM - PIT STOP PVC",
-    "estagio": "DESMOBILIZAÇÃO",
-    "negocio": "PARADA",
-    "gestor": "CHRISTIANO MARQUES",
-    "superintendencia": "Superintendência de Parada 02 - Nestor Hiroshi"
-  },
-  {
-    "code": "M01010",
-    "name": "M01010 - BRASKEM - PARADA CALDEIRA GV5301D",
-    "estagio": "DESMOBILIZAÇÃO",
-    "negocio": "PARADA",
-    "gestor": "CARLOS MONTEIRO",
-    "superintendencia": "Superintendência de Parada 02 - Nestor Hiroshi"
-  },
-  {
-    "code": "M01011",
-    "name": "M01011 - BRASKEM - FORNO - PMP BA4109",
-    "estagio": "DESMOBILIZAÇÃO",
-    "negocio": "PARADA",
-    "gestor": "CARLOS MONTEIRO",
-    "superintendencia": "Superintendência de Parada 02 - Nestor Hiroshi"
-  },
-  {
-    "code": "M01012",
-    "name": "M01012 - BRASKEM - PARADA IM C4 2026 -BA",
-    "estagio": "DESMOBILIZAÇÃO",
-    "negocio": "PARADA",
-    "gestor": "CHRISTIANO MARQUES",
-    "superintendencia": "Superintendência de Parada 02 - Nestor Hiroshi"
-  },
-  {
-    "code": "M01013",
-    "name": "M01013 - BRASKEM - SERVICOS EVENTUAIS",
-    "estagio": "NOVA",
-    "negocio": "PARADA",
-    "gestor": "CARLOS MONTEIRO",
-    "superintendencia": "Superintendência de Parada 02 - Nestor Hiroshi"
-  },
-  {
-    "code": "M01200",
-    "name": "M01200 - GALVANI - LUIS EDUARDO - BA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "FELIPE SILVA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M01400",
-    "name": "M01400 - VALE - CONCEICAO",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "FRANCISCO PINTO",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M01500",
-    "name": "M01500 - VALE - BRUCUTU",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ALEXSANDRO TOMAZ",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M01600",
-    "name": "M01600 - VALE - TIMBOPEBA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "SILVIO CASSIMIRO",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M01800",
-    "name": "M01800 - VALE - MINA MUTUCA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "FERNANDO LIMA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M01900",
-    "name": "M01900 - VALE - PARAOPEBAS",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "FERNANDO LIMA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M02000",
-    "name": "M02000 - VALE - VARGEM GRANDE - INTEGRIDADE",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ENRICO FERNANDES",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M02001",
-    "name": "M02000 - VALE - VARGEM GRANDE - INTEGRIDADE",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ENRICO FERNANDES",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M02200",
-    "name": "M02200 - VALE - SALOBO - PA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ARTUR FONSECA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M02300",
-    "name": "M02300 - VALE - ACG MINA BRUCUTU",
-    "estagio": "NOVA",
-    "negocio": "ROTINA",
-    "gestor": "HENRIQUE QUEIROZ",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M02500",
-    "name": "M02500 - OFICINA DIAS DAVILA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "OFICINA",
-    "gestor": "THELMO ANTONIO",
-    "superintendencia": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio"
-  },
-  {
-    "code": "M02600",
-    "name": "M02600 - STRATOS - REC ESTRUTU - ROSARIO DO CATET",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ALESSANDRO SILVA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M02700",
-    "name": "M02700 - NITROQUIMICA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "RICARDO ALBUQUERQUE",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M02800",
-    "name": "M02800 - DOW - SANTOS DUMONT",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "DOUGLAS FERREIRA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M02900",
-    "name": "M02900 - OLIN",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "RICARDO ALBUQUERQUE",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M03000",
-    "name": "M03000 - NEXA - VAZANTE",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ADAN COSTA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M03100",
-    "name": "M03100 - NEXA - TRES MARIAS",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "LUIZ LACERDA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M03200",
-    "name": "M03200 - NEXA - JUIZ DE FORA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "FELIPE SANTOS",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M03300",
-    "name": "M03300 - DOW - ARATU",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "CARLOS BOMFIM",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M03400",
-    "name": "M03400 - EQUINOX - BARROCAS",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ORLANDO FILHO",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M03500",
-    "name": "M03500 - GERDAU - DIVINOPOLIS - MG",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "VITOR JURDI",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M03600",
-    "name": "M03600 - GERDAU - OURO BRANCO - MG",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "DOUGLAS ALBUQUERQUE",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M03700",
-    "name": "M03700 - GERDAU - MINERACAO - MG",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "DIOGO PEREIRA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M03800",
-    "name": "M03800 - VOPAK - ARATU",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "CARLOS BOMFIM",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M03900",
-    "name": "M03900 - VOPAK - ALEMOA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "RICARDO ALBUQUERQUE",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M04100",
-    "name": "M04100 - PAN AMERICAN",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "FELIPE SILVA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M04600",
-    "name": "M04600 - CSN - COCALZINHO",
-    "estagio": "EXECUÇÃO",
-    "negocio": "PARADA",
-    "gestor": "ROGEL NETO",
-    "superintendencia": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio"
-  },
-  {
-    "code": "M04601",
-    "name": "M04601 - CSN - PARADA - COCALZINHO",
-    "estagio": "EXECUÇÃO",
-    "negocio": "PARADA",
-    "gestor": "ROGEL NETO",
-    "superintendencia": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio"
-  },
-  {
-    "code": "M04700",
-    "name": "M04700 - CSN - CANDEIAS",
-    "estagio": "EXECUÇÃO",
-    "negocio": "PARADA",
-    "gestor": "ROGEL NETO",
-    "superintendencia": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio"
-  },
-  {
-    "code": "M04701",
-    "name": "M04701 - CSN - PARADA - CANDEIAS",
-    "estagio": "EXECUÇÃO",
-    "negocio": "PARADA",
-    "gestor": "ROGEL NETO",
-    "superintendencia": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio"
-  },
-  {
-    "code": "M04800",
-    "name": "M04800 - CSN - CAAPORA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "PARADA",
-    "gestor": "ROGEL NETO",
-    "superintendencia": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio"
-  },
-  {
-    "code": "M04801",
-    "name": "M04801 - CSN - PARADA - CAAPORA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "PARADA",
-    "gestor": "ROGEL NETO",
-    "superintendencia": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio"
-  },
-  {
-    "code": "M04900",
-    "name": "M04900 - CSN - ALHANDRA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "PARADA",
-    "gestor": "ROGEL NETO",
-    "superintendencia": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio"
-  },
-  {
-    "code": "M04901",
-    "name": "M04901 - CSN - PARADA - ALHANDRA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "PARADA",
-    "gestor": "ROGEL NETO",
-    "superintendencia": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio"
-  },
-  {
-    "code": "M05100",
-    "name": "M05100 - CBMM - ARAXA",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ADRIEDSON CUNHA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M05200",
-    "name": "M05200 - ACELEN - TANQUES CANDEIAS",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ROGEL NETO",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M05300",
-    "name": "M05300 - STRATOS - APOIO ADM - ROSARIO DO CATETE",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ANDRE SILVA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M05400",
-    "name": "M05400 - CMOC - CUBATAO",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "DENIS FONSECA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M05401",
-    "name": "M05401 - CMOC - ANDAIME - CUBATAO",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "DENIS FONSECA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M05402",
-    "name": "M05402 - CMOC - PARADA ACIDOS - CUBATAO",
-    "estagio": "NOVA",
-    "negocio": "ROTINA",
-    "gestor": "DENIS FONSECA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M05500",
-    "name": "M05500 - CMOC - CUBATAO",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "DENIS FONSECA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M05700",
-    "name": "M05700 - ACELEN - PARADA U29A",
-    "estagio": "NOVA",
-    "negocio": "PARADA",
-    "gestor": "ROGEL NETO",
-    "superintendencia": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio"
-  },
-  {
-    "code": "M05900",
-    "name": "M05900 - VALE - ACG - FLOTACAO - BRUCUTU",
-    "estagio": "NOVA",
-    "negocio": "ROTINA",
-    "gestor": "HENRIQUE QUEIROZ",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M07500",
-    "name": "M07500 - PAN AMERICAN - REC ESTR - JACOBINA",
-    "estagio": "NOVA",
-    "negocio": "ROTINA",
-    "gestor": "ALESSANDRO SILVA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M90000",
-    "name": "F90000 - SUPERINTENDENCIA MANUTENCAO",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "CIDINEY ARAUJO",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M90001",
-    "name": "F90001 - GERENCIA NORTE",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "FRANCISCO ANTUNES",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M90002",
-    "name": "F90002 - GERENCIA NORDESTE",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "MATHEUS QUEIROZ",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M90003",
-    "name": "M90003 - GERENCIA TRIANGULO MINEIRO",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "ANDERSON MOREIRA",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M90004",
-    "name": "F90004 - GERENCIA MINAS SUL",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "REGINALDO SOUSA",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M90005",
-    "name": "M90005 - GERENCIA MINAS SUDESTE",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "SIDLEY BARCELLOS",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M90006",
-    "name": "F90006 - GERENCIA SUL/SUDESTE",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "DAVI BARBOZA",
-    "superintendencia": "Superintendência de Rotina 01 - Cidney Araujo"
-  },
-  {
-    "code": "M90007",
-    "name": "M90007 - SUPERINTENDENCIA MANUTENCAO 2",
-    "estagio": "EXECUÇÃO",
-    "negocio": "ROTINA",
-    "gestor": "FLAVIO FERREIRA",
-    "superintendencia": "Superintendência de Rotina 02 - Flávio Henrique"
-  },
-  {
-    "code": "M90100",
-    "name": "M90100 - SUPERINTENDENCIA PARADAS 1",
-    "estagio": "EXECUÇÃO",
-    "negocio": "PARADA",
-    "gestor": "GILMAR SILVA",
-    "superintendencia": "Superintendência de Parada/Oficina 01 - Gilmar Sampaio"
-  },
-  {
-    "code": "M90101",
-    "name": "F90101 - GERENCIA PARADAS 1",
-    "estagio": "EXECUÇÃO",
-    "negocio": "PARADA",
-    "gestor": "DIEGO LOPES",
-    "superintendencia": "Superintendência de Parada 02 - Nestor Hiroshi"
-  },
-  {
-    "code": "M90200",
-    "name": "F90200 - SUPERINTENDENCIA PARADAS 2",
-    "estagio": "EXECUÇÃO",
-    "negocio": "PARADA",
-    "gestor": "NESTOR OGASAWARA",
-    "superintendencia": "Superintendência de Parada 02 - Nestor Hiroshi"
-  }
-];
+    // Catalogo de OSs: vem SEMPRE do param OSScoreData (medida _mOSScoreData).
+    // Sem o param, o app mostra estado vazio -- nunca uma lista fabricada.
+    var ACTIVE_CONTRACTS_CATALOG = window.ACTIVE_CONTRACTS_CATALOG = [];
 
     // =========================================================================
     // 4. ATA_COMENTARIOS_DB ADAPTER (MAPPING 7,500 ROWS DIRECTLY)
@@ -2353,6 +1656,7 @@ function hydrateFromPowerBI() {
       }
       var contract = (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined") ? ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; }) : null;
       if (!contract) contract = ACTIVE_CONTRACTS_CATALOG[0];
+      if (!contract) { el.innerHTML = buildMultiOSWarningHTML(); return; }
       var selMonthNum = getMonthNumberFromParams();
       var curScore = calculateOSScore(contract, selMonthNum);
       var totalScoreSum = 0, evaluatedMonthsCount = 0;
@@ -3019,7 +2323,11 @@ function hydrateFromPowerBI() {
               '<div style="font-size:0.72rem; color:#64748b; margin-bottom:6px;">Em <b>Pendente</b> vale o cálculo automático. Marque <b>Aderente</b> para reverter uma nota negativa quando a justificativa for aceita ou o desvio tiver origem em outro setor.</div>') +
             '<div style="display:flex; gap:5px; flex-wrap:wrap;">' + qualButtonsHTML + '</div>' +
           '</div>';
+          // "Aderência Acum. Ano" só faz sentido nos 7 tópicos puramente qualitativos, onde
+          // todo mês é avaliado. Nos numéricos o denominador ignora PENDENTE, então marcar
+          // um único mês como Aderente mostraria "100%" -- leitura enganosa.
           var qualAccumPct = computeQualAccumPct(activeOS, qualKey, monthNum);
+          if (QUALITATIVE_TOPIC_IDS.indexOf("t" + topic.id) !== -1)
           extraValueBlockHTML += '<div style="margin-top:10px; background:#f8fafc; padding:8px 14px; border-radius:8px; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:space-between;">' +
             '<span style="font-weight:800; color:#0f2b5c; font-size:0.88rem;">Aderência Acum. Ano</span>' +
             '<span style="font-weight:800; font-size:0.95rem; color:' + (qualAccumPct === null ? '#64748b' : (qualAccumPct >= 0.8 ? '#15803d' : '#b91c1c')) + ';">' + (qualAccumPct === null ? '-' : (qualAccumPct * 100).toFixed(0) + '%') + '</span>' +
