@@ -512,6 +512,14 @@ var ESTAGIO_LABEL_MAP = {
   "NOVA": "NOVA"
 };
 
+// O codigo de um bloco vem do Power BI como "M00100|M05100" (a ancora primeiro).
+// Na tela mostramos "M00100 + M05100"; a ancora continua sendo a chave de gravacao,
+// porque extractPrimaryOSCode() devolve o primeiro codigo.
+function formatOSLabel(code) {
+  return String(code || "").split("|").map(function(s) { return s.trim(); }).filter(Boolean).join(" + ");
+}
+window.formatOSLabel = formatOSLabel;
+
 function hydrateOSScoreDataFromPowerBI(params) {
   var raw = params.get("OSScoreData") || "";
   if (!raw) return;
@@ -526,7 +534,7 @@ function hydrateOSScoreDataFromPowerBI(params) {
     var superintendenteReal = f[5] || "";
     liveCatalog.push({
       code: code,
-      name: code + " - " + (f[1] || code),
+      name: formatOSLabel(code) + " - " + (f[1] || code),
       negocio: f[2] || "",
       estagio: ESTAGIO_LABEL_MAP[f[3]] || f[3] || "",
       gestor: f[4] || "SEM INFORMAÇÂO",
@@ -1228,7 +1236,7 @@ function hydrateFromPowerBI() {
       const mesEl = document.getElementById("headerMes");
       const roleEl = document.getElementById("headerRole");
 
-      if (osEl) osEl.innerText = isMultiOS ? "Todas as OSs (Consolidação Geral NPE)" : (params.get("SelectedOS") || "");
+      if (osEl) osEl.innerText = isMultiOS ? "Todas as OSs (Consolidação Geral NPE)" : formatOSLabel(params.get("SelectedOS") || "");
       if (mesEl) mesEl.innerText = params.get("SelectedMes") || "—";
       if (roleEl) roleEl.innerText = window.isMaster ? "Máster / Setor Performance" : "Gestor de OS";
       const isAuth = isUserAuthorizedMaster();
@@ -1522,19 +1530,29 @@ function hydrateFromPowerBI() {
       var ano = parseInt(params.get("SelectedAno"), 10);
       var url = window.FLOW_HISTORICO_URL;
       if (!osCode || osCode === "TODAS_OS" || osCode === "TODAS" || !ano || !url) return;
+      // Num bloco, o comentario novo vai para a ancora, mas o historico antigo esta espalhado
+      // por cada OS -- entao buscamos todas e juntamos sob a ancora.
+      var osDoBloco = String(rawOS).split("|").map(function(s) { return s.trim(); }).filter(Boolean);
+      if (!osDoBloco.length) osDoBloco = [osCode];
       try {
-        var resp = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ os: osCode, ano: ano })
-        });
-        if (!resp.ok) { console.warn("Historico: fluxo respondeu", resp.status); return; }
-        var rows = await resp.json();
-        if (!Array.isArray(rows)) return;
+        var respostas = await Promise.all(osDoBloco.map(function(cod) {
+          return fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ os: cod, ano: ano })
+          });
+        }));
+        var rows = [];
+        for (var ri = 0; ri < respostas.length; ri++) {
+          if (!respostas[ri].ok) { console.warn("Historico:", osDoBloco[ri], "respondeu", respostas[ri].status); continue; }
+          var parte = await respostas[ri].json();
+          if (Array.isArray(parte)) rows = rows.concat(parte);
+        }
+        if (!rows.length) return;
         var novos = applyHistoryRows(osCode, rows, ano);
         window.__historicoCompletoCarregado = true;
         if (typeof refreshAllScoreViews === "function") refreshAllScoreViews();
-        console.log("Historico completo carregado da ATA_COMENTARIO:", rows.length, "linhas,", novos, "comentarios novos");
+        console.log("Historico carregado da ATA_COMENTARIO:", rows.length, "linhas de", osDoBloco.length, "OS(s),", novos, "comentarios novos");
       } catch (err) {
         // Falha aqui nao quebra a tela: o historico curto vindo da query-string continua valendo.
         console.warn("Historico: falha ao consultar o fluxo --", err);
