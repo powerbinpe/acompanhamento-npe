@@ -875,9 +875,42 @@ function hydrateFromPowerBI() {
       }
     } catch (e) {}
 
+    // ---- estado que sobrevive a troca de OS no slicer -----------------------
+    // O visual do Power BI recarrega o iframe a cada mudanca de filtro, e ali localStorage,
+    // sessionStorage e cookie sao bloqueados: tudo o que o usuario tinha feito se perdia.
+    // window.name pertence a MOLDURA (browsing context), nao ao documento, entao atravessa
+    // a recarga. Guardamos so o essencial -- sessao, perfil e aba -- porque window.name
+    // viaja junto em qualquer navegacao daquela moldura.
+    var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
+    var PREFIXO_MOLDURA = "NPE1:";
+
+    function lerEstadoMoldura() {
+      try {
+        var n = String(window.name || "");
+        if (n.indexOf(PREFIXO_MOLDURA) !== 0) return {};
+        return JSON.parse(n.slice(PREFIXO_MOLDURA.length)) || {};
+      } catch (e) { return {}; }
+    }
+    function gravarEstadoMoldura(chave, valor) {
+      if (CHAVES_PERSISTENTES.indexOf(chave) === -1) return;
+      try {
+        var e = lerEstadoMoldura();
+        e[chave] = valor;
+        window.name = PREFIXO_MOLDURA + JSON.stringify(e);
+      } catch (err) {}
+    }
+
     function safeGetStorage(key, fallback) {
       if (window._GLOBAL_COMM_STORAGE[key] !== undefined && window._GLOBAL_COMM_STORAGE[key] !== null) {
         return window._GLOBAL_COMM_STORAGE[key];
+      }
+      // Antes dos armazenamentos: no iframe do Power BI eles nao existem, e a moldura sim.
+      if (CHAVES_PERSISTENTES.indexOf(key) !== -1) {
+        var daMoldura = lerEstadoMoldura()[key];
+        if (daMoldura !== undefined && daMoldura !== null) {
+          window._GLOBAL_COMM_STORAGE[key] = daMoldura;
+          return daMoldura;
+        }
       }
       if (window._MASTER_PERSISTENT_MAP[key] !== undefined && window._MASTER_PERSISTENT_MAP[key] !== null) {
         window._GLOBAL_COMM_STORAGE[key] = window._MASTER_PERSISTENT_MAP[key];
@@ -916,6 +949,7 @@ function hydrateFromPowerBI() {
       window._scoreCache = {};
       window._GLOBAL_COMM_STORAGE[key] = value;
       window._MASTER_PERSISTENT_MAP[key] = value;
+      gravarEstadoMoldura(key, value);
       try { if (window.localStorage) window.localStorage.setItem(key, value); } catch (e) {}
       try { if (window.sessionStorage) window.sessionStorage.setItem(key, value); } catch (e) {}
       try { setCookie(key, value, 365); } catch (e) {}
@@ -4342,9 +4376,9 @@ function hydrateFromPowerBI() {
         var tier = scoreTier(v);
         return '<span title="' + c.label + '" style="display:inline-flex; align-items:center; gap:4px; background:' + c.color +
           '; border-radius:7px; padding:2px 3px 2px 6px; margin:2px 3px 2px 0;">' +
-          '<span style="font-size:0.82rem; line-height:1;">' + c.icon + '</span>' +
+          '<span style="font-size:0.94rem; line-height:1;">' + c.icon + '</span>' +
           '<span style="background:' + tier.main + '; color:' + tier.text +
-            '; border-radius:5px; padding:1px 5px; font-size:0.74rem; font-weight:900;">' + v.toFixed(0) + '%</span>' +
+            '; border-radius:5px; padding:2px 6px; font-size:0.84rem; font-weight:900;">' + v.toFixed(0) + '%</span>' +
         '</span>';
       }).join("");
     }
@@ -4359,9 +4393,9 @@ function hydrateFromPowerBI() {
       else if (t > 0)  { cor = "#92400e"; fundo = "#fef9c3"; texto = String(t); }
       else             { cor = "#cbd5e1"; fundo = "#f8fafc"; texto = "\u2014"; }
       var titulo = t > 0 ? (t + " de 23 t\u00f3picos" + (reg.validados ? " \u00b7 " + reg.validados + " validado(s)" : "")) : "sem preenchimento";
-      return '<td title="' + titulo + '" style="padding:3px 2px; text-align:center;">' +
-        '<span style="display:inline-block; min-width:26px; padding:3px 0; border-radius:5px; background:' + fundo +
-        '; color:' + cor + '; font-size:0.72rem; font-weight:900;">' + texto + '</span></td>';
+      return '<td title="' + titulo + '" style="padding:4px 2px; text-align:center;">' +
+        '<span style="display:inline-block; min-width:32px; padding:4px 0; border-radius:6px; background:' + fundo +
+        '; color:' + cor + '; font-size:0.88rem; font-weight:900;">' + texto + '</span></td>';
     }
 
     function renderTab5() {
@@ -4500,19 +4534,19 @@ function hydrateFromPowerBI() {
         var nm = notaMediaDe(oss);
         var recuo = [0, 18, 36][nivel] || 0;
         var fundo = ["#0f2b5c", "#1d4ed8", "#0e7490"][nivel] || "#475569";
-        var tamanho = ["0.90rem", "0.85rem", "0.82rem"][nivel] || "0.82rem";
+        var tamanho = ["1.06rem", "0.99rem", "0.93rem"][nivel] || "0.93rem";
         var tierA = scoreTier(a.pct);
         return '<tr style="background:' + fundo + ';">' +
-          '<td colspan="' + (meses.length + 1) + '" style="padding:7px 8px 7px ' + (8 + recuo) + 'px; color:#fff; font-weight:800; font-size:' + tamanho + ';">' +
+          '<td colspan="' + (meses.length + 1) + '" style="padding:9px 8px 9px ' + (8 + recuo) + 'px; color:#fff; font-weight:800; font-size:' + tamanho + '; white-space:nowrap;">' +
             ["\ud83c\udfe2", "\ud83d\udc54", "\ud83d\udc64"][nivel] + " " + rotulo +
-            '<span style="color:rgba(255,255,255,0.65); font-weight:700; margin-left:8px;">' + oss.length + ' OS' + (oss.length > 1 ? "s" : "") + '</span>' +
+            '<span style="color:rgba(255,255,255,0.70); font-weight:700; font-size:0.86rem; margin-left:9px;">' + oss.length + ' OS' + (oss.length > 1 ? "s" : "") + '</span>' +
           '</td>' +
-          '<td style="padding:7px 8px; text-align:center; color:#fff; font-weight:900; font-size:0.80rem;">' +
-            '<span style="background:' + tierA.main + '; color:' + tierA.text + '; border-radius:5px; padding:2px 7px;">' + a.pct + '%</span>' +
+          '<td style="padding:9px 8px; text-align:center; color:#fff; font-weight:900; font-size:0.92rem;">' +
+            '<span style="background:' + tierA.main + '; color:' + tierA.text + '; border-radius:6px; padding:3px 9px;">' + a.pct + '%</span>' +
           '</td>' +
-          '<td style="padding:7px 8px; text-align:right; color:#fff; font-weight:900; font-size:0.84rem;">' +
+          '<td style="padding:9px 8px; text-align:right; color:#fff; font-weight:900; font-size:0.98rem;">' +
             (nm ? nm.pct.toFixed(1) + '%' : '<span style="color:rgba(255,255,255,0.5);">\u2014</span>') + '</td>' +
-          '<td style="padding:7px 8px; color:rgba(255,255,255,0.7); font-size:0.72rem; font-weight:700;">' +
+          '<td style="padding:9px 8px; color:rgba(255,255,255,0.72); font-size:0.80rem; font-weight:700; white-space:nowrap;">' +
             (nm ? nm.com + ' de ' + nm.total + ' com nota' : 'sem nota') + '</td>' +
         '</tr>';
       }
@@ -4530,16 +4564,16 @@ function hydrateFromPowerBI() {
         arvore[sup][ger][ges].push(o);
       });
 
-      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; min-width:900px;">' +
+      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; min-width:1180px;">' +
         '<tr style="background:#f1f5f9;">' +
-          '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">SUPERINTENDENTE / GERENTE / GESTOR / OS</th>' +
+          '<th style="padding:9px 8px; text-align:left; font-size:0.84rem; color:#334155;">SUPERINTENDENTE / GERENTE / GESTOR / OS</th>' +
           meses.map(function(mm) {
-            return '<th style="padding:8px 2px; text-align:center; font-size:0.66rem; color:#334155;">' +
+            return '<th style="padding:9px 2px; text-align:center; font-size:0.78rem; color:#334155;">' +
                    (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
           }).join("") +
-          '<th style="padding:8px; text-align:center; font-size:0.72rem; color:#334155;">ADES\u00c3O</th>' +
-          '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">NOTA</th>' +
-          '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">POR CATEGORIA</th>' +
+          '<th style="padding:9px 8px; text-align:center; font-size:0.84rem; color:#334155;">ADES\u00c3O</th>' +
+          '<th style="padding:9px 8px; text-align:right; font-size:0.84rem; color:#334155;">NOTA</th>' +
+          '<th style="padding:9px 8px; text-align:left; font-size:0.84rem; color:#334155;">POR CATEGORIA</th>' +
         '</tr>';
 
       Object.keys(arvore).sort().forEach(function(sup) {
@@ -4565,15 +4599,15 @@ function hydrateFromPowerBI() {
               var aOS = adesaoDe([o]);
               var tierOS = scoreTier(aOS.pct);
               html += '<tr style="border-bottom:1px solid #f1f5f9;' + (nunca ? " background:#fffafa;" : "") + '">' +
-                '<td style="padding:6px 8px 6px 62px; font-weight:800; font-size:0.82rem; color:#0f2b5c; white-space:nowrap;">' +
+                '<td style="padding:7px 8px 7px 66px; font-weight:800; font-size:0.94rem; color:#0f2b5c; white-space:nowrap;">' +
                   formatOSLabel(o.rotulo) +
-                  '<span style="font-weight:700; color:#94a3b8; font-size:0.72rem; margin-left:6px;">' + ((window.OS_HIER || {})[o.codigo] || {}).neg + '</span>' +
+                  '<span style="font-weight:700; color:#94a3b8; font-size:0.80rem; margin-left:7px;">' + ((window.OS_HIER || {})[o.codigo] || {}).neg + '</span>' +
                 '</td>' +
                 meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
-                '<td style="padding:6px 8px; text-align:center; font-weight:900; font-size:0.78rem;">' +
-                  '<span style="background:' + tierOS.bg + '; color:' + tierOS.dark + '; border-radius:5px; padding:2px 6px;">' + aOS.pct + '%</span></td>' +
-                '<td style="padding:6px 8px; text-align:right;">' + ((n && n.ultima) ? tab5Pct(n.ultima.notaAcum) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
-                '<td style="padding:6px 8px;">' + ((n && n.ultima) ? tab5Chips(n.ultima.cats) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
+                '<td style="padding:7px 8px; text-align:center; font-weight:900; font-size:0.90rem;">' +
+                  '<span style="background:' + tierOS.bg + '; color:' + tierOS.dark + '; border-radius:6px; padding:3px 8px;">' + aOS.pct + '%</span></td>' +
+                '<td style="padding:7px 8px; text-align:right;">' + ((n && n.ultima) ? tab5Pct(n.ultima.notaAcum, "1.02rem") : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
+                '<td style="padding:7px 8px;">' + ((n && n.ultima) ? tab5Chips(n.ultima.cats) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
               '</tr>';
             });
           });
@@ -6623,6 +6657,14 @@ function hydrateFromPowerBI() {
       if (!m) return null;
       m.style.display = "flex";
       m.scrollTop = 0;
+      // Dentro do iframe o vh nao corresponde a area visivel -- o visual dimensiona a
+      // moldura pelo conteudo, entao "92vh" pode dar milhares de pixels e a caixa nunca
+      // rola por dentro; quem rola e a pagina do Power BI. Um teto em pixel resolve.
+      var card = m.firstElementChild;
+      if (card) {
+        var teto = Math.min(Math.max(window.innerHeight * 0.9, 420), 820);
+        card.style.maxHeight = Math.round(teto) + "px";
+      }
       try {
         window.scrollTo(0, 0);
         if (document.documentElement) document.documentElement.scrollTop = 0;
