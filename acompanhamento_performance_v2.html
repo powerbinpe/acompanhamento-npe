@@ -283,7 +283,7 @@
     <div id="topicsContainer"></div>
 
     <!-- Tópico 24: Recomendações Finais da Performance -->
-    <div class="topic-row" style="border-left: 6px solid #2563eb; background:#f8fafc;">
+    <div id="topico24Row" class="topic-row" style="border-left: 6px solid #2563eb; background:#f8fafc;">
       <div class="kpi-column">
         <div>
           <div style="font-size: 1.15rem; font-weight: 800; color: #0f2b5c; margin-bottom: 6px;">
@@ -991,6 +991,10 @@ function hydrateFromPowerBI() {
       var el = document.getElementById("debugUserInfo");
       if (!el) return;
       var p = new URLSearchParams(window.location.search);
+      // A faixa de diagnostico so aparece com ?dbg=1 na URL. Fica fora da tela do dia a dia,
+      // mas continua a um parametro de distancia quando precisarmos investigar identidade,
+      // tamanho de URL ou papel resolvido -- sem ter que republicar a pagina.
+      if (p.get("dbg") !== "1") { el.style.display = "none"; return; }
       // Sondas de identidade: no embed "app owns data" o USERPRINCIPALNAME devolve a conta de
       // servico que publicou. CUSTOMDATA e o campo livre que o app host pode preencher com o
       // usuario final -- se vier algo ali, da para reconhecer quem esta acessando.
@@ -2073,6 +2077,8 @@ function hydrateFromPowerBI() {
       // (ou nenhuma), os dados apurados por aqui não são confiáveis (não é o mesmo tipo de
       // agregação que a visão corporativa vai precisar; isso fica para a Aba 5).
       renderOSScorecardInto("tab1OSIndicator", isMultiOS, !isMultiOS ? extractPrimaryOSCode(rawOS) : "");
+      var t24 = document.getElementById("topico24Row");
+      if (t24) t24.style.display = isMultiOS ? "none" : "";
       if (isMultiOS) {
         container.innerHTML = '<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e;">' +
           '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">⚠️ Selecione apenas 1 OS</div>' +
