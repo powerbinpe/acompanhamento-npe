@@ -3901,7 +3901,7 @@ function hydrateFromPowerBI() {
     // qualquer coisa que precise dele fora do navegador (Aba 5, copia de pareceres, IA)
     // ficava sem fonte. Aqui ele vira um registro proprio da ATA, com TopicoId 0 para nao
     // colidir com os 23 topicos nem com a sintese (24).
-    window.FLOW_GRAVAR_NOTAS_URL = safeGetStorage("npe_flow_gravar_notas_url", "");
+    window.FLOW_GRAVAR_NOTAS_URL = safeGetStorage("npe_flow_gravar_notas_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/31/workflows/ed93f8a4e6f04cf488908110d5008147/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=83oyNeKwsOg8hgxVuLCLbT5IwXZOty3b5w-mUyYErmk");
 
     // Mesma conta do card de ranking da Aba 2 -- de proposito: o numero gravado tem que ser
     // exatamente o numero que o gestor viu na tela quando salvou.
