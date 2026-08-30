@@ -2321,9 +2321,12 @@ function hydrateFromPowerBI() {
           currentCatWrapper = document.createElement("div");
           currentCatWrapper.style.cssText = "background:" + tintColor(currentCatColor, 0.10) + "; border:4px solid " + currentCatColor + "; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);";
           var header = document.createElement("div");
-          header.style.cssText = "display:flex; align-items:center; gap:12px; margin-bottom:16px;";
-          header.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%; background:' + currentCatColor + '; font-size:1.7rem; line-height:1; flex-shrink:0;">' + currentCatIcon + '</span>' +
-            '<span style="font-size:1.35rem; font-weight:900; color:' + currentCatColor + '; text-transform:uppercase; letter-spacing:0.5px;">' + currentCatLabel + '</span>';
+          // Faixa na cor CHEIA da categoria, igual a caixa da Composicao da Pontuacao. O
+          // fundo do bloco continua sendo o tint de 10% (os cards brancos de dentro
+          // precisam dele), mas o tint sozinho lia como cinza e a categoria se perdia.
+          header.style.cssText = "display:flex; align-items:center; gap:12px; margin:-20px -22px 18px; padding:14px 22px; background:" + currentCatColor + "; border-radius:9px 9px 0 0;";
+          header.innerHTML = '<span style="display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,0.94); font-size:1.7rem; line-height:1; flex-shrink:0;">' + currentCatIcon + '</span>' +
+            '<span style="font-size:1.35rem; font-weight:900; color:#ffffff; text-transform:uppercase; letter-spacing:0.5px;">' + currentCatLabel + '</span>';
           currentCatWrapper.appendChild(header);
           currentCatStack = document.createElement("div");
           currentCatStack.style.cssText = "display:flex; flex-direction:column; gap:20px;";
@@ -2863,30 +2866,33 @@ function hydrateFromPowerBI() {
         var catColor = c.color || '#94a3b8';
         // Rótulo enxuto acima (fonte menor, sem quebrar linha) e o valor "32.0 / 48" abaixo da
         // barra -- tirar o valor de cima do rótulo foi o que resolveu o texto espremendo/quebrando.
-        // A caixa de referencia da categoria agora carrega o icone e o nome DENTRO dela,
-        // junto da barra -- antes o rotulo ficava solto acima, fora da cor.
-        return '<div style="min-width:200px; flex:1 1 200px;">' +
-          '<div style="background:' + catColor + '; border-radius:14px; padding:10px 12px 12px; box-sizing:border-box;">' +
-            '<div style="display:flex; align-items:center; gap:8px; margin-bottom:9px;">' +
+        // UMA caixa so: a cor da categoria e o proprio trilho, e a barra corre POR CIMA
+        // dela. Antes havia caixa dentro de caixa -- duas cores competindo pelo mesmo espaco.
+        // min-width:0 no conteudo e o que impede "Governanca do Contrato" de empurrar a
+        // celula: sem isso o flex nao encolhe abaixo do min-content do texto, e a caixa do
+        // Financeiro (nome curto) saia menor que as demais.
+        return '<div style="display:flex; flex-direction:column; min-width:0;">' +
+          '<div style="flex:1; background:' + catColor + '; border-radius:14px; padding:12px 14px 14px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; gap:12px; min-width:0;">' +
+            '<div style="display:flex; align-items:center; gap:9px; min-width:0;">' +
               // Emoji nao aceita ser recolorido via CSS. Sobre a cor cheia da categoria o
-              // icone sumiria, entao ele ganha um disco claro por tras -- e o contraste
-              // funciona igual nas cinco cores, sem precisar de excecao por categoria.
-              '<span style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:rgba(255,255,255,0.92); font-size:1.02rem; line-height:1; flex-shrink:0;">' + c.icon + '</span>' +
-              '<span style="font-size:0.88rem; font-weight:900; color:#ffffff; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + c.label + '</span>' +
+              // icone sumiria, entao ele ganha um disco claro por tras -- funciona igual
+              // nas cinco cores, sem precisar de excecao por categoria.
+              '<span style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,0.94); font-size:1.14rem; line-height:1; flex-shrink:0;">' + c.icon + '</span>' +
+              '<span style="font-size:0.94rem; font-weight:900; color:#ffffff; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">' + c.label + '</span>' +
             '</div>' +
-          '<div style="height:44px; background:rgba(255,255,255,0.18); border-radius:10px; padding:0 6px; box-sizing:border-box; display:flex; align-items:center;">' +
-            '<div style="height:32px; width:' + itemPct.toFixed(0) + '%; min-width:52px; background:' + tier.main + '; border:2px solid #ffffff; border-radius:8px; display:flex; align-items:center; justify-content:center; box-sizing:border-box; transition:width 0.4s ease;">' +
-              '<span style="font-size:1.02rem; font-weight:900; color:' + tier.text + '; white-space:nowrap;">' + itemPct.toFixed(0) + '%</span>' +
+            '<div style="height:46px; width:' + itemPct.toFixed(0) + '%; min-width:64px; background:' + tier.main + '; border:2px solid #ffffff; border-radius:10px; display:flex; align-items:center; justify-content:center; box-sizing:border-box; transition:width 0.4s ease;">' +
+              '<span style="font-size:1.26rem; font-weight:900; color:' + tier.text + '; white-space:nowrap;">' + itemPct.toFixed(0) + '%</span>' +
             '</div>' +
           '</div>' +
-          '</div>' +
-          // A esquerda, alinhado com o inicio da barra. E o % dos pontos entra junto: ele
-          // NAO e o mesmo % de dentro da barra (aquele e de itens que bateram a meta, este
-          // e de pontos ponderados), e a diferenca entre os dois e informacao.
+          // A esquerda, alinhado com o inicio da barra. O % dos pontos entra junto: ele NAO
+          // e o mesmo % de dentro da barra (aquele conta itens que bateram a meta, este e de
+          // pontos ponderados), e a diferenca entre os dois e informacao.
           '<div style="text-align:left; font-size:0.82rem; font-weight:700; color:#e0e7ff; margin-top:5px;">' + itemPositive + '/' + itemTotal + ' itens &middot; ' + c.val.toFixed(1) + '/' + c.max + ' pts (' + ptsPct.toFixed(0) + '%)</div>' +
         '</div>';
       }).join("");
-      return '<div style="display:flex; flex-wrap:wrap; gap:10px 16px;">' + bars + '</div>';
+      // Grid em vez de flex-wrap: colunas iguais e, dentro da linha, altura igual. Com flex
+      // as caixas saiam de larguras e alturas diferentes conforme o tamanho do nome.
+      return '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(215px, 1fr)); gap:14px 16px; align-items:stretch;">' + bars + '</div>';
     }
 
     // Categorias e pesos usados no cálculo real (calculateOSScoreUncached) -- mesma fonte da
@@ -2953,11 +2959,14 @@ function hydrateFromPowerBI() {
       // caixa, na cor de referência da própria categoria -- para ser fácil de enxergar qual
       // categoria é qual, com o mesmo padrão em todos os lugares do app.
       return '<div style="background:' + tintColor(cat.color, 0.10) + '; border:4px solid ' + cat.color + '; border-radius:14px; padding:20px 22px; margin-bottom:24px; box-shadow:0 4px 14px rgba(15,43,92,0.08);">' +
-        '<div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">' +
-          // Badge redondo na cor da categoria por trás do ícone -- emoji não aceita ser
-          // recolorido via CSS, então sem o badge o 👥 de Pessoas sempre fica cinza/escuro.
-          '<span style="display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%; background:' + cat.color + '; font-size:1.7rem; line-height:1; flex-shrink:0;">' + cat.icon + '</span>' +
-          '<span style="font-size:1.35rem; font-weight:900; color:' + cat.color + '; text-transform:uppercase; letter-spacing:0.5px;">' + cat.label + '</span>' +
+        // Faixa na cor CHEIA da categoria, identica a da Aba 1 e a da Composicao da
+        // Pontuacao. O tint de 10% continua sendo o fundo do bloco (os cards brancos de
+        // dentro precisam dele), mas sozinho ele lia como cinza e a categoria se perdia.
+        '<div style="display:flex; align-items:center; gap:12px; margin:-20px -22px 18px; padding:14px 22px; background:' + cat.color + '; border-radius:9px 9px 0 0;">' +
+          // Disco claro atras do icone -- emoji nao aceita ser recolorido via CSS e sobre
+          // a cor cheia da categoria ele sumiria.
+          '<span style="display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,0.94); font-size:1.7rem; line-height:1; flex-shrink:0;">' + cat.icon + '</span>' +
+          '<span style="font-size:1.35rem; font-weight:900; color:#ffffff; text-transform:uppercase; letter-spacing:0.5px;">' + cat.label + '</span>' +
         '</div>' +
         '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">' + innerCardsHTML + '</div>' +
         // Rodapé repetindo o nome da categoria (na mesma cor) abaixo das caixas dos indicadores,
