@@ -1785,6 +1785,26 @@ function hydrateFromPowerBI() {
       return clean || "";
     }
 
+    // Quando a OS trocou de responsavel no ano, o gestor atual precisa saber quais meses
+    // foram de outra pessoa -- o acesso dele vem do Protheus/CTT, entao ele passa a ver um
+    // historico que nao construiu. Sem isso, estranha numeros que nao reconhece.
+    function buildHistoricoResponsavelHTML(contract) {
+      if (!contract || typeof historicoResponsavel !== "function") return "";
+      var osCode = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(contract.code) : contract.code;
+      var h = [];
+      try { h = historicoResponsavel(osCode) || []; } catch (e) { return ""; }
+      if (h.length < 2) return "";
+      var atual = h[h.length - 1];
+      var anteriores = h.slice(0, -1).map(function(r) {
+        return r.nome + " (" + rotuloVigencia(r.inicio) + " a " + rotuloVigencia(r.fim) + ")";
+      }).join(" &middot; ");
+      return '<div style="background:rgba(250,204,21,0.16); border:1px solid rgba(250,204,21,0.55); border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:0.86rem; color:#fef9c3;">' +
+        '<b>&#9888; Esta OS trocou de respons&aacute;vel em ' + (h.length - 1 === 1 ? '2026' : '2026') + '.</b> ' +
+        'Voc&ecirc; responde desde <b>' + rotuloVigencia(atual.inicio) + '</b>. ' +
+        'Antes: ' + anteriores + '.' +
+      '</div>';
+    }
+
     // Card de identificação/pontuação da OS ativa -- gauge + nome + negócio/superintendência/gestor
     // + composição da pontuação. É o MESMO card, byte a byte, usado nas Abas 1, 2 e 3 (pedido
     // explícito do usuário: "exatamente o mesmo visual da Aba2"), única fonte de verdade para
@@ -1797,6 +1817,7 @@ function hydrateFromPowerBI() {
           '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + contract.name + '</div>' +
           (META.desemp ? '' : '<div style="background:#fef9c3; color:#92400e; border:1px solid #fde68a; border-radius:6px; padding:4px 10px; font-size:0.8rem; font-weight:700; margin-bottom:8px;">⚠️ Metas de ' + (META.ano || 'ano selecionado') + ' não cadastradas — nota calculada com o padrão.</div>') +
           '<div style="font-size:1.02rem; color:#bfdbfe; margin-bottom:12px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>' +
+          buildHistoricoResponsavelHTML(contract) +
           '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
             '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#86efac;">Nota do Mês: ' + curScore.monthScore + ' pts</div>' +
             '<div style="background:rgba(255,255,255,0.14); padding:7px 14px; border-radius:8px; font-size:0.88rem; font-weight:800; color:#fde047;">Média Acumulada: ' + avgAccum + ' pts</div>' +
