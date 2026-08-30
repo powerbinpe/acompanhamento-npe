@@ -37,17 +37,24 @@
       position: sticky;
       top: 0;
       z-index: 9999;
-      display: flex; justify-content: space-between; align-items: center;
+      display: flex; flex-direction: column; align-items: stretch; gap: 10px;
       background: #112244;
-      padding: 10px 16px; border-radius: 12px; border: 2px solid #2a3e6a;
+      padding: 10px 16px 12px; border-radius: 12px; border: 2px solid #2a3e6a;
       margin-bottom: 14px; box-shadow: 0 6px 18px rgba(0,0,0,0.25);
     }
 
-    .controls { display: flex; align-items: center; gap: 12px; }
+    /* Segunda linha, alinhada a esquerda: as abas mandam na primeira e os comandos na
+       segunda, cada um com a largura toda. Antes disputavam a mesma linha, e cada aba ou
+       botao novo espremia o outro lado. */
+    .controls {
+      display: flex; align-items: center; justify-content: flex-start;
+      gap: 10px; flex-wrap: wrap;
+      padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.10);
+    }
 
     /* Navigation Tabs */
     .nav-tabs {
-      display: flex; gap: 8px; margin-bottom: 0; padding-bottom: 0; border-bottom: none;
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 0; padding-bottom: 0; border-bottom: none;
     }
 
     .tab-btn { background: none; border: none; padding: 12px 20px; font-size: 1.05rem; font-weight: 700; color: #94a3b8; cursor: pointer; border-bottom: 3.5px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px; }
@@ -220,7 +227,7 @@
 
 
   <!-- Modal: acesso do Setor de Performance (login proprio, senha guardada so como hash) -->
-  <div id="acessoModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.90); backdrop-filter:blur(5px); z-index:99999999; justify-content:center; align-items:center; padding:20px;">
+  <div id="acessoModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.90); backdrop-filter:blur(5px); z-index:99999999; justify-content:center; align-items:flex-start; padding:28px 20px 20px; overflow-y:auto;">
     <div style="background:#ffffff; border-radius:14px; width:100%; max-width:430px; box-shadow:0 12px 36px rgba(0,0,0,0.45); border:2.5px solid #0284c7; overflow:hidden;">
       <div style="background:linear-gradient(135deg, #0f2b5c 0%, #0284c7 100%); padding:16px 20px; color:#ffffff;">
         <h3 id="acessoTitulo" style="margin:0; font-size:1.08rem; font-weight:800;">&#128737; Acesso do Setor de Performance</h3>
