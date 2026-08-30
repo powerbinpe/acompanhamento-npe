@@ -213,6 +213,17 @@
   </div>
 
 
+
+  <!-- Modal: acesso do Setor de Performance (login proprio, senha guardada so como hash) -->
+  <div id="acessoModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.90); backdrop-filter:blur(5px); z-index:99999999; justify-content:center; align-items:center; padding:20px;">
+    <div style="background:#ffffff; border-radius:14px; width:100%; max-width:430px; box-shadow:0 12px 36px rgba(0,0,0,0.45); border:2.5px solid #0284c7; overflow:hidden;">
+      <div style="background:linear-gradient(135deg, #0f2b5c 0%, #0284c7 100%); padding:16px 20px; color:#ffffff;">
+        <h3 id="acessoTitulo" style="margin:0; font-size:1.08rem; font-weight:800;">&#128737; Acesso do Setor de Performance</h3>
+        <p id="acessoSubtitulo" style="margin:3px 0 0 0; font-size:0.78rem; color:#bae6fd;">Entre para liberar a edi&ccedil;&atilde;o de metas, pareceres e ader&ecirc;ncia.</p>
+      </div>
+      <div id="acessoCorpo" style="padding:18px 20px;"></div>
+    </div>
+  </div>
   <!-- Modal: Cadastro de Metas (Master) -- le e grava nas listas META_DESEMPENHO / META_BOAS_PRATICAS -->
   <div id="metasModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
     <div style="background:#ffffff; border-radius:14px; width:100%; max-width:1060px; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #0f766e; overflow:hidden; display:flex; flex-direction:column; max-height:92vh;">
@@ -457,16 +468,8 @@
 
     function checkPerformanceAccess() {
       if (window.currentRoleSimulated === "GESTOR") return false;
-      if (window.currentRoleSimulated === "MASTER") return true;
-
-      const params = new URLSearchParams(window.location.search);
-      const isUserPerformanceParam = (params.get("IsUserPerformance") || "").toUpperCase() === "TRUE";
-      const userEmail = (params.get("UserEmail") || "").toLowerCase().trim();
-
-      if (isUserPerformanceParam) return true;
-      if (!userEmail) return false;
-
-      return window.MASTER_PERFORMANCE_EMAILS.some(allowed => userEmail.includes(allowed.toLowerCase().trim()));
+      // Uma unica fonte de verdade para o perfil Master: a sessao autenticada.
+      return (typeof isUserAuthorizedMaster === "function") ? isUserAuthorizedMaster() : false;
     }
     window.checkPerformanceAccess = checkPerformanceAccess;
         
@@ -922,18 +925,104 @@ function hydrateFromPowerBI() {
       "ivan.santos"
     ];
 
+    // =========================================================================
+    // ACESSO MASTER -- login proprio, com senha guardada apenas como hash
+    // =========================================================================
+    // A senha nunca sai do navegador nem e gravada em lugar nenhum: derivamos PBKDF2-SHA256
+    // com 200.000 iteracoes (salt = login) e mandamos so o hash. O fluxo compara com o que
+    // esta na lista PARAM_ACESSO e devolve apenas ok/perfil/nome -- a lista de hashes nunca
+    // trafega. Quem abrir a lista ve o hash, que nao volta a ser senha.
+    window.FLOW_LOGIN_URL  = safeGetStorage("npe_flow_login_url",  "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/bcf1295963df418f91a48dd71ea02e60/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VfbYQC2H12f_6GZCSMmrctJBKF1B8ns4TalVByCO688");
+    window.FLOW_ACESSO_URL = safeGetStorage("npe_flow_acesso_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/21/workflows/3e1e9c88eb3346be925d6c2f56220ecb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=W8wHZ3CVXRuiCgKHGwSuieHdMHqGIIwIJYqZM5oROS4");
+    window.FLOW_LER_ACESSO_URL = safeGetStorage("npe_flow_ler_acesso_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/08/workflows/4f42fa8e9a2f4d39bb032e720ac3e4b9/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=8qsTnTTp3xRbHRtm4QbnjnbEpOoMMKWhyZFoA9kynBs");
+    var ACESSO_ITERACOES = 200000;
+
+    async function derivarHashSenha(login, senha) {
+      var enc = new TextEncoder();
+      var chave = await crypto.subtle.importKey("raw", enc.encode(senha), "PBKDF2", false, ["deriveBits"]);
+      var bits = await crypto.subtle.deriveBits(
+        { name: "PBKDF2", salt: enc.encode(String(login).toLowerCase().trim()),
+          iterations: ACESSO_ITERACOES, hash: "SHA-256" }, chave, 256);
+      return Array.from(new Uint8Array(bits)).map(function(b) {
+        return b.toString(16).padStart(2, "0");
+      }).join("");
+    }
+
+    function sessaoAcesso() {
+      try {
+        var raw = safeGetStorage("npe_acesso_sessao", null);
+        if (!raw) return null;
+        var s = JSON.parse(raw);
+        return (s && s.login && s.perfil) ? s : null;
+      } catch (e) { return null; }
+    }
+    function gravarSessaoAcesso(s) { safeSetStorage("npe_acesso_sessao", JSON.stringify(s)); }
+    function encerrarSessaoAcesso() {
+      safeSetStorage("npe_acesso_sessao", "");
+      window.isMaster = false;
+      window.currentRoleSimulated = "GESTOR";
+      safeSetStorage("npe_active_role", "GESTOR");
+      if (typeof updateRoleUI === "function") updateRoleUI();
+      if (typeof refreshAllScoreViews === "function") refreshAllScoreViews();
+      if (typeof showToast === "function") showToast("\ud83d\udd12 Sess\u00e3o encerrada.");
+    }
+    function usuarioLogado() {
+      var s = sessaoAcesso();
+      return s ? (s.nome || s.login) : "";
+    }
+    function loginLogado() { var s = sessaoAcesso(); return s ? s.login : ""; }
+    function ehProprietario() { var s = sessaoAcesso(); return !!s && s.perfil === "PROPRIETARIO"; }
+
+    async function autenticarAcesso(login, senha) {
+      login = String(login || "").toLowerCase().trim();
+      if (!login || !senha) return { ok: false, erro: "Informe usu\u00e1rio e senha." };
+      try {
+        var hash = await derivarHashSenha(login, senha);
+        var resp = await fetch(window.FLOW_LOGIN_URL, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ login: login, hash: hash })
+        });
+        if (!resp.ok) return { ok: false, erro: "Falha ao consultar o servidor (" + resp.status + ")." };
+        var r = await resp.json();
+        if (!r || r.ok !== true) return { ok: false, erro: "Usu\u00e1rio ou senha incorretos." };
+        return { ok: true, login: login, nome: r.nome || login, perfil: r.perfil || "MASTER",
+                 id: parseInt(r.id, 10) || 0 };
+      } catch (err) {
+        return { ok: false, erro: "N\u00e3o foi poss\u00edvel validar o acesso agora." };
+      }
+    }
+
+    async function trocarSenhaAcesso(senhaAtual, senhaNova) {
+      var s = sessaoAcesso();
+      if (!s) return { ok: false, erro: "Sess\u00e3o expirada. Entre novamente." };
+      if (String(senhaNova || "").length < 8) return { ok: false, erro: "A nova senha precisa de pelo menos 8 caracteres." };
+      var conf = await autenticarAcesso(s.login, senhaAtual);
+      if (!conf.ok) return { ok: false, erro: "Senha atual incorreta." };
+      try {
+        var novoHash = await derivarHashSenha(s.login, senhaNova);
+        // id > 0 faz o fluxo ATUALIZAR o registro. Com id 0 ele criaria uma linha nova e a
+        // senha antiga continuaria valendo -- foi o que o teste pegou.
+        var idAlvo = parseInt(conf.id, 10) || parseInt(s.id, 10) || 0;
+        if (!idAlvo) return { ok: false, erro: "Não foi possível identificar seu cadastro. Entre novamente." };
+        var resp = await fetch(window.FLOW_ACESSO_URL, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuarios: [{ id: idAlvo, login: s.login, nome: s.nome,
+                   hash: novoHash, perfil: s.perfil, ativo: "Sim" }] })
+        });
+        if (!resp.ok) return { ok: false, erro: "Falha ao gravar (" + resp.status + ")." };
+        return { ok: true };
+      } catch (err) { return { ok: false, erro: "Falha ao gravar a nova senha." }; }
+    }
+
+    // O perfil Master agora depende de SESSAO AUTENTICADA, nao mais do e-mail do Power BI.
+    // Motivo: no BiExplorer o USERPRINCIPALNAME devolve a conta de servico que publicou o
+    // relatorio, entao o e-mail nunca identifica quem esta acessando. O SimRoleOverride
+    // continua podendo REBAIXAR para Gestor (util em teste), mas nao eleva mais ninguem --
+    // elevar por query-string seria uma porta aberta, ja que a pagina e publica.
     function isUserAuthorizedMaster() {
       var params = new URLSearchParams(window.location.search);
-      var simRoleOverride = (params.get("SimRoleOverride") || "").toUpperCase();
-      if (simRoleOverride === "GESTOR") return false;
-      if (simRoleOverride === "MASTER") return true;
-      var isUserPerformanceParam = (params.get("IsUserPerformance") || "").toUpperCase() === "TRUE";
-      var userEmail = (params.get("UserEmail") || "").toLowerCase().trim();
-      if (isUserPerformanceParam) return true;
-      if (!userEmail) return true;
-      return window.MASTER_PERFORMANCE_EMAILS.some(function(allowed) {
-        return userEmail.indexOf(allowed.toLowerCase().trim()) !== -1;
-      });
+      if ((params.get("SimRoleOverride") || "").toUpperCase() === "GESTOR") return false;
+      return !!sessaoAcesso();
     }
 
     // Read stored simulation preference
@@ -951,6 +1040,8 @@ function hydrateFromPowerBI() {
 
     var _roleToggleLock = false;
     function toggleRole() {
+      // Sem sessao, o botao vira "entrar": ninguem vira Master sem passar pelo login.
+      if (!sessaoAcesso()) { if (typeof abrirLoginModal === "function") abrirLoginModal(); return; }
       if (_roleToggleLock) return;
       _roleToggleLock = true;
       setTimeout(function() { _roleToggleLock = false; }, 150);
@@ -968,7 +1059,7 @@ function hydrateFromPowerBI() {
     function checkPerformanceAccess() {
       var activeRole = safeGetStorage("npe_active_role", window.currentRoleSimulated);
       if (activeRole === "GESTOR") return false;
-      if (activeRole === "MASTER") return true;
+      // "MASTER" salvo no navegador nao basta: sem sessao autenticada, nao ha Master.
       return isUserAuthorizedMaster();
     }
 
@@ -980,8 +1071,8 @@ function hydrateFromPowerBI() {
       window.isMaster = false;
       window.currentRoleSimulated = "GESTOR";
     } else if (savedRoleAtStart === "MASTER") {
-      window.isMaster = true;
-      window.currentRoleSimulated = "MASTER";
+      window.isMaster = isUserAuthorizedMaster();
+      window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
     } else {
       window.isMaster = isUserAuthorizedMaster();
       window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
@@ -5120,6 +5211,136 @@ function hydrateFromPowerBI() {
       metasAtualizaDirtyInfo();
     }
 
+    // ---- gerenciamento de usuarios (apenas PROPRIETARIO) ----------------
+    window.ACESSO_USUARIOS = [];
+    async function carregarUsuariosAcesso() {
+      try {
+        var r = await fetch(window.FLOW_LER_ACESSO_URL, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+        if (!r.ok) return false;
+        var lista = await r.json();
+        window.ACESSO_USUARIOS = Array.isArray(lista) ? lista : [];
+        return true;
+      } catch (e) { return false; }
+    }
+
+    async function gravarUsuarioAcesso(u) {
+      var r = await fetch(window.FLOW_ACESSO_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuarios: [u] }) });
+      return r.ok;
+    }
+
+    function _senhaAleatoria() {
+      var A = "ABCDEFGHJKLMNPQRSTUVWXYZ", a = "abcdefghijkmnpqrstuvwxyz", d = "23456789";
+      function p(s, n) {
+        var out = "", arr = new Uint32Array(n);
+        crypto.getRandomValues(arr);
+        for (var i = 0; i < n; i++) out += s[arr[i] % s.length];
+        return out;
+      }
+      return p(A, 3) + p(a, 4) + "@" + p(d, 4);
+    }
+
+    async function novoUsuarioAcesso() {
+      if (!ehProprietario()) { showToast("\u26d4 Apenas o propriet\u00e1rio cadastra usu\u00e1rios."); return; }
+      var login = prompt("Usu\u00e1rio (o mesmo formato dos demais, ex.: nome.sobrenome):", "");
+      if (!login) return;
+      login = String(login).toLowerCase().trim();
+      if (window.ACESSO_USUARIOS.some(function(u) { return String(u.login).toLowerCase() === login; })) {
+        showToast("\u26a0\ufe0f Esse usu\u00e1rio j\u00e1 existe."); return;
+      }
+      var nome = prompt("Nome de exibi\u00e7\u00e3o:", login.toUpperCase().replace(".", " "));
+      if (!nome) return;
+      var senha = _senhaAleatoria();
+      var hash = await derivarHashSenha(login, senha);
+      var ok = await gravarUsuarioAcesso({ id: 0, login: login, nome: nome, hash: hash,
+                                           perfil: "MASTER", ativo: "Sim" });
+      if (!ok) { showToast("\u274c Falha ao cadastrar."); return; }
+      await carregarUsuariosAcesso();
+      renderMetasPanel();
+      // A senha so aparece aqui, uma vez: nao fica gravada em lugar nenhum em texto.
+      alert("Usu\u00e1rio criado.\n\nLogin: " + login + "\nSenha provis\u00f3ria: " + senha +
+            "\n\nAnote e entregue agora \u2014 esta senha n\u00e3o pode ser consultada depois. " +
+            "Pe\u00e7a para trocar no primeiro acesso.");
+    }
+
+    async function redefinirSenhaUsuario(login) {
+      if (!ehProprietario()) return;
+      var u = window.ACESSO_USUARIOS.filter(function(x) { return x.login === login; })[0];
+      if (!u) return;
+      if (!confirm("Gerar uma nova senha provis\u00f3ria para " + u.nome + "?\nA senha atual deixa de funcionar.")) return;
+      var senha = _senhaAleatoria();
+      var hash = await derivarHashSenha(login, senha);
+      var ok = await gravarUsuarioAcesso({ id: parseInt(u.id, 10), login: u.login, nome: u.nome,
+                                           hash: hash, perfil: u.perfil, ativo: u.ativo });
+      if (!ok) { showToast("\u274c Falha ao redefinir."); return; }
+      alert("Nova senha provis\u00f3ria de " + u.nome + ":\n\n" + senha +
+            "\n\nAnote e entregue agora \u2014 n\u00e3o pode ser consultada depois.");
+    }
+
+    // O fluxo de gravacao reescreve todos os campos e o de leitura nao devolve o hash (de
+    // proposito, para nao expor senhas). Entao nao da para preservar a senha ao mexer no ativo:
+    // desativar invalida a senha, e reativar emite uma nova, mostrada uma unica vez.
+    async function alternarAtivoUsuario(login) {
+      if (!ehProprietario()) return;
+      var u = window.ACESSO_USUARIOS.filter(function(x) { return x.login === login; })[0];
+      if (!u) return;
+      if (String(u.perfil) === "PROPRIETARIO") { showToast("\u26d4 O propriet\u00e1rio n\u00e3o pode ser desativado."); return; }
+      var novo = String(u.ativo) === "Sim" ? "Não" : "Sim";
+      var senhaNova = _senhaAleatoria();
+      var hashNovo = await derivarHashSenha(login, novo === "Sim" ? senhaNova : _senhaAleatoria());
+      var ok = await gravarUsuarioAcesso({ id: parseInt(u.id, 10), login: u.login, nome: u.nome,
+                                           hash: hashNovo, perfil: u.perfil, ativo: novo });
+      if (!ok) { showToast("❌ Falha ao alterar."); return; }
+      await carregarUsuariosAcesso();
+      renderMetasPanel();
+      if (novo === "Sim") {
+        alert("Usu\u00e1rio " + u.nome + " reativado.\n\nNova senha provis\u00f3ria: " + senhaNova +
+              "\n\nAnote e entregue agora \u2014 n\u00e3o pode ser consultada depois.");
+      } else {
+        showToast("✅ " + u.nome + " desativado. A senha dele foi invalidada.");
+      }
+    }
+
+    function renderUsuariosPanel(body) {
+      if (!ehProprietario()) {
+        body.innerHTML = '<div style="padding:30px; text-align:center; color:#92400e; background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; font-weight:700;">' +
+          'Apenas o perfil <b>PROPRIET\u00c1RIO</b> gerencia os usu\u00e1rios do Setor de Performance.</div>';
+        return;
+      }
+      var us = (window.ACESSO_USUARIOS || []).slice().sort(function(a, b) {
+        return String(a.perfil).localeCompare(String(b.perfil)) || String(a.login).localeCompare(String(b.login));
+      });
+      var html = '<div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:0.82rem; color:#1e3a8a;">' +
+        'Quem entra aqui pode editar metas, eleg\u00edbilidade, agrupamentos, pareceres e ader\u00eancia. ' +
+        'A senha \u00e9 guardada apenas como <b>hash</b> \u2014 nem eu, nem a lista, nem voc\u00ea conseguem l\u00ea-la de volta. ' +
+        'Ao redefinir, a senha aparece <b>uma \u00fanica vez</b> na tela.' +
+      '</div>' +
+      '<div style="display:flex; align-items:baseline; gap:10px; margin-bottom:10px;">' +
+        '<span style="font-size:0.82rem; font-weight:800; color:#0f2b5c; text-transform:uppercase;">Usu\u00e1rios</span>' +
+        '<span style="font-size:0.76rem; color:#64748b;">' + us.length + '</span>' +
+        '<button type="button" onclick="novoUsuarioAcesso()" style="margin-left:auto; background:#0369a1; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer;">+ Novo usu\u00e1rio</button>' +
+      '</div><table style="width:100%; border-collapse:collapse;">';
+      us.forEach(function(u) {
+        var inativo = String(u.ativo) !== "Sim";
+        var dono = String(u.perfil) === "PROPRIETARIO";
+        html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
+          '<td style="padding:8px;">' +
+            '<div style="font-weight:800; font-size:0.90rem; color:' + (inativo ? "#94a3b8" : "#0f2b5c") + '; ' + (inativo ? "text-decoration:line-through;" : "") + '">' + u.nome + '</div>' +
+            '<div style="font-size:0.74rem; color:#64748b;">' + u.login + ' &middot; ' + u.perfil + (inativo ? ' &middot; <b>inativo</b>' : "") + '</div>' +
+          '</td>' +
+          '<td style="padding:8px; text-align:right; white-space:nowrap;">' +
+            '<button type="button" onclick="redefinirSenhaUsuario(\'' + u.login + '\')" style="background:#e0f2fe; color:#075985; border:none; padding:6px 12px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer; margin-right:6px;">Redefinir senha</button>' +
+            (dono ? '<span style="font-size:0.74rem; color:#94a3b8;">propriet\u00e1rio</span>'
+                  : '<button type="button" onclick="alternarAtivoUsuario(\'' + u.login + '\')" style="background:' + (inativo ? "#dcfce7" : "#fee2e2") + '; color:' + (inativo ? "#166534" : "#991b1b") + '; border:none; padding:6px 12px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer;">' + (inativo ? "Reativar" : "Desativar") + '</button>') +
+          '</td>' +
+        '</tr>';
+      });
+      html += '</table>';
+      body.innerHTML = html;
+    }
+
     function trocarAbaMetas(aba) {
       METAS_ABA = aba;
       renderMetasPanel();
@@ -5133,7 +5354,9 @@ function hydrateFromPowerBI() {
 
       var barra = document.getElementById("metasAbasBar");
       if (barra) {
-        barra.innerHTML = [["METAS", "\ud83c\udfaf Metas"], ["ELEGIBILIDADE", "\u2699\ufe0f Elegibilidade das OSs"], ["AGRUPAMENTOS", "\ud83d\udd17 Agrupamentos"]].map(function(a) {
+        var abas = [["METAS", "\ud83c\udfaf Metas"], ["ELEGIBILIDADE", "\u2699\ufe0f Elegibilidade das OSs"], ["AGRUPAMENTOS", "\ud83d\udd17 Agrupamentos"]];
+        if (ehProprietario()) abas.push(["USUARIOS", "\ud83d\udc65 Usu\u00e1rios"]);
+        barra.innerHTML = abas.map(function(a) {
           var on = (METAS_ABA === a[0]);
           return '<button type="button" onclick="trocarAbaMetas(\'' + a[0] + '\')" style="background:' + (on ? "#0f766e" : "#e2e8f0") + '; color:' + (on ? "#fff" : "#475569") + '; border:none; padding:7px 16px; border-radius:7px; font-weight:800; font-size:0.84rem; cursor:pointer;">' + a[1] + '</button>';
         }).join("");
@@ -5142,6 +5365,13 @@ function hydrateFromPowerBI() {
       if (filtrosMeta) filtrosMeta.style.display = (METAS_ABA === "METAS") ? "flex" : "none";
       if (METAS_ABA === "ELEGIBILIDADE") { renderElegibilidadePanel(body); return; }
       if (METAS_ABA === "AGRUPAMENTOS") { renderAgrupamentosPanel(body); return; }
+      if (METAS_ABA === "USUARIOS") {
+        if (!window.ACESSO_USUARIOS.length) {
+          body.innerHTML = '<div style="padding:36px; text-align:center; color:#64748b; font-weight:700;">Carregando usu\u00e1rios...</div>';
+          carregarUsuariosAcesso().then(function() { renderUsuariosPanel(body); });
+        } else { renderUsuariosPanel(body); }
+        return;
+      }
 
       var anos = metasAnosCadastrados();
       if (!anos.length) {
@@ -5227,7 +5457,8 @@ function hydrateFromPowerBI() {
       var pars   = window.METAS_DB.parametros.filter(function(r) { return r._dirty; });
       if (!desemp.length && !bps.length && !pars.length) { showToast("\u2139\ufe0f Nenhuma altera\u00e7\u00e3o para salvar."); return; }
       if (btn) { btn.disabled = true; btn.innerHTML = "\u23f3 Salvando..."; btn.style.opacity = "0.7"; }
-      var usuario = (window.CURRENT_USER_EMAIL || safeGetStorage("npe_user_email", "") || "app-acompanhamento");
+      // Auditoria real: grava quem estava logado, nao mais um rotulo generico.
+      var usuario = loginLogado() || (window.CURRENT_USER_EMAIL || "app-acompanhamento");
       var okD = true, okB = true, okP = true;
       try {
         if (desemp.length) {
@@ -5278,6 +5509,95 @@ function hydrateFromPowerBI() {
       }
     }
 
+    // ---- tela de acesso -------------------------------------------------
+    var ACESSO_ABA = "LOGIN";
+    function abrirLoginModal(aba) {
+      ACESSO_ABA = aba || (sessaoAcesso() ? "SENHA" : "LOGIN");
+      var m = document.getElementById("acessoModal");
+      if (!m) return;
+      m.style.display = "flex";
+      renderAcessoModal();
+    }
+    function fecharLoginModal() {
+      var m = document.getElementById("acessoModal");
+      if (m) m.style.display = "none";
+    }
+    function _campo(id, rotulo, tipo) {
+      return '<div style="margin-bottom:12px;">' +
+        '<label style="display:block; font-size:0.76rem; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:4px;">' + rotulo + '</label>' +
+        '<input id="' + id + '" type="' + tipo + '" autocomplete="off" style="width:100%; padding:9px 11px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.92rem; box-sizing:border-box;">' +
+      '</div>';
+    }
+    function renderAcessoModal(msg, cor) {
+      var body = document.getElementById("acessoCorpo");
+      var tit = document.getElementById("acessoTitulo");
+      var sub = document.getElementById("acessoSubtitulo");
+      if (!body) return;
+      var s = sessaoAcesso();
+      var aviso = msg ? '<div style="background:' + (cor === "ok" ? "#ecfdf5" : "#fef2f2") + '; border:1px solid ' + (cor === "ok" ? "#6ee7b7" : "#fecaca") + '; color:' + (cor === "ok" ? "#065f46" : "#991b1b") + '; border-radius:8px; padding:8px 10px; font-size:0.82rem; font-weight:700; margin-bottom:12px;">' + msg + '</div>' : "";
+
+      if (ACESSO_ABA === "SENHA" && s) {
+        if (tit) tit.innerHTML = "&#128273; Trocar minha senha";
+        if (sub) sub.innerText = s.nome + " \u00b7 " + s.perfil;
+        body.innerHTML = aviso +
+          _campo("acSenhaAtual", "Senha atual", "password") +
+          _campo("acSenhaNova", "Nova senha (m\u00ednimo 8 caracteres)", "password") +
+          _campo("acSenhaNova2", "Repita a nova senha", "password") +
+          '<div style="display:flex; gap:8px; margin-top:14px;">' +
+            '<button type="button" onclick="salvarNovaSenha()" style="flex:1; background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; border:none; padding:10px; border-radius:8px; font-weight:800; cursor:pointer;">Salvar nova senha</button>' +
+            '<button type="button" onclick="fecharLoginModal()" style="background:#e2e8f0; color:#475569; border:none; padding:10px 16px; border-radius:8px; font-weight:800; cursor:pointer;">Fechar</button>' +
+          '</div>' +
+          '<div style="margin-top:14px; padding-top:12px; border-top:1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">' +
+            '<span style="font-size:0.78rem; color:#64748b;">Conectado como <b>' + s.nome + '</b></span>' +
+            '<button type="button" onclick="encerrarSessaoAcesso(); fecharLoginModal();" style="margin-left:auto; background:#fee2e2; color:#991b1b; border:none; padding:6px 12px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer;">Sair</button>' +
+          '</div>';
+        return;
+      }
+
+      if (tit) tit.innerHTML = "&#128737; Acesso do Setor de Performance";
+      if (sub) sub.innerText = "Entre para liberar a edi\u00e7\u00e3o de metas, pareceres e ader\u00eancia.";
+      body.innerHTML = aviso +
+        _campo("acLogin", "Usu\u00e1rio", "text") +
+        _campo("acSenha", "Senha", "password") +
+        '<div style="display:flex; gap:8px; margin-top:14px;">' +
+          '<button type="button" id="acEntrarBtn" onclick="fazerLogin()" style="flex:1; background:linear-gradient(135deg,#0284c7,#0369a1); color:#fff; border:none; padding:10px; border-radius:8px; font-weight:800; cursor:pointer;">Entrar</button>' +
+          '<button type="button" onclick="fecharLoginModal()" style="background:#e2e8f0; color:#475569; border:none; padding:10px 16px; border-radius:8px; font-weight:800; cursor:pointer;">Cancelar</button>' +
+        '</div>' +
+        '<div style="margin-top:12px; font-size:0.74rem; color:#94a3b8; line-height:1.4;">Sem entrar, o painel funciona em modo <b>Gestor</b>: os dados aparecem normalmente, s\u00f3 a edi\u00e7\u00e3o fica bloqueada.</div>';
+      var inp = document.getElementById("acSenha");
+      if (inp) inp.addEventListener("keydown", function(e) { if (e.key === "Enter") fazerLogin(); });
+    }
+
+    async function fazerLogin() {
+      var btn = document.getElementById("acEntrarBtn");
+      var login = (document.getElementById("acLogin") || {}).value || "";
+      var senha = (document.getElementById("acSenha") || {}).value || "";
+      if (btn) { btn.disabled = true; btn.innerHTML = "\u23f3 Verificando..."; }
+      var r = await autenticarAcesso(login, senha);
+      if (btn) { btn.disabled = false; btn.innerHTML = "Entrar"; }
+      if (!r.ok) { renderAcessoModal(r.erro || "N\u00e3o foi poss\u00edvel entrar.", "erro"); return; }
+      gravarSessaoAcesso({ login: r.login, nome: r.nome, perfil: r.perfil, id: r.id, ts: Date.now() });
+      window.isMaster = true;
+      window.currentRoleSimulated = "MASTER";
+      safeSetStorage("npe_active_role", "MASTER");
+      fecharLoginModal();
+      if (typeof updateRoleUI === "function") updateRoleUI();
+      if (typeof updateFromURLParams === "function") updateFromURLParams();
+      if (typeof refreshAllScoreViews === "function") refreshAllScoreViews();
+      showToast("\ud83d\udee1\ufe0f Bem-vindo, " + r.nome + " \u2014 perfil " + r.perfil + ".");
+    }
+
+    async function salvarNovaSenha() {
+      var atual = (document.getElementById("acSenhaAtual") || {}).value || "";
+      var nova = (document.getElementById("acSenhaNova") || {}).value || "";
+      var nova2 = (document.getElementById("acSenhaNova2") || {}).value || "";
+      if (nova !== nova2) { renderAcessoModal("As duas senhas novas n\u00e3o coincidem.", "erro"); return; }
+      var r = await trocarSenhaAcesso(atual, nova);
+      if (!r.ok) { renderAcessoModal(r.erro || "Falha ao trocar a senha.", "erro"); return; }
+      renderAcessoModal("Senha alterada com sucesso.", "ok");
+      showToast("\u2705 Senha alterada.");
+    }
+
     // =========================================================================
     // 13. INITIALIZATION & GLOBAL WINDOW EXPORTS
     // =========================================================================
@@ -5292,8 +5612,8 @@ function hydrateFromPowerBI() {
         window.isMaster = false;
         window.currentRoleSimulated = "GESTOR";
       } else if (savedRole === "MASTER") {
-        window.isMaster = true;
-        window.currentRoleSimulated = "MASTER";
+        window.isMaster = isUserAuthorizedMaster();
+        window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
       } else {
         window.isMaster = isUserAuthorizedMaster();
         window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
@@ -5354,6 +5674,10 @@ function hydrateFromPowerBI() {
     window.onParamAtivoChange = onParamAtivoChange;
     window.adicionarParametro = adicionarParametro;
     window.adicionarGrupo = adicionarGrupo;
+    window.novoUsuarioAcesso = novoUsuarioAcesso;
+    window.redefinirSenhaUsuario = redefinirSenhaUsuario;
+    window.alternarAtivoUsuario = alternarAtivoUsuario;
+    window.carregarUsuariosAcesso = carregarUsuariosAcesso;
     window.decidirCandidato = decidirCandidato;
     window.candidatosDeAgrupamento = candidatosDeAgrupamento;
     window.gruposCadastrados = gruposCadastrados;
@@ -5364,6 +5688,14 @@ function hydrateFromPowerBI() {
     window.onMetaBPChange = onMetaBPChange;
     window.carregarMetasDoFluxo = carregarMetasDoFluxo;
     window.ACTIVE_CONTRACTS_CATALOG = ACTIVE_CONTRACTS_CATALOG;
+    window.abrirLoginModal = abrirLoginModal;
+    window.fecharLoginModal = fecharLoginModal;
+    window.fazerLogin = fazerLogin;
+    window.salvarNovaSenha = salvarNovaSenha;
+    window.encerrarSessaoAcesso = encerrarSessaoAcesso;
+    window.sessaoAcesso = sessaoAcesso;
+    window.usuarioLogado = usuarioLogado;
+    window.ehProprietario = ehProprietario;
 
   
     </script>
