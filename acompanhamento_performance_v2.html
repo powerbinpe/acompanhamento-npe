@@ -573,7 +573,11 @@ function hydrateOSScoreDataFromPowerBI(params) {
       bpAprovS1: parseInt(f[25], 10) || 0,
       bpReconS1: parseInt(f[26], 10) || 0,
       bpAprovS2: parseInt(f[27], 10) || 0,
-      bpReconS2: parseInt(f[28], 10) || 0
+      bpReconS2: parseInt(f[28], 10) || 0,
+      // 33 e 34 porque Setor e Gerente foram acrescentados NO FIM da medida -- inserir no
+      // meio deslocaria todos os indices seguintes e quebraria tudo silenciosamente.
+      setor: f[33] || "",
+      gerente: f[34] || ""
     });
   }
   if (liveCatalog.length === 0) return;
@@ -1852,13 +1856,42 @@ function hydrateFromPowerBI() {
         rotulo + ': ' + v.toFixed(1) + '%</div>';
     }
 
+    // Identificacao da OS em tres linhas. Setor e Gerente so aparecem quando a medida os
+    // devolve -- OS antiga ou CTT incompleta nao deixa a linha orfa com um rotulo vazio.
+    function buildIdentificacaoOSHTML(contract) {
+      var linhas = [];
+      linhas.push('\u2022 Neg\u00f3cio: <b>' + (contract.negocio || "\u2014") + '</b>' +
+                  (contract.superintendencia ? '&nbsp; / &nbsp;\u2022 ' + contract.superintendencia : ''));
+      var l2 = [];
+      if (contract.setor) l2.push('\u2022 Setor: <b>' + contract.setor + '</b>');
+      if (contract.gerente) l2.push('\u2022 Gerente: <b>' + contract.gerente + '</b>');
+      if (l2.length) linhas.push(l2.join('&nbsp; / &nbsp;'));
+      linhas.push('\u2022 Gestor: <b>' + (contract.gestor || "\u2014") + '</b>');
+      return '<div style="font-size:1.0rem; color:#bfdbfe; margin-bottom:12px; line-height:1.65;">' +
+        linhas.join('<br>') + '</div>';
+    }
+
+    // % de pontos de cada categoria -- a mesma base do rodape das barras (pontos ponderados
+    // sobre o maximo aplicavel), nao o % de itens que bateram meta. E este que compoe a nota,
+    // entao e este que vale ser gravado.
+    function percentuaisPorCategoria(curScore) {
+      function p(val, max) { return max > 0 ? parseFloat(((val / max) * 100).toFixed(1)) : 0; }
+      return {
+        fin: p(curScore.finPts, 48),
+        gov: p(curScore.govPts, 9),
+        acomp: p(curScore.acompPts, 25),
+        pes: p(curScore.pesPts, 26),
+        ssma: p(curScore.ssmaPts, 25)
+      };
+    }
+
     function buildOSScorecardCardHTML(contract, curScore, avgAccum) {
       return '<div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 55%, #1e40af 100%); border-radius:16px; padding:26px 30px; color:#ffffff; border:2.5px solid #60a5fa; box-shadow:0 10px 32px rgba(0,0,0,0.30); display:flex; align-items:center; gap:32px; flex-wrap:wrap;">' +
         '<div style="flex-shrink:0;">' + buildScoreGaugeSVG(avgAccum, 100, 152) + '</div>' +
         '<div style="flex:1; min-width:220px;">' +
           '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + contract.name + '</div>' +
           (META.desemp ? '' : '<div style="background:#fef9c3; color:#92400e; border:1px solid #fde68a; border-radius:6px; padding:4px 10px; font-size:0.8rem; font-weight:700; margin-bottom:8px;">⚠️ Metas de ' + (META.ano || 'ano selecionado') + ' não cadastradas — nota calculada com o padrão.</div>') +
-          '<div style="font-size:1.02rem; color:#bfdbfe; margin-bottom:12px;">' + contract.negocio + ' • ' + contract.superintendencia + ' • Gestor: ' + contract.gestor + '</div>' +
+          buildIdentificacaoOSHTML(contract) +
           buildHistoricoResponsavelHTML(contract) +
           '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
             buildNotaBadgeHTML('Nota do Mês', curScore.monthScore) +
@@ -3998,6 +4031,9 @@ function hydrateFromPowerBI() {
         notaMes: cur.monthScore,
         notaAcum: parseFloat((meses > 0 ? (soma / meses) : cur.monthScore).toFixed(1)),
         mesesAvaliados: meses,
+        // Quebra por categoria do MES (nao do acumulado): e o retrato daquele mes que a
+        // Aba 5 mostra, e e o que a meritocracia vai somar por Preposto/Gerente/Superintendente.
+        pct: percentuaisPorCategoria(cur),
         // Mes sem nenhum topico apurado nao tem nota -- gravar um zero ali sujaria o ranking
         // e a media acumulada de todo mundo.
         temDado: cur.hasEvaluableData
@@ -4035,6 +4071,11 @@ function hydrateFromPowerBI() {
             indicador: "NOTA CONSOLIDADA DO M\u00caS",
             NotaMes: n.notaMes,      notaMes: n.notaMes,
             NotaAcum: n.notaAcum,    notaAcum: n.notaAcum,
+            PctFinanceiro: n.pct.fin,        pctFinanceiro: n.pct.fin,
+            PctGovernanca: n.pct.gov,        pctGovernanca: n.pct.gov,
+            PctAcompanhamento: n.pct.acomp,  pctAcompanhamento: n.pct.acomp,
+            PctPessoas: n.pct.pes,           pctPessoas: n.pct.pes,
+            PctSSMA: n.pct.ssma,             pctSSMA: n.pct.ssma,
             MesesAvaliados: n.mesesAvaliados, mesesAvaliados: n.mesesAvaliados,
             StatusValidacao: statusNota,  statusValidacao: statusNota,
             EmailUsuario: userEmail, emailUsuario: userEmail,
@@ -6377,6 +6418,7 @@ function hydrateFromPowerBI() {
     window.adicionarParametro = adicionarParametro;
     window.adicionarGrupo = adicionarGrupo;
     window.notasDaOS = notasDaOS;
+    window.percentuaisPorCategoria = percentuaisPorCategoria;
     window.gravarNotasDoAno = gravarNotasDoAno;
     window.renderTab5 = renderTab5;
     window.carregarTab5 = carregarTab5;
