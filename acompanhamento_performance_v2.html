@@ -4134,7 +4134,8 @@ function hydrateFromPowerBI() {
     // Textos que o app grava quando o campo fica vazio -- contar isso como preenchido faria
     // toda OS que ja salvou uma vez parecer completa.
     var TAB5_VAZIOS = ["SEM JUSTIFICATIVAS", "SEM PARECER REGISTRADO", "-"];
-    window.TAB5 = { ano: null, mes: null, ata: null, notas: null, carregando: false, erro: "" };
+    window.TAB5 = { ano: null, ataPorMes: {}, meses: [], notas: null,
+                    carregado: false, carregando: false, erro: "" };
     var TAB5_FILTRO = "TODAS";
 
     function tab5Preenchido(txt) {
@@ -4169,20 +4170,34 @@ function hydrateFromPowerBI() {
     async function carregarTab5(forcar) {
       var p = new URLSearchParams(window.location.search);
       var ano = parseInt(p.get("SelectedAno"), 10);
-      var mes = getMonthNumberFromParams(p);
-      if (!ano || !mes) { window.TAB5.erro = "SEM_FILTRO"; renderTab5(); return; }
-      if (!forcar && window.TAB5.ata && window.TAB5.ano === ano && window.TAB5.mes === mes) return;
+      if (!ano) { window.TAB5.erro = "SEM_FILTRO"; renderTab5(); return; }
+      if (!forcar && window.TAB5.carregado && window.TAB5.ano === ano) return;
 
       window.TAB5.carregando = true; window.TAB5.erro = "";
-      window.TAB5.ano = ano; window.TAB5.mes = mes;
+      window.TAB5.ano = ano;
       renderTab5();
       try {
-        var res = await Promise.all([
-          tab5Post(window.FLOW_LER_ATA_ANO_URL, { ano: ano, mes: mes }),
-          tab5Post(window.FLOW_LER_NOTAS_URL, { ano: ano })
-        ]);
-        window.TAB5.ata = res[0];
-        window.TAB5.notas = res[1];
+        // Ate o mes corrente no ano atual; ano fechado vai ate dezembro.
+        var hoje = new Date();
+        var ultimo = (ano === hoje.getFullYear()) ? (hoje.getMonth() + 1) : 12;
+        var meses = [];
+        for (var m = 1; m <= ultimo; m++) meses.push(m);
+
+        // Uma leitura por mes, em paralelo. O fluxo filtra por mes de proposito: a
+        // ATA_COMENTARIO passa de 6.000 linhas e pedir o ano inteiro de uma vez esbarra no
+        // limite de 5.000 itens do SharePoint, que devolve HTTP 200 com dado incompleto.
+        var chamadas = meses.map(function(mm) {
+          return tab5Post(window.FLOW_LER_ATA_ANO_URL, { ano: ano, mes: mm });
+        });
+        chamadas.push(tab5Post(window.FLOW_LER_NOTAS_URL, { ano: ano }));
+        var res = await Promise.all(chamadas);
+
+        var porMes = {};
+        meses.forEach(function(mm, idx) { porMes[mm] = res[idx]; });
+        window.TAB5.ataPorMes = porMes;
+        window.TAB5.meses = meses;
+        window.TAB5.notas = res[res.length - 1];
+        window.TAB5.carregado = true;
       } catch (e) {
         window.TAB5.erro = String(e && e.message ? e.message : e);
       }
@@ -4190,38 +4205,48 @@ function hydrateFromPowerBI() {
       renderTab5();
     }
 
-    // Quantos topicos cada OS realmente preencheu no mes.
+    // Por OS e por mes: quantos dos 23 topicos o gestor preencheu, quantos pareceres a
+    // Performance escreveu e quantos ja foram travados.
     function tab5ResumoPorOS() {
       var mapa = {};
-      (window.TAB5.ata || []).forEach(function(r) {
-        var os = extractPrimaryOSCode(String(r.os || "").toUpperCase());
-        if (!os) return;
-        var e = mapa[os] || (mapa[os] = { topicos: 0, master: 0, validados: 0, linhas: 0 });
-        e.linhas++;
-        if (tab5Preenchido(r.gestor)) e.topicos++;
-        if (tab5Preenchido(r.master)) e.master++;
-        if (String(r.status || "").trim() === "Validado") e.validados++;
+      (window.TAB5.meses || []).forEach(function(mm) {
+        (window.TAB5.ataPorMes[mm] || []).forEach(function(r) {
+          var os = extractPrimaryOSCode(String(r.os || "").toUpperCase());
+          if (!os) return;
+          var e = mapa[os] || (mapa[os] = { meses: {}, totalMeses: 0 });
+          var mes = e.meses[mm] || (e.meses[mm] = { topicos: 0, master: 0, validados: 0 });
+          if (tab5Preenchido(r.gestor)) mes.topicos++;
+          if (tab5Preenchido(r.master)) mes.master++;
+          if (String(r.status || "").trim() === "Validado") mes.validados++;
+        });
+      });
+      Object.keys(mapa).forEach(function(os) {
+        var e = mapa[os];
+        e.totalMeses = Object.keys(e.meses).filter(function(mm) { return e.meses[mm].topicos > 0; }).length;
       });
       return mapa;
     }
 
+    // Notas por OS: todos os meses gravados, mais a ULTIMA (o mes mais recente com nota),
+    // que e a que representa a OS no ranking.
     function tab5NotasPorOS() {
       var mapa = {};
       (window.TAB5.notas || []).forEach(function(r) {
-        if (parseInt(r.mes, 10) !== window.TAB5.mes) return;
         var os = extractPrimaryOSCode(String(r.os || "").toUpperCase());
-        if (!os) return;
-        mapa[os] = {
+        var mes = parseInt(r.mes, 10);
+        if (!os || !mes) return;
+        var e = mapa[os] || (mapa[os] = { meses: {}, ultima: null, ultimoMes: 0 });
+        var reg = {
           notaMes: parseFloat(r.notaMes),
           notaAcum: parseFloat(r.notaAcum),
           cats: {
-            fin: parseFloat(r.pctFinanceiro),
-            gov: parseFloat(r.pctGovernanca),
-            acomp: parseFloat(r.pctAcompanhamento),
-            pes: parseFloat(r.pctPessoas),
+            fin: parseFloat(r.pctFinanceiro), gov: parseFloat(r.pctGovernanca),
+            acomp: parseFloat(r.pctAcompanhamento), pes: parseFloat(r.pctPessoas),
             ssma: parseFloat(r.pctSSMA)
           }
         };
+        e.meses[mes] = reg;
+        if (mes >= e.ultimoMes) { e.ultimoMes = mes; e.ultima = reg; }
       });
       return mapa;
     }
@@ -4235,6 +4260,13 @@ function hydrateFromPowerBI() {
     }
 
     function tab5FiltrarLista(aba) { TAB5_FILTRO = aba; renderTab5(); }
+
+    // O corpo da pagina e azul escuro. Todo conteudo desta aba mora num painel branco,
+    // igual as demais -- sem isso o texto escuro fica invisivel sobre o fundo.
+    function tab5Painel(interno) {
+      return '<div style="background:#ffffff; border-radius:14px; padding:22px 24px; ' +
+             'box-shadow:0 2px 12px rgba(0,0,0,0.10);">' + interno + '</div>';
+    }
 
     // % na cor da faixa (a mesma escala do resto do app, vinda da META_GERAL).
     function tab5Pct(valor, tamanho) {
@@ -4262,11 +4294,19 @@ function hydrateFromPowerBI() {
       }).join("");
     }
 
-    // O corpo da pagina e azul escuro. Todo conteudo desta aba mora num painel branco,
-    // igual as demais -- sem isso o texto escuro fica invisivel sobre o fundo.
-    function tab5Painel(interno) {
-      return '<div style="background:#ffffff; border-radius:14px; padding:22px 24px; ' +
-             'box-shadow:0 2px 12px rgba(0,0,0,0.10);">' + interno + '</div>';
+    // Uma celula por mes: verde quando os 23 topicos foram preenchidos, amarelo quando
+    // parcial, cinza quando nao comecou. O numero e a contagem de topicos, nao o mes --
+    // o mes esta no cabecalho da coluna.
+    function tab5CelulaMes(reg) {
+      var t = reg ? reg.topicos : 0;
+      var cor, fundo, texto;
+      if (t >= 23)     { cor = "#166534"; fundo = "#dcfce7"; texto = "23"; }
+      else if (t > 0)  { cor = "#92400e"; fundo = "#fef9c3"; texto = String(t); }
+      else             { cor = "#cbd5e1"; fundo = "#f8fafc"; texto = "\u2014"; }
+      var titulo = t > 0 ? (t + " de 23 t\u00f3picos" + (reg.validados ? " \u00b7 " + reg.validados + " validado(s)" : "")) : "sem preenchimento";
+      return '<td title="' + titulo + '" style="padding:3px 2px; text-align:center;">' +
+        '<span style="display:inline-block; min-width:26px; padding:3px 0; border-radius:5px; background:' + fundo +
+        '; color:' + cor + '; font-size:0.72rem; font-weight:900;">' + texto + '</span></td>';
     }
 
     function renderTab5() {
@@ -4274,24 +4314,23 @@ function hydrateFromPowerBI() {
       if (!el) return;
       var p = new URLSearchParams(window.location.search);
       var ano = parseInt(p.get("SelectedAno"), 10);
-      var mes = getMonthNumberFromParams(p);
 
-      if (!ano || !mes) {
+      if (!ano) {
         el.innerHTML = tab5Painel('<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e;">' +
-          '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">\u26a0\ufe0f Selecione Ano e M\u00eas</div>' +
-          '<div style="font-size:0.95rem;">Esta aba mostra o retrato de um m\u00eas espec\u00edfico. Escolha Ano e M\u00eas no filtro do Power BI.</div>' +
+          '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">\u26a0\ufe0f Selecione o Ano</div>' +
+          '<div style="font-size:0.95rem;">Esta aba mostra o ano inteiro, m\u00eas a m\u00eas. Escolha o Ano no filtro do Power BI.</div>' +
         '</div>');
         return;
       }
       if (window.TAB5.carregando) {
-        el.innerHTML = tab5Painel('<div style="padding:60px; text-align:center; color:#64748b; font-weight:700; font-size:1.05rem;">\u23f3 Lendo a ATA_COMENTARIO...</div>');
+        el.innerHTML = tab5Painel('<div style="padding:60px; text-align:center; color:#64748b; font-weight:700; font-size:1.05rem;">\u23f3 Lendo a ATA_COMENTARIO do ano inteiro...</div>');
         return;
       }
-      if (!window.TAB5.ata) {
+      if (!window.TAB5.carregado) {
         el.innerHTML = tab5Painel('<div style="padding:50px 30px; text-align:center;">' +
           (window.TAB5.erro && window.TAB5.erro !== "SEM_FILTRO"
             ? '<div style="color:#991b1b; font-weight:700; margin-bottom:16px;">Falha ao ler: ' + window.TAB5.erro + '</div>' : "") +
-          '<button type="button" onclick="carregarTab5(true)" style="background:linear-gradient(135deg,#0f2b5c,#0284c7); color:#fff; border:none; padding:12px 22px; border-radius:9px; font-weight:800; font-size:0.95rem; cursor:pointer;">\u21bb Carregar dados do m\u00eas</button>' +
+          '<button type="button" onclick="carregarTab5(true)" style="background:linear-gradient(135deg,#0f2b5c,#0284c7); color:#fff; border:none; padding:12px 22px; border-radius:9px; font-weight:800; font-size:0.95rem; cursor:pointer;">\u21bb Carregar o ano</button>' +
         '</div>');
         return;
       }
@@ -4299,69 +4338,76 @@ function hydrateFromPowerBI() {
       var elegiveis = tab5OSElegiveis();
       var resumo = tab5ResumoPorOS();
       var notas = tab5NotasPorOS();
-      var nomeMes = MESES_PT[mes - 1] || mes;
+      var meses = window.TAB5.meses || [];
 
-      var comAcomp = elegiveis.filter(function(o) { return (resumo[o.codigo] || {}).topicos > 0; });
-      var semAcomp = elegiveis.filter(function(o) { return !((resumo[o.codigo] || {}).topicos > 0); });
+      var comAcomp = elegiveis.filter(function(o) { return ((resumo[o.codigo] || {}).totalMeses || 0) > 0; });
+      var semAcomp = elegiveis.filter(function(o) { return !(((resumo[o.codigo] || {}).totalMeses || 0) > 0); });
       var pct = elegiveis.length ? Math.round(comAcomp.length * 100 / elegiveis.length) : 0;
 
       var html = '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px;">' +
-        '<div><h2 style="margin:0; font-size:1.25rem; color:#0f2b5c; font-weight:800;">Vis\u00e3o Geral das OSs \u2014 ' + nomeMes + '/' + ano + '</h2>' +
-        '<div style="font-size:0.80rem; color:#64748b; margin-top:3px;">Situa\u00e7\u00e3o lida da ATA_COMENTARIO</div></div>' +
+        '<div><h2 style="margin:0; font-size:1.25rem; color:#0f2b5c; font-weight:800;">Vis\u00e3o Geral das OSs \u2014 ' + ano + '</h2>' +
+        '<div style="font-size:0.80rem; color:#64748b; margin-top:3px;">Ano inteiro, m\u00eas a m\u00eas \u2014 lido da ATA_COMENTARIO. ' +
+        'O m\u00eas do filtro n\u00e3o afeta esta aba; ele vale s\u00f3 para o bot\u00e3o <b>Gravar Notas do Ano</b>.</div></div>' +
         '<button type="button" onclick="carregarTab5(true)" style="background:#e0f2fe; color:#075985; border:none; padding:8px 16px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer;">\u21bb Atualizar</button>' +
       '</div>';
 
       html += '<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">' +
         tab5Cartao("OSs eleg\u00edveis", elegiveis.length, "#0f2b5c", "#f1f5f9") +
-        tab5Cartao("Fizeram o acompanhamento", comAcomp.length, "#15803d", "#f0fdf4") +
-        tab5Cartao("N\u00e3o fizeram", semAcomp.length, "#b91c1c", "#fef2f2") +
-        tab5Cartao("Ades\u00e3o", pct + "%", "#b45309", "#fffbeb") +
+        tab5Cartao("Acompanharam algum m\u00eas", comAcomp.length, "#15803d", "#f0fdf4") +
+        tab5Cartao("Nunca preencheram", semAcomp.length, "#b91c1c", "#fef2f2") +
+        tab5Cartao("Ades\u00e3o no ano", pct + "%", "#b45309", "#fffbeb") +
       '</div>';
 
       html += '<div style="height:10px; background:#e2e8f0; border-radius:6px; overflow:hidden; margin-bottom:22px;">' +
         '<div style="height:100%; width:' + pct + '%; background:linear-gradient(90deg,#16a34a,#4ade80);"></div></div>';
 
-      // ---- ranking ----
+      // ---- ranking pelo mes mais recente com nota ----
       var comNota = elegiveis.map(function(o) {
         var n = notas[o.codigo];
-        return n ? { codigo: o.codigo, notaMes: n.notaMes, notaAcum: n.notaAcum, cats: n.cats } : null;
-      }).filter(Boolean).sort(function(a, b) { return b.notaMes - a.notaMes; });
+        return (n && n.ultima) ? { codigo: o.codigo, mes: n.ultimoMes, notaMes: n.ultima.notaMes,
+                                   notaAcum: n.ultima.notaAcum, cats: n.ultima.cats } : null;
+      }).filter(Boolean).sort(function(a, b) { return b.notaAcum - a.notaAcum; });
 
-      html += '<h3 style="margin:0 0 10px; font-size:1.05rem; color:#0f2b5c; font-weight:800;">\ud83c\udfc6 Ranking do m\u00eas</h3>';
+      html += '<h3 style="margin:0 0 10px; font-size:1.05rem; color:#0f2b5c; font-weight:800;">\ud83c\udfc6 Ranking do ano</h3>';
       if (!comNota.length) {
         html += '<div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:26px 22px; margin-bottom:26px; color:#475569; font-size:0.90rem;">' +
-          '<b>Nenhuma nota gravada ainda neste m\u00eas.</b><br>' +
+          '<b>Nenhuma nota gravada ainda em ' + ano + '.</b><br>' +
           'A nota s\u00f3 passa a existir na lista quando algu\u00e9m salva os coment\u00e1rios, valida a OS, ou quando o ' +
           'Setor de Performance usa o bot\u00e3o <b>Gravar Notas do Ano</b> com a OS selecionada. ' +
           'O ranking se preenche sozinho conforme isso acontece.' +
         '</div>';
       } else {
+        // Ordenado pela ACUMULADA: a nota de um mes isolado premiaria quem so tem um mes
+        // gravado, e o que interessa e o desempenho ao longo do ano.
         html += '<table style="width:100%; border-collapse:collapse; margin-bottom:26px;">' +
           '<tr style="background:#f1f5f9;">' +
             '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155; width:52px;">#</th>' +
             '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">OS</th>' +
-            '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">NOTA DO M\u00caS</th>' +
             '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">ACUMULADA</th>' +
+            '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">\u00daLTIMO M\u00caS</th>' +
             '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">POR CATEGORIA</th>' +
           '</tr>';
-        comNota.forEach(function(r, i) {
-          var medalha = i === 0 ? "\ud83e\udd47" : (i === 1 ? "\ud83e\udd48" : (i === 2 ? "\ud83e\udd49" : (i + 1)));
+        comNota.forEach(function(r, idx) {
+          var medalha = idx === 0 ? "\ud83e\udd47" : (idx === 1 ? "\ud83e\udd48" : (idx === 2 ? "\ud83e\udd49" : (idx + 1)));
           html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
             '<td style="padding:7px 8px; font-weight:800; color:#0f2b5c;">' + medalha + '</td>' +
             '<td style="padding:7px 8px; font-weight:700; color:#0f2b5c;">' + formatOSLabel(r.codigo) + '</td>' +
-            '<td style="padding:7px 8px; text-align:right;">' + tab5Pct(r.notaMes, "1.02rem") + '</td>' +
-            '<td style="padding:7px 8px; text-align:right;">' + tab5Pct(r.notaAcum) + '</td>' +
+            '<td style="padding:7px 8px; text-align:right;">' + tab5Pct(r.notaAcum, "1.02rem") + '</td>' +
+            '<td style="padding:7px 8px; text-align:right;">' + tab5Pct(r.notaMes) +
+              '<div style="font-size:0.68rem; color:#94a3b8; font-weight:700;">' + (MESES_PT[r.mes - 1] || r.mes) + '</div></td>' +
             '<td style="padding:7px 8px;">' + tab5Chips(r.cats) + '</td>' +
           '</tr>';
         });
         html += '</table>';
       }
 
-      // ---- lista completa ----
+      // ---- matriz mes a mes ----
       var abas = [["TODAS", "Todas (" + elegiveis.length + ")"],
-                  ["PENDENTES", "N\u00e3o fizeram (" + semAcomp.length + ")"],
-                  ["FEITAS", "Fizeram (" + comAcomp.length + ")"]];
-      html += '<h3 style="margin:0 0 10px; font-size:1.05rem; color:#0f2b5c; font-weight:800;">\ud83d\udccb OSs eleg\u00edveis</h3>' +
+                  ["PENDENTES", "Nunca preencheram (" + semAcomp.length + ")"],
+                  ["FEITAS", "Com algum m\u00eas (" + comAcomp.length + ")"]];
+      html += '<h3 style="margin:0 0 4px; font-size:1.05rem; color:#0f2b5c; font-weight:800;">\ud83d\udcc5 Preenchimento m\u00eas a m\u00eas</h3>' +
+        '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Cada c\u00e9lula traz quantos dos <b>23 t\u00f3picos</b> foram preenchidos naquele m\u00eas. ' +
+        'Verde \u00e9 completo, amarelo \u00e9 parcial, tra\u00e7o \u00e9 m\u00eas em branco.</div>' +
         '<div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">' +
         abas.map(function(a) {
           var on = TAB5_FILTRO === a[0];
@@ -4371,34 +4417,30 @@ function hydrateFromPowerBI() {
         }).join("") + '</div>';
 
       var lista = TAB5_FILTRO === "PENDENTES" ? semAcomp : (TAB5_FILTRO === "FEITAS" ? comAcomp : elegiveis);
-      html += '<table style="width:100%; border-collapse:collapse;">' +
+      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; min-width:820px;">' +
         '<tr style="background:#f1f5f9;">' +
           '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">OS</th>' +
-          '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">SITUA\u00c7\u00c3O NO M\u00caS</th>' +
-          '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">T\u00d3PICOS DO GESTOR</th>' +
-          '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">PARECERES</th>' +
+          meses.map(function(mm) {
+            return '<th style="padding:8px 2px; text-align:center; font-size:0.66rem; color:#334155;">' +
+                   (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
+          }).join("") +
+          '<th style="padding:8px; text-align:center; font-size:0.72rem; color:#334155;">MESES</th>' +
           '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">NOTA</th>' +
           '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">POR CATEGORIA</th>' +
         '</tr>';
       lista.forEach(function(o) {
-        var e = resumo[o.codigo] || { topicos: 0, master: 0, validados: 0 };
+        var e = resumo[o.codigo] || { meses: {}, totalMeses: 0 };
         var n = notas[o.codigo];
-        var fez = e.topicos > 0;
-        var completo = e.topicos >= 23;
-        var selo = !fez ? '<span style="background:#fef2f2; color:#991b1b; padding:3px 9px; border-radius:20px; font-size:0.74rem; font-weight:800;">N\u00e3o iniciou</span>'
-                 : (completo ? '<span style="background:#f0fdf4; color:#166534; padding:3px 9px; border-radius:20px; font-size:0.74rem; font-weight:800;">Completo</span>'
-                             : '<span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:20px; font-size:0.74rem; font-weight:800;">Parcial</span>');
-        if (e.validados > 0) selo += ' <span style="background:#eff6ff; color:#1e3a8a; padding:3px 9px; border-radius:20px; font-size:0.74rem; font-weight:800;">' + e.validados + ' validado(s)</span>';
-        html += '<tr style="border-bottom:1px solid #f1f5f9;' + (fez ? "" : " background:#fffafa;") + '">' +
-          '<td style="padding:7px 8px; font-weight:800; font-size:0.86rem; color:#0f2b5c;">' + formatOSLabel(o.rotulo) + '</td>' +
-          '<td style="padding:7px 8px;">' + selo + '</td>' +
-          '<td style="padding:7px 8px; text-align:right; color:' + (fez ? "#0f2b5c" : "#94a3b8") + '; font-weight:700;">' + e.topicos + '/23</td>' +
-          '<td style="padding:7px 8px; text-align:right; color:#475569;">' + e.master + '</td>' +
-          '<td style="padding:7px 8px; text-align:right;">' + (n ? tab5Pct(n.notaMes) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
-          '<td style="padding:7px 8px;">' + (n ? tab5Chips(n.cats) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
+        var nunca = e.totalMeses === 0;
+        html += '<tr style="border-bottom:1px solid #f1f5f9;' + (nunca ? " background:#fffafa;" : "") + '">' +
+          '<td style="padding:7px 8px; font-weight:800; font-size:0.84rem; color:#0f2b5c; white-space:nowrap;">' + formatOSLabel(o.rotulo) + '</td>' +
+          meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
+          '<td style="padding:7px 8px; text-align:center; font-weight:800; color:' + (nunca ? "#b91c1c" : "#0f2b5c") + ';">' + e.totalMeses + '/' + meses.length + '</td>' +
+          '<td style="padding:7px 8px; text-align:right;">' + ((n && n.ultima) ? tab5Pct(n.ultima.notaAcum) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
+          '<td style="padding:7px 8px;">' + ((n && n.ultima) ? tab5Chips(n.ultima.cats) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
         '</tr>';
       });
-      html += '</table>';
+      html += '</table></div>';
 
       el.innerHTML = tab5Painel(html);
     }
@@ -5269,6 +5311,10 @@ function hydrateFromPowerBI() {
       } else {
         showToast("\u26a0\ufe0f " + ok + " gravados, falhou em: " + falhou.join(", "));
       }
+
+      // A Aba 5 guarda o ano inteiro em cache. Sem reler, o usuario grava e a tela continua
+      // exatamente igual -- parece que o botao nao fez nada.
+      if (ok > 0 && typeof carregarTab5 === "function") carregarTab5(true);
     }
 
     async function saveAllComments() {
