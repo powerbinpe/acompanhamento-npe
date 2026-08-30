@@ -881,6 +881,11 @@ function hydrateFromPowerBI() {
     // window.name pertence a MOLDURA (browsing context), nao ao documento, entao atravessa
     // a recarga. Guardamos so o essencial -- sessao, perfil e aba -- porque window.name
     // viaja junto em qualquer navegacao daquela moldura.
+    // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
+    // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
+    // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
+    window.NPE_BUILD = "2026-08-30 17:24";
+
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
 
@@ -4436,7 +4441,8 @@ function hydrateFromPowerBI() {
       var html = '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px;">' +
         '<div><h2 style="margin:0; font-size:1.25rem; color:#0f2b5c; font-weight:800;">Vis\u00e3o Geral das OSs \u2014 ' + ano + '</h2>' +
         '<div style="font-size:0.80rem; color:#64748b; margin-top:3px;">Ano inteiro, m\u00eas a m\u00eas \u2014 lido da ATA_COMENTARIO. ' +
-        'O m\u00eas do filtro n\u00e3o afeta esta aba; ele vale s\u00f3 para o bot\u00e3o <b>Gravar Notas do Ano</b>.</div></div>' +
+        'O m\u00eas do filtro n\u00e3o afeta esta aba; ele vale s\u00f3 para o bot\u00e3o <b>Gravar Notas do Ano</b>.' +
+        '<span style="color:#cbd5e1; margin-left:10px;">vers\u00e3o ' + (window.NPE_BUILD || "?") + '</span></div></div>' +
         '<button type="button" onclick="carregarTab5(true)" style="background:#e0f2fe; color:#075985; border:none; padding:8px 16px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer;">\u21bb Atualizar</button>' +
       '</div>';
 
@@ -5378,6 +5384,7 @@ function hydrateFromPowerBI() {
           if (ev.key === "Escape") fechar(null);
         });
         document.body.appendChild(fundo);
+        ajustarCaixaAoVisual(fundo);
         campo = fundo.querySelector("#_caixaInput");
         campo.value = (valorPadrao === undefined || valorPadrao === null) ? "" : String(valorPadrao);
         try { window.scrollTo(0, 0); campo.focus(); campo.select(); } catch (e) {}
@@ -5405,6 +5412,7 @@ function hydrateFromPowerBI() {
           if (ev.target.closest && ev.target.closest("button[data-r]")) fechar();
         });
         document.body.appendChild(fundo);
+        ajustarCaixaAoVisual(fundo);
         try { window.scrollTo(0, 0); } catch (e) {}
       });
     }
@@ -5431,6 +5439,7 @@ function hydrateFromPowerBI() {
           else if (ev.target === fundo) fechar(false);
         });
         document.body.appendChild(fundo);
+        ajustarCaixaAoVisual(fundo);
         try { window.scrollTo(0, 0); } catch (e) {}
       });
     }
@@ -6652,19 +6661,34 @@ function hydrateFromPowerBI() {
     // no topo do CONTEUDO INTEIRO, nao no pedaco que esta na tela. Com a pagina rolada, a
     // caixa nascia fora da vista -- parecia "no meio da pagina". Subir a rolagem ao abrir
     // resolve nos dois contextos, iframe e navegador normal.
+    // Dentro do iframe do visual, vw e vh NAO correspondem a area real: o Power BI
+    // dimensiona a moldura pelo conteudo. Medido: 100vw valia ~865px numa pagina de ~1320,
+    // e por isso as caixas nasciam estreitas. Aqui a largura vem do proprio documento.
+    function larguraUtilDaPagina() {
+      var b = document.body, d = document.documentElement;
+      return Math.max(b ? b.scrollWidth : 0, b ? b.clientWidth : 0,
+                      d ? d.scrollWidth : 0, d ? d.clientWidth : 0,
+                      window.innerWidth || 0) || 1200;
+    }
+
+    // Encaixa qualquer caixa (modal, confirmacao, aviso) na largura real da pagina e limita
+    // a altura em PIXEL, para que ela role por dentro em vez de esticar o visual.
+    function ajustarCaixaAoVisual(overlay) {
+      if (!overlay) return;
+      try {
+        overlay.style.width = larguraUtilDaPagina() + "px";
+        overlay.style.left = "0px";
+        var card = overlay.firstElementChild;
+        if (card) card.style.maxHeight = Math.round(Math.min(Math.max(window.innerHeight * 0.9, 420), 820)) + "px";
+      } catch (e) {}
+    }
+
     function abrirCaixaModal(id) {
       var m = document.getElementById(id);
       if (!m) return null;
       m.style.display = "flex";
       m.scrollTop = 0;
-      // Dentro do iframe o vh nao corresponde a area visivel -- o visual dimensiona a
-      // moldura pelo conteudo, entao "92vh" pode dar milhares de pixels e a caixa nunca
-      // rola por dentro; quem rola e a pagina do Power BI. Um teto em pixel resolve.
-      var card = m.firstElementChild;
-      if (card) {
-        var teto = Math.min(Math.max(window.innerHeight * 0.9, 420), 820);
-        card.style.maxHeight = Math.round(teto) + "px";
-      }
+      ajustarCaixaAoVisual(m);
       try {
         window.scrollTo(0, 0);
         if (document.documentElement) document.documentElement.scrollTop = 0;
