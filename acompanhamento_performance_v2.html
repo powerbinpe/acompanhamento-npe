@@ -238,7 +238,7 @@
   </div>
   <!-- Modal: Cadastro de Metas (Master) -- le e grava nas listas META_DESEMPENHO / META_BOAS_PRATICAS -->
   <div id="metasModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
-    <div style="background:#ffffff; border-radius:14px; width:100%; max-width:1060px; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #0f766e; overflow:hidden; display:flex; flex-direction:column; max-height:92vh;">
+    <div style="background:#ffffff; border-radius:14px; width:100%; max-width:min(1600px, 96vw); box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #0f766e; overflow:hidden; display:flex; flex-direction:column; max-height:92vh;">
       <div style="background:linear-gradient(135deg, #0f2b5c 0%, #065f46 100%); padding:14px 20px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
         <div>
           <h3 style="margin:0; font-size:1.10rem; font-weight:800;">&#127919; Cadastro de Metas</h3>
@@ -3949,6 +3949,9 @@ function hydrateFromPowerBI() {
 
       body.innerHTML = bodyHTML;
       modal.style.display = "flex";
+      // mesma razao do abrirCaixaModal: no iframe do Power BI a caixa
+      // nasce no topo do conteudo inteiro, nao do que esta na tela.
+      try { window.scrollTo(0, 0); } catch (e) {}
     }
 
     function closeQualitativeEvalModal() {
@@ -4940,7 +4943,7 @@ function hydrateFromPowerBI() {
       var ta = document.getElementById("copyAllTextarea");
       if (sub) sub.innerText = "Visão corporativa (" + ACTIVE_CONTRACTS_CATALOG.length + " OSs) • Cole numa IA externa e traga os 3 blocos para os campos da Aba 4.";
       if (ta) ta.value = lines.join("\n");
-      if (modal) modal.style.display = "flex";
+      if (modal) modal.style.display = "flex"; // mesma razao do abrirCaixaModal: no iframe do Power BI a caixa // nasce no topo do conteudo inteiro, nao do que esta na tela. try { window.scrollTo(0, 0); } catch (e) {}
     }
 
     // Aba 1 -- copia só os 23 pareceres do Setor de Performance (Máster) do MÊS ATUAL, para
@@ -5010,7 +5013,7 @@ function hydrateFromPowerBI() {
       var ta = document.getElementById("copyAllTextarea");
       if (sub) sub.innerText = "OS " + activeOS + " • " + (monthName || monthNum) + "/2026 • Copie e cole numa IA externa; o resultado vai manualmente no campo de Síntese (tópico #24).";
       if (ta) ta.value = lines.join("\n");
-      if (modal) modal.style.display = "flex";
+      if (modal) modal.style.display = "flex"; // mesma razao do abrirCaixaModal: no iframe do Power BI a caixa // nasce no topo do conteudo inteiro, nao do que esta na tela. try { window.scrollTo(0, 0); } catch (e) {}
     }
 
     function openCopyAllModal() {
@@ -5034,7 +5037,7 @@ function hydrateFromPowerBI() {
       var ta = document.getElementById("copyAllTextarea");
       if (sub) sub.innerText = "OS " + activeOS + " • Copie o texto abaixo e cole numa IA (ChatGPT, Copilot, etc.) para gerar o resumo de cada indicador.";
       if (ta) ta.value = text;
-      if (modal) modal.style.display = "flex";
+      if (modal) modal.style.display = "flex"; // mesma razao do abrirCaixaModal: no iframe do Power BI a caixa // nasce no topo do conteudo inteiro, nao do que esta na tela. try { window.scrollTo(0, 0); } catch (e) {}
     }
 
     function closeCopyAllModal() {
@@ -5467,9 +5470,8 @@ function hydrateFromPowerBI() {
 
     function openMetasModal() {
       if (!window.isMaster) { showToast("\u26d4 Apenas o perfil M\u00e1ster pode cadastrar metas."); return; }
-      var mod = document.getElementById("metasModal");
+      var mod = abrirCaixaModal("metasModal");
       if (!mod) return;
-      mod.style.display = "flex";
       if (!window.METAS_DB.carregado) {
         document.getElementById("metasPanelBody").innerHTML =
           '<div style="padding:40px; text-align:center; color:#64748b; font-weight:700;">Carregando metas do SharePoint...</div>';
@@ -6272,11 +6274,27 @@ function hydrateFromPowerBI() {
 
     // ---- tela de acesso -------------------------------------------------
     var ACESSO_ABA = "LOGIN";
+    // Dentro do visual do Power BI o conteudo mora num iframe alto: "position:fixed" ancora
+    // no topo do CONTEUDO INTEIRO, nao no pedaco que esta na tela. Com a pagina rolada, a
+    // caixa nascia fora da vista -- parecia "no meio da pagina". Subir a rolagem ao abrir
+    // resolve nos dois contextos, iframe e navegador normal.
+    function abrirCaixaModal(id) {
+      var m = document.getElementById(id);
+      if (!m) return null;
+      m.style.display = "flex";
+      m.scrollTop = 0;
+      try {
+        window.scrollTo(0, 0);
+        if (document.documentElement) document.documentElement.scrollTop = 0;
+        if (document.body) document.body.scrollTop = 0;
+      } catch (e) {}
+      return m;
+    }
+
     function abrirLoginModal(aba) {
       ACESSO_ABA = aba || (sessaoAcesso() ? "SENHA" : "LOGIN");
-      var m = document.getElementById("acessoModal");
+      var m = abrirCaixaModal("acessoModal");
       if (!m) return;
-      m.style.display = "flex";
       renderAcessoModal();
     }
     function fecharLoginModal() {
