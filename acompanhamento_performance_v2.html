@@ -1129,6 +1129,14 @@ function hydrateFromPowerBI() {
       var roleText = document.getElementById("roleText");
       var roleIcon = document.getElementById("roleIcon");
       var toggleBtn = document.getElementById("toggleRoleBtn");
+      // Sem sessao o botao e "Entrar", nunca um seletor de perfil.
+      if (typeof sessaoAcesso === "function" && !sessaoAcesso()) {
+        if (toggleBtn) { toggleBtn.style.display = "inline-flex"; toggleBtn.style.background = "#334155"; }
+        if (roleText) roleText.innerText = "Entrar";
+        if (roleIcon) roleIcon.innerText = "\ud83d\udd11";
+        aplicarVisibilidadeMaster(false);
+        return;
+      }
       var slaCtrlBar = document.getElementById("slaMasterControlsBar");
       var deadlineInput = document.getElementById("slaTargetDeadlineInput");
       var monthSelect = document.getElementById("slaTargetMonthSelect");
@@ -1368,7 +1376,15 @@ function hydrateFromPowerBI() {
       if (!isAuth) {
         window.isMaster = false;
         safeSetStorage("npe_active_role", "GESTOR");
-        if (toggleBtn) toggleBtn.style.display = "none"; // HIDE MASTER BUTTON FROM REGULAR USERS
+        // O botao NAO pode ser escondido aqui: ele e a unica porta do login. Escondendo,
+        // ninguem nunca conseguiria entrar como Master -- sem sessao nao ve o botao, sem
+        // botao nao loga, sem login nao tem sessao. Ele vira "Entrar" e abre o modal.
+        if (toggleBtn) {
+          toggleBtn.style.display = "inline-flex";
+          toggleBtn.style.background = "#334155";
+        }
+        if (roleText) roleText.innerText = "Entrar";
+        if (roleIcon) roleIcon.innerText = "\ud83d\udd11";
         aplicarVisibilidadeMaster(false);
       } else {
         if (toggleBtn) {
