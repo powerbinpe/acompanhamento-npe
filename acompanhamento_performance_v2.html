@@ -4143,7 +4143,62 @@ function hydrateFromPowerBI() {
       return !!s && TAB5_VAZIOS.indexOf(s.toUpperCase()) === -1;
     }
 
+    // Hierarquia de todas as OSs elegiveis, vinda da medida _mOSHierarquia.
+    // Formato: sups|... ~ gers|... ~ negs|... ~ codigo:si:gi:ni;codigo:si:gi:ni;...
+    // Dicionario + indices porque com os nomes escritos por extenso em cada linha o
+    // parametro passava de 4.600 caracteres na URL, e o visual falha em silencio perto
+    // dos 6.650. Assim ficou em 1.687.
+    window.OS_HIER = null;
+    function carregarHierarquiaOS() {
+      if (window.OS_HIER) return window.OS_HIER;
+      var bruto = new URLSearchParams(window.location.search).get("OSHier") || "";
+      var partes = bruto.split("~");
+      if (partes.length < 4) { window.OS_HIER = {}; return window.OS_HIER; }
+      var sups = partes[0].split("|"), gers = partes[1].split("|"), negs = partes[2].split("|");
+      var mapa = {};
+      partes[3].split(";").forEach(function(linha) {
+        var c = linha.split(":");
+        if (c.length < 4) return;
+        var bloco = String(c[0]).toUpperCase();
+        mapa[extractPrimaryOSCode(bloco) || bloco] = {
+          rotulo: bloco,
+          sup: sups[parseInt(c[1], 10)] || "",
+          ger: gers[parseInt(c[2], 10)] || "",
+          neg: negs[parseInt(c[3], 10)] || ""
+        };
+      });
+      window.OS_HIER = mapa;
+      return mapa;
+    }
+
+    // Nome completo do superintendente a partir do primeiro nome que a medida manda.
+    function rotuloSuperintendente(primeiroNome) {
+      var l = SUPERINTENDENTE_LABEL_MAP[String(primeiroNome || "").toUpperCase()];
+      if (!l) return primeiroNome || "SEM SUPERINTENDENTE";
+      var corte = l.lastIndexOf(" - ");
+      return corte === -1 ? l : l.slice(corte + 3).toUpperCase();
+    }
+
+    // O gestor NAO vem da medida: quem vale e o responsavel cadastrado, que tem vigencia e
+    // congela o passado. Puxar da CTT aqui reescreveria o historico a cada troca -- foi
+    // justamente o problema que o cadastro de Responsaveis existe para resolver.
+    function gestorDaOS(osCode, anoMes) {
+      var r = (typeof responsavelNoMes === "function") ? responsavelNoMes(osCode, anoMes) : "";
+      return r || "SEM RESPONS\u00c1VEL";
+    }
+
     function tab5OSElegiveis() {
+      // Preferimos o OSHier: ele traz TODAS as OSs elegiveis, ignorando o slicer de OS mas
+      // respeitando a seguranca (RLS nao e removida por REMOVEFILTERS). O AllowedOSList
+      // segue o slicer -- com uma OS filtrada, a aba mostrava uma linha so, e a pergunta
+      // "quem nao esta acompanhando" ficava sem resposta.
+      var hier = carregarHierarquiaOS();
+      var chaves = Object.keys(hier);
+      if (chaves.length) {
+        return chaves.map(function(c) {
+          return { codigo: c, rotulo: hier[c].rotulo, sup: hier[c].sup, ger: hier[c].ger, neg: hier[c].neg };
+        }).sort(function(a, b) { return a.codigo.localeCompare(b.codigo); });
+      }
       var p = new URLSearchParams(window.location.search);
       var raw = p.get("AllowedOSList") || "";
       var vistos = {}, saida = [];
@@ -4153,7 +4208,7 @@ function hydrateFromPowerBI() {
         var codigo = extractPrimaryOSCode(bruto) || bruto;
         if (vistos[codigo]) return;
         vistos[codigo] = true;
-        saida.push({ codigo: codigo, rotulo: bruto });
+        saida.push({ codigo: codigo, rotulo: bruto, sup: "", ger: "", neg: "" });
       });
       return saida.sort(function(a, b) { return a.codigo.localeCompare(b.codigo); });
     }
@@ -4417,28 +4472,112 @@ function hydrateFromPowerBI() {
         }).join("") + '</div>';
 
       var lista = TAB5_FILTRO === "PENDENTES" ? semAcomp : (TAB5_FILTRO === "FEITAS" ? comAcomp : elegiveis);
-      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; min-width:820px;">' +
+
+      // Ades\u00e3o de um conjunto de OSs: meses efetivamente preenchidos sobre os meses
+      // esperados (OSs x meses do per\u00edodo). N\u00e3o \u00e9 "quantas OSs come\u00e7aram" -- uma OS que
+      // preencheu um m\u00eas de oito n\u00e3o pode contar igual a uma que preencheu os oito.
+      function adesaoDe(oss) {
+        var feitos = 0, esperados = oss.length * meses.length;
+        oss.forEach(function(o) {
+          var e = resumo[o.codigo];
+          if (e) feitos += Object.keys(e.meses).filter(function(mm) { return e.meses[mm].topicos > 0; }).length;
+        });
+        return { feitos: feitos, esperados: esperados,
+                 pct: esperados ? Math.round(feitos * 100 / esperados) : 0 };
+      }
+      // M\u00e9dia das notas acumuladas de quem j\u00e1 tem nota. OS sem nota fica de fora em vez de
+      // entrar como zero -- zero \u00e9 nota ruim, aus\u00eancia de nota \u00e9 outra coisa.
+      function notaMediaDe(oss) {
+        var soma = 0, n = 0;
+        oss.forEach(function(o) {
+          var x = notas[o.codigo];
+          if (x && x.ultima && isFinite(x.ultima.notaAcum)) { soma += x.ultima.notaAcum; n++; }
+        });
+        return n ? { pct: soma / n, com: n, total: oss.length } : null;
+      }
+      function linhaGrupo(nivel, rotulo, oss) {
+        var a = adesaoDe(oss);
+        var nm = notaMediaDe(oss);
+        var recuo = [0, 18, 36][nivel] || 0;
+        var fundo = ["#0f2b5c", "#1d4ed8", "#0e7490"][nivel] || "#475569";
+        var tamanho = ["0.90rem", "0.85rem", "0.82rem"][nivel] || "0.82rem";
+        var tierA = scoreTier(a.pct);
+        return '<tr style="background:' + fundo + ';">' +
+          '<td colspan="' + (meses.length + 1) + '" style="padding:7px 8px 7px ' + (8 + recuo) + 'px; color:#fff; font-weight:800; font-size:' + tamanho + ';">' +
+            ["\ud83c\udfe2", "\ud83d\udc54", "\ud83d\udc64"][nivel] + " " + rotulo +
+            '<span style="color:rgba(255,255,255,0.65); font-weight:700; margin-left:8px;">' + oss.length + ' OS' + (oss.length > 1 ? "s" : "") + '</span>' +
+          '</td>' +
+          '<td style="padding:7px 8px; text-align:center; color:#fff; font-weight:900; font-size:0.80rem;">' +
+            '<span style="background:' + tierA.main + '; color:' + tierA.text + '; border-radius:5px; padding:2px 7px;">' + a.pct + '%</span>' +
+          '</td>' +
+          '<td style="padding:7px 8px; text-align:right; color:#fff; font-weight:900; font-size:0.84rem;">' +
+            (nm ? nm.pct.toFixed(1) + '%' : '<span style="color:rgba(255,255,255,0.5);">\u2014</span>') + '</td>' +
+          '<td style="padding:7px 8px; color:rgba(255,255,255,0.7); font-size:0.72rem; font-weight:700;">' +
+            (nm ? nm.com + ' de ' + nm.total + ' com nota' : 'sem nota') + '</td>' +
+        '</tr>';
+      }
+
+      // Agrupa pela ordem pedida: Superintendente > Gerente > Gestor > OS.
+      var arvore = {};
+      lista.forEach(function(o) {
+        var h = (window.OS_HIER || {})[o.codigo] || {};
+        var sup = rotuloSuperintendente(h.sup || o.sup);
+        var ger = (h.ger || o.ger || "SEM GERENTE");
+        var ges = gestorDaOS(o.codigo, ano * 100 + (meses[meses.length - 1] || 12));
+        arvore[sup] = arvore[sup] || {};
+        arvore[sup][ger] = arvore[sup][ger] || {};
+        arvore[sup][ger][ges] = arvore[sup][ger][ges] || [];
+        arvore[sup][ger][ges].push(o);
+      });
+
+      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; min-width:900px;">' +
         '<tr style="background:#f1f5f9;">' +
-          '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">OS</th>' +
+          '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">SUPERINTENDENTE / GERENTE / GESTOR / OS</th>' +
           meses.map(function(mm) {
             return '<th style="padding:8px 2px; text-align:center; font-size:0.66rem; color:#334155;">' +
                    (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
           }).join("") +
-          '<th style="padding:8px; text-align:center; font-size:0.72rem; color:#334155;">MESES</th>' +
+          '<th style="padding:8px; text-align:center; font-size:0.72rem; color:#334155;">ADES\u00c3O</th>' +
           '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">NOTA</th>' +
           '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">POR CATEGORIA</th>' +
         '</tr>';
-      lista.forEach(function(o) {
-        var e = resumo[o.codigo] || { meses: {}, totalMeses: 0 };
-        var n = notas[o.codigo];
-        var nunca = e.totalMeses === 0;
-        html += '<tr style="border-bottom:1px solid #f1f5f9;' + (nunca ? " background:#fffafa;" : "") + '">' +
-          '<td style="padding:7px 8px; font-weight:800; font-size:0.84rem; color:#0f2b5c; white-space:nowrap;">' + formatOSLabel(o.rotulo) + '</td>' +
-          meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
-          '<td style="padding:7px 8px; text-align:center; font-weight:800; color:' + (nunca ? "#b91c1c" : "#0f2b5c") + ';">' + e.totalMeses + '/' + meses.length + '</td>' +
-          '<td style="padding:7px 8px; text-align:right;">' + ((n && n.ultima) ? tab5Pct(n.ultima.notaAcum) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
-          '<td style="padding:7px 8px;">' + ((n && n.ultima) ? tab5Chips(n.ultima.cats) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
-        '</tr>';
+
+      Object.keys(arvore).sort().forEach(function(sup) {
+        var ossSup = [];
+        Object.keys(arvore[sup]).forEach(function(g) {
+          Object.keys(arvore[sup][g]).forEach(function(e) { ossSup = ossSup.concat(arvore[sup][g][e]); });
+        });
+        html += linhaGrupo(0, sup, ossSup);
+
+        Object.keys(arvore[sup]).sort().forEach(function(ger) {
+          var ossGer = [];
+          Object.keys(arvore[sup][ger]).forEach(function(e) { ossGer = ossGer.concat(arvore[sup][ger][e]); });
+          html += linhaGrupo(1, ger, ossGer);
+
+          Object.keys(arvore[sup][ger]).sort().forEach(function(ges) {
+            var ossGes = arvore[sup][ger][ges];
+            html += linhaGrupo(2, ges, ossGes);
+
+            ossGes.forEach(function(o) {
+              var e = resumo[o.codigo] || { meses: {}, totalMeses: 0 };
+              var n = notas[o.codigo];
+              var nunca = e.totalMeses === 0;
+              var aOS = adesaoDe([o]);
+              var tierOS = scoreTier(aOS.pct);
+              html += '<tr style="border-bottom:1px solid #f1f5f9;' + (nunca ? " background:#fffafa;" : "") + '">' +
+                '<td style="padding:6px 8px 6px 62px; font-weight:800; font-size:0.82rem; color:#0f2b5c; white-space:nowrap;">' +
+                  formatOSLabel(o.rotulo) +
+                  '<span style="font-weight:700; color:#94a3b8; font-size:0.72rem; margin-left:6px;">' + ((window.OS_HIER || {})[o.codigo] || {}).neg + '</span>' +
+                '</td>' +
+                meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
+                '<td style="padding:6px 8px; text-align:center; font-weight:900; font-size:0.78rem;">' +
+                  '<span style="background:' + tierOS.bg + '; color:' + tierOS.dark + '; border-radius:5px; padding:2px 6px;">' + aOS.pct + '%</span></td>' +
+                '<td style="padding:6px 8px; text-align:right;">' + ((n && n.ultima) ? tab5Pct(n.ultima.notaAcum) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
+                '<td style="padding:6px 8px;">' + ((n && n.ultima) ? tab5Chips(n.ultima.cats) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
+              '</tr>';
+            });
+          });
+        });
       });
       html += '</table></div>';
 
