@@ -675,7 +675,9 @@ function hydrateOSMonthHistoryFromPowerBI(params) {
       indenizMesV: f[33] !== undefined && f[33] !== "" ? parseFloat(f[33]) : null,
       indenizAcumV: f[34] !== undefined && f[34] !== "" ? parseFloat(f[34]) : null,
       turnoverAcumPct: f[35] !== undefined && f[35] !== "" ? (parseInt(f[35], 10) / 10000) : null,
-      absenteismoAcumPct: f[36] !== undefined && f[36] !== "" ? (parseInt(f[36], 10) / 10000) : null
+      absenteismoAcumPct: f[36] !== undefined && f[36] !== "" ? (parseInt(f[36], 10) / 10000) : null,
+      resMesAtualV: f[37] !== undefined && f[37] !== "" ? parseFloat(f[37]) : null,
+      resMesAntV: f[38] !== undefined && f[38] !== "" ? parseFloat(f[38]) : null
     };
   }
   return history;
@@ -2138,29 +2140,40 @@ function hydrateFromPowerBI() {
       }
 
       // Satisfação do Cliente (Compare to reference/meta -- maior é melhor)
-      if (topic.id === 17 && label.indexOf("satisfação") !== -1) {
+      if (topic.id === 17 && (label.indexOf("satisfação") !== -1 || label.indexOf("apurada") !== -1)) {
+        if (/referência|meta/i.test(label)) return "#0f172a";
         var satValColor = parseFloat(s.replace("%", "").replace(",", "."));
-        var metaLine17 = (topic.lines || []).find(function(l) { return /referência/i.test(l.label || ""); });
+        var metaLine17 = (topic.lines || []).find(function(l) { return /referência|meta/i.test(l.label || ""); });
         var metaValColor = metaLine17 ? parseFloat(String(metaLine17.val).replace("%", "").replace(",", ".")) : NaN;
         if (!isNaN(satValColor) && !isNaN(metaValColor)) {
           return (satValColor >= metaValColor) ? "#15803d" : "#b91c1c";
         }
       }
 
-      // Absenteismo & Turnover (Compare to meta)
-      if (topic.id === 11 && label.indexOf("absenteísmo") !== -1 && label.indexOf("meta") === -1) {
+      // Absenteismo & Turnover (Compare to meta: Realizado <= Meta = Verde, Realizado > Meta = Vermelho)
+      if (topic.id === 11) {
+        if (/referência|meta/i.test(label)) return "#0f172a";
         var absVal = parseFloat(s.replace("%", "").replace(",", "."));
-        var _mAbs = (topic.lines || []).find(function(x) { return /meta/i.test(x.label || ""); });
+        var _mAbs = (topic.lines || []).find(function(x) { return /referência|meta/i.test(x.label || ""); });
         var _mAbsV = _mAbs ? parseFloat(String(_mAbs.val).replace("%", "").replace(",", ".")) : NaN;
-        if (isNaN(absVal) || isNaN(_mAbsV)) return "#0f172a";
-        return (absVal <= _mAbsV) ? "#15803d" : "#b91c1c";
+        if (isNaN(_mAbsV) && typeof contract !== "undefined" && contract && contract.absenteismoMetaPct) {
+          _mAbsV = contract.absenteismoMetaPct * 100;
+        }
+        if (!isNaN(absVal) && !isNaN(_mAbsV)) {
+          return (absVal <= _mAbsV) ? "#15803d" : "#b91c1c";
+        }
       }
-      if (topic.id === 12 && label.indexOf("turnover") !== -1 && label.indexOf("meta") === -1) {
+      if (topic.id === 12) {
+        if (/referência|meta/i.test(label)) return "#0f172a";
         var turnVal = parseFloat(s.replace("%", "").replace(",", "."));
-        var _mTurn = (topic.lines || []).find(function(x) { return /meta/i.test(x.label || ""); });
+        var _mTurn = (topic.lines || []).find(function(x) { return /referência|meta/i.test(x.label || ""); });
         var _mTurnV = _mTurn ? parseFloat(String(_mTurn.val).replace("%", "").replace(",", ".")) : NaN;
-        if (isNaN(turnVal) || isNaN(_mTurnV)) return "#0f172a";
-        return (turnVal <= _mTurnV) ? "#15803d" : "#b91c1c";
+        if (isNaN(_mTurnV) && typeof contract !== "undefined" && contract && contract.turnoverMetaPct) {
+          _mTurnV = contract.turnoverMetaPct * 100;
+        }
+        if (!isNaN(turnVal) && !isNaN(_mTurnV)) {
+          return (turnVal <= _mTurnV) ? "#15803d" : "#b91c1c";
+        }
       }
 
       // General Differences (Revenue, Result, Margin, Headcount, HHT)
@@ -2288,11 +2301,32 @@ function hydrateFromPowerBI() {
       } else if (topic.id === 4) { // Assertividade
         if (!mh || mh.resDifMesPct === null) return semDados("Sem FCST anterior para comparação neste mês.");
         var assOverride = (typeof safeGetStorage === "function") ? safeGetStorage("assertiv_override_" + (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(osCode) : osCode) + "_m" + mNum, "AUTOMATICO") : "AUTOMATICO";
-        var autoAss = (mh.resDifMesPct >= -0.05) ? "Assertivo" : "Não Assertivo";
-        var finalAss = assOverride !== "AUTOMATICO" ? assOverride : autoAss;
+        var qualKeyAder = (typeof TOPIC_ID_TO_QUAL_KEY !== "undefined") ? TOPIC_ID_TO_QUAL_KEY[4] : "t4";
+        var qualEval4 = (typeof getQualitativeEval === "function") ? getQualitativeEval(osCode, mNum, qualKeyAder) : "PENDENTE";
+        
+        var isAutoAssertivo = (Math.abs(mh.resDifMesPct) <= 0.05);
+        var autoAss = isAutoAssertivo ? "Assertivo" : "Não Assertivo";
+        
+        var finalAss = autoAss;
+        if (assOverride !== "AUTOMATICO") {
+          finalAss = assOverride;
+        } else if (qualEval4 === "ADERENTE") {
+          finalAss = "Assertivo (Aderente)";
+        } else if (qualEval4 === "NAO_ADERENTE") {
+          finalAss = "Não Assertivo (Máster)";
+        }
+
+        var assColor = (finalAss.indexOf("Não") !== -1 || finalAss.indexOf("nao") !== -1) ? "#b91c1c" : "#15803d";
+        var difMargemColor = isAutoAssertivo ? "#15803d" : "#b91c1c";
+
+        var resFcstProjVal = (mh.resMesAntV !== undefined && mh.resMesAntV !== null) ? fmtMo(mh.resMesAntV) : (mh.fatMesAntV !== null ? fmtMo(0) : "-");
+        var resRealMesVal = (mh.resMesAtualV !== undefined && mh.resMesAtualV !== null) ? fmtMo(mh.resMesAtualV) : "-";
+
         lines = [
-          { label: "Dif. na Margem (%)", val: (mh.resDifMesPct >= 0 ? "+" : "") + fmtPct(mh.resDifMesPct) },
-          { label: "Assertividade Calculada (Mês)", val: finalAss }
+          { label: "Resultado FCST Proj.", val: resFcstProjVal },
+          { label: "Resultado Real Mês", val: resRealMesVal },
+          { label: "Dif. na Margem (%)", val: (mh.resDifMesPct >= 0 ? "+" : "") + fmtPct(mh.resDifMesPct), color: difMargemColor },
+          { label: "Assertividade (Mês)", val: finalAss, color: assColor }
         ];
       } else if (topic.id === 6) { // Perda de Receita
         if (!mh) return semDados();
@@ -2325,15 +2359,17 @@ function hydrateFromPowerBI() {
         ];
       } else if (topic.id === 11) { // Absenteísmo
         if (!mh || mh.absenteismoPct === null) return semDados();
+        var absOk = (mh.absenteismoMetaPct !== null) ? (mh.absenteismoPct <= mh.absenteismoMetaPct) : null;
         lines = [
-          { label: "Absenteísmo Realizado", val: fmtPct(mh.absenteismoPct) },
-          { label: "Meta de Absenteísmo", val: mh.absenteismoMetaPct === null ? "-" : fmtPct(mh.absenteismoMetaPct) }
+          { label: "Absenteísmo Realizado", val: fmtPct(mh.absenteismoPct), color: absOk === null ? "#0f172a" : (absOk ? "#15803d" : "#b91c1c") },
+          { label: "Meta de Absenteísmo", val: mh.absenteismoMetaPct === null ? "-" : fmtPct(mh.absenteismoMetaPct), color: "#0f172a" }
         ];
       } else if (topic.id === 12) { // Turnover
         if (!mh || mh.turnoverPct === null) return semDados();
+        var turnOk = (mh.turnoverMetaPct !== null) ? (mh.turnoverPct <= mh.turnoverMetaPct) : null;
         lines = [
-          { label: "Turnover Realizado", val: fmtPct(mh.turnoverPct) },
-          { label: "Meta de Turnover", val: mh.turnoverMetaPct === null ? "-" : fmtPct(mh.turnoverMetaPct) }
+          { label: "Turnover Realizado", val: fmtPct(mh.turnoverPct), color: turnOk === null ? "#0f172a" : (turnOk ? "#15803d" : "#b91c1c") },
+          { label: "Meta de Turnover", val: mh.turnoverMetaPct === null ? "-" : fmtPct(mh.turnoverMetaPct), color: "#0f172a" }
         ];
       } else if (topic.id === 15) { // SAF
         if (!mh) return semDados();
@@ -2348,10 +2384,12 @@ function hydrateFromPowerBI() {
         var mhPrev = getMonthHistoryRow(osCode, mNum - 1);
         var bpA = Math.max(0, (mh.bpAprovAcum || 0) - (mhPrev ? (mhPrev.bpAprovAcum || 0) : 0));
         var bpR = Math.max(0, (mh.bpReconAcum || 0) - (mhPrev ? (mhPrev.bpReconAcum || 0) : 0));
-        if (!bpA && !bpR) return semDados("Nenhuma boa prática registrada neste mês.");
+        var aprovS1 = mh.bpAprovS1 || 0;
+        var reconS1 = mh.bpReconS1 || 0;
         lines = [
           { label: "BP Aprovadas no Mês", val: bpA + (bpA === 1 ? " iniciativa" : " iniciativas") },
-          { label: "BP Reconhecidas no Mês", val: bpR + (bpR === 1 ? " iniciativa" : " iniciativas") }
+          { label: "BP Reconhecidas no Mês", val: bpR + (bpR === 1 ? " iniciativa" : " iniciativas") },
+          { label: "Acumulado Semestre 1", val: aprovS1 + " Aprov / " + reconS1 + " Recon", color: (aprovS1 >= _bpAprov() && reconS1 >= _bpRecon()) ? "#15803d" : "#b45309" }
         ];
       } else if (topic.id === 22) {
         lines = [{ label: "Tipo de Controle", val: "Acompanhamento Contratual / Renovação" }];
@@ -2361,26 +2399,10 @@ function hydrateFromPowerBI() {
         lines = [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }];
       }
 
-      // No histórico o card precisa ser enxuto: mantemos só 3 linhas -- o valor de comparação
-      // (Executivo/FCST/Meta/Orçado), o valor realizado e o % de diferença. As demais linhas
-      // continuam disponíveis no card principal do mês corrente.
+      // No histórico o card precisa ser enxuto: mantemos até 4 linhas
       function compactarLinhas(todas) {
-        if (todas.length <= 3) return todas;
-        var comparacao = null, realizado = null, percentual = null;
-        todas.forEach(function(l) {
-          var lb = l.label || "";
-          if (!percentual && lb.indexOf("%") !== -1 && /(Dif\.|Diferen)/i.test(lb)) percentual = l;
-          if (!realizado && /Real|Realizad/i.test(lb)) realizado = l;
-          if (!comparacao && /Executivo|FCST|Meta|Orçad|Projetad|Referência/i.test(lb)) comparacao = l;
-        });
-        var sel = [];
-        if (comparacao) sel.push(comparacao);
-        if (realizado) sel.push(realizado);
-        if (percentual) sel.push(percentual);
-        for (var i = 0; i < todas.length && sel.length < 3; i++) {
-          if (sel.indexOf(todas[i]) === -1) sel.push(todas[i]);
-        }
-        return sel.slice(0, 3);
+        if (todas.length <= 4) return todas;
+        return todas.slice(0, 4);
       }
       lines = compactarLinhas(lines);
 
@@ -2389,7 +2411,7 @@ function hydrateFromPowerBI() {
 
       lines.forEach(function(l, idx) {
         var rawVal = String(l.val || "").trim();
-        var valColor = getLineColor(topic, l, rawVal);
+        var valColor = l.color || getLineColor(topic, l, rawVal);
         var rowBg = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
         tblHTML += '<tr style="background-color:' + rowBg + '; border-bottom:1px solid #e2e8f0;">' +
           '<td style="padding:4px 7px; font-size:0.73rem; line-height:1.25; color:#334155; font-weight:700; width:64%;">' + l.label + ':</td>' +
@@ -2686,45 +2708,71 @@ function hydrateFromPowerBI() {
         }
 
         // Boas Práticas (#20): status ACUMULADO da meta no período de apuração.
-        // ROTINA/OFICINA = meta por semestre calendário (S1: jan-jun, S2: jul-dez).
-        // PARADA = meta por evento (apurada no fechamento da OS).
-        // Verde quando a meta é batida; vermelho se o período fechou sem bater.
         if (topic.id === 20 && !isMultiOS) {
           var contratoBP = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return c.code === activeOS; }) || {};
           var ehParada = (_bpPerio(contratoBP) === "E");
-          var aprovAcum = 0, reconAcum = 0;
-          var iniPeriodo = ehParada ? 1 : (monthNum >= 7 ? 7 : 1);
-          var fimPeriodo = ehParada ? 12 : (monthNum >= 7 ? 12 : 6);
-          // bpAprovAcum/bpReconAcum no monthHistory já vêm acumulados de Janeiro até o mês --
-          // para isolar só o período (semestre ou evento) subtraímos o acumulado até o mês
-          // anterior ao início do período.
-          var mhAtualBP = contratoBP.monthHistory && contratoBP.monthHistory[monthNum];
-          var mhBaseBP = (iniPeriodo > 1) ? (contratoBP.monthHistory && contratoBP.monthHistory[iniPeriodo - 1]) : null;
-          if (mhAtualBP) {
-            aprovAcum = Math.max(0, (mhAtualBP.bpAprovAcum || 0) - (mhBaseBP ? (mhBaseBP.bpAprovAcum || 0) : 0));
-            reconAcum = Math.max(0, (mhAtualBP.bpReconAcum || 0) - (mhBaseBP ? (mhBaseBP.bpReconAcum || 0) : 0));
-          }
-          var metaBatida = (aprovAcum >= _bpAprov() && reconAcum >= _bpRecon());
-          var periodoFechado = ehParada ? (contratoBP.estagio === "FINALIZADA") : (monthNum >= fimPeriodo);
-          var rotuloPeriodo = ehParada ? "Evento (fechamento da OS)" : ("Semestre " + (iniPeriodo === 1 ? "1 (Jan–Jun)" : "2 (Jul–Dez)"));
-          var corBP, bgBP, bdBP, txtBP;
-          if (metaBatida) {
-            corBP = "#15803d"; bgBP = "#dcfce7"; bdBP = "#86efac"; txtBP = "🟢 Meta atingida";
-          } else if (periodoFechado) {
-            corBP = "#b91c1c"; bgBP = "#fee2e2"; bdBP = "#fca5a5"; txtBP = "🔴 Meta não atingida no período";
+          if (ehParada) {
+            var aprovParada = contratoBP.bpAprovAcum || 0;
+            var reconParada = contratoBP.bpReconAcum || 0;
+            var metaBatidaP = (aprovParada >= _bpAprov() && reconParada >= _bpRecon());
+            var periodoFechadoP = (contratoBP.estagio === "FINALIZADA");
+            var corP = metaBatidaP ? "#15803d" : (periodoFechadoP ? "#b91c1c" : "#b45309");
+            var bgP = metaBatidaP ? "#dcfce7" : (periodoFechadoP ? "#fee2e2" : "#fef9c3");
+            var bdP = metaBatidaP ? "#86efac" : (periodoFechadoP ? "#fca5a5" : "#fde68a");
+            var txtP = metaBatidaP ? "🟢 Meta atingida" : (periodoFechadoP ? "🔴 Meta não atingida no período" : "🟡 Em andamento");
+            extraValueBlockHTML += '<div style="margin-top:12px; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1.5px solid #cbd5e1; border-left:4px solid ' + corP + ';">' +
+              '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">' +
+                '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">Meta acumulada • Evento (fechamento da OS)</span>' +
+                '<span style="background:' + bgP + '; color:' + corP + '; border:1.5px solid ' + bdP + '; padding:4px 12px; border-radius:6px; font-weight:800; font-size:0.90rem;">' + txtP + '</span>' +
+              '</div>' +
+              '<div style="margin-top:7px; font-size:0.88rem; color:#334155; font-weight:700;">' +
+                'Aprovadas: <span style="color:' + (aprovParada >= _bpAprov() ? '#15803d' : '#b45309') + ';">' + aprovParada + ' / ' + _bpAprov() + '</span>' +
+                ' &nbsp;•&nbsp; Reconhecidas pelo cliente: <span style="color:' + (reconParada >= _bpRecon() ? '#15803d' : '#b45309') + ';">' + reconParada + ' / ' + _bpRecon() + '</span>' +
+              '</div>' +
+            '</div>';
           } else {
-            corBP = "#b45309"; bgBP = "#fef9c3"; bdBP = "#fde68a"; txtBP = "🟡 Em andamento";
+            // Rotina / Oficina: Semestre 1 e Semestre 2
+            var aprovS1 = contratoBP.bpAprovS1 || 0;
+            var reconS1 = contratoBP.bpReconS1 || 0;
+            var metaBatidaS1 = (aprovS1 >= _bpAprov() && reconS1 >= _bpRecon());
+            var corS1 = metaBatidaS1 ? "#15803d" : (monthNum >= 6 ? "#b91c1c" : "#b45309");
+            var bgS1 = metaBatidaS1 ? "#dcfce7" : (monthNum >= 6 ? "#fee2e2" : "#fef9c3");
+            var bdS1 = metaBatidaS1 ? "#86efac" : (monthNum >= 6 ? "#fca5a5" : "#fde68a");
+            var txtS1 = metaBatidaS1 ? "🟢 Meta atingida" : (monthNum >= 6 ? "🔴 Meta não atingida no período" : "🟡 Em andamento");
+
+            // Semestre 1 Box
+            extraValueBlockHTML += '<div style="margin-top:12px; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1.5px solid #cbd5e1; border-left:4px solid ' + corS1 + ';">' +
+              '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">' +
+                '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">Meta acumulada • Semestre 1 (Jan–Jun)</span>' +
+                '<span style="background:' + bgS1 + '; color:' + corS1 + '; border:1.5px solid ' + bdS1 + '; padding:4px 12px; border-radius:6px; font-weight:800; font-size:0.90rem;">' + txtS1 + '</span>' +
+              '</div>' +
+              '<div style="margin-top:7px; font-size:0.88rem; color:#334155; font-weight:700;">' +
+                'Aprovadas: <span style="color:' + (aprovS1 >= _bpAprov() ? '#15803d' : '#b45309') + ';">' + aprovS1 + ' / ' + _bpAprov() + '</span>' +
+                ' &nbsp;•&nbsp; Reconhecidas pelo cliente: <span style="color:' + (reconS1 >= _bpRecon() ? '#15803d' : '#b45309') + ';">' + reconS1 + ' / ' + _bpRecon() + '</span>' +
+              '</div>' +
+            '</div>';
+
+            // Semestre 2 Box (quando mês >= 7)
+            if (monthNum >= 7) {
+              var aprovS2 = contratoBP.bpAprovS2 || 0;
+              var reconS2 = contratoBP.bpReconS2 || 0;
+              var metaBatidaS2 = (aprovS2 >= _bpAprov() && reconS2 >= _bpRecon());
+              var corS2 = metaBatidaS2 ? "#15803d" : (monthNum >= 12 ? "#b91c1c" : "#b45309");
+              var bgS2 = metaBatidaS2 ? "#dcfce7" : (monthNum >= 12 ? "#fee2e2" : "#fef9c3");
+              var bdS2 = metaBatidaS2 ? "#86efac" : (monthNum >= 12 ? "#fca5a5" : "#fde68a");
+              var txtS2 = metaBatidaS2 ? "🟢 Meta atingida" : (monthNum >= 12 ? "🔴 Meta não atingida no período" : "🟡 Em andamento");
+              extraValueBlockHTML += '<div style="margin-top:8px; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1.5px solid #cbd5e1; border-left:4px solid ' + corS2 + ';">' +
+                '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">' +
+                  '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">Meta acumulada • Semestre 2 (Jul–Dez)</span>' +
+                  '<span style="background:' + bgS2 + '; color:' + corS2 + '; border:1.5px solid ' + bdS2 + '; padding:4px 12px; border-radius:6px; font-weight:800; font-size:0.90rem;">' + txtS2 + '</span>' +
+                '</div>' +
+                '<div style="margin-top:7px; font-size:0.88rem; color:#334155; font-weight:700;">' +
+                  'Aprovadas: <span style="color:' + (aprovS2 >= _bpAprov() ? '#15803d' : '#b45309') + ';">' + aprovS2 + ' / ' + _bpAprov() + '</span>' +
+                  ' &nbsp;•&nbsp; Reconhecidas pelo cliente: <span style="color:' + (reconS2 >= _bpRecon() ? '#15803d' : '#b45309') + ';">' + reconS2 + ' / ' + _bpRecon() + '</span>' +
+                '</div>' +
+              '</div>';
+            }
           }
-          extraValueBlockHTML += '<div style="margin-top:12px; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1.5px solid #cbd5e1; border-left:4px solid ' + corBP + ';">' +
-            '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">' +
-              '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">Meta acumulada • ' + rotuloPeriodo + '</span>' +
-              '<span style="background:' + bgBP + '; color:' + corBP + '; border:1.5px solid ' + bdBP + '; padding:4px 12px; border-radius:6px; font-weight:800; font-size:0.90rem;">' + txtBP + '</span>' +
-            '</div>' +
-            '<div style="margin-top:7px; font-size:0.88rem; color:#334155; font-weight:700;">' +
-              'Aprovadas: <span style="color:' + (aprovAcum >= _bpAprov() ? '#15803d' : '#b45309') + ';">' + aprovAcum + ' / ' + _bpAprov() + '</span>' +
-              ' &nbsp;•&nbsp; Reconhecidas pelo cliente: <span style="color:' + (reconAcum >= _bpRecon() ? '#15803d' : '#b45309') + ';">' + reconAcum + ' / ' + _bpRecon() + '</span>' +
-            '</div>' +
-          '</div>';
         }
 
         var qualKey = TOPIC_ID_TO_QUAL_KEY[topic.id];
