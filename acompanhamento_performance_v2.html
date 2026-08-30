@@ -3749,7 +3749,7 @@ function hydrateFromPowerBI() {
       var monthNum = getMonthNumberFromParams(currentParams);
       safeSetStorage("qual_eval_" + activeOS + "_m" + monthNum + "_" + qualKey, value);
       showToast("✅ Tópico #" + topicId + " marcado como: " + value.replace("_", " "));
-      refreshAllScoreViews();
+      refreshAllScoreViews(true);
     }
 
     // Botão inline de Status de Prazo na Aba 1 (mesma função de toggleSlaPeriodStatus, mas por
@@ -3762,7 +3762,7 @@ function hydrateFromPowerBI() {
       safeSetStorage("sla_period_status_" + osCode + "_m" + monthNum, value);
       var label = value === "INDEFINIDO" ? "⚪ Sem Período Definido" : (value === "NO_PRAZO" ? "⏱️ No Prazo" : (value === "INATIVO" ? "⛔ Período Inativo" : "⚠️ Fora do Prazo"));
       showToast("OS " + osCode + " (Mês " + monthNum + "): Prazo alterado para " + label);
-      refreshAllScoreViews();
+      refreshAllScoreViews(true);
     }
 
     function saveInlinePrazoDeadline(monthNum) {
@@ -3849,7 +3849,7 @@ function hydrateFromPowerBI() {
 
       showToast("💾 Apuração qualitativa da OS " + currentQualEvalOS + " salva com sucesso!");
       closeQualitativeEvalModal();
-      refreshAllScoreViews();
+      refreshAllScoreViews(true);
     }
 
     // === FASE 3D: metas vindas dos params MetaBP / MetaDesemp (nada estatico) ===
@@ -3896,6 +3896,77 @@ function hydrateFromPowerBI() {
     };
 
     window._scoreCache = window._scoreCache || {};
+    // ---- nota consolidada da OS, gravada na ATA (TopicoId = 0) -----------
+    // O score vivia so na tela: era recalculado a cada render e nunca persistido, entao
+    // qualquer coisa que precise dele fora do navegador (Aba 5, copia de pareceres, IA)
+    // ficava sem fonte. Aqui ele vira um registro proprio da ATA, com TopicoId 0 para nao
+    // colidir com os 23 topicos nem com a sintese (24).
+    window.FLOW_GRAVAR_NOTAS_URL = safeGetStorage("npe_flow_gravar_notas_url", "");
+
+    // Mesma conta do card de ranking da Aba 2 -- de proposito: o numero gravado tem que ser
+    // exatamente o numero que o gestor viu na tela quando salvou.
+    function notasDaOS(osCode, monthNum) {
+      if (typeof ACTIVE_CONTRACTS_CATALOG === "undefined" || !ACTIVE_CONTRACTS_CATALOG.length) return null;
+      var alvo = extractPrimaryOSCode(osCode);
+      var contract = ACTIVE_CONTRACTS_CATALOG.filter(function(c) {
+        return extractPrimaryOSCode(c.code) === alvo;
+      })[0];
+      if (!contract) return null;
+      var cur = calculateOSScore(contract, monthNum);
+      var soma = 0, meses = 0;
+      for (var m = 1; m <= monthNum; m++) {
+        var s = calculateOSScore(contract, m);
+        if (s.hasEvaluableData) { meses++; soma += s.monthScore; }
+      }
+      return {
+        notaMes: cur.monthScore,
+        notaAcum: parseFloat((meses > 0 ? (soma / meses) : cur.monthScore).toFixed(1)),
+        mesesAvaliados: meses
+      };
+    }
+
+    // Status do mes inteiro: so conta como Validado quando os 23 topicos estao travados --
+    // um topico reaberto derruba o mes de volta para Pendente.
+    function statusValidacaoDoMes(osCode, monthNum) {
+      var validados = 0;
+      for (var tid = 1; tid <= 23; tid++) {
+        if (safeGetStorage("status_" + osCode + "_m" + monthNum + "_" + tid, "Pendente") === "Validado") validados++;
+      }
+      return validados === 23 ? "Validado" : "Pendente";
+    }
+
+    async function gravarNotaDoMes(osCode, monthNum, anoRef, userEmail) {
+      var n = notasDaOS(osCode, monthNum);
+      var statusNota = statusValidacaoDoMes(osCode, monthNum);
+      if (!n) return false;
+      var url = window.FLOW_GRAVAR_NOTAS_URL || "";
+      if (url.indexOf("http") !== 0) return false;
+      var nomeMes = MESES_PT[monthNum - 1] || "";
+      nomeMes = nomeMes.charAt(0) + nomeMes.slice(1).toLowerCase();
+      try {
+        var r = await fetch(url, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            Title: osCode,           os: osCode,
+            Mes: monthNum,           mes: monthNum,
+            MesNome: nomeMes,        mesNome: nomeMes,
+            Ano: anoRef,             ano: anoRef,
+            TopicoId: 0,             topicoId: 0,
+            Indicador: "NOTA CONSOLIDADA DO M\u00caS",
+            indicador: "NOTA CONSOLIDADA DO M\u00caS",
+            NotaMes: n.notaMes,      notaMes: n.notaMes,
+            NotaAcum: n.notaAcum,    notaAcum: n.notaAcum,
+            MesesAvaliados: n.mesesAvaliados, mesesAvaliados: n.mesesAvaliados,
+            StatusValidacao: statusNota,  statusValidacao: statusNota,
+            EmailUsuario: userEmail, emailUsuario: userEmail,
+            DataHoraRegistro: new Date().toISOString(),
+            dataHora: new Date().toISOString()
+          })
+        });
+        return r.ok || r.status === 202;
+      } catch (e) { console.warn("Nota nao gravada:", e); return false; }
+    }
+
     function calculateOSScore(contract, monthNum) {
       var cacheKey = contract.code + "_m" + monthNum;
       if (window._scoreCache[cacheKey]) return window._scoreCache[cacheKey];
@@ -3908,11 +3979,35 @@ function hydrateFromPowerBI() {
     // assertividade, preenchimento de comentários) precisa passar por aqui: invalida o cache e
     // re-renderiza as 3 abas que dependem do score (mesmo as que não estão visíveis agora --
     // assim já ficam corretas quando o usuário trocar de aba), não só a aba onde o clique ocorreu.
-    function refreshAllScoreViews() {
+    function refreshAllScoreViews(houveEdicao) {
       window._scoreCache = {};
       if (typeof renderRows === "function") renderRows();
       if (typeof renderTab4Scorecard === "function") renderTab4Scorecard();
       if (typeof renderAnnualConsolidation === "function") renderAnnualConsolidation();
+      if (houveEdicao === true) agendarRegravacaoNota();
+    }
+
+    // O Setor de Performance mexe no score DEPOIS do gestor -- ao validar a OS no mês, mudar
+    // avaliação qualitativa, prazo ou override de assertividade. Quem vale é sempre a última
+    // gravação, então toda alteração regrava por cima. O atraso agrupa uma sequência de
+    // cliques (validar os 23 tópicos, por exemplo) numa gravação só.
+    var _notaTimer = null;
+    function agendarRegravacaoNota() {
+      if ((window.FLOW_GRAVAR_NOTAS_URL || "").indexOf("http") !== 0) return;
+      if (_notaTimer) clearTimeout(_notaTimer);
+      _notaTimer = setTimeout(function() {
+        _notaTimer = null;
+        var p = new URLSearchParams(window.location.search);
+        var os = extractPrimaryOSCode(p.get("SelectedOS") || "");
+        var mes = getMonthNumberFromParams(p);
+        var ano = parseInt(p.get("SelectedAno"), 10);
+        if (!os || !ano || !mes) return;
+        var sess = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
+        var quem = sess ? (sess.login || "") : (p.get("UserEmail") || "");
+        gravarNotaDoMes(os, mes, ano, quem).then(function(ok) {
+          if (ok && typeof showToast === "function") showToast("💾 Nota do mês atualizada.");
+        });
+      }, 2500);
     }
 
     var MONTH_HISTORY_FIELDS = [
@@ -4246,7 +4341,7 @@ function hydrateFromPowerBI() {
 
       safeSetStorage("assertiv_override_" + activeOS + "_m" + monthNum, newOverride);
       showToast(newOverride !== "AUTOMATICO" ? "🛡️ Assertividade ajustada manualmente para \"" + newOverride + "\"!" : "🔄 Assertividade revertida para a Apuração Automática!");
-      refreshAllScoreViews();
+      refreshAllScoreViews(true);
     }
 
     function handleCommentInput(topicId, tipo, value) {
@@ -4775,6 +4870,16 @@ function hydrateFromPowerBI() {
         } catch (err) {
           console.warn("Webhook cloud sync notice:", err);
         }
+      }
+
+      // A nota vai num fluxo proprio: o fluxo de gravacao da ATA que ja existe nao mapeia
+      // NotaMes/NotaAcum, e nao vamos mexer nele.
+      // Limpar o cache antes e obrigatorio: os comentarios que acabaram de ser salvos contam
+      // para o topico "Preenchimento", entao sem isso a nota gravada ficaria um save atrasada.
+      window._scoreCache = {};
+      var notaGravada = await gravarNotaDoMes(activeOS, monthNum, _anoSave, userEmail);
+      if (!notaGravada && (window.FLOW_GRAVAR_NOTAS_URL || "").indexOf("http") === 0) {
+        console.warn("Comentarios salvos, mas a nota do mes nao foi gravada.");
       }
 
       if (saveBtn) {
@@ -5893,6 +5998,9 @@ function hydrateFromPowerBI() {
     window.onParamAtivoChange = onParamAtivoChange;
     window.adicionarParametro = adicionarParametro;
     window.adicionarGrupo = adicionarGrupo;
+    window.notasDaOS = notasDaOS;
+    window.statusValidacaoDoMes = statusValidacaoDoMes;
+    window.gravarNotaDoMes = gravarNotaDoMes;
     window.rotuloVigencia = rotuloVigencia;
     window.definirResponsavel = definirResponsavel;
     window.removerTrocaResponsavel = removerTrocaResponsavel;
