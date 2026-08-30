@@ -884,7 +884,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-08-30 19:31";
+    window.NPE_BUILD = "2026-08-30 19:43";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1688,6 +1688,25 @@ function hydrateFromPowerBI() {
     // lista inteira da OS/ano direto do SharePoint, sem limite de tamanho e sem truncar texto.
     window.FLOW_HISTORICO_URL = safeGetStorage("npe_flow_historico_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/494d3774413b461bb6abb91d2156c80b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=LO52s96KHpF-4PXargsM6U-GQfsNhuGBDDpb70zMJ8A");
 
+    // Semeia os campos de edicao a partir da ATA. Antes isso vinha pela URL (AtaComments),
+    // limitado a 2.600 caracteres -- o que estourava a URL nas OSs com muito comentario e
+    // ainda entregava o texto CORTADO. Aqui vem inteiro.
+    function seedComentariosFromRow(osCode, r) {
+      var mes = parseInt(r.mes, 10);
+      var tid = parseInt(r.topico, 10);
+      if (!mes || !tid) return;
+      var g = String(r.gestor === null || r.gestor === undefined ? "" : r.gestor);
+      var m = String(r.master === null || r.master === undefined ? "" : r.master);
+      // Os textos padrao nao sao comentario de ninguem -- semea-los faria o campo parecer
+      // preenchido e o proximo save gravaria "Sem justificativas" como se fosse texto.
+      if (g && g.trim() && g.trim() !== "Sem justificativas") {
+        safeSetStorage("g_" + osCode + "_m" + mes + "_" + tid, g);
+      }
+      if (m && m.trim() && m.trim() !== "Sem parecer registrado") {
+        safeSetStorage("m_" + osCode + "_m" + mes + "_" + tid, m);
+      }
+    }
+
     function seedOverridesFromRow(osCode, r) {
       // Tudo o que o Master decide vive em storage durante a sessao, mas DENTRO do visual do
       // Power BI nao existe storage nenhum (localStorage, sessionStorage e cookie sao todos
@@ -1741,6 +1760,7 @@ function hydrateFromPowerBI() {
           else { db[key].push({ mes: mes, tipo: tipo, comentario: txt, status: r.status || "Pendente" }); n++; }
         });
         seedOverridesFromRow(osCode, r);
+        seedComentariosFromRow(osCode, r);
       });
       return n;
     }
@@ -1748,6 +1768,14 @@ function hydrateFromPowerBI() {
     // Quem precisa do historico ja semeado (o calculo da nota, por exemplo) espera por esta
     // promessa em vez de torcer para ter chegado a tempo.
     window.HISTORICO_PRONTO = false;
+    // Se o usuario ja comecou a digitar, repintar a tela apagaria o que ele escreveu. A
+    // leitura da ATA leva 1 a 3 segundos e normalmente chega antes -- mas "normalmente" nao
+    // e garantia quando o preco e o comentario do gestor.
+    window.USUARIO_DIGITOU = false;
+    document.addEventListener("input", function(ev) {
+      var el = ev.target;
+      if (el && el.tagName === "TEXTAREA") window.USUARIO_DIGITOU = true;
+    }, true);
     window._historicoPromessa = null;
     function historicoCarregado() {
       if (window.HISTORICO_PRONTO) return Promise.resolve(true);
@@ -1785,6 +1813,11 @@ function hydrateFromPowerBI() {
         if (typeof refreshAllScoreViews === "function") refreshAllScoreViews();
         console.log("Historico carregado da ATA_COMENTARIO:", rows.length, "linhas de", osDoBloco.length, "OS(s),", novos, "comentarios novos");
         window.HISTORICO_PRONTO = true;
+        // Os campos de edicao ja estao na tela quando a ATA chega -- sem repintar, o gestor
+        // veria a caixa vazia e um save gravaria vazio por cima do que existe.
+        if (!window.USUARIO_DIGITOU && typeof renderRows === "function") {
+          try { renderRows(); } catch (e) {}
+        }
         // O que foi semeado (status, qualitativo, prazo, assertividade) muda a nota, entao o
         // cache do score precisa cair para ninguem ler o valor calculado antes.
         window._scoreCache = {};
