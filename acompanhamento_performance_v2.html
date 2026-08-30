@@ -1858,10 +1858,21 @@ function hydrateFromPowerBI() {
 
     // Identificacao da OS em tres linhas. Setor e Gerente so aparecem quando a medida os
     // devolve -- OS antiga ou CTT incompleta nao deixa a linha orfa com um rotulo vazio.
+    // O rotulo da superintendencia vem como "Superintendencia de Rotina 02 - Flavio
+    // Henrique": cargo em texto normal e o NOME no fim. So o nome vira maiuscula e negrito,
+    // para ficar igual a Setor, Gerente e Gestor -- o cargo inteiro em caixa alta ficaria
+    // gritado, e nao e ele que identifica a pessoa.
+    function destacarNomeDoRotulo(rotulo) {
+      var s = String(rotulo || "");
+      var corte = s.lastIndexOf(" - ");
+      if (corte === -1) return '<b>' + s.toUpperCase() + '</b>';
+      return s.slice(0, corte + 3) + '<b>' + s.slice(corte + 3).toUpperCase() + '</b>';
+    }
+
     function buildIdentificacaoOSHTML(contract) {
       var linhas = [];
       linhas.push('\u2022 Neg\u00f3cio: <b>' + (contract.negocio || "\u2014") + '</b>' +
-                  (contract.superintendencia ? '&nbsp; / &nbsp;\u2022 ' + contract.superintendencia : ''));
+                  (contract.superintendencia ? '&nbsp; / &nbsp;\u2022 ' + destacarNomeDoRotulo(contract.superintendencia) : ''));
       var l2 = [];
       if (contract.setor) l2.push('\u2022 Setor: <b>' + contract.setor + '</b>');
       if (contract.gerente) l2.push('\u2022 Gerente: <b>' + contract.gerente + '</b>');
