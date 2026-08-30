@@ -884,7 +884,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-08-30 18:32";
+    window.NPE_BUILD = "2026-08-30 18:43";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6677,6 +6677,15 @@ function hydrateFromPowerBI() {
 
     // Encaixa qualquer caixa (modal, confirmacao, aviso) na largura real da pagina e limita
     // a altura em PIXEL, para que ela role por dentro em vez de esticar o visual.
+    // Quanto ampliar o conteudo das caixas. So entra em acao quando a pagina e MUITO mais
+    // larga que uma tela real (o visual desenha em ~2889 e encolhe para ~1400): num
+    // navegador normal o fator e 1 e nada muda.
+    function fatorAmpliacao() {
+      var larg = larguraUtilDaPagina();
+      if (larg < 1900) return 1;
+      return Math.max(1, Math.min(larg / 700, 4.2));
+    }
+
     function ajustarCaixaAoVisual(overlay) {
       if (!overlay) return;
       try {
@@ -6689,12 +6698,17 @@ function hydrateFromPowerBI() {
           // de ~2889x5000 e encolhe para caber, entao um limite de 1600px chegava ao usuario
           // com ~790. Em fracao, a caixa ocupa a mesma proporcao em qualquer escala.
           var frac = parseFloat(card.getAttribute("data-larg-frac") || "0") || 0.42;
+          var fator = fatorAmpliacao();
+          // zoom multiplica o tamanho de layout do elemento, entao a largura e a altura sao
+          // divididas pelo fator: depois de ampliado, o card volta a ocupar a fracao pedida.
+          card.style.zoom = fator;
           card.style.maxWidth = "none";
-          card.style.width = Math.max(320, Math.round(Math.min(larg - 36, larg * frac))) + "px";
+          var larguraAlvo = Math.max(320, Math.round(Math.min(larg - 36, larg * frac)));
+          card.style.width = Math.round(larguraAlvo / fator) + "px";
           // A altura acompanha a largura porque a area visivel e aproximadamente 1,8:1 --
           // window.innerHeight aqui e a altura do CONTEUDO (5000), nao a do que se enxerga.
           var alt = Math.min(window.innerHeight * 0.9, Math.round(larg / 1.8));
-          card.style.maxHeight = Math.round(Math.max(alt, 380)) + "px";
+          card.style.maxHeight = Math.round(Math.max(alt, 380) / fator) + "px";
         }
       } catch (e) {}
     }
@@ -6732,6 +6746,7 @@ function hydrateFromPowerBI() {
         " \u00b7 local " + ok(a.ls) + " sess\u00e3o " + ok(a.ss) + " cookie " + ok(a.ck) + " moldura " + ok(a.wn) +
         " \u00b7 moldura sobreviveu: " + (window.MOLDURA_SOBREVIVEU === null ? "?" : (window.MOLDURA_SOBREVIVEU ? "SIM" : "N\u00c3O")) +
         " \u00b7 largura p\u00e1gina " + larguraUtilDaPagina() + " / innerWidth " + window.innerWidth +
+        " \u00b7 amplia\u00e7\u00e3o " + fatorAmpliacao().toFixed(2) + "x" +
         " \u00b7 altura " + window.innerHeight;
     }
 
