@@ -2791,14 +2791,25 @@ function hydrateFromPowerBI() {
     var MONTH_SHORT_NAMES = ["", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
     // --- Helpers visuais compartilhados: gauge circular, barras de categoria, heatmap ---
-    // Meta padrão de performance: 70%. Usado em todo o app (gauge, barras de composição, matriz
+    // Fallback da meta de performance quando a META_GERAL do ano/negócio ainda não foi
+    // cadastrada. Quem manda é _metaGeral(); este 70 só entra quando não há metas. Usado
+    // em todo o app (gauge, barras de composição, matriz
     // mês a mês) para que a mesma % sempre gere a mesma cor, em qualquer visual.
     var PERFORMANCE_TARGET_PCT = 70;
+    // Piso da faixa amarela. Nao entra em METAS_CHAVES de proposito: aquela lista exige o
+    // conjunto COMPLETO para aplicar as metas, entao incluir uma chave sem linha na
+    // META_DESEMPENHO desligaria silenciosamente TODAS as metas. Aqui e opcional: se um dia
+    // existir uma linha META_ATENCAO, ela passa a valer sozinha; sem ela, segue 50.
+    function _metaAtencao() {
+      var v = META.desemp ? parseFloat(META.desemp.META_ATENCAO) : NaN;
+      return isFinite(v) ? v : 50;
+    }
+
     function scoreTier(pct) {
       // "text" e a cor de fonte que le em cima de "main": branco sobre verde e vermelho,
       // marrom escuro sobre o amarelo (branco no amarelo some).
-      if (pct >= PERFORMANCE_TARGET_PCT) return { main: "#22c55e", dark: "#15803d", bg: "#dcfce7", text: "#ffffff", label: "Meta Atingida" };
-      if (pct >= 50) return { main: "#eab308", dark: "#b45309", bg: "#fef9c3", text: "#422006", label: "Atenção" };
+      if (pct >= _metaGeral()) return { main: "#22c55e", dark: "#15803d", bg: "#dcfce7", text: "#ffffff", label: "Meta Atingida" };
+      if (pct >= _metaAtencao()) return { main: "#eab308", dark: "#b45309", bg: "#fef9c3", text: "#422006", label: "Atenção" };
       return { main: "#ef4444", dark: "#b91c1c", bg: "#fee2e2", text: "#ffffff", label: "Crítico" };
     }
 
@@ -3905,7 +3916,10 @@ function hydrateFromPowerBI() {
     }
     var META = parseMetaParams(new URLSearchParams(window.location.search));
     function _tol(k, fb) { return (META.desemp && isFinite(META.desemp[k])) ? META.desemp[k] : fb; }
-    function _metaGeral() { return (META.desemp && isFinite(META.desemp.META_GERAL)) ? META.desemp.META_GERAL : 70; }
+    function _metaGeral() {
+      var v = META.desemp ? parseFloat(META.desemp.META_GERAL) : NaN;
+      return isFinite(v) ? v : PERFORMANCE_TARGET_PCT;
+    }
     function _bpAprov() { return (META.bp && META.bp.aprov != null) ? META.bp.aprov : 3; }
     function _bpRecon() { return (META.bp && META.bp.recon != null) ? META.bp.recon : 1; }
     function _bpPerio(c) { return (META.bp && META.bp.perio) ? META.bp.perio : ((c && c.negocio === "PARADA") ? "E" : "S"); }
