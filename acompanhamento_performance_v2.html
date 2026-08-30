@@ -884,7 +884,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-08-30 18:43";
+    window.NPE_BUILD = "2026-08-30 18:52";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1671,11 +1671,25 @@ function hydrateFromPowerBI() {
     window.FLOW_HISTORICO_URL = safeGetStorage("npe_flow_historico_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/494d3774413b461bb6abb91d2156c80b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=LO52s96KHpF-4PXargsM6U-GQfsNhuGBDDpb70zMJ8A");
 
     function seedOverridesFromRow(osCode, r) {
-      // Avaliacao qualitativa / override de assertividade / status de prazo continuam sendo
-      // lidos de storage pelo resto do app -- aqui so semeamos o que ja esta gravado na lista.
+      // Tudo o que o Master decide vive em storage durante a sessao, mas DENTRO do visual do
+      // Power BI nao existe storage nenhum (localStorage, sessionStorage e cookie sao todos
+      // bloqueados, e a moldura e recriada a cada filtro). Entao a lista e a unica fonte:
+      // aqui semeamos de volta o que ja foi gravado nela.
       var mes = parseInt(r.mes, 10);
       var tid = parseInt(r.topico, 10);
       if (!mes || !tid) return;
+
+      // Status de validacao: era gravado e nunca lido de volta. Sem isto, todo mes que o
+      // Master validou voltava como "Pendente" depois de qualquer recarga -- e como o
+      // calculo cai no padrao quando nao encontra o valor, a nota saia diferente da que
+      // ele tinha aprovado, sem nada na tela indicando isso.
+      if (r.status) {
+        var st = String(r.status).trim();
+        // A lista guarda "Pendente de Valida\u00e7\u00e3o" em linhas antigas; o app trabalha
+        // com "Pendente" / "Validado" / "Reaberto".
+        if (st.indexOf("Pendente") === 0) st = "Pendente";
+        safeSetStorage("status_" + osCode + "_m" + mes + "_" + tid, st);
+      }
       if (r.qual && typeof TOPIC_ID_TO_QUAL_KEY !== "undefined" && TOPIC_ID_TO_QUAL_KEY[tid]) {
         safeSetStorage("qual_eval_" + osCode + "_m" + mes + "_" + TOPIC_ID_TO_QUAL_KEY[tid], r.qual);
       }
