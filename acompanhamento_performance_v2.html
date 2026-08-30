@@ -5027,6 +5027,19 @@ function hydrateFromPowerBI() {
     function onParamAtivoChange(sel) {
       var linha = paramLinha(sel.getAttribute("data-id"));
       if (!linha) return;
+      // Desfazer um bloco nao apaga o passado: registra um GRUPO_NAO valendo a partir de um
+      // mes, e o historico ate ali continua sendo do bloco.
+      if (String(linha.tipo) === "GRUPO_OS" && sel.value !== "Sim" && String(linha.ativo) === "Sim") {
+        var oss = osDoGrupo(linha.valor);
+        var vig = pedirVigencia("A partir de que m\u00eas " + oss.join(" + ") + " deixam de ser um bloco?");
+        if (!vig) { sel.value = "Sim"; return; }
+        window.METAS_DB.parametros.push({ id: -(Date.now()), tipo: "GRUPO_NAO", valor: linha.valor,
+          ativo: "Sim", vigencia: vig, _dirty: true, _novo: true });
+        metasAtualizaDirtyInfo();
+        renderMetasPanel();
+        showToast("\u2705 Bloco desfeito a partir de " + rotuloVigencia(vig) + " \u2014 clique em Salvar.");
+        return;
+      }
       if (String(linha.ativo) !== sel.value) { linha.ativo = sel.value; linha._dirty = true; }
       metasAtualizaDirtyInfo();
       renderMetasPanel();
@@ -5121,12 +5134,50 @@ function hydrateFromPowerBI() {
     function decidirCandidato(chave, agrupar) {
       var oss = osDoGrupo(chave);
       if (oss.length < 2) return;
+      var vig = pedirVigencia(agrupar
+        ? ("A partir de que m\u00eas " + oss.join(" + ") + " passam a ser um bloco?")
+        : ("A partir de que m\u00eas " + oss.join(" + ") + " ficam separadas?"));
+      if (!vig) return;
       window.METAS_DB.parametros.push({ id: -(Date.now()), tipo: agrupar ? "GRUPO_OS" : "GRUPO_NAO",
-        valor: oss.join("|"), ativo: "Sim", _dirty: true, _novo: true });
+        valor: oss.join("|"), ativo: "Sim", vigencia: vig, _dirty: true, _novo: true });
       renderMetasPanel();
       metasAtualizaDirtyInfo();
-      showToast(agrupar ? ("\u2705 " + oss.join(" + ") + " ser\u00e1 um bloco \u2014 clique em Salvar.")
-                        : ("\u2705 " + oss.join(" + ") + " ficam separadas \u2014 clique em Salvar."));
+      showToast((agrupar ? "\u2705 Bloco a partir de " : "\u2705 Separadas a partir de ") +
+                rotuloVigencia(vig) + " \u2014 clique em Salvar.");
+    }
+
+    var MESES_PT = ["JANEIRO","FEVEREIRO","MAR\u00c7O","ABRIL","MAIO","JUNHO",
+                    "JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+    // AAAAMM do filtro ativo do Power BI -- e o padrao das decisoes: o normal e valer
+    // a partir do mes que se esta olhando.
+    function mesAtualDoFiltro() {
+      var p = new URLSearchParams(window.location.search);
+      var ano = parseInt(p.get("SelectedAno"), 10) || new Date().getFullYear();
+      var mes = (typeof getMonthNumberFromParams === "function") ? getMonthNumberFromParams(p)
+                                                                 : (new Date().getMonth() + 1);
+      return ano * 100 + (parseInt(mes, 10) || 1);
+    }
+    function rotuloVigencia(v) {
+      var n = parseInt(v, 10);
+      if (!n || n < 200001) return "sem vig\u00eancia";
+      var ano = Math.floor(n / 100), mes = n % 100;
+      return (MESES_PT[mes - 1] || mes) + "/" + ano;
+    }
+    // Pede o mes em que a decisao passa a valer. Nada e reescrito para tras: o que ficou
+    // registrado antes desse mes continua como estava.
+    function pedirVigencia(texto) {
+      var padrao = mesAtualDoFiltro();
+      var r = prompt(texto + "\n\nInforme no formato AAAAMM (ex.: " + padrao + " = " +
+                     rotuloVigencia(padrao) + ").\nOs meses anteriores continuam como est\u00e3o.",
+                     String(padrao));
+      if (r === null) return null;
+      var v = parseInt(String(r).replace(/\D/g, ""), 10);
+      var mes = v % 100;
+      if (!v || v < 200001 || v > 209912 || mes < 1 || mes > 12) {
+        showToast("\u26a0\ufe0f M\u00eas inv\u00e1lido. Use AAAAMM, por exemplo " + padrao + ".");
+        return null;
+      }
+      return v;
     }
 
     function adicionarGrupo() {
@@ -5137,8 +5188,10 @@ function hydrateFromPowerBI() {
       var jaAgrupada = null;
       codigos.forEach(function(c) { if (!jaAgrupada && grupoDaOS(c)) jaAgrupada = c; });
       if (jaAgrupada) { showToast("\u26a0\ufe0f A OS " + jaAgrupada + " j\u00e1 est\u00e1 em outro grupo."); return; }
+      var vig = pedirVigencia("A partir de que m\u00eas " + codigos.join(" + ") + " passam a ser um bloco?");
+      if (!vig) return;
       window.METAS_DB.parametros.push({ id: -(Date.now()), tipo: "GRUPO_OS", valor: codigos.join("|"),
-        ativo: "Sim", _dirty: true, _novo: true });
+        ativo: "Sim", vigencia: vig, _dirty: true, _novo: true });
       renderMetasPanel();
       metasAtualizaDirtyInfo();
     }
@@ -5189,7 +5242,7 @@ function hydrateFromPowerBI() {
           html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
             '<td style="padding:8px;">' +
               '<div style="font-weight:800; font-size:0.90rem; color:' + (inativo ? "#94a3b8" : "#0f2b5c") + '; ' + (inativo ? "text-decoration:line-through;" : "") + '">' + oss.join(" + ") + '</div>' +
-              '<div style="font-size:0.74rem; color:#64748b;">' + oss.length + ' OSs \u2014 \u00e2ncora: <b>' + oss[0] + '</b> (onde o coment\u00e1rio fica gravado)</div>' +
+              '<div style="font-size:0.74rem; color:#64748b;">' + oss.length + ' OSs \u2014 \u00e2ncora: <b>' + oss[0] + '</b> \u00b7 vale desde <b>' + rotuloVigencia(g.vigencia) + '</b></div>' +
             '</td>' +
             '<td style="padding:8px; width:130px; text-align:right;">' +
               '<select data-id="' + g.id + '" onchange="onParamAtivoChange(this)" style="padding:4px 8px; border:1.5px solid ' + (g._dirty ? "#f59e0b" : "#cbd5e1") + '; border-radius:6px; font-size:0.82rem; font-weight:700;">' +
@@ -5498,7 +5551,8 @@ function hydrateFromPowerBI() {
             body: JSON.stringify({ usuario: usuario, parametros: pars.map(function(r) {
               // id negativo = linha criada aqui e ainda sem ID do SharePoint; o fluxo trata 0 como "criar"
               return { id: (parseInt(r.id, 10) > 0 ? parseInt(r.id, 10) : 0), tipo: r.tipo,
-                valor: r.valor, ativo: r.ativo || "Sim" };
+                valor: r.valor, ativo: r.ativo || "Sim",
+                vigencia: parseInt(r.vigencia, 10) || 202601 };
             }) })
           });
           okP = rP.ok;
@@ -5683,6 +5737,8 @@ function hydrateFromPowerBI() {
     window.onParamAtivoChange = onParamAtivoChange;
     window.adicionarParametro = adicionarParametro;
     window.adicionarGrupo = adicionarGrupo;
+    window.rotuloVigencia = rotuloVigencia;
+    window.mesAtualDoFiltro = mesAtualDoFiltro;
     window.novoUsuarioAcesso = novoUsuarioAcesso;
     window.redefinirSenhaUsuario = redefinirSenhaUsuario;
     window.alternarAtivoUsuario = alternarAtivoUsuario;
