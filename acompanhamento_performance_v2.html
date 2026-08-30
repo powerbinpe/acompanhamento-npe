@@ -596,7 +596,8 @@ function hydrateOSScoreDataFromPowerBI(params) {
     var rawOSForHistory = params.get("SelectedOS") || "";
     var activeOSForHistory = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOSForHistory) : rawOSForHistory;
     for (var hi = 0; hi < liveCatalog.length; hi++) {
-      if (liveCatalog[hi].code === activeOSForHistory) {
+      var liveCode = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(liveCatalog[hi].code) : liveCatalog[hi].code;
+      if (liveCode === activeOSForHistory || liveCatalog[hi].code === activeOSForHistory) {
         if (monthHistory) liveCatalog[hi].monthHistory = monthHistory;
         if (commentHistory) liveCatalog[hi].commentHistory = commentHistory;
         if (commentHistoryMaster) liveCatalog[hi].commentHistoryMaster = commentHistoryMaster;
@@ -2191,17 +2192,20 @@ function hydrateFromPowerBI() {
     // Busca a linha real (vinda do DAX, via OSMonthHistory) daquele mês para aquela OS.
     // Nunca inventa dado: se não existir, quem chamou decide o texto de "sem apuração".
     function getMonthHistoryRow(osCode, mNum) {
+      var target = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(osCode) : osCode;
       var c = (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined" && ACTIVE_CONTRACTS_CATALOG) ?
-        ACTIVE_CONTRACTS_CATALOG.find(function(x) { return x.code === osCode; }) : null;
+        ACTIVE_CONTRACTS_CATALOG.find(function(x) {
+          var xCode = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(x.code) : x.code;
+          return xCode === target;
+        }) : null;
       return (c && c.monthHistory) ? c.monthHistory[mNum] : null;
     }
 
     function getTopicMonthlyFullTableHTML(topic, osCode, mNum, mName) {
-      // Tópicos avaliados manualmente pelo Máster não têm apuração numérica: o histórico deve
-      // mostrar o veredito daquele mês (Pendente / N/A / Não Aderente / Aderente), e não o
-      // texto genérico "Tipo de Controle".
-      var qualKey = (typeof TOPIC_ID_TO_QUAL_KEY !== "undefined") ? TOPIC_ID_TO_QUAL_KEY[topic.id] : null;
-      if (qualKey) {
+      // Tópicos puramente qualitativos avaliados manualmente pelo Máster mostram o veredito daquele mês
+      var isPureQualitative = [5, 7, 13, 14, 18, 19, 21].indexOf(topic.id) !== -1 || topic.isQualitative;
+      if (isPureQualitative) {
+        var qualKey = (typeof TOPIC_ID_TO_QUAL_KEY !== "undefined" && TOPIC_ID_TO_QUAL_KEY[topic.id]) ? TOPIC_ID_TO_QUAL_KEY[topic.id] : ("t" + topic.id);
         var ev = (typeof getQualitativeEval === "function") ? getQualitativeEval(osCode, mNum, qualKey) : "PENDENTE";
         var vis = QUAL_EVAL_VISUAL[ev] || QUAL_EVAL_VISUAL.PENDENTE;
         return '<div style="border:1.5px solid #0f2b5c; border-radius:6px; background:#ffffff; padding:8px 10px;">' +
@@ -2267,9 +2271,11 @@ function hydrateFromPowerBI() {
         ];
       } else if (topic.id === 2) { // Resultado Ano
         if (!mh || mh.resAnoExecV === null) return semDados();
+        var margReal = (mh.fatAnoRealV && mh.resAnoRealV !== null) ? (mh.resAnoRealV / mh.fatAnoRealV) : null;
         lines = [
           { label: "Resultado Executivo Ano", val: fmtMo(mh.resAnoExecV) },
           { label: "Resultado Real Ano", val: mh.resAnoRealV === null ? "Sem FCST no período" : fmtMo(mh.resAnoRealV) },
+          { label: "Margem Real Ano (%)", val: margReal === null ? "-" : fmtPct(margReal) },
           { label: "Dif. Resultado Ano (%)", val: mh.resDifAnoPct === null ? "-" : (mh.resDifAnoPct >= 0 ? "+" : "") + fmtPct(mh.resDifAnoPct) }
         ];
       } else if (topic.id === 3) { // Faturamento Mês
@@ -2281,10 +2287,12 @@ function hydrateFromPowerBI() {
         ];
       } else if (topic.id === 4) { // Assertividade
         if (!mh || mh.resDifMesPct === null) return semDados("Sem FCST anterior para comparação neste mês.");
-        var assText = Math.abs(mh.resDifMesPct) <= 0.05 ? "Assertivo" : "Não Assertivo";
+        var assOverride = (typeof safeGetStorage === "function") ? safeGetStorage("assertiv_override_" + (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(osCode) : osCode) + "_m" + mNum, "AUTOMATICO") : "AUTOMATICO";
+        var autoAss = (mh.resDifMesPct >= -0.05) ? "Assertivo" : "Não Assertivo";
+        var finalAss = assOverride !== "AUTOMATICO" ? assOverride : autoAss;
         lines = [
           { label: "Dif. na Margem (%)", val: (mh.resDifMesPct >= 0 ? "+" : "") + fmtPct(mh.resDifMesPct) },
-          { label: "Assertividade Calculada (Mês)", val: assText }
+          { label: "Assertividade Calculada (Mês)", val: finalAss }
         ];
       } else if (topic.id === 6) { // Perda de Receita
         if (!mh) return semDados();
@@ -2345,6 +2353,10 @@ function hydrateFromPowerBI() {
           { label: "BP Aprovadas no Mês", val: bpA + (bpA === 1 ? " iniciativa" : " iniciativas") },
           { label: "BP Reconhecidas no Mês", val: bpR + (bpR === 1 ? " iniciativa" : " iniciativas") }
         ];
+      } else if (topic.id === 22) {
+        lines = [{ label: "Tipo de Controle", val: "Acompanhamento Contratual / Renovação" }];
+      } else if (topic.id === 23) {
+        lines = [{ label: "Tipo de Controle", val: "Observações & Recomendações Gerais" }];
       } else {
         lines = [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }];
       }
@@ -2918,13 +2930,15 @@ function hydrateFromPowerBI() {
           return;
         }
 
-        if (osHistRows.length === 0 && !topic.isPrazoControl && !topic.isPreenchimentoControl) {
-          tHtml += '<div style="font-size:0.88rem; color:#64748b; padding:10px 0;">Nenhum registro histórico anterior gravado para esta OS neste tópico.</div>';
+        if (monthNum <= 1) {
+          tHtml += '<div style="font-size:0.88rem; color:#64748b; padding:10px 0;">Primeiro mês do ano — sem meses anteriores para exibir no histórico.</div>';
         } else {
           tHtml += '<div style="display:flex; flex-direction:column; gap:12px;">';
 
-          // Histórico = meses ANTERIORES ao selecionado. O mês corrente já aparece no card
-          // principal logo acima, então repeti-lo aqui só aumentava o visual à toa.
+          // Histórico = meses ANTERIORES ao selecionado (de 1 a monthNum - 1).
+          // Ex: se mês atual = Julho (7), hm roda de 1 a 6 (Jan a Jun).
+          // Se retroagir para Junho (6), hm roda de 1 a 5 (Jan a Mai).
+          // Se for Agosto (8), hm roda de 1 a 7 (Jan a Jul).
           for (var hm = 1; hm < monthNum; hm++) {
             var mName = monthNames[hm - 1];
             var gM = osHistRows.filter(function(r) { return r.tipo === "GESTOR"; }).find(function(r) { return r.mes === hm; });
@@ -2932,13 +2946,6 @@ function hydrateFromPowerBI() {
 
             var gTxt = gM ? gM.comentario : safeGetStorage("g_" + activeOS + "_m" + hm + "_" + topic.id, "");
             var mTxt = mM ? mM.comentario : safeGetStorage("m_" + activeOS + "_m" + hm + "_" + topic.id, "");
-
-            // O mês entra no histórico se tiver APURAÇÃO real no período (vinda do DAX via
-            // OSMonthHistory) -- antes dependia de haver comentário, e por isso meses com valor
-            // real (ex.: Fev/Mar em Faturamento Mês) simplesmente sumiam da linha do tempo.
-            // Pontualidade e Preenchimento sempre aparecem (são controles locais, não de apuração).
-            var temApuracao = !!getMonthHistoryRow(activeOS, hm);
-            if (!gTxt && !mTxt && !temApuracao && !topic.isPrazoControl && !topic.isPreenchimentoControl) continue;
 
             var metricsTableHTML = getTopicMonthlyFullTableHTML(topic, activeOS, hm, mName);
 
