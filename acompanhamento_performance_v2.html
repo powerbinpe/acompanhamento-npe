@@ -884,7 +884,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-08-30 19:02";
+    window.NPE_BUILD = "2026-08-30 19:23";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1745,6 +1745,15 @@ function hydrateFromPowerBI() {
       return n;
     }
 
+    // Quem precisa do historico ja semeado (o calculo da nota, por exemplo) espera por esta
+    // promessa em vez de torcer para ter chegado a tempo.
+    window.HISTORICO_PRONTO = false;
+    window._historicoPromessa = null;
+    function historicoCarregado() {
+      if (window.HISTORICO_PRONTO) return Promise.resolve(true);
+      return (window._historicoPromessa || Promise.resolve(false));
+    }
+
     async function carregarHistoricoCompleto() {
       var params = new URLSearchParams(window.location.search);
       var rawOS = params.get("SelectedOS") || "";
@@ -1775,6 +1784,10 @@ function hydrateFromPowerBI() {
         window.__historicoCompletoCarregado = true;
         if (typeof refreshAllScoreViews === "function") refreshAllScoreViews();
         console.log("Historico carregado da ATA_COMENTARIO:", rows.length, "linhas de", osDoBloco.length, "OS(s),", novos, "comentarios novos");
+        window.HISTORICO_PRONTO = true;
+        // O que foi semeado (status, qualitativo, prazo, assertividade) muda a nota, entao o
+        // cache do score precisa cair para ninguem ler o valor calculado antes.
+        window._scoreCache = {};
       } catch (err) {
         // Falha aqui nao quebra a tela: o historico curto vindo da query-string continua valendo.
         console.warn("Historico: falha ao consultar o fluxo --", err);
@@ -5496,6 +5509,18 @@ function hydrateFromPowerBI() {
       var hoje = new Date();
       var ultimoMes = (ano === hoje.getFullYear()) ? (hoje.getMonth() + 1) : 12;
 
+      // Sem o historico semeado, o calculo cai no padrao: o mes validado volta como
+      // Pendente, o qualitativo some e a nota sai diferente da que o Master aprovou. Como
+      // aqui gravamos o ano inteiro de uma vez, isso escreveria o erro em todos os meses.
+      if (!window.HISTORICO_PRONTO) {
+        var btnEsp = document.getElementById("btnGravarNotasAno");
+        var rotEsp = btnEsp ? btnEsp.innerHTML : "";
+        if (btnEsp) btnEsp.innerHTML = "\u23f3 Lendo a ATA...";
+        try { await historicoCarregado(); } catch (e) {}
+        if (btnEsp) btnEsp.innerHTML = rotEsp;
+        window._scoreCache = {};
+      }
+
       var comDado = [];
       for (var m = 1; m <= ultimoMes; m++) {
         var n = notasDaOS(os, m);
@@ -6875,7 +6900,9 @@ function hydrateFromPowerBI() {
     // =========================================================================
     document.addEventListener("DOMContentLoaded", function() {
       hydrateFromPowerBI();
-      if (typeof carregarHistoricoCompleto === "function") carregarHistoricoCompleto();
+      if (typeof carregarHistoricoCompleto === "function") {
+        window._historicoPromessa = carregarHistoricoCompleto();
+      }
       if (typeof carregarMetasDoFluxo === "function") carregarMetasDoFluxo();
       if (typeof updateFromURLParams === "function") updateFromURLParams();
 
