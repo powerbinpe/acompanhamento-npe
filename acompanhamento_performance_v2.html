@@ -5403,6 +5403,140 @@ function hydrateFromPowerBI() {
       body.innerHTML = html;
     }
 
+    // ---- responsavel por OS, com vigencia mensal --------------------------
+    // Regra: a OS manda. Guardamos apenas o mes em que cada pessoa ASSUME; o mes em que
+    // deixou e derivado (o anterior ao proximo inicio da mesma OS). Assim e impossivel ter
+    // dois responsaveis no mesmo periodo, ou um mes sem ninguem.
+    function registrosResponsavel() {
+      return (window.METAS_DB.parametros || []).filter(function(p) {
+        return String(p.tipo) === "RESPONSAVEL" && String(p.ativo) === "Sim";
+      });
+    }
+    function osDoRegistroResp(p) { return String(p.valor || "").split("|")[0].trim(); }
+    function nomeDoRegistroResp(p) {
+      var partes = String(p.valor || "").split("|");
+      return partes.length > 1 ? partes.slice(1).join("|").trim() : "";
+    }
+    // Linha do tempo de uma OS: [{nome, inicio, fim}] com o fim calculado.
+    function historicoResponsavel(osCode) {
+      var regs = registrosResponsavel()
+        .filter(function(p) { return osDoRegistroResp(p).toUpperCase() === String(osCode).toUpperCase(); })
+        .map(function(p) { return { id: p.id, nome: nomeDoRegistroResp(p), inicio: parseInt(p.vigencia, 10) || 202601 }; })
+        .sort(function(a, b) { return a.inicio - b.inicio; });
+      regs.forEach(function(r, i) {
+        r.fim = (i + 1 < regs.length) ? mesAnterior(regs[i + 1].inicio) : null;
+      });
+      return regs;
+    }
+    function mesAnterior(anoMes) {
+      var ano = Math.floor(anoMes / 100), mes = anoMes % 100;
+      return mes === 1 ? (ano - 1) * 100 + 12 : ano * 100 + (mes - 1);
+    }
+    // Quem respondia pela OS num mes especifico.
+    function responsavelNoMes(osCode, anoMes) {
+      var h = historicoResponsavel(osCode).filter(function(r) { return r.inicio <= anoMes; });
+      return h.length ? h[h.length - 1].nome : "";
+    }
+    // O bloco so vale enquanto as OSs tiverem o MESMO responsavel: se um gestor assume so
+    // uma delas, o agrupamento se desfaz sozinho naquele mes -- sem cadastro extra.
+    function blocoValidoNoMes(codigoGrupo, anoMes) {
+      var oss = osDoGrupo(codigoGrupo);
+      if (oss.length < 2) return true;
+      var ref = responsavelNoMes(oss[0], anoMes);
+      if (!ref) return false;
+      return oss.every(function(o) { return responsavelNoMes(o, anoMes) === ref; });
+    }
+
+    async function definirResponsavel(osCode) {
+      var atual = responsavelNoMes(osCode, mesAtualDoFiltro());
+      var nome = prompt("Respons\u00e1vel pela OS " + osCode + ":", atual || "");
+      if (nome === null) return;
+      nome = String(nome).trim().toUpperCase().replace(/\|/g, " ");
+      if (!nome) { showToast("\u26a0\ufe0f Informe o nome do respons\u00e1vel."); return; }
+      var vig = pedirVigencia("A partir de que m\u00eas " + nome + " responde pela OS " + osCode + "?");
+      if (!vig) return;
+      var jaTem = registrosResponsavel().filter(function(p) {
+        return osDoRegistroResp(p).toUpperCase() === osCode.toUpperCase() &&
+               (parseInt(p.vigencia, 10) || 0) === vig;
+      })[0];
+      if (jaTem) {
+        jaTem.valor = osCode + "|" + nome;
+        jaTem._dirty = true;
+      } else {
+        window.METAS_DB.parametros.push({ id: -(Date.now()), tipo: "RESPONSAVEL",
+          valor: osCode + "|" + nome, ativo: "Sim", vigencia: vig, _dirty: true, _novo: true });
+      }
+      renderMetasPanel();
+      metasAtualizaDirtyInfo();
+      showToast("\u2705 " + nome + " responde pela " + osCode + " desde " + rotuloVigencia(vig) + " \u2014 clique em Salvar.");
+    }
+
+    function removerTrocaResponsavel(id) {
+      var p = paramLinha(id);
+      if (!p) return;
+      var h = historicoResponsavel(osDoRegistroResp(p));
+      if (h.length <= 1) { showToast("\u26d4 Toda OS precisa de um respons\u00e1vel."); return; }
+      if (!confirm("Remover esta troca? O respons\u00e1vel anterior volta a valer para o per\u00edodo.")) return;
+      p.ativo = "N\u00e3o";
+      p._dirty = true;
+      renderMetasPanel();
+      metasAtualizaDirtyInfo();
+    }
+
+    function renderResponsaveisPanel(body) {
+      var filtro = (document.getElementById("respFiltro") || {}).value || "";
+      var termo = String(filtro).toUpperCase().trim();
+      var oss = {};
+      registrosResponsavel().forEach(function(p) { oss[osDoRegistroResp(p)] = true; });
+      var lista = Object.keys(oss).sort();
+      if (termo) {
+        lista = lista.filter(function(o) {
+          return o.toUpperCase().indexOf(termo) !== -1 ||
+                 historicoResponsavel(o).some(function(r) { return r.nome.toUpperCase().indexOf(termo) !== -1; });
+        });
+      }
+      var comTroca = lista.filter(function(o) { return historicoResponsavel(o).length > 1; }).length;
+
+      var html = '<div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:0.82rem; color:#1e3a8a;">' +
+        'A CTT alimenta o respons\u00e1vel <b>s\u00f3 na entrada</b> da OS. Daqui em diante quem manda \u00e9 este cadastro: ' +
+        'trocar o gestor na CTT n\u00e3o reescreve mais o passado. O m\u00eas em que a pessoa <b>deixou</b> \u00e9 calculado \u2014 ' +
+        '\u00e9 o anterior ao in\u00edcio do pr\u00f3ximo respons\u00e1vel, ent\u00e3o nunca h\u00e1 dois no mesmo per\u00edodo nem m\u00eas sem ningu\u00e9m.' +
+      '</div>' +
+      '<div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">' +
+        '<input id="respFiltro" type="text" value="' + filtro + '" placeholder="Filtrar por OS ou respons\u00e1vel..." oninput="renderMetasPanel()" style="flex:1; min-width:220px; padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:7px; font-size:0.86rem;">' +
+        '<span style="font-size:0.78rem; color:#64748b;">' + lista.length + ' OSs \u00b7 ' + comTroca + ' com troca no per\u00edodo</span>' +
+      '</div>' +
+      '<table style="width:100%; border-collapse:collapse;">' +
+        '<tr style="background:#f1f5f9;">' +
+          '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">OS</th>' +
+          '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">RESPONS\u00c1VEL</th>' +
+          '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">DESDE</th>' +
+          '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">AT\u00c9</th>' +
+          '<th style="padding:7px 8px; text-align:right; font-size:0.74rem; color:#334155;"></th>' +
+        '</tr>';
+
+      lista.forEach(function(o) {
+        var h = historicoResponsavel(o);
+        h.forEach(function(r, idx) {
+          var vigente = (r.fim === null);
+          html += '<tr style="border-bottom:1px solid #f1f5f9; background:' + (idx > 0 ? "#fffbeb" : "transparent") + ';">' +
+            '<td style="padding:6px 8px; font-weight:800; font-size:0.84rem; color:#0f2b5c;">' + (idx === 0 ? o : "") + '</td>' +
+            '<td style="padding:6px 8px; font-size:0.84rem; color:' + (vigente ? "#0f2b5c" : "#64748b") + '; font-weight:' + (vigente ? "700" : "400") + ';">' + r.nome + '</td>' +
+            '<td style="padding:6px 8px; font-size:0.80rem; color:#475569;">' + rotuloVigencia(r.inicio) + '</td>' +
+            '<td style="padding:6px 8px; font-size:0.80rem; color:#475569;">' + (vigente ? '<span style="color:#16a34a; font-weight:800;">vigente</span>' : rotuloVigencia(r.fim)) + '</td>' +
+            '<td style="padding:6px 8px; text-align:right; white-space:nowrap;">' +
+              (idx === 0 ? '<button type="button" onclick="definirResponsavel(\'' + o + '\')" style="background:#e0f2fe; color:#075985; border:none; padding:5px 11px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer;">Trocar</button>' : "") +
+              (idx > 0 ? '<button type="button" onclick="removerTrocaResponsavel(\'' + r.id + '\')" style="background:#fee2e2; color:#991b1b; border:none; padding:5px 11px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer;">Remover troca</button>' : "") +
+            '</td>' +
+          '</tr>';
+        });
+      });
+      html += '</table>';
+      body.innerHTML = html;
+      var inp = document.getElementById("respFiltro");
+      if (inp && filtro) { inp.focus(); inp.setSelectionRange(filtro.length, filtro.length); }
+    }
+
     function trocarAbaMetas(aba) {
       METAS_ABA = aba;
       renderMetasPanel();
@@ -5416,7 +5550,7 @@ function hydrateFromPowerBI() {
 
       var barra = document.getElementById("metasAbasBar");
       if (barra) {
-        var abas = [["METAS", "\ud83c\udfaf Metas"], ["ELEGIBILIDADE", "\u2699\ufe0f Elegibilidade das OSs"], ["AGRUPAMENTOS", "\ud83d\udd17 Agrupamentos"]];
+        var abas = [["METAS", "\ud83c\udfaf Metas"], ["ELEGIBILIDADE", "\u2699\ufe0f Elegibilidade das OSs"], ["AGRUPAMENTOS", "\ud83d\udd17 Agrupamentos"], ["RESPONSAVEIS", "\ud83d\udc64 Respons\u00e1veis"]];
         if (ehProprietario()) abas.push(["USUARIOS", "\ud83d\udc65 Usu\u00e1rios"]);
         barra.innerHTML = abas.map(function(a) {
           var on = (METAS_ABA === a[0]);
@@ -5427,6 +5561,7 @@ function hydrateFromPowerBI() {
       if (filtrosMeta) filtrosMeta.style.display = (METAS_ABA === "METAS") ? "flex" : "none";
       if (METAS_ABA === "ELEGIBILIDADE") { renderElegibilidadePanel(body); return; }
       if (METAS_ABA === "AGRUPAMENTOS") { renderAgrupamentosPanel(body); return; }
+      if (METAS_ABA === "RESPONSAVEIS") { renderResponsaveisPanel(body); return; }
       if (METAS_ABA === "USUARIOS") {
         if (!window.ACESSO_USUARIOS.length) {
           body.innerHTML = '<div style="padding:36px; text-align:center; color:#64748b; font-weight:700;">Carregando usu\u00e1rios...</div>';
@@ -5738,6 +5873,11 @@ function hydrateFromPowerBI() {
     window.adicionarParametro = adicionarParametro;
     window.adicionarGrupo = adicionarGrupo;
     window.rotuloVigencia = rotuloVigencia;
+    window.definirResponsavel = definirResponsavel;
+    window.removerTrocaResponsavel = removerTrocaResponsavel;
+    window.historicoResponsavel = historicoResponsavel;
+    window.responsavelNoMes = responsavelNoMes;
+    window.blocoValidoNoMes = blocoValidoNoMes;
     window.mesAtualDoFiltro = mesAtualDoFiltro;
     window.novoUsuarioAcesso = novoUsuarioAcesso;
     window.redefinirSenhaUsuario = redefinirSenhaUsuario;
