@@ -238,7 +238,7 @@
   </div>
   <!-- Modal: Cadastro de Metas (Master) -- le e grava nas listas META_DESEMPENHO / META_BOAS_PRATICAS -->
   <div id="metasModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
-    <div style="background:#ffffff; border-radius:14px; width:100%; max-width:min(1600px, 96vw); box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #0f766e; overflow:hidden; display:flex; flex-direction:column; max-height:92vh;">
+    <div style="background:#ffffff; border-radius:14px; width:100%; max-width:1600px; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #0f766e; overflow:hidden; display:flex; flex-direction:column; max-height:92vh;">
       <div style="background:linear-gradient(135deg, #0f2b5c 0%, #065f46 100%); padding:14px 20px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
         <div>
           <h3 style="margin:0; font-size:1.10rem; font-weight:800;">&#127919; Cadastro de Metas</h3>
@@ -270,7 +270,7 @@
         <button type="button" id="metasSaveBtn" onclick="salvarMetasPanel()" style="margin-left:auto; background:linear-gradient(135deg,#16a34a,#15803d); color:#ffffff; border:none; padding:9px 20px; border-radius:7px; font-weight:800; font-size:0.90rem; cursor:pointer;">&#128190; Salvar</button>
       </div>
 
-      <div id="metasPanelBody" style="padding:16px 20px; overflow-y:auto; flex:1;"></div>
+      <div id="metasPanelBody" style="padding:16px 20px; overflow-y:auto; flex:1 1 auto; min-height:0;"></div>
     </div>
   </div>
 
@@ -5127,6 +5127,36 @@ function hydrateFromPowerBI() {
     // Por que so a OS selecionada: o monthHistory (que da o valor de CADA mes) so chega para
     // a OS que esta no slicer. Nas demais, resolveContractForMonth devolve o contrato sem
     // historico e todo mes repetiria o acumulado do ano -- gravaria numero errado.
+    // O visual do Power BI roda num iframe restrito, e ali confirm()/alert()/prompt() podem
+    // ser ignorados: a chamada devolve false na hora, sem erro e sem caixa. Foi o que fez o
+    // "Gravar Notas do Ano" parecer morto -- ele cancelava sozinho na confirmacao.
+    // Esta caixa e HTML normal, entao funciona em qualquer contexto.
+    function confirmarNaPagina(titulo, texto, rotuloOk) {
+      return new Promise(function(resolve) {
+        var fundo = document.createElement("div");
+        fundo.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh;" +
+          "background:rgba(11,26,58,0.90); z-index:999999999; display:flex;" +
+          "justify-content:center; align-items:flex-start; padding:28px 20px; overflow-y:auto;";
+        fundo.innerHTML =
+          '<div style="background:#fff; border-radius:14px; width:100%; max-width:520px; border:2.5px solid #0284c7; overflow:hidden; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
+            '<div style="background:linear-gradient(135deg,#0f2b5c,#0284c7); padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">' + titulo + '</div>' +
+            '<div style="padding:18px 20px; font-size:0.92rem; color:#334155; line-height:1.6; white-space:pre-line;">' + texto + '</div>' +
+            '<div style="padding:0 20px 18px; display:flex; gap:10px; justify-content:flex-end;">' +
+              '<button type="button" data-r="0" style="background:#e2e8f0; color:#475569; border:none; padding:9px 18px; border-radius:8px; font-weight:800; cursor:pointer;">Cancelar</button>' +
+              '<button type="button" data-r="1" style="background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; border:none; padding:9px 20px; border-radius:8px; font-weight:800; cursor:pointer;">' + (rotuloOk || "Confirmar") + '</button>' +
+            '</div>' +
+          '</div>';
+        function fechar(v) { try { document.body.removeChild(fundo); } catch (e) {} resolve(v); }
+        fundo.addEventListener("click", function(ev) {
+          var b = ev.target.closest ? ev.target.closest("button[data-r]") : null;
+          if (b) fechar(b.getAttribute("data-r") === "1");
+          else if (ev.target === fundo) fechar(false);
+        });
+        document.body.appendChild(fundo);
+        try { window.scrollTo(0, 0); } catch (e) {}
+      });
+    }
+
     async function gravarNotasDoAno() {
       if (!isUserAuthorizedMaster()) { showToast("\u26d4 Apenas o Setor de Performance."); return; }
       if ((window.FLOW_GRAVAR_NOTAS_URL || "").indexOf("http") !== 0) {
@@ -5150,9 +5180,13 @@ function hydrateFromPowerBI() {
       }
       if (!comDado.length) { showToast("\u26a0\ufe0f Nenhum mes com dado apurado nesta OS."); return; }
 
-      if (!confirm("Gravar a nota de " + comDado.length + " mes(es) da OS " + os + " em " + ano + "?\n\n" +
-                   "Meses: " + comDado.join(", ") + "\n\n" +
-                   "Onde ja houver nota gravada, ela sera substituida pelo valor atual da tela.")) return;
+      var segue = await confirmarNaPagina(
+        "\ud83d\udcc5 Gravar notas do ano",
+        "OS <b>" + os + "</b> \u2014 " + ano + "\n\n" +
+        "<b>" + comDado.length + " m\u00eas(es)</b> com dado apurado: " + comDado.join(", ") + "\n\n" +
+        "Onde j\u00e1 houver nota gravada, ela ser\u00e1 substitu\u00edda pelo valor atual da tela.",
+        "Gravar");
+      if (!segue) return;
 
       var btn = document.getElementById("btnGravarNotasAno");
       var rotulo = btn ? btn.innerHTML : "";
@@ -6495,6 +6529,7 @@ function hydrateFromPowerBI() {
     window.notasDaOS = notasDaOS;
     window.percentuaisPorCategoria = percentuaisPorCategoria;
     window.gravarNotasDoAno = gravarNotasDoAno;
+    window.confirmarNaPagina = confirmarNaPagina;
     window.renderTab5 = renderTab5;
     window.carregarTab5 = carregarTab5;
     window.tab5FiltrarLista = tab5FiltrarLista;
