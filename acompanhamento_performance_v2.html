@@ -206,6 +206,10 @@
         &#127919; Cadastro de Metas
       </button>
 
+      <button type="button" id="btnGravarNotasAno" onclick="gravarNotasDoAno()" style="display:none; background:linear-gradient(135deg,#b45309,#78350f); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+        &#128197; Gravar Notas do Ano
+      </button>
+
       <button type="button" id="btnCopyMonthPareceres" onclick="openCopyMonthPareceresModal()" style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
         📋 Copiar Pareceres do Mês
       </button>
@@ -1108,7 +1112,7 @@ function hydrateFromPowerBI() {
     // Botoes que so o Setor de Performance usa. Exportar pareceres alimenta a analise da
     // Performance, entao acompanha o Cadastro de Metas: sem sessao, nem aparecem.
     var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas", "btnCopyMonthPareceres",
-                                    "btnCopyAllForAI", "btnCopyLicoes"];
+                                    "btnCopyAllForAI", "btnCopyLicoes", "btnGravarNotasAno"];
     function aplicarVisibilidadeMaster(liberado) {
       BOTOES_EXCLUSIVOS_MASTER.forEach(function(id) {
         var el = document.getElementById(id);
@@ -3921,7 +3925,10 @@ function hydrateFromPowerBI() {
       return {
         notaMes: cur.monthScore,
         notaAcum: parseFloat((meses > 0 ? (soma / meses) : cur.monthScore).toFixed(1)),
-        mesesAvaliados: meses
+        mesesAvaliados: meses,
+        // Mes sem nenhum topico apurado nao tem nota -- gravar um zero ali sujaria o ranking
+        // e a media acumulada de todo mundo.
+        temDado: cur.hasEvaluableData
       };
     }
 
@@ -4695,7 +4702,62 @@ function hydrateFromPowerBI() {
       }
     }
 
-                async function saveAllComments() {
+                // ---- carga inicial das notas do ano -----------------------------------
+    // A nota so nasce quando alguem salva ou valida, entao todo mes ja fechado antes de
+    // 30/08/2026 nunca foi gravado -- o numero existe, mas so na tela. Isto percorre os meses
+    // da OS selecionada e grava de uma vez.
+    //
+    // Por que so a OS selecionada: o monthHistory (que da o valor de CADA mes) so chega para
+    // a OS que esta no slicer. Nas demais, resolveContractForMonth devolve o contrato sem
+    // historico e todo mes repetiria o acumulado do ano -- gravaria numero errado.
+    async function gravarNotasDoAno() {
+      if (!isUserAuthorizedMaster()) { showToast("\u26d4 Apenas o Setor de Performance."); return; }
+      if ((window.FLOW_GRAVAR_NOTAS_URL || "").indexOf("http") !== 0) {
+        showToast("\u26a0\ufe0f Fluxo de gravacao de notas nao configurado."); return;
+      }
+      var p = new URLSearchParams(window.location.search);
+      var os = extractPrimaryOSCode(p.get("SelectedOS") || "");
+      var ano = parseInt(p.get("SelectedAno"), 10);
+      if (!os || !ano) {
+        showToast("\u26a0\ufe0f Selecione 1 OS e o Ano no filtro do Power BI.");
+        return;
+      }
+      // Ano corrente para no mes atual; ano passado vai ate dezembro.
+      var hoje = new Date();
+      var ultimoMes = (ano === hoje.getFullYear()) ? (hoje.getMonth() + 1) : 12;
+
+      var comDado = [];
+      for (var m = 1; m <= ultimoMes; m++) {
+        var n = notasDaOS(os, m);
+        if (n && n.temDado) comDado.push(m);
+      }
+      if (!comDado.length) { showToast("\u26a0\ufe0f Nenhum mes com dado apurado nesta OS."); return; }
+
+      if (!confirm("Gravar a nota de " + comDado.length + " mes(es) da OS " + os + " em " + ano + "?\n\n" +
+                   "Meses: " + comDado.join(", ") + "\n\n" +
+                   "Onde ja houver nota gravada, ela sera substituida pelo valor atual da tela.")) return;
+
+      var btn = document.getElementById("btnGravarNotasAno");
+      var rotulo = btn ? btn.innerHTML : "";
+      var ok = 0, falhou = [];
+      for (var i = 0; i < comDado.length; i++) {
+        var mes = comDado[i];
+        if (btn) btn.innerHTML = "\u23f3 " + (i + 1) + "/" + comDado.length + " (mes " + mes + ")";
+        var sess = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
+        var quem = sess ? (sess.login || "") : "";
+        var gravou = await gravarNotaDoMes(os, mes, ano, quem);
+        if (gravou) ok++; else falhou.push(mes);
+      }
+      if (btn) btn.innerHTML = rotulo;
+
+      if (!falhou.length) {
+        showToast("\u2705 " + ok + " mes(es) da OS " + os + " gravados.");
+      } else {
+        showToast("\u26a0\ufe0f " + ok + " gravados, falhou em: " + falhou.join(", "));
+      }
+    }
+
+    async function saveAllComments() {
       var saveBtn = document.querySelector(".save-btn");
       if (saveBtn) {
         saveBtn.innerHTML = "⏳ Gravando no SharePoint...";
@@ -5999,6 +6061,7 @@ function hydrateFromPowerBI() {
     window.adicionarParametro = adicionarParametro;
     window.adicionarGrupo = adicionarGrupo;
     window.notasDaOS = notasDaOS;
+    window.gravarNotasDoAno = gravarNotasDoAno;
     window.statusValidacaoDoMes = statusValidacaoDoMes;
     window.gravarNotaDoMes = gravarNotaDoMes;
     window.rotuloVigencia = rotuloVigencia;
