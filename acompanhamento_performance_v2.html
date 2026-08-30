@@ -4211,7 +4211,17 @@ function hydrateFromPowerBI() {
         if (parseInt(r.mes, 10) !== window.TAB5.mes) return;
         var os = extractPrimaryOSCode(String(r.os || "").toUpperCase());
         if (!os) return;
-        mapa[os] = { notaMes: parseFloat(r.notaMes), notaAcum: parseFloat(r.notaAcum) };
+        mapa[os] = {
+          notaMes: parseFloat(r.notaMes),
+          notaAcum: parseFloat(r.notaAcum),
+          cats: {
+            fin: parseFloat(r.pctFinanceiro),
+            gov: parseFloat(r.pctGovernanca),
+            acomp: parseFloat(r.pctAcompanhamento),
+            pes: parseFloat(r.pctPessoas),
+            ssma: parseFloat(r.pctSSMA)
+          }
+        };
       });
       return mapa;
     }
@@ -4225,6 +4235,32 @@ function hydrateFromPowerBI() {
     }
 
     function tab5FiltrarLista(aba) { TAB5_FILTRO = aba; renderTab5(); }
+
+    // % na cor da faixa (a mesma escala do resto do app, vinda da META_GERAL).
+    function tab5Pct(valor, tamanho) {
+      if (!isFinite(valor)) return '<span style="color:#cbd5e1;">\u2014</span>';
+      var tier = scoreTier(valor);
+      return '<span style="font-weight:900; font-size:' + (tamanho || "0.92rem") + '; color:' + tier.main + ';">' +
+             valor.toFixed(1) + '%</span>';
+    }
+
+    // Pastilha por categoria: a cor e o icone identificam a categoria (mesmo padrao do card
+    // de OS), e o % dentro dela vai na cor da faixa -- as duas informacoes de uma vez, sem
+    // uma roubar o lugar da outra.
+    function tab5Chips(cats) {
+      if (!cats) return '<span style="color:#cbd5e1;">\u2014</span>';
+      return SCORE_CATEGORIES.map(function(c) {
+        var v = cats[c.key];
+        if (!isFinite(v)) return "";
+        var tier = scoreTier(v);
+        return '<span title="' + c.label + '" style="display:inline-flex; align-items:center; gap:4px; background:' + c.color +
+          '; border-radius:7px; padding:2px 3px 2px 6px; margin:2px 3px 2px 0;">' +
+          '<span style="font-size:0.82rem; line-height:1;">' + c.icon + '</span>' +
+          '<span style="background:' + tier.main + '; color:' + tier.text +
+            '; border-radius:5px; padding:1px 5px; font-size:0.74rem; font-weight:900;">' + v.toFixed(0) + '%</span>' +
+        '</span>';
+      }).join("");
+    }
 
     // O corpo da pagina e azul escuro. Todo conteudo desta aba mora num painel branco,
     // igual as demais -- sem isso o texto escuro fica invisivel sobre o fundo.
@@ -4288,7 +4324,7 @@ function hydrateFromPowerBI() {
       // ---- ranking ----
       var comNota = elegiveis.map(function(o) {
         var n = notas[o.codigo];
-        return n ? { codigo: o.codigo, notaMes: n.notaMes, notaAcum: n.notaAcum } : null;
+        return n ? { codigo: o.codigo, notaMes: n.notaMes, notaAcum: n.notaAcum, cats: n.cats } : null;
       }).filter(Boolean).sort(function(a, b) { return b.notaMes - a.notaMes; });
 
       html += '<h3 style="margin:0 0 10px; font-size:1.05rem; color:#0f2b5c; font-weight:800;">\ud83c\udfc6 Ranking do m\u00eas</h3>';
@@ -4306,14 +4342,16 @@ function hydrateFromPowerBI() {
             '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">OS</th>' +
             '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">NOTA DO M\u00caS</th>' +
             '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">ACUMULADA</th>' +
+            '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">POR CATEGORIA</th>' +
           '</tr>';
         comNota.forEach(function(r, i) {
           var medalha = i === 0 ? "\ud83e\udd47" : (i === 1 ? "\ud83e\udd48" : (i === 2 ? "\ud83e\udd49" : (i + 1)));
           html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
             '<td style="padding:7px 8px; font-weight:800; color:#0f2b5c;">' + medalha + '</td>' +
             '<td style="padding:7px 8px; font-weight:700; color:#0f2b5c;">' + formatOSLabel(r.codigo) + '</td>' +
-            '<td style="padding:7px 8px; text-align:right; font-weight:800; color:#0f2b5c;">' + r.notaMes.toFixed(1) + '</td>' +
-            '<td style="padding:7px 8px; text-align:right; color:#475569;">' + r.notaAcum.toFixed(1) + '</td>' +
+            '<td style="padding:7px 8px; text-align:right;">' + tab5Pct(r.notaMes, "1.02rem") + '</td>' +
+            '<td style="padding:7px 8px; text-align:right;">' + tab5Pct(r.notaAcum) + '</td>' +
+            '<td style="padding:7px 8px;">' + tab5Chips(r.cats) + '</td>' +
           '</tr>';
         });
         html += '</table>';
@@ -4340,6 +4378,7 @@ function hydrateFromPowerBI() {
           '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">T\u00d3PICOS DO GESTOR</th>' +
           '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">PARECERES</th>' +
           '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">NOTA</th>' +
+          '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">POR CATEGORIA</th>' +
         '</tr>';
       lista.forEach(function(o) {
         var e = resumo[o.codigo] || { topicos: 0, master: 0, validados: 0 };
@@ -4355,8 +4394,8 @@ function hydrateFromPowerBI() {
           '<td style="padding:7px 8px;">' + selo + '</td>' +
           '<td style="padding:7px 8px; text-align:right; color:' + (fez ? "#0f2b5c" : "#94a3b8") + '; font-weight:700;">' + e.topicos + '/23</td>' +
           '<td style="padding:7px 8px; text-align:right; color:#475569;">' + e.master + '</td>' +
-          '<td style="padding:7px 8px; text-align:right; font-weight:800; color:' + (n ? "#0f2b5c" : "#cbd5e1") + ';">' +
-            (n ? n.notaMes.toFixed(1) : "\u2014") + '</td>' +
+          '<td style="padding:7px 8px; text-align:right;">' + (n ? tab5Pct(n.notaMes) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
+          '<td style="padding:7px 8px;">' + (n ? tab5Chips(n.cats) : '<span style="color:#cbd5e1;">\u2014</span>') + '</td>' +
         '</tr>';
       });
       html += '</table>';
