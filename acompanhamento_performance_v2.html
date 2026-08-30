@@ -884,7 +884,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-08-30 19:23";
+    window.NPE_BUILD = "2026-08-30 19:31";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -4252,11 +4252,23 @@ function hydrateFromPowerBI() {
           rotulo: bloco,
           sup: sups[parseInt(c[1], 10)] || "",
           ger: gers[parseInt(c[2], 10)] || "",
-          neg: negs[parseInt(c[3], 10)] || ""
+          neg: negs[parseInt(c[3], 10)] || "",
+          // A descricao pode conter " - ", entao o que sobrar depois do quarto ":" e tudo
+          // dela -- a medida ja troca ":" por "-" antes de mandar.
+          desc: c.length > 4 ? c.slice(4).join(":") : ""
         };
       });
       window.OS_HIER = mapa;
       return mapa;
+    }
+
+    // "M00200 - YARA - PAULINIA" em vez de "M00200". O codigo sozinho nao diz de quem e a
+    // OS, e a reuniao e com quem conhece o cliente, nao o codigo.
+    function rotuloCompletoOS(o) {
+      var h = (window.OS_HIER || {})[o.codigo] || {};
+      var base = formatOSLabel(o.rotulo || o.codigo);
+      var d = h.desc || o.desc || "";
+      return d ? (base + " - " + d) : base;
     }
 
     // Nome completo do superintendente a partir do primeiro nome que a medida manda.
@@ -4310,6 +4322,16 @@ function hydrateFromPowerBI() {
       return Array.isArray(d) ? d : [];
     }
 
+    // Ultimo mes que pode ter nota. O fechamento da competencia acontece entre os dias 12 e
+    // 20 do mes SEGUINTE, entao o mes corrente nunca esta fechado -- nem no dia 31. Ano
+    // passado vai ate dezembro.
+    function ultimoMesFechado(ano) {
+      var hoje = new Date();
+      if (ano < hoje.getFullYear()) return 12;
+      if (ano > hoje.getFullYear()) return 0;
+      return hoje.getMonth(); // getMonth() e 0-based: em agosto devolve 7, que e julho
+    }
+
     async function carregarTab5(forcar) {
       var p = new URLSearchParams(window.location.search);
       var ano = parseInt(p.get("SelectedAno"), 10);
@@ -4320,9 +4342,7 @@ function hydrateFromPowerBI() {
       window.TAB5.ano = ano;
       renderTab5();
       try {
-        // Ate o mes corrente no ano atual; ano fechado vai ate dezembro.
-        var hoje = new Date();
-        var ultimo = (ano === hoje.getFullYear()) ? (hoje.getMonth() + 1) : 12;
+        var ultimo = ultimoMesFechado(ano);
         var meses = [];
         for (var m = 1; m <= ultimo; m++) meses.push(m);
 
@@ -4337,6 +4357,17 @@ function hydrateFromPowerBI() {
 
         var porMes = {};
         meses.forEach(function(mm, idx) { porMes[mm] = res[idx]; });
+        // Um mes so "comeca" quando pelo menos uma OS comentou nele. Mostrar um mes em que
+        // ninguem escreveu nada faria toda a coluna parecer atraso, quando na verdade o mes
+        // ainda nao entrou no ciclo.
+        var ultimoComComentario = 0;
+        meses.forEach(function(mm) {
+          var temAlguem = (porMes[mm] || []).some(function(r) { return tab5Preenchido(r.gestor); });
+          if (temAlguem) ultimoComComentario = mm;
+        });
+        if (ultimoComComentario > 0 && ultimoComComentario < meses.length) {
+          meses = meses.slice(0, ultimoComComentario);
+        }
         window.TAB5.ataPorMes = porMes;
         window.TAB5.meses = meses;
         window.TAB5.notas = res[res.length - 1];
@@ -4512,7 +4543,10 @@ function hydrateFromPowerBI() {
                                    notaAcum: n.ultima.notaAcum, cats: n.ultima.cats } : null;
       }).filter(Boolean).sort(function(a, b) { return b.notaAcum - a.notaAcum; });
 
-      html += '<h3 style="margin:0 0 10px; font-size:1.05rem; color:#0f2b5c; font-weight:800;">\ud83c\udfc6 Ranking do ano</h3>';
+      html += '<h3 style="margin:0 0 4px; font-size:1.05rem; color:#0f2b5c; font-weight:800;">\ud83c\udfc6 Ranking do ano</h3>' +
+        '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Ordenado pela <b>acumulada</b>. ' +
+        'Cada coluna de m\u00eas traz a nota daquele m\u00eas; a compet\u00eancia fecha entre os dias 12 e 20 do m\u00eas seguinte, ' +
+        'ent\u00e3o o m\u00eas corrente nunca aparece.</div>';
       if (!comNota.length) {
         html += '<div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:26px 22px; margin-bottom:26px; color:#475569; font-size:0.90rem;">' +
           '<b>Nenhuma nota gravada ainda em ' + ano + '.</b><br>' +
@@ -4521,28 +4555,38 @@ function hydrateFromPowerBI() {
           'O ranking se preenche sozinho conforme isso acontece.' +
         '</div>';
       } else {
-        // Ordenado pela ACUMULADA: a nota de um mes isolado premiaria quem so tem um mes
-        // gravado, e o que interessa e o desempenho ao longo do ano.
-        html += '<table style="width:100%; border-collapse:collapse; margin-bottom:26px;">' +
+        html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:26px; min-width:1100px;">' +
           '<tr style="background:#f1f5f9;">' +
-            '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155; width:52px;">#</th>' +
-            '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">OS</th>' +
-            '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">ACUMULADA</th>' +
-            '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">\u00daLTIMO M\u00caS</th>' +
-            '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">POR CATEGORIA</th>' +
+            '<th style="padding:9px 8px; text-align:left; font-size:0.84rem; color:#334155; width:56px;">#</th>' +
+            '<th style="padding:9px 8px; text-align:left; font-size:0.84rem; color:#334155;">OS</th>' +
+            meses.map(function(mm) {
+              return '<th style="padding:9px 2px; text-align:center; font-size:0.78rem; color:#334155;">' +
+                     (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
+            }).join("") +
+            '<th style="padding:9px 8px; text-align:right; font-size:0.84rem; color:#334155;">ACUMULADA</th>' +
+            '<th style="padding:9px 8px; text-align:left; font-size:0.84rem; color:#334155;">POR CATEGORIA</th>' +
           '</tr>';
         comNota.forEach(function(r, idx) {
           var medalha = idx === 0 ? "\ud83e\udd47" : (idx === 1 ? "\ud83e\udd48" : (idx === 2 ? "\ud83e\udd49" : (idx + 1)));
+          var todos = (notas[r.codigo] || {}).meses || {};
           html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
-            '<td style="padding:7px 8px; font-weight:800; color:#0f2b5c;">' + medalha + '</td>' +
-            '<td style="padding:7px 8px; font-weight:700; color:#0f2b5c;">' + formatOSLabel(r.codigo) + '</td>' +
-            '<td style="padding:7px 8px; text-align:right;">' + tab5Pct(r.notaAcum, "1.02rem") + '</td>' +
-            '<td style="padding:7px 8px; text-align:right;">' + tab5Pct(r.notaMes) +
-              '<div style="font-size:0.68rem; color:#94a3b8; font-weight:700;">' + (MESES_PT[r.mes - 1] || r.mes) + '</div></td>' +
+            '<td style="padding:7px 8px; font-weight:800; color:#0f2b5c; font-size:0.94rem;">' + medalha + '</td>' +
+            '<td style="padding:7px 8px; font-weight:800; color:#0f2b5c; font-size:0.94rem; white-space:nowrap;">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
+            meses.map(function(mm) {
+              var reg = todos[mm];
+              if (!reg || !isFinite(reg.notaMes)) {
+                return '<td style="padding:5px 2px; text-align:center; color:#cbd5e1; font-weight:800;">\u2014</td>';
+              }
+              var ti = scoreTier(reg.notaMes);
+              return '<td style="padding:5px 2px; text-align:center;">' +
+                '<span style="display:inline-block; min-width:40px; padding:3px 0; border-radius:6px; background:' + ti.bg +
+                '; color:' + ti.dark + '; font-size:0.82rem; font-weight:900;">' + reg.notaMes.toFixed(0) + '%</span></td>';
+            }).join("") +
+            '<td style="padding:7px 8px; text-align:right;">' + tab5Pct(r.notaAcum, "1.10rem") + '</td>' +
             '<td style="padding:7px 8px;">' + tab5Chips(r.cats) + '</td>' +
           '</tr>';
         });
-        html += '</table>';
+        html += '</table></div>';
       }
 
       // ---- matriz mes a mes ----
@@ -4655,7 +4699,7 @@ function hydrateFromPowerBI() {
               var tierOS = scoreTier(aOS.pct);
               html += '<tr style="border-bottom:1px solid #f1f5f9;' + (nunca ? " background:#fffafa;" : "") + '">' +
                 '<td style="padding:7px 8px 7px 66px; font-weight:800; font-size:0.94rem; color:#0f2b5c; white-space:nowrap;">' +
-                  formatOSLabel(o.rotulo) +
+                  rotuloCompletoOS(o) +
                   '<span style="font-weight:700; color:#94a3b8; font-size:0.80rem; margin-left:7px;">' + ((window.OS_HIER || {})[o.codigo] || {}).neg + '</span>' +
                 '</td>' +
                 meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
@@ -5505,9 +5549,11 @@ function hydrateFromPowerBI() {
         showToast("\u26a0\ufe0f Selecione 1 OS e o Ano no filtro do Power BI.");
         return;
       }
-      // Ano corrente para no mes atual; ano passado vai ate dezembro.
-      var hoje = new Date();
-      var ultimoMes = (ano === hoje.getFullYear()) ? (hoje.getMonth() + 1) : 12;
+      // O mes corrente NUNCA e gravado: a competencia so fecha entre os dias 12 e 20 do mes
+      // seguinte, entao gravar agosto em agosto produziria uma nota de um mes que ainda nem
+      // aconteceu -- foi o que encheu o ranking de "AGOSTO 0%".
+      var ultimoMes = ultimoMesFechado(ano);
+      if (ultimoMes < 1) { showToast("\u26a0\ufe0f Nenhum m\u00eas fechado em " + ano + " ainda."); return; }
 
       // Sem o historico semeado, o calculo cai no padrao: o mes validado volta como
       // Pendente, o qualitativo some e a nota sai diferente da que o Master aprovou. Como
