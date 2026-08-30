@@ -5105,9 +5105,11 @@ function hydrateFromPowerBI() {
     // =========================================================================
     window.CLOUD_WEBHOOK_URL = safeGetStorage("npe_cloud_webhook_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/bfaa9f5615144864914029734fbed5bd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=P-9LbSTlkgYK1spior6qlj8ejGES2_8pQRVn0JDjz-0");
 
-    function configureCloudWebhook() {
+    async function configureCloudWebhook() {
       var curUrl = window.CLOUD_WEBHOOK_URL || "";
-      var newUrl = prompt("🌐 Digite a URL do Webhook do Power Automate para gravação direta no SharePoint da NPE:", curUrl);
+      var newUrl = await promptNaPagina("🌐 Webhook de gravação",
+        "URL do fluxo do Power Automate que grava direto no SharePoint.\nDeixe em branco para gravar só no navegador.",
+        curUrl, "Salvar");
       if (newUrl !== null) {
         window.CLOUD_WEBHOOK_URL = newUrl.trim();
         safeSetStorage("npe_cloud_webhook_url", window.CLOUD_WEBHOOK_URL);
@@ -5131,6 +5133,67 @@ function hydrateFromPowerBI() {
     // ser ignorados: a chamada devolve false na hora, sem erro e sem caixa. Foi o que fez o
     // "Gravar Notas do Ano" parecer morto -- ele cancelava sozinho na confirmacao.
     // Esta caixa e HTML normal, entao funciona em qualquer contexto.
+    // Caixa de texto propria. prompt() nativo devolve null dentro do iframe do Power BI, o
+    // que faz toda acao "cancelar" sozinha sem avisar ninguem.
+    function promptNaPagina(titulo, texto, valorPadrao, rotuloOk) {
+      return new Promise(function(resolve) {
+        var fundo = document.createElement("div");
+        fundo.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh;" +
+          "background:rgba(11,26,58,0.90); z-index:999999999; display:flex;" +
+          "justify-content:center; align-items:flex-start; padding:28px 20px; overflow-y:auto;";
+        fundo.innerHTML =
+          '<div style="background:#fff; border-radius:14px; width:100%; max-width:560px; border:2.5px solid #0284c7; overflow:hidden; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
+            '<div style="background:linear-gradient(135deg,#0f2b5c,#0284c7); padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">' + titulo + '</div>' +
+            '<div style="padding:18px 20px 8px; font-size:0.90rem; color:#334155; line-height:1.6; white-space:pre-line;">' + texto + '</div>' +
+            '<div style="padding:0 20px 4px;"><input id="_caixaInput" type="text" style="width:100%; padding:10px 12px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.95rem; box-sizing:border-box;"></div>' +
+            '<div style="padding:14px 20px 18px; display:flex; gap:10px; justify-content:flex-end;">' +
+              '<button type="button" data-r="0" style="background:#e2e8f0; color:#475569; border:none; padding:9px 18px; border-radius:8px; font-weight:800; cursor:pointer;">Cancelar</button>' +
+              '<button type="button" data-r="1" style="background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; border:none; padding:9px 20px; border-radius:8px; font-weight:800; cursor:pointer;">' + (rotuloOk || "Confirmar") + '</button>' +
+            '</div>' +
+          '</div>';
+        function fechar(v) { try { document.body.removeChild(fundo); } catch (e) {} resolve(v); }
+        var campo;
+        fundo.addEventListener("click", function(ev) {
+          var b = ev.target.closest ? ev.target.closest("button[data-r]") : null;
+          if (b) fechar(b.getAttribute("data-r") === "1" ? (campo.value || "") : null);
+          else if (ev.target === fundo) fechar(null);
+        });
+        fundo.addEventListener("keydown", function(ev) {
+          if (ev.key === "Enter") fechar(campo.value || "");
+          if (ev.key === "Escape") fechar(null);
+        });
+        document.body.appendChild(fundo);
+        campo = fundo.querySelector("#_caixaInput");
+        campo.value = (valorPadrao === undefined || valorPadrao === null) ? "" : String(valorPadrao);
+        try { window.scrollTo(0, 0); campo.focus(); campo.select(); } catch (e) {}
+      });
+    }
+
+    // Aviso que precisa ser lido antes de seguir -- a senha provisoria vive aqui, e ela
+    // aparece uma unica vez. Com alert() nativo ignorado, o usuario nunca a veria.
+    function avisarNaPagina(titulo, texto) {
+      return new Promise(function(resolve) {
+        var fundo = document.createElement("div");
+        fundo.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh;" +
+          "background:rgba(11,26,58,0.92); z-index:999999999; display:flex;" +
+          "justify-content:center; align-items:flex-start; padding:28px 20px; overflow-y:auto;";
+        fundo.innerHTML =
+          '<div style="background:#fff; border-radius:14px; width:100%; max-width:560px; border:2.5px solid #b45309; overflow:hidden; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
+            '<div style="background:linear-gradient(135deg,#b45309,#78350f); padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">' + titulo + '</div>' +
+            '<div style="padding:18px 20px; font-size:0.94rem; color:#334155; line-height:1.7; white-space:pre-line;">' + texto + '</div>' +
+            '<div style="padding:0 20px 18px; display:flex; justify-content:flex-end;">' +
+              '<button type="button" data-r="1" style="background:linear-gradient(135deg,#0f2b5c,#0284c7); color:#fff; border:none; padding:9px 22px; border-radius:8px; font-weight:800; cursor:pointer;">Entendi</button>' +
+            '</div>' +
+          '</div>';
+        function fechar() { try { document.body.removeChild(fundo); } catch (e) {} resolve(); }
+        fundo.addEventListener("click", function(ev) {
+          if (ev.target.closest && ev.target.closest("button[data-r]")) fechar();
+        });
+        document.body.appendChild(fundo);
+        try { window.scrollTo(0, 0); } catch (e) {}
+      });
+    }
+
     function confirmarNaPagina(titulo, texto, rotuloOk) {
       return new Promise(function(resolve) {
         var fundo = document.createElement("div");
@@ -5558,11 +5621,13 @@ function hydrateFromPowerBI() {
       if (mod) mod.style.display = "none";
     }
 
-    function criarAnoDeMetas() {
+    async function criarAnoDeMetas() {
       var anos = metasAnosCadastrados();
       if (!anos.length) { showToast("\u26a0\ufe0f Nenhum ano carregado ainda."); return; }
       var base = anos[anos.length - 1];
-      var txt = prompt("Ano novo (as metas ser\u00e3o copiadas de " + base + " e voc\u00ea ajusta antes de salvar):", String(base + 1));
+      var txt = await promptNaPagina("\ud83d\udcc5 Novo ano de metas",
+        "As metas ser\u00e3o copiadas de " + base + " e voc\u00ea ajusta antes de salvar.",
+        String(base + 1), "Criar");
       if (!txt) return;
       var novoAno = parseInt(txt, 10);
       if (!novoAno || novoAno < 2000 || novoAno > 2100) { showToast("\u26a0\ufe0f Ano inv\u00e1lido."); return; }
@@ -5662,14 +5727,14 @@ function hydrateFromPowerBI() {
       for (var i = 0; i < lst.length; i++) if (String(lst[i].id) === String(id)) return lst[i];
       return null;
     }
-    function onParamAtivoChange(sel) {
+    async function onParamAtivoChange(sel) {
       var linha = paramLinha(sel.getAttribute("data-id"));
       if (!linha) return;
       // Desfazer um bloco nao apaga o passado: registra um GRUPO_NAO valendo a partir de um
       // mes, e o historico ate ali continua sendo do bloco.
       if (String(linha.tipo) === "GRUPO_OS" && sel.value !== "Sim" && String(linha.ativo) === "Sim") {
         var oss = osDoGrupo(linha.valor);
-        var vig = pedirVigencia("A partir de que m\u00eas " + oss.join(" + ") + " deixam de ser um bloco?");
+        var vig = await pedirVigencia("A partir de que m\u00eas " + oss.join(" + ") + " deixam de ser um bloco?");
         if (!vig) { sel.value = "Sim"; return; }
         window.METAS_DB.parametros.push({ id: -(Date.now()), tipo: "GRUPO_NAO", valor: linha.valor,
           ativo: "Sim", vigencia: vig, _dirty: true, _novo: true });
@@ -5682,8 +5747,10 @@ function hydrateFromPowerBI() {
       metasAtualizaDirtyInfo();
       renderMetasPanel();
     }
-    function adicionarParametro(tipo) {
-      var txt = prompt("Novo valor para " + tipo + " (exatamente como est\u00e1 escrito na CTT):", "");
+    async function adicionarParametro(tipo) {
+      var txt = await promptNaPagina("\u2699\ufe0f Novo valor em " + tipo,
+        "Digite exatamente como est\u00e1 escrito na CTT \u2014 a compara\u00e7\u00e3o \u00e9 pelo texto.",
+        "", "Adicionar");
       if (!txt) return;
       var valor = String(txt).trim().toUpperCase();
       if (!valor) return;
@@ -5769,10 +5836,10 @@ function hydrateFromPowerBI() {
       for (var j = 0; j < cand.oss.length; j++) if (grupoDaOS(cand.oss[j])) return "agrupado";
       return null;
     }
-    function decidirCandidato(chave, agrupar) {
+    async function decidirCandidato(chave, agrupar) {
       var oss = osDoGrupo(chave);
       if (oss.length < 2) return;
-      var vig = pedirVigencia(agrupar
+      var vig = await pedirVigencia(agrupar
         ? ("A partir de que m\u00eas " + oss.join(" + ") + " passam a ser um bloco?")
         : ("A partir de que m\u00eas " + oss.join(" + ") + " ficam separadas?"));
       if (!vig) return;
@@ -5803,11 +5870,12 @@ function hydrateFromPowerBI() {
     }
     // Pede o mes em que a decisao passa a valer. Nada e reescrito para tras: o que ficou
     // registrado antes desse mes continua como estava.
-    function pedirVigencia(texto) {
+    async function pedirVigencia(texto) {
       var padrao = mesAtualDoFiltro();
-      var r = prompt(texto + "\n\nInforme no formato AAAAMM (ex.: " + padrao + " = " +
+      var r = await promptNaPagina("\ud83d\udcc6 A partir de que m\u00eas?",
+                     texto + "\n\nInforme no formato AAAAMM (ex.: " + padrao + " = " +
                      rotuloVigencia(padrao) + ").\nOs meses anteriores continuam como est\u00e3o.",
-                     String(padrao));
+                     String(padrao), "Aplicar");
       if (r === null) return null;
       var v = parseInt(String(r).replace(/\D/g, ""), 10);
       var mes = v % 100;
@@ -5818,15 +5886,17 @@ function hydrateFromPowerBI() {
       return v;
     }
 
-    function adicionarGrupo() {
-      var txt = prompt("C\u00f3digos das OSs do grupo, separados por v\u00edrgula (a primeira \u00e9 a \u00e2ncora, onde o coment\u00e1rio fica gravado):", "");
+    async function adicionarGrupo() {
+      var txt = await promptNaPagina("\ud83d\udd17 Novo grupo de OSs",
+        "C\u00f3digos das OSs do grupo, separados por v\u00edrgula.\nA primeira \u00e9 a \u00e2ncora \u2014 \u00e9 nela que o coment\u00e1rio fica gravado.",
+        "", "Continuar");
       if (!txt) return;
       var codigos = String(txt).toUpperCase().split(/[,;|]/).map(function(s) { return s.trim(); }).filter(Boolean);
       if (codigos.length < 2) { showToast("\u26a0\ufe0f Um grupo precisa de pelo menos 2 OSs."); return; }
       var jaAgrupada = null;
       codigos.forEach(function(c) { if (!jaAgrupada && grupoDaOS(c)) jaAgrupada = c; });
       if (jaAgrupada) { showToast("\u26a0\ufe0f A OS " + jaAgrupada + " j\u00e1 est\u00e1 em outro grupo."); return; }
-      var vig = pedirVigencia("A partir de que m\u00eas " + codigos.join(" + ") + " passam a ser um bloco?");
+      var vig = await pedirVigencia("A partir de que m\u00eas " + codigos.join(" + ") + " passam a ser um bloco?");
       if (!vig) return;
       window.METAS_DB.parametros.push({ id: -(Date.now()), tipo: "GRUPO_OS", valor: codigos.join("|"),
         ativo: "Sim", vigencia: vig, _dirty: true, _novo: true });
@@ -5944,13 +6014,16 @@ function hydrateFromPowerBI() {
 
     async function novoUsuarioAcesso() {
       if (!ehProprietario()) { showToast("\u26d4 Apenas o propriet\u00e1rio cadastra usu\u00e1rios."); return; }
-      var login = prompt("Usu\u00e1rio (o mesmo formato dos demais, ex.: nome.sobrenome):", "");
+      var login = await promptNaPagina("\ud83d\udc65 Novo usu\u00e1rio",
+        "Use o mesmo formato dos demais: nome.sobrenome\n(s\u00f3 a parte inicial do e-mail, sem @).",
+        "", "Continuar");
       if (!login) return;
       login = String(login).toLowerCase().trim();
       if (window.ACESSO_USUARIOS.some(function(u) { return String(u.login).toLowerCase() === login; })) {
         showToast("\u26a0\ufe0f Esse usu\u00e1rio j\u00e1 existe."); return;
       }
-      var nome = prompt("Nome de exibi\u00e7\u00e3o:", login.toUpperCase().replace(".", " "));
+      var nome = await promptNaPagina("\ud83d\udc65 Nome de exibi\u00e7\u00e3o",
+        "Como o nome aparece no painel.", login.toUpperCase().replace(".", " "), "Criar");
       if (!nome) return;
       var senha = _senhaAleatoria();
       var hash = await derivarHashSenha(login, senha);
@@ -5960,23 +6033,27 @@ function hydrateFromPowerBI() {
       await carregarUsuariosAcesso();
       renderMetasPanel();
       // A senha so aparece aqui, uma vez: nao fica gravada em lugar nenhum em texto.
-      alert("Usu\u00e1rio criado.\n\nLogin: " + login + "\nSenha provis\u00f3ria: " + senha +
-            "\n\nAnote e entregue agora \u2014 esta senha n\u00e3o pode ser consultada depois. " +
-            "Pe\u00e7a para trocar no primeiro acesso.");
+      await avisarNaPagina("\u2705 Usu\u00e1rio criado",
+        "Login: <b>" + login + "</b>\nSenha provis\u00f3ria: <b style=\"font-size:1.15rem; letter-spacing:0.5px;\">" + senha + "</b>\n\n" +
+        "Anote e entregue <b>agora</b> \u2014 esta senha n\u00e3o pode ser consultada depois, nem por mim. " +
+        "Pe\u00e7a para trocar no primeiro acesso.");
     }
 
     async function redefinirSenhaUsuario(login) {
       if (!ehProprietario()) return;
       var u = window.ACESSO_USUARIOS.filter(function(x) { return x.login === login; })[0];
       if (!u) return;
-      if (!confirm("Gerar uma nova senha provis\u00f3ria para " + u.nome + "?\nA senha atual deixa de funcionar.")) return;
+      if (!await confirmarNaPagina("\ud83d\udd11 Redefinir senha",
+            "Gerar uma nova senha provis\u00f3ria para <b>" + u.nome + "</b>?\n\nA senha atual deixa de funcionar imediatamente.",
+            "Gerar nova senha")) return;
       var senha = _senhaAleatoria();
       var hash = await derivarHashSenha(login, senha);
       var ok = await gravarUsuarioAcesso({ id: parseInt(u.id, 10), login: u.login, nome: u.nome,
                                            hash: hash, perfil: u.perfil, ativo: u.ativo });
       if (!ok) { showToast("\u274c Falha ao redefinir."); return; }
-      alert("Nova senha provis\u00f3ria de " + u.nome + ":\n\n" + senha +
-            "\n\nAnote e entregue agora \u2014 n\u00e3o pode ser consultada depois.");
+      await avisarNaPagina("\ud83d\udd11 Nova senha de " + u.nome,
+        "<b style=\"font-size:1.15rem; letter-spacing:0.5px;\">" + senha + "</b>\n\n" +
+        "Anote e entregue <b>agora</b> \u2014 n\u00e3o pode ser consultada depois.");
     }
 
     // O fluxo de gravacao reescreve todos os campos e o de leitura nao devolve o hash (de
@@ -5996,8 +6073,10 @@ function hydrateFromPowerBI() {
       await carregarUsuariosAcesso();
       renderMetasPanel();
       if (novo === "Sim") {
-        alert("Usu\u00e1rio " + u.nome + " reativado.\n\nNova senha provis\u00f3ria: " + senhaNova +
-              "\n\nAnote e entregue agora \u2014 n\u00e3o pode ser consultada depois.");
+        await avisarNaPagina("✅ " + u.nome + " reativado",
+          "Nova senha provisória: <b>" + senhaNova + "</b>\n\n" +
+          "Anote e entregue <b>agora</b> — não pode ser consultada depois. " +
+          "Reativar sempre emite senha nova: a antiga foi invalidada na desativação.");
       } else {
         showToast("✅ " + u.nome + " desativado. A senha dele foi invalidada.");
       }
@@ -6087,11 +6166,13 @@ function hydrateFromPowerBI() {
 
     async function definirResponsavel(osCode) {
       var atual = responsavelNoMes(osCode, mesAtualDoFiltro());
-      var nome = prompt("Respons\u00e1vel pela OS " + osCode + ":", atual || "");
+      var nome = await promptNaPagina("\ud83d\udc64 Respons\u00e1vel pela OS " + osCode,
+        "Quem passa a responder por esta OS. O respons\u00e1vel anterior continua valendo nos meses dele.",
+        atual || "", "Continuar");
       if (nome === null) return;
       nome = String(nome).trim().toUpperCase().replace(/\|/g, " ");
       if (!nome) { showToast("\u26a0\ufe0f Informe o nome do respons\u00e1vel."); return; }
-      var vig = pedirVigencia("A partir de que m\u00eas " + nome + " responde pela OS " + osCode + "?");
+      var vig = await pedirVigencia("A partir de que m\u00eas " + nome + " responde pela OS " + osCode + "?");
       if (!vig) return;
       var jaTem = registrosResponsavel().filter(function(p) {
         return osDoRegistroResp(p).toUpperCase() === osCode.toUpperCase() &&
@@ -6109,12 +6190,13 @@ function hydrateFromPowerBI() {
       showToast("\u2705 " + nome + " responde pela " + osCode + " desde " + rotuloVigencia(vig) + " \u2014 clique em Salvar.");
     }
 
-    function removerTrocaResponsavel(id) {
+    async function removerTrocaResponsavel(id) {
       var p = paramLinha(id);
       if (!p) return;
       var h = historicoResponsavel(osDoRegistroResp(p));
       if (h.length <= 1) { showToast("\u26d4 Toda OS precisa de um respons\u00e1vel."); return; }
-      if (!confirm("Remover esta troca? O respons\u00e1vel anterior volta a valer para o per\u00edodo.")) return;
+      if (!await confirmarNaPagina("\u21a9\ufe0f Remover troca de respons\u00e1vel",
+            "O respons\u00e1vel anterior volta a valer para o per\u00edodo.", "Remover")) return;
       p.ativo = "N\u00e3o";
       p._dirty = true;
       renderMetasPanel();
