@@ -206,7 +206,7 @@
         &#127919; Cadastro de Metas
       </button>
 
-      <button type="button" id="btnCopyMonthPareceres" onclick="openCopyMonthPareceresModal()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+      <button type="button" id="btnCopyMonthPareceres" onclick="openCopyMonthPareceresModal()" style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
         📋 Copiar Pareceres do Mês
       </button>
     </div>
@@ -340,7 +340,7 @@
     <div id="tab2TotalEligibleOSBadge" style="margin-bottom:14px;"></div>
 
     <div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
-      <button type="button" id="btnCopyAllForAI" onclick="openCopyAllModal()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+      <button type="button" id="btnCopyAllForAI" onclick="openCopyAllModal()" style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
         📋 Copiar Tudo p/ IA
       </button>
     </div>
@@ -363,7 +363,7 @@
         </p>
       </div>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <button type="button" id="btnCopyLicoes" onclick="openCopyLicoesModal()" style="background:linear-gradient(135deg,#10b981,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+        <button type="button" id="btnCopyLicoes" onclick="openCopyLicoesModal()" style="display:none; background:linear-gradient(135deg,#10b981,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
           📋 Copiar p/ IA (Lições & Riscos)
         </button>
       </div>
@@ -1049,6 +1049,7 @@ function hydrateFromPowerBI() {
       window.isMaster = !window.isMaster;
       window.currentRoleSimulated = window.isMaster ? "MASTER" : "GESTOR";
       safeSetStorage("npe_active_role", window.currentRoleSimulated);
+      aplicarVisibilidadeMaster(window.isMaster);
       updateRoleUI();
       renderRows();
       if (typeof renderSlaModalMatrix === "function") renderSlaModalMatrix();
@@ -1104,6 +1105,17 @@ function hydrateFromPowerBI() {
 
     
 
+    // Botoes que so o Setor de Performance usa. Exportar pareceres alimenta a analise da
+    // Performance, entao acompanha o Cadastro de Metas: sem sessao, nem aparecem.
+    var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas", "btnCopyMonthPareceres",
+                                    "btnCopyAllForAI", "btnCopyLicoes"];
+    function aplicarVisibilidadeMaster(liberado) {
+      BOTOES_EXCLUSIVOS_MASTER.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = liberado ? "inline-flex" : "none";
+      });
+    }
+
     function updateRoleUI() {
       var roleText = document.getElementById("roleText");
       var roleIcon = document.getElementById("roleIcon");
@@ -1117,8 +1129,7 @@ function hydrateFromPowerBI() {
         if (roleText) roleText.innerText = "Máster Performance";
         if (roleIcon) roleIcon.innerText = "🛡️";
         if (toggleBtn) toggleBtn.style.background = "#0284c7";
-        var btnMetas = document.getElementById("btnCadastroMetas");
-        if (btnMetas) btnMetas.style.display = "inline-flex";
+        aplicarVisibilidadeMaster(true);
         if (slaCtrlBar) slaCtrlBar.style.display = "flex";
         if (deadlineInput) deadlineInput.disabled = false;
         if (monthSelect) monthSelect.disabled = false;
@@ -1127,8 +1138,7 @@ function hydrateFromPowerBI() {
         if (roleText) roleText.innerText = "Gestor de OS";
         if (roleIcon) roleIcon.innerText = "👤";
         if (toggleBtn) toggleBtn.style.background = "#1e40af";
-        var btnMetasOff = document.getElementById("btnCadastroMetas");
-        if (btnMetasOff) btnMetasOff.style.display = "none";
+        aplicarVisibilidadeMaster(false);
         if (slaCtrlBar) slaCtrlBar.style.display = "none";
         if (deadlineInput) deadlineInput.disabled = true;
         if (monthSelect) monthSelect.disabled = true;
@@ -1350,8 +1360,7 @@ function hydrateFromPowerBI() {
         window.isMaster = false;
         safeSetStorage("npe_active_role", "GESTOR");
         if (toggleBtn) toggleBtn.style.display = "none"; // HIDE MASTER BUTTON FROM REGULAR USERS
-        var btnMetasHide = document.getElementById("btnCadastroMetas");
-        if (btnMetasHide) btnMetasHide.style.display = "none";
+        aplicarVisibilidadeMaster(false);
       } else {
         if (toggleBtn) {
           toggleBtn.style.display = "inline-flex";
