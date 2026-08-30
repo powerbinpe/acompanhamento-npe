@@ -189,6 +189,7 @@
       <button type="button" class="tab-btn" onclick="switchTab('tabRanking')">🏆 Aba 2: Gestão de Pontuação & Ranking</button>
       <button type="button" class="tab-btn" onclick="switchTab('tabConsolidacao')">📈 Aba 3: Consolidação Anual</button>
       <button type="button" class="tab-btn" onclick="switchTab('tabLicoes')">💡 Aba 4: Lições Aprendidas & Gestão de Risco</button>
+      <button type="button" class="tab-btn" onclick="switchTab('tabVisaoGeral')">🗂️ Aba 5: Visão Geral das OSs</button>
     </div>
 
     <div class="controls">
@@ -384,6 +385,10 @@
 
     <!-- Resumos por Superintendência e Negócio -->
     <div id="tab3ExecutiveSummariesContainer"></div>
+  </div>
+
+  <div id="tabVisaoGeral" class="tab-page">
+    <div id="tab5Container"></div>
   </div>
 
 
@@ -1716,7 +1721,7 @@ function hydrateFromPowerBI() {
     // =========================================================================
     function switchTab(tabId) {
       if (typeof tabId === 'number') {
-        var tabMap = { 1: 'tabMensal', 2: 'tabConsolidacao', 3: 'tabLicoes', 4: 'tabRanking' };
+        var tabMap = { 1: 'tabMensal', 2: 'tabConsolidacao', 3: 'tabLicoes', 4: 'tabRanking', 5: 'tabVisaoGeral' };
         tabId = tabMap[tabId] || 'tabMensal';
       }
 
@@ -1729,11 +1734,13 @@ function hydrateFromPowerBI() {
       var p2 = document.getElementById("tabConsolidacao");
       var p3 = document.getElementById("tabLicoes");
       var p4 = document.getElementById("tabRanking");
+      var p5 = document.getElementById("tabVisaoGeral");
 
       if (p1) { p1.style.display = "none"; p1.classList.remove("active"); }
       if (p2) { p2.style.display = "none"; p2.classList.remove("active"); }
       if (p3) { p3.style.display = "none"; p3.classList.remove("active"); }
       if (p4) { p4.style.display = "none"; p4.classList.remove("active"); }
+      if (p5) { p5.style.display = "none"; p5.classList.remove("active"); }
 
       // "Copiar Pareceres do Mês" é específico da OS filtrada (o único fluxo de cópia que
       // depende do filtro de OS do Power BI) -- só faz sentido na Aba 1.
@@ -1756,6 +1763,11 @@ function hydrateFromPowerBI() {
         if (tabButtons[1]) tabButtons[1].classList.add("active");
         if (p4) { p4.style.display = "block"; p4.classList.add("active"); }
         renderTab4Scorecard();
+      } else if (tabId === 'tabVisaoGeral') {
+        if (tabButtons[4]) tabButtons[4].classList.add("active");
+        if (p5) { p5.style.display = "block"; p5.classList.add("active"); }
+        renderTab5();
+        carregarTab5(false);
       }
     }
 
@@ -3986,6 +3998,250 @@ function hydrateFromPowerBI() {
     // assertividade, preenchimento de comentários) precisa passar por aqui: invalida o cache e
     // re-renderiza as 3 abas que dependem do score (mesmo as que não estão visíveis agora --
     // assim já ficam corretas quando o usuário trocar de aba), não só a aba onde o clique ocorreu.
+    // =========================================================================
+    // ABA 5 -- VISAO GERAL DAS OSs
+    // =========================================================================
+    // O universo vem do AllowedOSList, nao da ATA: quem nao gravou nada nao tem linha la, e
+    // e exatamente esse pessoal que a aba precisa mostrar. Da ATA vem a situacao (quem
+    // comentou o que) e a nota. O AllowedOSList ja chega filtrado pela seguranca, entao o
+    // gestor ve so as OSs dele na lista de baixo -- mas o ranking mostra todo mundo, para
+    // ele enxergar onde esta em relacao aos outros.
+    window.FLOW_LER_ATA_ANO_URL = safeGetStorage("npe_flow_ler_ata_ano_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/01/workflows/8f2fa404ad4241b383f89f7698080d0a/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=clcgrVDde6I6vx223bWSP3i1DDiC_I7oKkgsZ9Xpe5Q");
+    window.FLOW_LER_NOTAS_URL   = safeGetStorage("npe_flow_ler_notas_url",   "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/08/workflows/cf28ed50eda241978acc9600ed3055c8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4QtyCBqqnuWJ-NtaYo3Zfop1KmZMJrzYu9wdUwlg0WA");
+
+    // Textos que o app grava quando o campo fica vazio -- contar isso como preenchido faria
+    // toda OS que ja salvou uma vez parecer completa.
+    var TAB5_VAZIOS = ["SEM JUSTIFICATIVAS", "SEM PARECER REGISTRADO", "-"];
+    window.TAB5 = { ano: null, mes: null, ata: null, notas: null, carregando: false, erro: "" };
+    var TAB5_FILTRO = "TODAS";
+
+    function tab5Preenchido(txt) {
+      var s = String(txt || "").trim();
+      return !!s && TAB5_VAZIOS.indexOf(s.toUpperCase()) === -1;
+    }
+
+    function tab5OSElegiveis() {
+      var p = new URLSearchParams(window.location.search);
+      var raw = p.get("AllowedOSList") || "";
+      var vistos = {}, saida = [];
+      raw.split(",").forEach(function(item) {
+        var bruto = String(item).trim().toUpperCase();
+        if (!bruto) return;
+        var codigo = extractPrimaryOSCode(bruto) || bruto;
+        if (vistos[codigo]) return;
+        vistos[codigo] = true;
+        saida.push({ codigo: codigo, rotulo: bruto });
+      });
+      return saida.sort(function(a, b) { return a.codigo.localeCompare(b.codigo); });
+    }
+
+    async function tab5Post(url, corpo) {
+      var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                                 body: JSON.stringify(corpo) });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var txt = await r.text();
+      var d = txt.trim() ? JSON.parse(txt) : [];
+      return Array.isArray(d) ? d : [];
+    }
+
+    async function carregarTab5(forcar) {
+      var p = new URLSearchParams(window.location.search);
+      var ano = parseInt(p.get("SelectedAno"), 10);
+      var mes = getMonthNumberFromParams(p);
+      if (!ano || !mes) { window.TAB5.erro = "SEM_FILTRO"; renderTab5(); return; }
+      if (!forcar && window.TAB5.ata && window.TAB5.ano === ano && window.TAB5.mes === mes) return;
+
+      window.TAB5.carregando = true; window.TAB5.erro = "";
+      window.TAB5.ano = ano; window.TAB5.mes = mes;
+      renderTab5();
+      try {
+        var res = await Promise.all([
+          tab5Post(window.FLOW_LER_ATA_ANO_URL, { ano: ano, mes: mes }),
+          tab5Post(window.FLOW_LER_NOTAS_URL, { ano: ano })
+        ]);
+        window.TAB5.ata = res[0];
+        window.TAB5.notas = res[1];
+      } catch (e) {
+        window.TAB5.erro = String(e && e.message ? e.message : e);
+      }
+      window.TAB5.carregando = false;
+      renderTab5();
+    }
+
+    // Quantos topicos cada OS realmente preencheu no mes.
+    function tab5ResumoPorOS() {
+      var mapa = {};
+      (window.TAB5.ata || []).forEach(function(r) {
+        var os = extractPrimaryOSCode(String(r.os || "").toUpperCase());
+        if (!os) return;
+        var e = mapa[os] || (mapa[os] = { topicos: 0, master: 0, validados: 0, linhas: 0 });
+        e.linhas++;
+        if (tab5Preenchido(r.gestor)) e.topicos++;
+        if (tab5Preenchido(r.master)) e.master++;
+        if (String(r.status || "").trim() === "Validado") e.validados++;
+      });
+      return mapa;
+    }
+
+    function tab5NotasPorOS() {
+      var mapa = {};
+      (window.TAB5.notas || []).forEach(function(r) {
+        if (parseInt(r.mes, 10) !== window.TAB5.mes) return;
+        var os = extractPrimaryOSCode(String(r.os || "").toUpperCase());
+        if (!os) return;
+        mapa[os] = { notaMes: parseFloat(r.notaMes), notaAcum: parseFloat(r.notaAcum) };
+      });
+      return mapa;
+    }
+
+    function tab5Cartao(rotulo, valor, cor, fundo) {
+      return '<div style="flex:1; min-width:150px; background:' + fundo + '; border:1.5px solid ' + cor +
+             '33; border-radius:12px; padding:14px 16px;">' +
+        '<div style="font-size:1.9rem; font-weight:800; color:' + cor + '; line-height:1;">' + valor + '</div>' +
+        '<div style="font-size:0.78rem; color:#475569; font-weight:700; text-transform:uppercase; margin-top:6px;">' + rotulo + '</div>' +
+      '</div>';
+    }
+
+    function tab5FiltrarLista(aba) { TAB5_FILTRO = aba; renderTab5(); }
+
+    // O corpo da pagina e azul escuro. Todo conteudo desta aba mora num painel branco,
+    // igual as demais -- sem isso o texto escuro fica invisivel sobre o fundo.
+    function tab5Painel(interno) {
+      return '<div style="background:#ffffff; border-radius:14px; padding:22px 24px; ' +
+             'box-shadow:0 2px 12px rgba(0,0,0,0.10);">' + interno + '</div>';
+    }
+
+    function renderTab5() {
+      var el = document.getElementById("tab5Container");
+      if (!el) return;
+      var p = new URLSearchParams(window.location.search);
+      var ano = parseInt(p.get("SelectedAno"), 10);
+      var mes = getMonthNumberFromParams(p);
+
+      if (!ano || !mes) {
+        el.innerHTML = tab5Painel('<div style="background:#fffbeb; border:2px solid #fde68a; border-radius:12px; padding:32px 28px; text-align:center; color:#92400e;">' +
+          '<div style="font-size:1.3rem; font-weight:800; margin-bottom:8px;">\u26a0\ufe0f Selecione Ano e M\u00eas</div>' +
+          '<div style="font-size:0.95rem;">Esta aba mostra o retrato de um m\u00eas espec\u00edfico. Escolha Ano e M\u00eas no filtro do Power BI.</div>' +
+        '</div>');
+        return;
+      }
+      if (window.TAB5.carregando) {
+        el.innerHTML = tab5Painel('<div style="padding:60px; text-align:center; color:#64748b; font-weight:700; font-size:1.05rem;">\u23f3 Lendo a ATA_COMENTARIO...</div>');
+        return;
+      }
+      if (!window.TAB5.ata) {
+        el.innerHTML = tab5Painel('<div style="padding:50px 30px; text-align:center;">' +
+          (window.TAB5.erro && window.TAB5.erro !== "SEM_FILTRO"
+            ? '<div style="color:#991b1b; font-weight:700; margin-bottom:16px;">Falha ao ler: ' + window.TAB5.erro + '</div>' : "") +
+          '<button type="button" onclick="carregarTab5(true)" style="background:linear-gradient(135deg,#0f2b5c,#0284c7); color:#fff; border:none; padding:12px 22px; border-radius:9px; font-weight:800; font-size:0.95rem; cursor:pointer;">\u21bb Carregar dados do m\u00eas</button>' +
+        '</div>');
+        return;
+      }
+
+      var elegiveis = tab5OSElegiveis();
+      var resumo = tab5ResumoPorOS();
+      var notas = tab5NotasPorOS();
+      var nomeMes = MESES_PT[mes - 1] || mes;
+
+      var comAcomp = elegiveis.filter(function(o) { return (resumo[o.codigo] || {}).topicos > 0; });
+      var semAcomp = elegiveis.filter(function(o) { return !((resumo[o.codigo] || {}).topicos > 0); });
+      var pct = elegiveis.length ? Math.round(comAcomp.length * 100 / elegiveis.length) : 0;
+
+      var html = '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px;">' +
+        '<div><h2 style="margin:0; font-size:1.25rem; color:#0f2b5c; font-weight:800;">Vis\u00e3o Geral das OSs \u2014 ' + nomeMes + '/' + ano + '</h2>' +
+        '<div style="font-size:0.80rem; color:#64748b; margin-top:3px;">Situa\u00e7\u00e3o lida da ATA_COMENTARIO</div></div>' +
+        '<button type="button" onclick="carregarTab5(true)" style="background:#e0f2fe; color:#075985; border:none; padding:8px 16px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer;">\u21bb Atualizar</button>' +
+      '</div>';
+
+      html += '<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">' +
+        tab5Cartao("OSs eleg\u00edveis", elegiveis.length, "#0f2b5c", "#f1f5f9") +
+        tab5Cartao("Fizeram o acompanhamento", comAcomp.length, "#15803d", "#f0fdf4") +
+        tab5Cartao("N\u00e3o fizeram", semAcomp.length, "#b91c1c", "#fef2f2") +
+        tab5Cartao("Ades\u00e3o", pct + "%", "#b45309", "#fffbeb") +
+      '</div>';
+
+      html += '<div style="height:10px; background:#e2e8f0; border-radius:6px; overflow:hidden; margin-bottom:22px;">' +
+        '<div style="height:100%; width:' + pct + '%; background:linear-gradient(90deg,#16a34a,#4ade80);"></div></div>';
+
+      // ---- ranking ----
+      var comNota = elegiveis.map(function(o) {
+        var n = notas[o.codigo];
+        return n ? { codigo: o.codigo, notaMes: n.notaMes, notaAcum: n.notaAcum } : null;
+      }).filter(Boolean).sort(function(a, b) { return b.notaMes - a.notaMes; });
+
+      html += '<h3 style="margin:0 0 10px; font-size:1.05rem; color:#0f2b5c; font-weight:800;">\ud83c\udfc6 Ranking do m\u00eas</h3>';
+      if (!comNota.length) {
+        html += '<div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:26px 22px; margin-bottom:26px; color:#475569; font-size:0.90rem;">' +
+          '<b>Nenhuma nota gravada ainda neste m\u00eas.</b><br>' +
+          'A nota s\u00f3 passa a existir na lista quando algu\u00e9m salva os coment\u00e1rios, valida a OS, ou quando o ' +
+          'Setor de Performance usa o bot\u00e3o <b>Gravar Notas do Ano</b> com a OS selecionada. ' +
+          'O ranking se preenche sozinho conforme isso acontece.' +
+        '</div>';
+      } else {
+        html += '<table style="width:100%; border-collapse:collapse; margin-bottom:26px;">' +
+          '<tr style="background:#f1f5f9;">' +
+            '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155; width:52px;">#</th>' +
+            '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">OS</th>' +
+            '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">NOTA DO M\u00caS</th>' +
+            '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">ACUMULADA</th>' +
+          '</tr>';
+        comNota.forEach(function(r, i) {
+          var medalha = i === 0 ? "\ud83e\udd47" : (i === 1 ? "\ud83e\udd48" : (i === 2 ? "\ud83e\udd49" : (i + 1)));
+          html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
+            '<td style="padding:7px 8px; font-weight:800; color:#0f2b5c;">' + medalha + '</td>' +
+            '<td style="padding:7px 8px; font-weight:700; color:#0f2b5c;">' + formatOSLabel(r.codigo) + '</td>' +
+            '<td style="padding:7px 8px; text-align:right; font-weight:800; color:#0f2b5c;">' + r.notaMes.toFixed(1) + '</td>' +
+            '<td style="padding:7px 8px; text-align:right; color:#475569;">' + r.notaAcum.toFixed(1) + '</td>' +
+          '</tr>';
+        });
+        html += '</table>';
+      }
+
+      // ---- lista completa ----
+      var abas = [["TODAS", "Todas (" + elegiveis.length + ")"],
+                  ["PENDENTES", "N\u00e3o fizeram (" + semAcomp.length + ")"],
+                  ["FEITAS", "Fizeram (" + comAcomp.length + ")"]];
+      html += '<h3 style="margin:0 0 10px; font-size:1.05rem; color:#0f2b5c; font-weight:800;">\ud83d\udccb OSs eleg\u00edveis</h3>' +
+        '<div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">' +
+        abas.map(function(a) {
+          var on = TAB5_FILTRO === a[0];
+          return '<button type="button" onclick="tab5FiltrarLista(\'' + a[0] + '\')" style="background:' +
+            (on ? "#0f2b5c" : "#f1f5f9") + '; color:' + (on ? "#fff" : "#475569") +
+            '; border:none; padding:7px 14px; border-radius:7px; font-weight:800; font-size:0.80rem; cursor:pointer;">' + a[1] + '</button>';
+        }).join("") + '</div>';
+
+      var lista = TAB5_FILTRO === "PENDENTES" ? semAcomp : (TAB5_FILTRO === "FEITAS" ? comAcomp : elegiveis);
+      html += '<table style="width:100%; border-collapse:collapse;">' +
+        '<tr style="background:#f1f5f9;">' +
+          '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">OS</th>' +
+          '<th style="padding:8px; text-align:left; font-size:0.72rem; color:#334155;">SITUA\u00c7\u00c3O NO M\u00caS</th>' +
+          '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">T\u00d3PICOS DO GESTOR</th>' +
+          '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">PARECERES</th>' +
+          '<th style="padding:8px; text-align:right; font-size:0.72rem; color:#334155;">NOTA</th>' +
+        '</tr>';
+      lista.forEach(function(o) {
+        var e = resumo[o.codigo] || { topicos: 0, master: 0, validados: 0 };
+        var n = notas[o.codigo];
+        var fez = e.topicos > 0;
+        var completo = e.topicos >= 23;
+        var selo = !fez ? '<span style="background:#fef2f2; color:#991b1b; padding:3px 9px; border-radius:20px; font-size:0.74rem; font-weight:800;">N\u00e3o iniciou</span>'
+                 : (completo ? '<span style="background:#f0fdf4; color:#166534; padding:3px 9px; border-radius:20px; font-size:0.74rem; font-weight:800;">Completo</span>'
+                             : '<span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:20px; font-size:0.74rem; font-weight:800;">Parcial</span>');
+        if (e.validados > 0) selo += ' <span style="background:#eff6ff; color:#1e3a8a; padding:3px 9px; border-radius:20px; font-size:0.74rem; font-weight:800;">' + e.validados + ' validado(s)</span>';
+        html += '<tr style="border-bottom:1px solid #f1f5f9;' + (fez ? "" : " background:#fffafa;") + '">' +
+          '<td style="padding:7px 8px; font-weight:800; font-size:0.86rem; color:#0f2b5c;">' + formatOSLabel(o.rotulo) + '</td>' +
+          '<td style="padding:7px 8px;">' + selo + '</td>' +
+          '<td style="padding:7px 8px; text-align:right; color:' + (fez ? "#0f2b5c" : "#94a3b8") + '; font-weight:700;">' + e.topicos + '/23</td>' +
+          '<td style="padding:7px 8px; text-align:right; color:#475569;">' + e.master + '</td>' +
+          '<td style="padding:7px 8px; text-align:right; font-weight:800; color:' + (n ? "#0f2b5c" : "#cbd5e1") + ';">' +
+            (n ? n.notaMes.toFixed(1) : "\u2014") + '</td>' +
+        '</tr>';
+      });
+      html += '</table>';
+
+      el.innerHTML = tab5Painel(html);
+    }
+
     function refreshAllScoreViews(houveEdicao) {
       window._scoreCache = {};
       if (typeof renderRows === "function") renderRows();
@@ -6062,6 +6318,9 @@ function hydrateFromPowerBI() {
     window.adicionarGrupo = adicionarGrupo;
     window.notasDaOS = notasDaOS;
     window.gravarNotasDoAno = gravarNotasDoAno;
+    window.renderTab5 = renderTab5;
+    window.carregarTab5 = carregarTab5;
+    window.tab5FiltrarLista = tab5FiltrarLista;
     window.statusValidacaoDoMes = statusValidacaoDoMes;
     window.gravarNotaDoMes = gravarNotaDoMes;
     window.rotuloVigencia = rotuloVigencia;
