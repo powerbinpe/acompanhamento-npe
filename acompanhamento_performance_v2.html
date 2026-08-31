@@ -4682,35 +4682,42 @@ function hydrateFromPowerBI() {
           'O ranking se preenche sozinho conforme isso acontece.' +
         '</div>';
       } else {
-        html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:28px; min-width:1250px;">' +
+        html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:28px; min-width:1600px; table-layout:fixed;">' +
+          '<colgroup>' +
+            '<col style="width:56px;">' +
+            '<col style="width:320px;">' +
+            meses.map(function() { return '<col style="width:65px;">'; }).join("") +
+            '<col style="width:140px;">' +
+            '<col style="width:930px;">' +
+          '</colgroup>' +
           '<tr style="background:#f1f5f9;">' +
-            '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:56px; min-width:56px;">#</th>' +
-            '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:320px; min-width:320px;">OS</th>' +
+            '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:56px;">#</th>' +
+            '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:320px;">OS</th>' +
             meses.map(function(mm) {
-              return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:65px; min-width:65px;">' +
+              return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:65px;">' +
                      (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
             }).join("") +
-            '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:140px; min-width:140px;">ACUMULADA</th>' +
-            '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; min-width:930px;">POR CATEGORIA</th>' +
+            '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:140px;">ACUMULADA</th>' +
+            '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:930px;">POR CATEGORIA</th>' +
           '</tr>';
         comNota.forEach(function(r, idx) {
           var medalha = idx === 0 ? "\ud83e\udd47" : (idx === 1 ? "\ud83e\udd48" : (idx === 2 ? "\ud83e\udd49" : (idx + 1)));
           var todos = (notas[r.codigo] || {}).meses || {};
           html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
-            '<td style="padding:10px 10px; text-align:center; font-weight:900; color:#0f2b5c; font-size:1.15rem; width:56px; min-width:56px;">' + medalha + '</td>' +
-            '<td style="padding:10px 10px; font-weight:800; color:#0f2b5c; font-size:1.15rem; width:320px; min-width:320px; white-space:nowrap;">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
+            '<td style="padding:10px 10px; text-align:center; font-weight:900; color:#0f2b5c; font-size:1.15rem; width:56px;">' + medalha + '</td>' +
+            '<td style="padding:10px 10px; font-weight:800; color:#0f2b5c; font-size:1.15rem; width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
             meses.map(function(mm) {
               var reg = todos[mm];
               if (!reg || typeof reg.notaMes !== "number" || isNaN(reg.notaMes) || !isFinite(reg.notaMes)) {
-                return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:65px; min-width:65px;">\u2014</td>';
+                return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:65px;">\u2014</td>';
               }
               var ti = scoreTier(reg.notaMes);
-              return '<td style="padding:6px 4px; text-align:center; width:65px; min-width:65px;">' +
+              return '<td style="padding:6px 4px; text-align:center; width:65px;">' +
                 '<span style="display:inline-block; min-width:52px; padding:5px 0; border-radius:6px; background:' + ti.bg +
                 '; color:' + ti.dark + '; font-size:1.15rem; font-weight:900;">' + reg.notaMes.toFixed(0) + '%</span></td>';
             }).join("") +
-            '<td style="padding:10px 12px; text-align:center; width:140px; min-width:140px;">' + tab5Pct(r.notaAcum, "1.25rem") + '</td>' +
-            '<td style="padding:10px 16px; text-align:left; min-width:930px;">' + tab5Chips(r.cats) + '</td>' +
+            '<td style="padding:10px 12px; text-align:center; width:140px;">' + tab5Pct(r.notaAcum, "1.25rem") + '</td>' +
+            '<td style="padding:10px 16px; text-align:left; width:930px;">' + tab5Chips(r.cats) + '</td>' +
           '</tr>';
         });
         html += '</table></div>';
@@ -4722,16 +4729,23 @@ function hydrateFromPowerBI() {
         '<div style="font-size:0.90rem; color:#64748b; margin-bottom:14px; line-height:1.4;">Vis\u00e3o comparativa da empresa por segmento operacional (<b>Rotina \u2022 Parada \u2022 Oficina</b>), ' +
         'permitindo a qualquer gestor visualizar o desempenho m\u00e9dio consolidado.</div>';
 
-      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:28px; min-width:1250px;">' +
+      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:28px; min-width:1600px; table-layout:fixed;">' +
+        '<colgroup>' +
+          '<col style="width:56px;">' +
+          '<col style="width:320px;">' +
+          meses.map(function() { return '<col style="width:65px;">'; }).join("") +
+          '<col style="width:140px;">' +
+          '<col style="width:930px;">' +
+        '</colgroup>' +
         '<tr style="background:#f1f5f9;">' +
-          '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:56px; min-width:56px;">#</th>' +
-          '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:320px; min-width:320px;">LINHA DE NEG\u00d3CIO</th>' +
+          '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:56px;">#</th>' +
+          '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:320px;">LINHA DE NEG\u00d3CIO</th>' +
           meses.map(function(mm) {
-            return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:65px; min-width:65px;">' +
+            return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:65px;">' +
                    (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
           }).join("") +
-          '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:140px; min-width:140px;">ACUMULADA</th>' +
-          '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; min-width:930px;">POR CATEGORIA</th>' +
+          '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:140px;">ACUMULADA</th>' +
+          '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:930px;">POR CATEGORIA</th>' +
         '</tr>';
 
       linhasNegocio.forEach(function(negName) {
@@ -4757,10 +4771,10 @@ function hydrateFromPowerBI() {
         });
 
         html += '<tr style="border-bottom:1px solid #f1f5f9; background:#ffffff;">' +
-          '<td style="padding:10px 10px; text-align:center; font-size:1.25rem; width:56px; min-width:56px;">' + iconNeg + '</td>' +
-          '<td style="padding:10px 10px; font-weight:900; color:#0f2b5c; font-size:1.15rem; width:320px; min-width:320px; white-space:nowrap;">' +
-            'NEG\u00d3CIO ' + negName +
-            '<span style="color:#64748b; font-weight:700; font-size:0.90rem; margin-left:10px;">(' + ossNeg.length + ' OS' + (ossNeg.length > 1 ? 's' : '') + ' \u00b7 ' + comNotaNeg.length + ' com nota)</span>' +
+          '<td style="padding:10px 10px; text-align:center; font-size:1.25rem; width:56px;">' + iconNeg + '</td>' +
+          '<td style="padding:10px 10px; width:320px; overflow:hidden;">' +
+            '<div style="font-weight:900; color:#0f2b5c; font-size:1.15rem; line-height:1.2;">NEG\u00d3CIO ' + negName + '</div>' +
+            '<div style="color:#64748b; font-weight:700; font-size:0.84rem; margin-top:2px;">' + ossNeg.length + ' OS' + (ossNeg.length > 1 ? 's' : '') + ' \u00b7 ' + comNotaNeg.length + ' com nota</div>' +
           '</td>' +
           meses.map(function(mm) {
             var notasMesNeg = ossNeg.map(function(o) {
@@ -4769,19 +4783,19 @@ function hydrateFromPowerBI() {
             }).filter(function(v) { return v !== null; });
 
             if (!notasMesNeg.length) {
-              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:65px; min-width:65px;">\u2014</td>';
+              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:65px;">\u2014</td>';
             }
             var mediaMesVal = notasMesNeg.reduce(function(s, v) { return s + v; }, 0) / notasMesNeg.length;
             if (typeof mediaMesVal !== "number" || isNaN(mediaMesVal) || !isFinite(mediaMesVal)) {
-              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:65px; min-width:65px;">\u2014</td>';
+              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:65px;">\u2014</td>';
             }
             var ti = scoreTier(mediaMesVal);
-            return '<td style="padding:6px 4px; text-align:center; width:65px; min-width:65px;">' +
+            return '<td style="padding:6px 4px; text-align:center; width:65px;">' +
               '<span style="display:inline-block; min-width:52px; padding:5px 0; border-radius:6px; background:' + ti.bg +
               '; color:' + ti.dark + '; font-size:1.15rem; font-weight:900;">' + mediaMesVal.toFixed(0) + '%</span></td>';
           }).join("") +
-          '<td style="padding:10px 12px; text-align:center; width:140px; min-width:140px;">' + (mediaAcumNeg !== null ? tab5Pct(mediaAcumNeg, "1.25rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
-          '<td style="padding:10px 16px; text-align:left; min-width:930px;">' + tab5Chips(catsAvgNeg) + '</td>' +
+          '<td style="padding:10px 12px; text-align:center; width:140px;">' + (mediaAcumNeg !== null ? tab5Pct(mediaAcumNeg, "1.25rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
+          '<td style="padding:10px 16px; text-align:left; width:930px;">' + tab5Chips(catsAvgNeg) + '</td>' +
         '</tr>';
       });
       html += '</table></div>';
@@ -4831,16 +4845,16 @@ function hydrateFromPowerBI() {
         var clickAttr = collapseKey ? ('onclick="tab5ToggleCollapse(\'' + collapseKey + '\')" style="cursor:pointer; user-select:none; background:' + fundo + ';"') : ('style="background:' + fundo + ';"');
 
         return '<tr ' + clickAttr + '>' +
-          '<td colspan="' + (meses.length + 1) + '" style="padding:10px 10px 10px ' + (10 + recuo) + 'px; color:#fff; font-weight:900; font-size:' + tamanho + '; white-space:nowrap;">' +
+          '<td colspan="' + (meses.length + 1) + '" style="padding:10px 10px 10px ' + (10 + recuo) + 'px; color:#fff; font-weight:900; font-size:' + tamanho + '; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' +
             seta + ["\ud83c\udfe2", "\ud83d\udc54", "\ud83d\udc64"][nivel] + " " + rotulo +
             '<span style="color:rgba(255,255,255,0.75); font-weight:700; font-size:0.95rem; margin-left:12px;">' + oss.length + ' OS' + (oss.length > 1 ? "s" : "") + '</span>' +
           '</td>' +
-          '<td style="padding:10px 10px; text-align:center; color:#fff; font-weight:900; font-size:1.10rem; width:110px; min-width:110px;">' +
+          '<td style="padding:10px 10px; text-align:center; color:#fff; font-weight:900; font-size:1.10rem; width:110px;">' +
             '<span style="background:' + tierA.main + '; color:' + tierA.text + '; border-radius:6px; padding:4px 10px;">' + a.pct + '%</span>' +
           '</td>' +
-          '<td style="padding:10px 12px; text-align:center; color:#fff; font-weight:900; font-size:1.20rem; width:140px; min-width:140px;">' +
+          '<td style="padding:10px 12px; text-align:center; color:#fff; font-weight:900; font-size:1.20rem; width:140px;">' +
             (nm && typeof nm.pct === "number" && isFinite(nm.pct) ? nm.pct.toFixed(1) + '%' : '<span style="color:rgba(255,255,255,0.5);">\u2014</span>') + '</td>' +
-          '<td style="padding:10px 16px; text-align:left; color:rgba(255,255,255,0.78); font-size:0.92rem; font-weight:700; white-space:nowrap; min-width:930px;">' +
+          '<td style="padding:10px 16px; text-align:left; color:rgba(255,255,255,0.78); font-size:0.92rem; font-weight:700; white-space:nowrap; width:930px;">' +
             (nm ? nm.com + ' de ' + nm.total + ' com nota' : 'sem nota') + '</td>' +
         '</tr>';
       }
@@ -4858,16 +4872,23 @@ function hydrateFromPowerBI() {
         arvore[sup][ger][ges].push(o);
       });
 
-      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; min-width:1250px;">' +
+      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; min-width:1600px; table-layout:fixed;">' +
+        '<colgroup>' +
+          '<col style="width:376px;">' +
+          meses.map(function() { return '<col style="width:65px;">'; }).join("") +
+          '<col style="width:110px;">' +
+          '<col style="width:140px;">' +
+          '<col style="width:930px;">' +
+        '</colgroup>' +
         '<tr style="background:#f1f5f9;">' +
-          '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:376px; min-width:376px;">SUPERINTENDENTE / GERENTE / GESTOR / OS</th>' +
+          '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:376px;">SUPERINTENDENTE / GERENTE / GESTOR / OS</th>' +
           meses.map(function(mm) {
-            return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:65px; min-width:65px;">' +
+            return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:65px;">' +
                    (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
           }).join("") +
-          '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:110px; min-width:110px;">ADES\u00c3O</th>' +
-          '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:140px; min-width:140px;">NOTA</th>' +
-          '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; min-width:930px;">POR CATEGORIA</th>' +
+          '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:110px;">ADES\u00c3O</th>' +
+          '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:140px;">NOTA</th>' +
+          '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:930px;">POR CATEGORIA</th>' +
         '</tr>';
 
       function getOssSup(sup) {
@@ -4944,15 +4965,15 @@ function hydrateFromPowerBI() {
                   var aOS = adesaoDe([o]);
                   var tierOS = scoreTier(aOS.pct);
                   html += '<tr style="border-bottom:1px solid #f1f5f9;' + (nunca ? " background:#fffafa;" : "") + '">' +
-                    '<td style="padding:10px 10px 10px 66px; font-weight:800; font-size:1.15rem; color:#0f2b5c; white-space:nowrap; width:376px; min-width:376px;">' +
+                    '<td style="padding:10px 10px 10px 66px; font-weight:800; font-size:1.15rem; color:#0f2b5c; white-space:nowrap; width:376px; overflow:hidden; text-overflow:ellipsis;">' +
                       rotuloCompletoOS(o) +
                       '<span style="font-weight:700; color:#64748b; font-size:0.86rem; margin-left:8px;">' + ((window.OS_HIER || {})[o.codigo] || {}).neg + '</span>' +
                     '</td>' +
                     meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
-                    '<td style="padding:10px 10px; text-align:center; font-weight:900; font-size:1.10rem; width:110px; min-width:110px;">' +
+                    '<td style="padding:10px 10px; text-align:center; font-weight:900; font-size:1.10rem; width:110px;">' +
                       '<span style="background:' + tierOS.bg + '; color:' + tierOS.dark + '; border-radius:6px; padding:4px 10px;">' + aOS.pct + '%</span></td>' +
-                    '<td style="padding:10px 12px; text-align:center; width:140px; min-width:140px;">' + ((n && n.ultima) ? tab5Pct(n.ultima.notaAcum, "1.25rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
-                    '<td style="padding:10px 16px; text-align:left; min-width:930px;">' + ((n && n.ultima) ? tab5Chips(n.ultima.cats) : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
+                    '<td style="padding:10px 12px; text-align:center; width:140px;">' + ((n && n.ultima) ? tab5Pct(n.ultima.notaAcum, "1.25rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
+                    '<td style="padding:10px 16px; text-align:left; width:930px;">' + ((n && n.ultima) ? tab5Chips(n.ultima.cats) : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
                   '</tr>';
                 });
               });
