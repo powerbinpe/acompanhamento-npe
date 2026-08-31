@@ -4350,6 +4350,58 @@ function hydrateFromPowerBI() {
       return mapa;
     }
 
+    function obterMapaDeBlocosOS() {
+      var aliasParaPrimaria = {};
+      var rotuloBloco = {};
+
+      function registrarBloco(listaCodigos) {
+        if (!listaCodigos || !listaCodigos.length) return;
+        var limpos = listaCodigos.map(function(s) {
+          return extractPrimaryOSCode(s) || s;
+        }).filter(Boolean);
+        if (limpos.length <= 1) return;
+        // Ordena sempre da menor (mais antiga) para a maior (mais nova)
+        limpos.sort(function(a, b) { return a.localeCompare(b); });
+        var primaria = limpos[0];
+        limpos.forEach(function(cod) {
+          aliasParaPrimaria[cod] = primaria;
+        });
+        rotuloBloco[primaria] = formatOSLabel(limpos.join("|"));
+      }
+
+      // 1. A partir de ACTIVE_CONTRACTS_CATALOG
+      var catalogo = (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined" && ACTIVE_CONTRACTS_CATALOG) ? ACTIVE_CONTRACTS_CATALOG : [];
+      catalogo.forEach(function(c) {
+        if (!c.code) return;
+        var partes = String(c.code).split(/[|+]/);
+        if (partes.length > 1) registrarBloco(partes);
+      });
+
+      // 2. A partir de OSHier
+      var brutoHier = new URLSearchParams(window.location.search).get("OSHier") || "";
+      var partesHier = brutoHier.split("~");
+      if (partesHier.length >= 4) {
+        partesHier[3].split(";").forEach(function(linha) {
+          var c = linha.split(":");
+          if (c.length < 4) return;
+          var partes = String(c[0]).split(/[|+]/);
+          if (partes.length > 1) registrarBloco(partes);
+        });
+      }
+
+      // 3. A partir de AllowedOSList
+      var rawAllowed = new URLSearchParams(window.location.search).get("AllowedOSList") || "";
+      rawAllowed.split(",").forEach(function(item) {
+        var partes = String(item).trim().split(/[|+]/);
+        if (partes.length > 1) registrarBloco(partes);
+      });
+
+      return {
+        alias: aliasParaPrimaria,
+        rotulos: rotuloBloco
+      };
+    }
+
     // "M00200 - YARA - PAULINIA" em vez de "M00200". O codigo sozinho nao diz de quem e a
     // OS, e a reuniao e com quem conhece o cliente, nao o codigo.
     function rotuloCompletoOS(o) {
@@ -4376,28 +4428,44 @@ function hydrateFromPowerBI() {
     }
 
     function tab5OSElegiveis() {
-      // Preferimos o OSHier: ele traz TODAS as OSs elegiveis, ignorando o slicer de OS mas
-      // respeitando a seguranca (RLS nao e removida por REMOVEFILTERS). O AllowedOSList
-      // segue o slicer -- com uma OS filtrada, a aba mostrava uma linha so, e a pergunta
-      // "quem nao esta acompanhando" ficava sem resposta.
+      var blocos = obterMapaDeBlocosOS();
       var hier = carregarHierarquiaOS();
       var chaves = Object.keys(hier);
+      var vistos = {};
+      var saida = [];
+
       if (chaves.length) {
-        return chaves.map(function(c) {
-          return { codigo: c, rotulo: hier[c].rotulo, sup: hier[c].sup, ger: hier[c].ger, neg: hier[c].neg };
-        }).sort(function(a, b) { return a.codigo.localeCompare(b.codigo); });
+        chaves.forEach(function(c) {
+          var codPrimario = blocos.alias[c] || c;
+          if (vistos[codPrimario]) return;
+          vistos[codPrimario] = true;
+
+          var h = hier[c] || hier[codPrimario] || {};
+          var rotuloFinal = blocos.rotulos[codPrimario] || h.rotulo || codPrimario;
+          saida.push({
+            codigo: codPrimario,
+            rotulo: rotuloFinal,
+            sup: h.sup || "",
+            ger: h.ger || "",
+            neg: h.neg || "",
+            desc: h.desc || ""
+          });
+        });
+      } else {
+        var p = new URLSearchParams(window.location.search);
+        var raw = p.get("AllowedOSList") || "";
+        raw.split(",").forEach(function(item) {
+          var bruto = String(item).trim().toUpperCase();
+          if (!bruto) return;
+          var codigo = extractPrimaryOSCode(bruto) || bruto;
+          var codPrimario = blocos.alias[codigo] || codigo;
+          if (vistos[codPrimario]) return;
+          vistos[codPrimario] = true;
+          var rotuloFinal = blocos.rotulos[codPrimario] || bruto;
+          saida.push({ codigo: codPrimario, rotulo: rotuloFinal, sup: "", ger: "", neg: "" });
+        });
       }
-      var p = new URLSearchParams(window.location.search);
-      var raw = p.get("AllowedOSList") || "";
-      var vistos = {}, saida = [];
-      raw.split(",").forEach(function(item) {
-        var bruto = String(item).trim().toUpperCase();
-        if (!bruto) return;
-        var codigo = extractPrimaryOSCode(bruto) || bruto;
-        if (vistos[codigo]) return;
-        vistos[codigo] = true;
-        saida.push({ codigo: codigo, rotulo: bruto, sup: "", ger: "", neg: "" });
-      });
+
       return saida.sort(function(a, b) { return a.codigo.localeCompare(b.codigo); });
     }
 
@@ -4470,11 +4538,13 @@ function hydrateFromPowerBI() {
     // Por OS e por mes: quantos dos 23 topicos o gestor preencheu, quantos pareceres a
     // Performance escreveu e quantos ja foram travados.
     function tab5ResumoPorOS() {
+      var blocos = obterMapaDeBlocosOS();
       var mapa = {};
       (window.TAB5.meses || []).forEach(function(mm) {
         (window.TAB5.ataPorMes[mm] || []).forEach(function(r) {
-          var os = extractPrimaryOSCode(String(r.os || "").toUpperCase());
-          if (!os) return;
+          var rawOs = extractPrimaryOSCode(String(r.os || "").toUpperCase());
+          if (!rawOs) return;
+          var os = blocos.alias[rawOs] || rawOs;
           var e = mapa[os] || (mapa[os] = { meses: {}, totalMeses: 0 });
           var mes = e.meses[mm] || (e.meses[mm] = { topicos: 0, master: 0, validados: 0 });
           if (tab5Preenchido(r.gestor)) mes.topicos++;
@@ -4492,11 +4562,13 @@ function hydrateFromPowerBI() {
     // Notas por OS: lê as gravadas no SharePoint e complementa dinamicamente via cálculo
     // real para todas as OSs ativas de Parada, Rotina e Oficina que tenham dados apurados.
     function tab5NotasPorOS() {
+      var blocos = obterMapaDeBlocosOS();
       var mapa = {};
       (window.TAB5.notas || []).forEach(function(r) {
-        var os = extractPrimaryOSCode(String(r.os || "").toUpperCase());
+        var rawOs = extractPrimaryOSCode(String(r.os || "").toUpperCase());
         var mes = parseInt(r.mes, 10);
-        if (!os || !mes) return;
+        if (!rawOs || !mes) return;
+        var os = blocos.alias[rawOs] || rawOs;
         var e = mapa[os] || (mapa[os] = { meses: {}, ultima: null, ultimoMes: 0 });
         var reg = {
           notaMes: parseFloat(r.notaMes),
@@ -4513,18 +4585,20 @@ function hydrateFromPowerBI() {
 
       // Complemento dinâmico para garantir que Parada, Rotina e Oficina tenham suas notas
       // calculadas mesmo antes de serem gravadas manualmente na base do SharePoint
-      if (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined" && ACTIVE_CONTRACTS_CATALOG.length) {
+      var catalogo = (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined" && ACTIVE_CONTRACTS_CATALOG) ? ACTIVE_CONTRACTS_CATALOG : [];
+      if (catalogo.length) {
         var mesesTab5 = window.TAB5.meses || [];
-        ACTIVE_CONTRACTS_CATALOG.forEach(function(contract) {
+        catalogo.forEach(function(contract) {
           var os = extractPrimaryOSCode(contract.code);
           if (!os) return;
-          var e = mapa[os];
+          var codPrimario = blocos.alias[os] || os;
+          var e = mapa[codPrimario];
           if (!e) {
-            e = mapa[os] = { meses: {}, ultima: null, ultimoMes: 0 };
+            e = mapa[codPrimario] = { meses: {}, ultima: null, ultimoMes: 0 };
           }
           mesesTab5.forEach(function(m) {
             if (!e.meses[m]) {
-              var n = notasDaOS(os, m);
+              var n = notasDaOS(contract.code, m);
               if (n && n.temDado && typeof n.notaMes === "number" && isFinite(n.notaMes)) {
                 var reg = {
                   notaMes: n.notaMes,
