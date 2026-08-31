@@ -4532,7 +4532,7 @@ function hydrateFromPowerBI() {
 
     // % na cor da faixa (a mesma escala do resto do app, vinda da META_GERAL).
     function tab5Pct(valor, tamanho) {
-      if (!isFinite(valor)) return '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>';
+      if (typeof valor !== "number" || isNaN(valor) || !isFinite(valor) || valor === null) return '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>';
       var tier = scoreTier(valor);
       return '<span style="font-weight:900; font-size:' + (tamanho || "1.05rem") + '; color:' + tier.main + ';">' +
              valor.toFixed(1) + '%</span>';
@@ -4547,11 +4547,11 @@ function hydrateFromPowerBI() {
 
     // Pastilha por categoria: tamanho fixo padrão (175px) com ícone, nome e percentual perfeitamente alinhados
     function tab5Chips(cats) {
-      if (!cats) return '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>';
+      if (!cats || typeof cats !== "object") return '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>';
       return '<div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">' +
         SCORE_CATEGORIES.map(function(c) {
           var v = cats[c.key];
-          if (!isFinite(v)) return "";
+          if (typeof v !== "number" || isNaN(v) || !isFinite(v) || v === null) return "";
           var tier = scoreTier(v);
           var rotuloCat = c.key === "gov" ? "Governança" : (c.key === "acomp" ? "Acompanhamento" : (c.key === "ssma" ? "SSMA" : c.label));
           return '<div title="' + c.label + '" style="width:175px; min-width:175px; box-sizing:border-box; display:inline-flex; align-items:center; justify-content:space-between; gap:6px; background:' + c.color +
@@ -4636,8 +4636,9 @@ function hydrateFromPowerBI() {
       // ---- ranking pelo mes mais recente com nota ----
       var comNota = elegiveis.map(function(o) {
         var n = notas[o.codigo];
-        return (n && n.ultima) ? { codigo: o.codigo, mes: n.ultimoMes, notaMes: n.ultima.notaMes,
-                                   notaAcum: n.ultima.notaAcum, cats: n.ultima.cats } : null;
+        return (n && n.ultima && typeof n.ultima.notaAcum === "number" && isFinite(n.ultima.notaAcum))
+          ? { codigo: o.codigo, mes: n.ultimoMes, notaMes: n.ultima.notaMes, notaAcum: n.ultima.notaAcum, cats: n.ultima.cats }
+          : null;
       }).filter(Boolean).sort(function(a, b) { return b.notaAcum - a.notaAcum; });
 
       html += '<h3 style="margin:0 0 6px; font-size:1.25rem; color:#0f2b5c; font-weight:900;">\ud83c\udfc6 Ranking do ano</h3>' +
@@ -4671,7 +4672,7 @@ function hydrateFromPowerBI() {
             '<td style="padding:10px 10px; font-weight:800; color:#0f2b5c; font-size:1.15rem; white-space:nowrap;">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
             meses.map(function(mm) {
               var reg = todos[mm];
-              if (!reg || !isFinite(reg.notaMes)) {
+              if (!reg || typeof reg.notaMes !== "number" || isNaN(reg.notaMes) || !isFinite(reg.notaMes)) {
                 return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem;">\u2014</td>';
               }
               var ti = scoreTier(reg.notaMes);
@@ -4713,15 +4714,16 @@ function hydrateFromPowerBI() {
 
         var iconNeg = negName === "ROTINA" ? "\ud83d\udd04" : (negName === "PARADA" ? "\u23f1\ufe0f" : "\ud83d\udd27");
         var comNotaNeg = ossNeg.map(function(o) {
-          return notas[o.codigo] && notas[o.codigo].ultima ? notas[o.codigo].ultima : null;
+          return (notas[o.codigo] && notas[o.codigo].ultima && typeof notas[o.codigo].ultima.notaAcum === "number" && isFinite(notas[o.codigo].ultima.notaAcum))
+            ? notas[o.codigo].ultima : null;
         }).filter(Boolean);
 
         var mediaAcumNeg = comNotaNeg.length ? (comNotaNeg.reduce(function(s, x) { return s + (x.notaAcum || 0); }, 0) / comNotaNeg.length) : null;
 
         var catsAvgNeg = {};
         SCORE_CATEGORIES.forEach(function(c) {
-          var vals = comNotaNeg.map(function(x) { return (x.cats && typeof x.cats[c.key] === "number") ? x.cats[c.key] : null; })
-                               .filter(function(v) { return v !== null && isFinite(v); });
+          var vals = comNotaNeg.map(function(x) { return (x.cats && typeof x.cats[c.key] === "number" && isFinite(x.cats[c.key])) ? x.cats[c.key] : null; })
+                               .filter(function(v) { return v !== null; });
           catsAvgNeg[c.key] = vals.length ? (vals.reduce(function(s, v) { return s + v; }, 0) / vals.length) : null;
         });
 
@@ -4734,13 +4736,16 @@ function hydrateFromPowerBI() {
           meses.map(function(mm) {
             var notasMesNeg = ossNeg.map(function(o) {
               var r = (notas[o.codigo] || {}).meses ? (notas[o.codigo] || {}).meses[mm] : null;
-              return (r && isFinite(r.notaMes)) ? r.notaMes : null;
+              return (r && typeof r.notaMes === "number" && isFinite(r.notaMes)) ? r.notaMes : null;
             }).filter(function(v) { return v !== null; });
 
             if (!notasMesNeg.length) {
               return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem;">\u2014</td>';
             }
             var mediaMesVal = notasMesNeg.reduce(function(s, v) { return s + v; }, 0) / notasMesNeg.length;
+            if (typeof mediaMesVal !== "number" || isNaN(mediaMesVal) || !isFinite(mediaMesVal)) {
+              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem;">\u2014</td>';
+            }
             var ti = scoreTier(mediaMesVal);
             return '<td style="padding:6px 4px; text-align:center; min-width:62px; width:62px;">' +
               '<span style="display:inline-block; min-width:52px; padding:5px 0; border-radius:6px; background:' + ti.bg +
@@ -4782,7 +4787,7 @@ function hydrateFromPowerBI() {
         var soma = 0, n = 0;
         oss.forEach(function(o) {
           var x = notas[o.codigo];
-          if (x && x.ultima && isFinite(x.ultima.notaAcum)) { soma += x.ultima.notaAcum; n++; }
+          if (x && x.ultima && typeof x.ultima.notaAcum === "number" && isFinite(x.ultima.notaAcum)) { soma += x.ultima.notaAcum; n++; }
         });
         return n ? { pct: soma / n, com: n, total: oss.length } : null;
       }
@@ -4805,7 +4810,7 @@ function hydrateFromPowerBI() {
             '<span style="background:' + tierA.main + '; color:' + tierA.text + '; border-radius:6px; padding:4px 10px;">' + a.pct + '%</span>' +
           '</td>' +
           '<td style="padding:10px 12px; text-align:center; color:#fff; font-weight:900; font-size:1.20rem; min-width:110px;">' +
-            (nm ? nm.pct.toFixed(1) + '%' : '<span style="color:rgba(255,255,255,0.5);">\u2014</span>') + '</td>' +
+            (nm && typeof nm.pct === "number" && isFinite(nm.pct) ? nm.pct.toFixed(1) + '%' : '<span style="color:rgba(255,255,255,0.5);">\u2014</span>') + '</td>' +
           '<td style="padding:10px 16px; text-align:center; color:rgba(255,255,255,0.78); font-size:0.92rem; font-weight:700; white-space:nowrap;">' +
             (nm ? nm.com + ' de ' + nm.total + ' com nota' : 'sem nota') + '</td>' +
         '</tr>';
@@ -4895,8 +4900,8 @@ function hydrateFromPowerBI() {
                   var adA = adesaoDe([a]).pct;
                   var adB = adesaoDe([b]).pct;
                   if (adA !== adB) return adB - adA;
-                  var nA = (notas[a.codigo] && notas[a.codigo].ultima && isFinite(notas[a.codigo].ultima.notaAcum)) ? notas[a.codigo].ultima.notaAcum : -1;
-                  var nB = (notas[b.codigo] && notas[b.codigo].ultima && isFinite(notas[b.codigo].ultima.notaAcum)) ? notas[b.codigo].ultima.notaAcum : -1;
+                  var nA = (notas[a.codigo] && notas[a.codigo].ultima && typeof notas[a.codigo].ultima.notaAcum === "number" && isFinite(notas[a.codigo].ultima.notaAcum)) ? notas[a.codigo].ultima.notaAcum : -1;
+                  var nB = (notas[b.codigo] && notas[b.codigo].ultima && typeof notas[b.codigo].ultima.notaAcum === "number" && isFinite(notas[b.codigo].ultima.notaAcum)) ? notas[b.codigo].ultima.notaAcum : -1;
                   if (nA !== nB) return nB - nA;
                   return a.codigo.localeCompare(b.codigo);
                 });
