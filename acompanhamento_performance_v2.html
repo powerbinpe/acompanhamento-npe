@@ -4836,28 +4836,71 @@ function hydrateFromPowerBI() {
           '<th style="padding:10px 16px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; min-width:920px;">POR CATEGORIA</th>' +
         '</tr>';
 
-      Object.keys(arvore).sort().forEach(function(sup, idxSup) {
-        var ossSup = [];
-        Object.keys(arvore[sup]).forEach(function(g) {
-          Object.keys(arvore[sup][g]).forEach(function(e) { ossSup = ossSup.concat(arvore[sup][g][e]); });
+      function getOssSup(sup) {
+        var res = [];
+        Object.keys(arvore[sup] || {}).forEach(function(g) {
+          Object.keys(arvore[sup][g] || {}).forEach(function(e) { res = res.concat(arvore[sup][g][e]); });
         });
-        var supKey = "sup_" + idxSup;
+        return res;
+      }
+
+      function ordenarChavesPorAdesaoENota(chaves, getOssFn) {
+        return chaves.slice().sort(function(a, b) {
+          var ossA = getOssFn(a);
+          var ossB = getOssFn(b);
+          var adA = adesaoDe(ossA).pct;
+          var adB = adesaoDe(ossB).pct;
+          if (adA !== adB) return adB - adA;
+          var nmA = notaMediaDe(ossA) ? notaMediaDe(ossA).pct : -1;
+          var nmB = notaMediaDe(ossB) ? notaMediaDe(ossB).pct : -1;
+          if (nmA !== nmB) return nmB - nmA;
+          return String(a).localeCompare(String(b));
+        });
+      }
+
+      var supsOrdenados = ordenarChavesPorAdesaoENota(Object.keys(arvore), getOssSup);
+
+      supsOrdenados.forEach(function(sup) {
+        var ossSup = getOssSup(sup);
+        var supKey = "sup_" + sup.replace(/[^a-zA-Z0-9]/g, "_");
         var supExpanded = !!window.TAB5_EXPANDED[supKey];
         var supCollapsed = !supExpanded;
         html += linhaGrupo(0, sup, ossSup, supKey, supCollapsed);
 
         if (supExpanded) {
-          Object.keys(arvore[sup]).sort().forEach(function(ger, idxGer) {
-            var ossGer = [];
-            Object.keys(arvore[sup][ger]).forEach(function(e) { ossGer = ossGer.concat(arvore[sup][ger][e]); });
-            var gerKey = "ger_" + idxSup + "_" + idxGer;
+          function getOssGer(ger) {
+            var res = [];
+            Object.keys(arvore[sup][ger] || {}).forEach(function(e) { res = res.concat(arvore[sup][ger][e]); });
+            return res;
+          }
+
+          var gersOrdenados = ordenarChavesPorAdesaoENota(Object.keys(arvore[sup]), getOssGer);
+
+          gersOrdenados.forEach(function(ger) {
+            var ossGer = getOssGer(ger);
+            var gerKey = "ger_" + supKey + "_" + ger.replace(/[^a-zA-Z0-9]/g, "_");
             var gerExpanded = !!window.TAB5_EXPANDED[gerKey];
             var gerCollapsed = !gerExpanded;
             html += linhaGrupo(1, ger, ossGer, gerKey, gerCollapsed);
 
             if (gerExpanded) {
-              Object.keys(arvore[sup][ger]).sort().forEach(function(ges) {
-                var ossGes = arvore[sup][ger][ges];
+              function getOssGes(ges) {
+                return arvore[sup][ger][ges] || [];
+              }
+
+              var gestoresOrdenados = ordenarChavesPorAdesaoENota(Object.keys(arvore[sup][ger]), getOssGes);
+
+              gestoresOrdenados.forEach(function(ges) {
+                var ossGes = arvore[sup][ger][ges].slice().sort(function(a, b) {
+                  var adA = adesaoDe([a]).pct;
+                  var adB = adesaoDe([b]).pct;
+                  if (adA !== adB) return adB - adA;
+                  var nA = (notas[a.codigo] && notas[a.codigo].ultima && isFinite(notas[a.codigo].ultima.notaAcum)) ? notas[a.codigo].ultima.notaAcum : -1;
+                  var nB = (notas[b.codigo] && notas[b.codigo].ultima && isFinite(notas[b.codigo].ultima.notaAcum)) ? notas[b.codigo].ultima.notaAcum : -1;
+                  if (nA !== nB) return nB - nA;
+                  return a.codigo.localeCompare(b.codigo);
+                });
+
                 html += linhaGrupo(2, ges, ossGes, null, false);
 
                 ossGes.forEach(function(o) {
