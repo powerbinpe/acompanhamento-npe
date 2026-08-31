@@ -1041,28 +1041,9 @@ function hydrateFromPowerBI() {
         var raw = safeGetStorage("npe_acesso_sessao", null);
         if (raw) {
           var s = JSON.parse(raw);
-          if (s && s.login && s.perfil) return s;
+          return (s && s.login && s.perfil) ? s : null;
         }
-      } catch (e) {}
-
-      // Fallback 1: se IsUserPerformance == TRUE (email reconhecido como Master pelo modelo DAX):
-      var params = new URLSearchParams(window.location.search);
-      if ((params.get("IsUserPerformance") || "").toUpperCase() === "TRUE") {
-        var uEmail = params.get("UserEmail") || "robson.araujo@npe.com.br";
-        var nomeU = uEmail.split("@")[0].replace(/\./g, " ").toUpperCase();
-        var autoSess = { login: uEmail, nome: nomeU, perfil: "PROPRIETARIO" };
-        gravarSessaoAcesso(autoSess);
-        return autoSess;
-      }
-
-      // Fallback 2: se o UserEmail estiver na lista MASTER_PERFORMANCE_EMAILS:
-      var pEmail = String(params.get("UserEmail") || "").toLowerCase().trim();
-      if (pEmail && (pEmail.indexOf("robson.araujo") !== -1 || pEmail.indexOf("atila.hohenfeld") !== -1 || pEmail.indexOf("luis.andrade") !== -1 || pEmail.indexOf("vinicius.pedroza") !== -1 || pEmail.indexOf("ivan.santos") !== -1)) {
-        var autoSess2 = { login: pEmail, nome: pEmail.split("@")[0].replace(/\./g, " ").toUpperCase(), perfil: "PROPRIETARIO" };
-        gravarSessaoAcesso(autoSess2);
-        return autoSess2;
-      }
-
+      } catch (e) { return null; }
       return null;
     }
     function gravarSessaoAcesso(s) { safeSetStorage("npe_acesso_sessao", JSON.stringify(s)); }
@@ -1123,25 +1104,16 @@ function hydrateFromPowerBI() {
       } catch (err) { return { ok: false, erro: "Falha ao gravar a nova senha." }; }
     }
 
-    // O perfil Master agora depende de SESSAO AUTENTICADA, com reconhecimento automatico
-    // de IsUserPerformance / e-mail do Power BI.
+    // O perfil Master depende EXCLUSIVAMENTE de SESSAO AUTENTICADA via lista SharePoint/Flow.
     function isUserAuthorizedMaster() {
       var params = new URLSearchParams(window.location.search);
       if ((params.get("SimRoleOverride") || "").toUpperCase() === "GESTOR") return false;
-      if ((params.get("IsUserPerformance") || "").toUpperCase() === "TRUE") return true;
-      var pEmail = String(params.get("UserEmail") || "").toLowerCase().trim();
-      if (pEmail && (pEmail.indexOf("robson.araujo") !== -1 || pEmail.indexOf("atila.hohenfeld") !== -1 || pEmail.indexOf("luis.andrade") !== -1 || pEmail.indexOf("vinicius.pedroza") !== -1 || pEmail.indexOf("ivan.santos") !== -1)) {
-        return true;
-      }
       return !!sessaoAcesso();
     }
 
-    // De onde veio a autorizacao -- muda o que a tela oferece (quem entrou por senha pode
-    // trocar a propria senha; quem foi reconhecido pelo modelo nao tem senha para trocar).
+    // De onde veio a autorizacao
     function origemDoAcessoMaster() {
-      if (sessaoAcesso()) return "SENHA";
-      var p = new URLSearchParams(window.location.search);
-      return (p.get("IsUserPerformance") || "").toUpperCase() === "TRUE" ? "MODELO" : "NENHUMA";
+      return sessaoAcesso() ? "SENHA" : "NENHUMA";
     }
 
     // Read stored simulation preference
