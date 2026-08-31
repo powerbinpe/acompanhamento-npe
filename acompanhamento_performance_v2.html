@@ -4538,10 +4538,10 @@ function hydrateFromPowerBI() {
              valor.toFixed(1) + '%</span>';
     }
 
-    window.TAB5_COLLAPSED = window.TAB5_COLLAPSED || {};
+    window.TAB5_EXPANDED = window.TAB5_EXPANDED || {};
 
     function tab5ToggleCollapse(key) {
-      window.TAB5_COLLAPSED[key] = !window.TAB5_COLLAPSED[key];
+      window.TAB5_EXPANDED[key] = !window.TAB5_EXPANDED[key];
       renderTab5();
     }
 
@@ -4842,18 +4842,20 @@ function hydrateFromPowerBI() {
           Object.keys(arvore[sup][g]).forEach(function(e) { ossSup = ossSup.concat(arvore[sup][g][e]); });
         });
         var supKey = "sup_" + idxSup;
-        var supCollapsed = !!window.TAB5_COLLAPSED[supKey];
+        var supExpanded = !!window.TAB5_EXPANDED[supKey];
+        var supCollapsed = !supExpanded;
         html += linhaGrupo(0, sup, ossSup, supKey, supCollapsed);
 
-        if (!supCollapsed) {
+        if (supExpanded) {
           Object.keys(arvore[sup]).sort().forEach(function(ger, idxGer) {
             var ossGer = [];
             Object.keys(arvore[sup][ger]).forEach(function(e) { ossGer = ossGer.concat(arvore[sup][ger][e]); });
             var gerKey = "ger_" + idxSup + "_" + idxGer;
-            var gerCollapsed = !!window.TAB5_COLLAPSED[gerKey];
+            var gerExpanded = !!window.TAB5_EXPANDED[gerKey];
+            var gerCollapsed = !gerExpanded;
             html += linhaGrupo(1, ger, ossGer, gerKey, gerCollapsed);
 
-            if (!gerCollapsed) {
+            if (gerExpanded) {
               Object.keys(arvore[sup][ger]).sort().forEach(function(ges) {
                 var ossGes = arvore[sup][ger][ges];
                 html += linhaGrupo(2, ges, ossGes, null, false);
