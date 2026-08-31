@@ -905,7 +905,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-08-30 19:43";
+    window.NPE_BUILD = "2026-08-31 20:31";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1103,13 +1103,24 @@ function hydrateFromPowerBI() {
     // O perfil Master depende EXCLUSIVAMENTE de SESSAO AUTENTICADA via lista SharePoint/Flow.
     function isUserAuthorizedMaster() {
       var params = new URLSearchParams(window.location.search);
+      // SimRoleOverride so REBAIXA -- continua sendo impossivel elevar por query-string.
       if ((params.get("SimRoleOverride") || "").toUpperCase() === "GESTOR") return false;
-      return !!sessaoAcesso();
+      if (sessaoAcesso()) return true;
+      // Dentro do visual do Power BI NAO existe armazenamento: local, sessao e cookie sao
+      // bloqueados e a moldura e recriada a cada filtro (medido no proprio painel). O unico
+      // estado que atravessa e o que vem na URL -- e a identidade ja vem: IsUserPerformance
+      // nasce de USERPRINCIPALNAME() no DAX e lista os cinco Masters.
+      // Sem isto a sessao morre em TODA troca de OS, que e o que inviabiliza a apuracao.
+      // No BiExplorer da FALSE (la o USERPRINCIPALNAME devolve a conta que publicou), entao
+      // naquele contexto a senha continua sendo a unica porta.
+      return (params.get("IsUserPerformance") || "").toUpperCase() === "TRUE";
     }
 
-    // De onde veio a autorizacao
+    // De onde veio a autorizacao -- muda o que a tela oferece e aparece no diagnostico.
     function origemDoAcessoMaster() {
-      return sessaoAcesso() ? "SENHA" : "NENHUMA";
+      if (sessaoAcesso()) return "SENHA";
+      var p = new URLSearchParams(window.location.search);
+      return (p.get("IsUserPerformance") || "").toUpperCase() === "TRUE" ? "MODELO" : "NENHUMA";
     }
 
     // Read stored simulation preference
@@ -2076,19 +2087,19 @@ function hydrateFromPowerBI() {
         '<div style="border-top:1px solid rgba(255,255,255,0.18); padding-top:12px; display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:10px;">' +
           '<div style="background:rgba(220,252,231,0.12); border:1px solid #86efac; border-radius:8px; padding:6px 10px; display:flex; align-items:center; gap:8px;">' +
             '<span style="font-size:1.3rem;">\u2b50</span>' +
-            '<div><div style="font-weight:900; color:#86efac; font-size:0.82rem;">Refer\u00eancia Operacional (90,1% a 100%)</div><div style="font-size:0.70rem; color:#dcfce7; line-height:1.2;">Destaque e excel\u00eancia na gest\u00e3o contratual.</div></div>' +
+            '<div><div style="font-weight:900; color:#86efac; font-size:0.82rem;">Refer\u00eancia Operacional (' + faixaTexto("REFERENCIA") + ')</div><div style="font-size:0.70rem; color:#dcfce7; line-height:1.2;">Destaque e excel\u00eancia na gest\u00e3o contratual.</div></div>' +
           '</div>' +
           '<div style="background:rgba(224,242,254,0.12); border:1px solid #bae6fd; border-radius:8px; padding:6px 10px; display:flex; align-items:center; gap:8px;">' +
             '<span style="font-size:1.3rem;">\u2705</span>' +
-            '<div><div style="font-weight:900; color:#bae6fd; font-size:0.82rem;">Controlado (75,1% a 90,0%)</div><div style="font-size:0.70rem; color:#e0f2fe; line-height:1.2;">Opera\u00e7\u00e3o est\u00e1vel e riscos controlados.</div></div>' +
+            '<div><div style="font-weight:900; color:#bae6fd; font-size:0.82rem;">Controlado (' + faixaTexto("CONTROLADO") + ')</div><div style="font-size:0.70rem; color:#e0f2fe; line-height:1.2;">Opera\u00e7\u00e3o est\u00e1vel e riscos controlados.</div></div>' +
           '</div>' +
           '<div style="background:rgba(254,243,199,0.12); border:1px solid #fde68a; border-radius:8px; padding:6px 10px; display:flex; align-items:center; gap:8px;">' +
             '<span style="font-size:1.3rem;">\u26a0\ufe0f</span>' +
-            '<div><div style="font-weight:900; color:#fde68a; font-size:0.82rem;">Em Recupera\u00e7\u00e3o (50,1% a 75,0%)</div><div style="font-size:0.70rem; color:#fef3c7; line-height:1.2;">Abaixo do esperado; demanda plano de a\u00e7\u00e3o.</div></div>' +
+            '<div><div style="font-weight:900; color:#fde68a; font-size:0.82rem;">Em Recupera\u00e7\u00e3o (' + faixaTexto("RECUPERACAO") + ')</div><div style="font-size:0.70rem; color:#fef3c7; line-height:1.2;">Abaixo do esperado; demanda plano de a\u00e7\u00e3o.</div></div>' +
           '</div>' +
           '<div style="background:rgba(254,226,226,0.12); border:1px solid #fca5a5; border-radius:8px; padding:6px 10px; display:flex; align-items:center; gap:8px;">' +
             '<span style="font-size:1.3rem;">\ud83d\udea8</span>' +
-            '<div><div style="font-weight:900; color:#fca5a5; font-size:0.82rem;">Cr\u00edtico (0,0% a 50,0%)</div><div style="font-size:0.70rem; color:#fee2e2; line-height:1.2;">Desvio relevante; requer atua\u00e7\u00e3o imediata.</div></div>' +
+            '<div><div style="font-weight:900; color:#fca5a5; font-size:0.82rem;">Cr\u00edtico (' + faixaTexto("CRITICO") + ')</div><div style="font-size:0.70rem; color:#fee2e2; line-height:1.2;">Desvio relevante; requer atua\u00e7\u00e3o imediata.</div></div>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -3092,9 +3103,33 @@ function hydrateFromPowerBI() {
       return isFinite(v) ? v : 50;
     }
 
+    // Piso da faixa de excelencia. Mesma logica opcional do META_ATENCAO: se um dia existir
+    // uma linha META_REFERENCIA na META_DESEMPENHO, ela passa a valer sozinha.
+    function _metaReferencia() {
+      var v = META.desemp ? parseFloat(META.desemp.META_REFERENCIA) : NaN;
+      if (isFinite(v)) return v;
+      // Sem cadastro, a excelencia fica a meia distancia entre a meta e 100 -- assim ela
+      // acompanha a meta em vez de ficar presa num numero solto.
+      var mg = _metaGeral();
+      return Math.min(99, Math.round(mg + (100 - mg) * 0.65));
+    }
+
+    // As quatro faixas vem da TABELA DE METAS, nao de numeros fixos no codigo: mudar a
+    // META_GERAL no painel reclassifica tudo na hora. Era assim antes e voltou a ser.
+    // Texto da faixa a partir da meta cadastrada -- antes os numeros estavam escritos a
+    // mao na legenda e desencontravam da classificacao assim que a meta mudava.
+    function faixaTexto(chave) {
+      var ref = _metaReferencia(), mg = _metaGeral(), at = _metaAtencao();
+      function n(v) { return String(Math.round(v * 10) / 10).replace(".", ","); }
+      if (chave === "REFERENCIA") return n(ref) + "% a 100%";
+      if (chave === "CONTROLADO") return n(mg) + "% a " + n(ref) + "%";
+      if (chave === "RECUPERACAO") return n(at) + "% a " + n(mg) + "%";
+      return "0% a " + n(at) + "%";
+    }
+
     function scoreTier(pct) {
       var p = typeof pct === "number" ? pct : 0;
-      if (p > 90.0) {
+      if (p >= _metaReferencia()) {
         return {
           key: "REFERENCIA",
           label: "Refer\u00eancia Operacional",
@@ -3109,7 +3144,7 @@ function hydrateFromPowerBI() {
           desc: "Alto n\u00edvel de desempenho, refletindo excel\u00eancia na gest\u00e3o e execu\u00e7\u00e3o contratual."
         };
       }
-      if (p > 75.0) {
+      if (p >= _metaGeral()) {
         return {
           key: "CONTROLADO",
           label: "Controlado",
@@ -3124,7 +3159,7 @@ function hydrateFromPowerBI() {
           desc: "Indicadores dentro da faixa esperada, com opera\u00e7\u00e3o est\u00e1vel e riscos controlados."
         };
       }
-      if (p > 50.0) {
+      if (p >= _metaAtencao()) {
         return {
           key: "RECUPERACAO",
           label: "Em Recupera\u00e7\u00e3o",
@@ -4528,6 +4563,22 @@ function hydrateFromPowerBI() {
       return saida.sort(function(a, b) { return a.codigo.localeCompare(b.codigo); });
     }
 
+    // Uma resposta vazia aqui nao e "nao ha dado": pode ser a chamada que falhou. Como sao
+    // 8 leituras em paralelo, isso acontece -- e o ranking sumia inteiro com a mensagem
+    // "nenhuma nota gravada", que parece legitima. Uma segunda tentativa resolve.
+    async function tab5PostComRetry(url, corpo, esperaConteudo) {
+      for (var tentativa = 0; tentativa < 3; tentativa++) {
+        try {
+          var r = await tab5Post(url, corpo);
+          if (r.length || !esperaConteudo) return r;
+        } catch (e) {
+          if (tentativa === 2) throw e;
+        }
+        await new Promise(function(ok) { setTimeout(ok, 900 * (tentativa + 1)); });
+      }
+      return [];
+    }
+
     async function tab5Post(url, corpo) {
       var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
                                  body: JSON.stringify(corpo) });
@@ -4567,7 +4618,14 @@ function hydrateFromPowerBI() {
         var chamadas = meses.map(function(mm) {
           return tab5Post(window.FLOW_LER_ATA_ANO_URL, { ano: ano, mes: mm });
         });
-        chamadas.push(tab5Post(window.FLOW_LER_NOTAS_URL, { ano: ano }));
+        // As notas alimentam o ranking inteiro: vale insistir se vierem vazias.
+        // As notas ficam FORA do lote. Dentro dele, elas eram recuperadas por
+        // res[res.length - 1] -- e quando a carga das metas tambem entrava na fila (so na
+        // primeira abertura), o ultimo item passava a ser o retorno das metas. O ranking
+        // sumia inteiro exibindo "nenhuma nota gravada", que parece resposta legitima, e
+        // voltava sozinho no segundo clique em Atualizar. Fora do lote nao ha indice para
+        // errar.
+        var notasRes = await tab5PostComRetry(window.FLOW_LER_NOTAS_URL, { ano: ano }, true);
         if (!window.METAS_DB.carregado && typeof carregarMetasDoFluxo === "function") {
           chamadas.push(carregarMetasDoFluxo());
         }
@@ -4588,7 +4646,7 @@ function hydrateFromPowerBI() {
         }
         window.TAB5.ataPorMes = porMes;
         window.TAB5.meses = meses;
-        window.TAB5.notas = res[res.length - 1];
+        window.TAB5.notas = notasRes;
         window.TAB5.carregado = true;
       } catch (e) {
         window.TAB5.erro = String(e && e.message ? e.message : e);
@@ -4630,6 +4688,10 @@ function hydrateFromPowerBI() {
         var rawOs = extractPrimaryOSCode(String(r.os || "").toUpperCase());
         var mes = parseInt(r.mes, 10);
         if (!rawOs || !mes) return;
+        // Mes ainda aberto nao entra: a competencia so fecha entre os dias 12 e 20 do mes
+        // seguinte. Sem isto, uma nota de agosto gravada por engano viraria a "ultima" e
+        // passaria a mandar no acumulado exibido.
+        if (mes > ultimoMesFechado(window.TAB5.ano || new Date().getFullYear())) return;
         var os = blocos.alias[rawOs] || rawOs;
         var e = mapa[os] || (mapa[os] = { meses: {}, ultima: null, ultimoMes: 0 });
         var reg = {
@@ -4712,22 +4774,44 @@ function hydrateFromPowerBI() {
     }
 
     // Pastilha por categoria: exibe o Indicador de cada categoria
-    function tab5Chips(cats) {
+    // Nome da categoria EM CIMA, resultado EMBAIXO. Lado a lado o nome era truncado
+    // ("Fina...", "Go...") e as duas informacoes disputavam a mesma linha.
+    function tab5Chips(cats, largura) {
       if (!cats || typeof cats !== "object") return '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>';
-      return '<div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">' +
+      var w = largura || 152;
+      return '<div style="display:flex; flex-wrap:wrap; gap:7px; align-items:flex-start;">' +
         SCORE_CATEGORIES.map(function(c) {
           var v = cats[c.key];
-          if (typeof v !== "number" || isNaN(v) || !isFinite(v) || v === null) return "";
+          if (typeof v !== "number" || isNaN(v) || !isFinite(v)) return "";
           var tier = scoreTier(v);
           var rotuloCat = c.key === "gov" ? "Governan\u00e7a" : (c.key === "acomp" ? "Acompanhamento" : (c.key === "ssma" ? "SSMA" : c.label));
-          return '<div title="' + c.label + ': ' + tier.label + ' \u2014 ' + tier.desc + '" style="width:205px; min-width:205px; box-sizing:border-box; display:inline-flex; align-items:center; justify-content:space-between; gap:6px; background:' + c.color + '; border-radius:8px; padding:4px 6px 4px 9px; box-shadow:0 1px 4px rgba(0,0,0,0.12);">' +
-            '<div style="display:flex; align-items:center; gap:6px; min-width:0; overflow:hidden;">' +
-              '<span style="font-size:1.15rem; line-height:1; flex-shrink:0;">' + c.icon + '</span>' +
-              '<span style="color:#ffffff; font-size:0.84rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:0.2px;">' + rotuloCat + '</span>' +
+          return '<div title="' + c.label + ': ' + tier.label + ' \u2014 ' + tier.desc + '" style="width:' + w + 'px; min-width:' + w + 'px; box-sizing:border-box; border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.12);">' +
+            '<div style="background:' + c.color + '; padding:4px 7px; display:flex; align-items:center; gap:5px;">' +
+              '<span style="font-size:0.95rem; line-height:1; flex-shrink:0;">' + c.icon + '</span>' +
+              '<span style="color:#ffffff; font-size:0.76rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + rotuloCat + '</span>' +
             '</div>' +
-            '<span style="background:' + tier.bg + '; color:' + tier.dark + '; border:1px solid ' + tier.border + '; border-radius:6px; padding:2px 6px; font-size:0.78rem; font-weight:900; line-height:1.2; flex-shrink:0; white-space:nowrap; text-align:center;">' + tier.icon + ' ' + tier.shortLabel + '</span>' +
+            '<div style="background:' + tier.bg + '; color:' + tier.dark + '; border-top:1px solid ' + tier.border + '; padding:4px 6px; text-align:center; font-size:0.78rem; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' +
+              tier.icon + ' ' + tier.shortLabel +
+            '</div>' +
           '</div>';
         }).join("") + '</div>';
+    }
+
+    // Media das categorias de um conjunto de OSs -- usada nos totalizadores de
+    // Superintendente, Gerente, Gestor e Linha de Negocio. OS sem nota fica de fora em vez
+    // de entrar como zero.
+    function catsMediaDe(oss, notas) {
+      var out = {};
+      SCORE_CATEGORIES.forEach(function(c) {
+        var vals = [];
+        oss.forEach(function(o) {
+          var n = notas[o.codigo];
+          var v = (n && n.ultima && n.ultima.cats) ? n.ultima.cats[c.key] : null;
+          if (typeof v === "number" && isFinite(v)) vals.push(v);
+        });
+        out[c.key] = vals.length ? (vals.reduce(function(s, v) { return s + v; }, 0) / vals.length) : null;
+      });
+      return out;
     }
 
     function tab5MiniChips(cats) {
@@ -4805,19 +4889,19 @@ function hydrateFromPowerBI() {
       html += '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:10px; margin-bottom:16px;">' +
         '<div style="background:#dcfce7; border:1.5px solid #86efac; border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px;">' +
           '<span style="font-size:1.35rem;">\u2b50</span>' +
-          '<div><div style="font-weight:900; color:#15803d; font-size:0.88rem;">Refer\u00eancia Operacional</div><div style="font-size:0.74rem; color:#166534;">90,1% a 100% \u00b7 Destaque e excel\u00eancia</div></div>' +
+          '<div><div style="font-weight:900; color:#15803d; font-size:0.88rem;">Refer\u00eancia Operacional</div><div style="font-size:0.74rem; color:#166534;">' + faixaTexto("REFERENCIA") + ' \u00b7 Destaque e excel\u00eancia</div></div>' +
         '</div>' +
         '<div style="background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px;">' +
           '<span style="font-size:1.35rem;">\u2705</span>' +
-          '<div><div style="font-weight:900; color:#0369a1; font-size:0.88rem;">Controlado</div><div style="font-size:0.74rem; color:#075985;">75,1% a 90,0% \u00b7 Opera\u00e7\u00e3o est\u00e1vel e conforme</div></div>' +
+          '<div><div style="font-weight:900; color:#0369a1; font-size:0.88rem;">Controlado</div><div style="font-size:0.74rem; color:#075985;">' + faixaTexto("CONTROLADO") + ' \u00b7 Opera\u00e7\u00e3o est\u00e1vel e conforme</div></div>' +
         '</div>' +
         '<div style="background:#fef3c7; border:1.5px solid #fde68a; border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px;">' +
           '<span style="font-size:1.35rem;">\u26a0\ufe0f</span>' +
-          '<div><div style="font-weight:900; color:#b45309; font-size:0.88rem;">Em Recupera\u00e7\u00e3o</div><div style="font-size:0.74rem; color:#92400e;">50,1% a 75,0% \u00b7 Demanda plano de a\u00e7\u00e3o</div></div>' +
+          '<div><div style="font-weight:900; color:#b45309; font-size:0.88rem;">Em Recupera\u00e7\u00e3o</div><div style="font-size:0.74rem; color:#92400e;">' + faixaTexto("RECUPERACAO") + ' \u00b7 Demanda plano de a\u00e7\u00e3o</div></div>' +
         '</div>' +
         '<div style="background:#fee2e2; border:1.5px solid #fca5a5; border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px;">' +
           '<span style="font-size:1.35rem;">\ud83d\udea8</span>' +
-          '<div><div style="font-weight:900; color:#b91c1c; font-size:0.88rem;">Cr\u00edtico</div><div style="font-size:0.74rem; color:#991b1b;">0,0% a 50,0% \u00b7 Requer atua\u00e7\u00e3o imediata</div></div>' +
+          '<div><div style="font-weight:900; color:#b91c1c; font-size:0.88rem;">Cr\u00edtico</div><div style="font-size:0.74rem; color:#991b1b;">' + faixaTexto("CRITICO") + ' \u00b7 Requer atua\u00e7\u00e3o imediata</div></div>' +
         '</div>' +
       '</div>';
 
@@ -4849,120 +4933,71 @@ function hydrateFromPowerBI() {
         }).reverse(); // Mostra do último para o penúltimo, etc.
       }
 
-      html += '<h3 style="margin:0 0 6px; font-size:1.25rem; color:#0f2b5c; font-weight:900;">\ud83c\udfc6 TOP 10 \u2014 Melhores Contratos do Ano</h3>' +
-        '<div style="font-size:0.90rem; color:#64748b; margin-bottom:14px; line-height:1.4;">Fotografia congelada das <b>10 OSs de maior desempenho acumulado</b> em ' + ano + '. ' +
-        'Indicadores oficiais apurados m\u00eas a m\u00eas.</div>';
-
       if (!comNota.length) {
         html += '<div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:28px 24px; margin-bottom:28px; color:#475569; font-size:0.96rem;">' +
           '<b>Nenhuma nota gravada ainda em ' + ano + '.</b><br>' +
           'As notas s\u00e3o consolidadas automaticamente no SharePoint a partir da ATA_COMENTARIO.' +
         '</div>';
       } else {
-        // --- 1. Tabela do TOP 10 ---
-        html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:24px; min-width:1600px; table-layout:fixed;">' +
-          '<colgroup>' +
-            '<col style="width:56px;">' +
-            '<col style="width:320px;">' +
-            meses.map(function() { return '<col style="width:72px;">'; }).join("") +
-            '<col style="width:185px;">' +
-            '<col style="width:930px;">' +
-          '</colgroup>' +
-          '<tr style="background:#f1f5f9;">' +
-            '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:56px;">#</th>' +
-            '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:320px;">OS</th>' +
-            meses.map(function(mm) {
-              return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:72px;">' +
-                     (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
-            }).join("") +
-            '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:185px;">INDICADOR ACUMULADO</th>' +
-            '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:930px;">POR CATEGORIA</th>' +
-          '</tr>';
-        top10.forEach(function(r, idx) {
-          var medalha = idx === 0 ? "\ud83e\udd47" : (idx === 1 ? "\ud83e\udd48" : (idx === 2 ? "\ud83e\udd49" : (idx + 1)));
-          var todos = (notas[r.codigo] || {}).meses || {};
-          html += '<tr style="border-bottom:1px solid #f1f5f9; background:' + (idx < 3 ? "#f0fdf4" : "#ffffff") + ';">' +
-            '<td style="padding:10px 10px; text-align:center; font-weight:900; color:#0f2b5c; font-size:1.15rem; width:56px;">' + medalha + '</td>' +
-            '<td style="padding:10px 10px; font-weight:800; color:#0f2b5c; font-size:1.15rem; width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
-            meses.map(function(mm) {
-              var reg = todos[mm];
-              if (!reg || typeof reg.notaMes !== "number" || isNaN(reg.notaMes) || !isFinite(reg.notaMes)) {
-                return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:72px;">\u2014</td>';
-              }
-              var ti = scoreTier(reg.notaMes);
-              return '<td style="padding:6px 4px; text-align:center; width:72px;" title="' + (MESES_PT[mm - 1] || mm) + ': ' + ti.label + ' \u2014 ' + ti.desc + '">' +
-                '<span style="display:inline-flex; align-items:center; justify-content:center; gap:3px; min-width:60px; padding:4px 2px; border-radius:6px; background:' + ti.bg +
-                '; color:' + ti.dark + '; border:1px solid ' + ti.border + '; font-size:0.75rem; font-weight:900; white-space:nowrap;">' + ti.icon + ' ' + ti.shortLabel + '</span></td>';
-            }).join("") +
-            '<td style="padding:10px 12px; text-align:center; width:185px;">' + tab5Pct(r.notaAcum, "0.95rem") + '</td>' +
-            '<td style="padding:10px 16px; text-align:left; width:930px;">' + tab5Chips(r.cats) + '</td>' +
-          '</tr>';
-        });
-        html += '</table></div>';
+        // Uma tabela so, reaproveitada pelo TOP 10 e pela lista de Atencao Prioritaria --
+        // o usuario pediu o mesmo formato nas duas, entao e o mesmo codigo.
+        function tabelaDesempenho(titulo, subtitulo, linhas, corTitulo, destacarPodio) {
+          if (!linhas.length) return "";
+          var h = '<h3 style="margin:26px 0 6px; font-size:1.25rem; color:' + corTitulo + '; font-weight:900;">' + titulo + '</h3>' +
+            '<div style="font-size:0.90rem; color:#64748b; margin-bottom:14px; line-height:1.4;">' + subtitulo + '</div>' +
+            '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:24px; min-width:1680px; table-layout:fixed;">' +
+            '<colgroup>' +
+              '<col style="width:56px;"><col style="width:330px;">' +
+              meses.map(function() { return '<col style="width:62px;">'; }).join("") +
+              '<col style="width:104px;"><col style="width:180px;"><col style="width:820px;">' +
+            '</colgroup>' +
+            '<tr style="background:#f1f5f9;">' +
+              '<th style="padding:10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155;">#</th>' +
+              '<th style="padding:10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155;">OS</th>' +
+              meses.map(function(mm) {
+                return '<th style="padding:10px 3px; text-align:center; font-size:0.92rem; font-weight:800; color:#334155;">' +
+                       (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
+              }).join("") +
+              '<th style="padding:10px 6px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155;">ADES\u00c3O</th>' +
+              '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155;">INDICADOR</th>' +
+              '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155;">POR CATEGORIA</th>' +
+            '</tr>';
 
-        // --- 2. Duas listas complementares lado a lado (Intermediárias vs Menores Notas) ---
-        if (intermediarias.length > 0 || ultimasColocadas.length > 0) {
-          html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">';
-
-          // Coluna Esquerda: Sequência 11º ao 20º (Em Desenvolvimento)
-          html += '<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:10px; padding:12px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.04); overflow:hidden;">' +
-            '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1.5px solid #e2e8f0; padding-bottom:6px;">' +
-              '<h4 style="margin:0; font-size:0.95rem; color:#0369a1; font-weight:900; display:flex; align-items:center; gap:5px;">' +
-                '\ud83d\udcc8 Posi\u00e7\u00f5es 11\u00ba ao ' + (10 + intermediarias.length) + '\u00ba (Em Desenvolvimento)' +
-              '</h4>' +
-              '<span style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.72rem; padding:2px 7px; border-radius:5px;">' + intermediarias.length + ' OSs</span>' +
-            '</div>' +
-            '<table style="width:100%; border-collapse:collapse; table-layout:fixed;">' +
-              '<colgroup><col style="width:38px;"><col><col style="width:150px;"><col style="width:235px;"></colgroup>' +
-              '<tr style="background:#f8fafc;">' +
-                '<th style="padding:4px 6px; text-align:center; font-size:0.75rem; font-weight:800; color:#475569;">#</th>' +
-                '<th style="padding:4px 6px; text-align:left; font-size:0.75rem; font-weight:800; color:#475569;">OS</th>' +
-                '<th style="padding:4px 6px; text-align:center; font-size:0.75rem; font-weight:800; color:#475569;">INDICADOR</th>' +
-                '<th style="padding:4px 6px; text-align:left; font-size:0.75rem; font-weight:800; color:#475569;">CATEGORIAS</th>' +
-              '</tr>';
-
-          intermediarias.forEach(function(r, idx) {
-            var pos = 11 + idx;
-            html += '<tr style="border-bottom:1px solid #f1f5f9; height:34px;">' +
-              '<td style="padding:4px 6px; text-align:center; font-weight:900; color:#0369a1; font-size:0.84rem;">' + pos + '\u00ba</td>' +
-              '<td style="padding:4px 6px; font-weight:800; color:#0f2b5c; font-size:0.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
-              '<td style="padding:4px 6px; text-align:center;">' + tab5Pct(r.notaAcum, "0.80rem") + '</td>' +
-              '<td style="padding:4px 6px; text-align:left; white-space:nowrap; overflow:hidden;">' + tab5MiniChips(r.cats) + '</td>' +
+          linhas.forEach(function(x) {
+            var r = x.item, pos = x.pos;
+            var e = resumo[r.codigo] || { meses: {} };
+            var aOS = adesaoDe([{ codigo: r.codigo }]);
+            var tierA = scoreTier(aOS.pct);
+            var medalha = (destacarPodio && pos <= 3)
+              ? (pos === 1 ? "\ud83e\udd47" : (pos === 2 ? "\ud83e\udd48" : "\ud83e\udd49"))
+              : (pos + "\u00ba");
+            var nome = rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo });
+            h += '<tr style="border-bottom:1px solid #f1f5f9; background:' + (destacarPodio && pos <= 3 ? "#f0fdf4" : "#ffffff") + ';">' +
+              '<td style="padding:8px 10px; text-align:center; font-weight:900; color:#0f2b5c; font-size:1.10rem;">' + medalha + '</td>' +
+              '<td style="padding:8px 10px; font-weight:800; color:#0f2b5c; font-size:1.06rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + nome + '">' + nome + '</td>' +
+              // Meses trazem a QUANTIDADE de topicos preenchidos: e dela que sai a adesao.
+              meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
+              '<td style="padding:8px 6px; text-align:center;">' +
+                '<span style="display:inline-block; min-width:56px; padding:4px 6px; border-radius:6px; background:' + tierA.bg +
+                '; color:' + tierA.dark + '; border:1px solid ' + tierA.border + '; font-size:0.90rem; font-weight:900;">' + aOS.pct + '%</span></td>' +
+              '<td style="padding:8px 12px; text-align:center;">' + tab5Pct(r.notaAcum, "0.92rem") + '</td>' +
+              '<td style="padding:8px 16px; text-align:left;">' + tab5Chips(r.cats, 148) + '</td>' +
             '</tr>';
           });
-          html += '</table></div>';
-
-          // Coluna Direita: Últimas Colocadas (Atenção Prioritária - do último para o penúltimo)
-          html += '<div style="background:#ffffff; border:1.5px solid #fecaca; border-radius:10px; padding:12px 14px; box-shadow:0 2px 8px rgba(220,38,38,0.04); overflow:hidden;">' +
-            '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1.5px solid #fee2e2; padding-bottom:6px;">' +
-              '<h4 style="margin:0; font-size:0.95rem; color:#b91c1c; font-weight:900; display:flex; align-items:center; gap:5px;">' +
-                '\u26a0\ufe0f Aten\u00e7\u00e3o Priorit\u00e1ria (Menores Notas / Precisam Melhorar)' +
-              '</h4>' +
-              '<span style="background:#fee2e2; color:#b91c1c; font-weight:800; font-size:0.72rem; padding:2px 7px; border-radius:5px;">' + ultimasColocadas.length + ' OSs</span>' +
-            '</div>' +
-            '<table style="width:100%; border-collapse:collapse; table-layout:fixed;">' +
-              '<colgroup><col style="width:38px;"><col><col style="width:150px;"><col style="width:235px;"></colgroup>' +
-              '<tr style="background:#fef2f2;">' +
-                '<th style="padding:4px 6px; text-align:center; font-size:0.75rem; font-weight:800; color:#991b1b;">#</th>' +
-                '<th style="padding:4px 6px; text-align:left; font-size:0.75rem; font-weight:800; color:#991b1b;">OS</th>' +
-                '<th style="padding:4px 6px; text-align:center; font-size:0.75rem; font-weight:800; color:#991b1b;">INDICADOR</th>' +
-                '<th style="padding:4px 6px; text-align:left; font-size:0.75rem; font-weight:800; color:#991b1b;">CATEGORIAS</th>' +
-              '</tr>';
-
-          ultimasColocadas.forEach(function(u) {
-            var r = u.item;
-            var pos = u.posReal;
-            html += '<tr style="border-bottom:1px solid #fee2e2; background:#fffafa; height:34px;">' +
-              '<td style="padding:4px 6px; text-align:center; font-weight:900; color:#b91c1c; font-size:0.84rem;">' + pos + '\u00ba</td>' +
-              '<td style="padding:4px 6px; font-weight:800; color:#0f2b5c; font-size:0.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
-              '<td style="padding:4px 6px; text-align:center;">' + tab5Pct(r.notaAcum, "0.80rem") + '</td>' +
-              '<td style="padding:4px 6px; text-align:left; white-space:nowrap; overflow:hidden;">' + tab5MiniChips(r.cats) + '</td>' +
-            '</tr>';
-          });
-          html += '</table></div>';
-
-          html += '</div>'; // Fecha o grid
+          return h + '</table></div>';
         }
+
+        html += tabelaDesempenho(
+          "\ud83c\udfc6 TOP 10 \u2014 Melhores Contratos do Ano",
+          "As <b>10 OSs de maior desempenho acumulado</b> em " + ano + ". Nos meses, quantos dos <b>23 t\u00f3picos</b> foram preenchidos.",
+          top10.map(function(r, idx) { return { item: r, pos: idx + 1 }; }),
+          "#0f2b5c", true);
+
+        html += tabelaDesempenho(
+          "\u26a0\ufe0f Aten\u00e7\u00e3o Priorit\u00e1ria \u2014 Menores Notas / Precisam Melhorar",
+          "As OSs de <b>menor desempenho acumulado</b> em " + ano + ", da \u00faltima para cima.",
+          ultimasColocadas.map(function(u) { return { item: u.item, pos: u.posReal }; }),
+          "#b91c1c", false);
       }
 
       // ---- consolidação geral por linha de negócio (visão macro da empresa) ----
@@ -4971,23 +5006,22 @@ function hydrateFromPowerBI() {
         '<div style="font-size:0.90rem; color:#64748b; margin-bottom:14px; line-height:1.4;">Vis\u00e3o comparativa da empresa por segmento operacional (<b>Rotina \u2022 Parada \u2022 Oficina</b>), ' +
         'permitindo a qualquer gestor visualizar o desempenho m\u00e9dio consolidado.</div>';
 
-      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:28px; min-width:1600px; table-layout:fixed;">' +
+      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:28px; min-width:1680px; table-layout:fixed;">' +
         '<colgroup>' +
-          '<col style="width:56px;">' +
-          '<col style="width:320px;">' +
-          meses.map(function() { return '<col style="width:72px;">'; }).join("") +
-          '<col style="width:185px;">' +
-          '<col style="width:930px;">' +
+          '<col style="width:56px;"><col style="width:330px;">' +
+          meses.map(function() { return '<col style="width:62px;">'; }).join("") +
+          '<col style="width:104px;"><col style="width:180px;"><col style="width:820px;">' +
         '</colgroup>' +
         '<tr style="background:#f1f5f9;">' +
-          '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:56px;">#</th>' +
-          '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:320px;">LINHA DE NEG\u00d3CIO</th>' +
+          '<th style="padding:10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155;">#</th>' +
+          '<th style="padding:10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155;">LINHA DE NEG\u00d3CIO</th>' +
           meses.map(function(mm) {
-            return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:72px;">' +
+            return '<th style="padding:10px 3px; text-align:center; font-size:0.92rem; font-weight:800; color:#334155;">' +
                    (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
           }).join("") +
-          '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:185px;">INDICADOR ACUMULADO</th>' +
-          '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:930px;">POR CATEGORIA</th>' +
+          '<th style="padding:10px 6px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155;">ADES\u00c3O</th>' +
+          '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155;">INDICADOR</th>' +
+          '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155;">POR CATEGORIA</th>' +
         '</tr>';
 
       linhasNegocio.forEach(function(negName) {
@@ -4998,46 +5032,42 @@ function hydrateFromPowerBI() {
         if (!ossNeg.length) return;
 
         var iconNeg = negName === "ROTINA" ? "\ud83d\udd04" : (negName === "PARADA" ? "\u23f1\ufe0f" : "\ud83d\udd27");
-        var comNotaNeg = ossNeg.map(function(o) {
-          return (notas[o.codigo] && notas[o.codigo].ultima && typeof notas[o.codigo].ultima.notaAcum === "number" && isFinite(notas[o.codigo].ultima.notaAcum))
-            ? notas[o.codigo].ultima : null;
-        }).filter(Boolean);
-
-        var mediaAcumNeg = comNotaNeg.length ? (comNotaNeg.reduce(function(s, x) { return s + (x.notaAcum || 0); }, 0) / comNotaNeg.length) : null;
-
-        var catsAvgNeg = {};
-        SCORE_CATEGORIES.forEach(function(c) {
-          var vals = comNotaNeg.map(function(x) { return (x.cats && typeof x.cats[c.key] === "number" && isFinite(x.cats[c.key])) ? x.cats[c.key] : null; })
-                               .filter(function(v) { return v !== null; });
-          catsAvgNeg[c.key] = vals.length ? (vals.reduce(function(s, v) { return s + v; }, 0) / vals.length) : null;
-        });
+        var nmNeg = notaMediaDe(ossNeg);
+        var aNeg = adesaoDe(ossNeg);
+        var tierANeg = scoreTier(aNeg.pct);
 
         html += '<tr style="border-bottom:1px solid #f1f5f9; background:#ffffff;">' +
-          '<td style="padding:10px 10px; text-align:center; font-size:1.25rem; width:56px;">' + iconNeg + '</td>' +
-          '<td style="padding:10px 10px; width:320px; overflow:hidden;">' +
-            '<div style="font-weight:900; color:#0f2b5c; font-size:1.15rem; line-height:1.2;">NEG\u00d3CIO ' + negName + '</div>' +
-            '<div style="color:#64748b; font-weight:700; font-size:0.84rem; margin-top:2px;">' + ossNeg.length + ' OS' + (ossNeg.length > 1 ? 's' : '') + ' \u00b7 ' + comNotaNeg.length + ' com nota</div>' +
+          '<td style="padding:8px 10px; text-align:center; font-size:1.25rem;">' + iconNeg + '</td>' +
+          '<td style="padding:8px 10px; overflow:hidden;">' +
+            '<div style="font-weight:900; color:#0f2b5c; font-size:1.10rem; line-height:1.2;">NEG\u00d3CIO ' + negName + '</div>' +
+            '<div style="color:#64748b; font-weight:700; font-size:0.82rem; margin-top:2px;">' + ossNeg.length + ' OS' + (ossNeg.length > 1 ? 's' : '') +
+              (nmNeg ? ' \u00b7 ' + nmNeg.com + ' com nota' : ' \u00b7 sem nota') + '</div>' +
           '</td>' +
+          // Media de topicos preenchidos por OS no mes -- a mesma base da adesao, so que
+          // dividida pelo numero de OSs do negocio, para comparar segmentos de tamanhos
+          // diferentes sem que o maior pareca sempre melhor.
           meses.map(function(mm) {
-            var notasMesNeg = ossNeg.map(function(o) {
-              var r = (notas[o.codigo] || {}).meses ? (notas[o.codigo] || {}).meses[mm] : null;
-              return (r && typeof r.notaMes === "number" && isFinite(r.notaMes)) ? r.notaMes : null;
-            }).filter(function(v) { return v !== null; });
-
-            if (!notasMesNeg.length) {
-              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:72px;">\u2014</td>';
-            }
-            var mediaMesVal = notasMesNeg.reduce(function(s, v) { return s + v; }, 0) / notasMesNeg.length;
-            if (typeof mediaMesVal !== "number" || isNaN(mediaMesVal) || !isFinite(mediaMesVal)) {
-              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:72px;">\u2014</td>';
-            }
-            var ti = scoreTier(mediaMesVal);
-            return '<td style="padding:6px 4px; text-align:center; width:72px;" title="' + (MESES_PT[mm - 1] || mm) + ': ' + ti.label + ' \u2014 ' + ti.desc + '">' +
-              '<span style="display:inline-flex; align-items:center; justify-content:center; gap:2px; min-width:60px; padding:4px 2px; border-radius:6px; background:' + ti.bg +
-              '; color:' + ti.dark + '; border:1px solid ' + ti.border + '; font-size:0.75rem; font-weight:900; white-space:nowrap;">' + ti.icon + ' ' + ti.shortLabel + '</span></td>';
+            var soma = 0;
+            ossNeg.forEach(function(o) {
+              var e = resumo[o.codigo];
+              var reg = e && e.meses ? e.meses[mm] : null;
+              soma += (reg && reg.topicos) ? reg.topicos : 0;
+            });
+            var media = ossNeg.length ? (soma / ossNeg.length) : 0;
+            var cor, fundo, texto;
+            if (media >= 22.5)    { cor = "#166534"; fundo = "#dcfce7"; texto = media.toFixed(0); }
+            else if (media > 0)   { cor = "#92400e"; fundo = "#fef9c3"; texto = media.toFixed(1); }
+            else                  { cor = "#cbd5e1"; fundo = "#f8fafc"; texto = "\u2014"; }
+            return '<td title="m\u00e9dia de ' + media.toFixed(1) + ' de 23 t\u00f3picos por OS" style="padding:4px 2px; text-align:center;">' +
+              '<span style="display:inline-block; min-width:32px; padding:4px 0; border-radius:6px; background:' + fundo +
+              '; color:' + cor + '; font-size:0.88rem; font-weight:900;">' + texto + '</span></td>';
           }).join("") +
-          '<td style="padding:10px 12px; text-align:center; width:185px;">' + (mediaAcumNeg !== null ? tab5Pct(mediaAcumNeg, "0.95rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
-          '<td style="padding:10px 16px; text-align:left; width:930px;">' + tab5Chips(catsAvgNeg) + '</td>' +
+          '<td style="padding:8px 6px; text-align:center;">' +
+            '<span style="display:inline-block; min-width:56px; padding:4px 6px; border-radius:6px; background:' + tierANeg.bg +
+            '; color:' + tierANeg.dark + '; border:1px solid ' + tierANeg.border + '; font-size:0.90rem; font-weight:900;">' + aNeg.pct + '%</span></td>' +
+          '<td style="padding:8px 12px; text-align:center;">' +
+            (nmNeg && isFinite(nmNeg.pct) ? tab5Pct(nmNeg.pct, "0.92rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
+          '<td style="padding:8px 16px; text-align:left;">' + tab5Chips(catsMediaDe(ossNeg, notas), 148) + '</td>' +
         '</tr>';
       });
       html += '</table></div>';
@@ -5096,8 +5126,11 @@ function hydrateFromPowerBI() {
           '</td>' +
           '<td style="padding:10px 12px; text-align:center; width:185px;">' +
             (nm && typeof nm.pct === "number" && isFinite(nm.pct) ? tab5Pct(nm.pct, "0.85rem") : '<span style="color:rgba(255,255,255,0.5);">\u2014</span>') + '</td>' +
-          '<td style="padding:10px 16px; text-align:left; color:rgba(255,255,255,0.78); font-size:0.92rem; font-weight:700; white-space:nowrap; width:930px;">' +
-            (nm ? nm.com + ' de ' + nm.total + ' com nota' : 'sem nota') + '</td>' +
+          // O totalizador tambem mostra as categorias -- sem elas so dava para ver ONDE o
+          // nivel esta mal descendo ate cada OS, uma por uma.
+          '<td style="padding:8px 16px; text-align:left; width:930px;">' +
+            (nm ? tab5Chips(catsMediaDe(oss, notas), 138)
+                : '<span style="color:rgba(255,255,255,0.55); font-size:0.92rem; font-weight:700;">sem nota</span>') + '</td>' +
         '</tr>';
       }
 
@@ -6117,65 +6150,6 @@ function hydrateFromPowerBI() {
       if (ok > 0 && typeof carregarTab5 === "function") carregarTab5(true);
     }
 
-    async function gravarNotasTodasOSs() {
-      if (!isUserAuthorizedMaster()) { showToast("\u26d4 Apenas o Setor de Performance."); return; }
-      if ((window.FLOW_GRAVAR_NOTAS_URL || "").indexOf("http") !== 0) {
-        showToast("\u26a0\ufe0f Fluxo de gravacao de notas nao configurado."); return;
-      }
-      var p = new URLSearchParams(window.location.search);
-      var ano = parseInt(p.get("SelectedAno"), 10) || new Date().getFullYear();
-      var ultimoMes = ultimoMesFechado(ano);
-      if (ultimoMes < 1) { showToast("\u26a0\ufe0f Nenhum m\u00eas fechado em " + ano + " ainda."); return; }
-
-      var catalogo = window.ACTIVE_CONTRACTS_CATALOG || [];
-      if (!catalogo.length) {
-        showToast("\u26a0\ufe0f Nenhuma OS carregada no cat\u00e1logo. Selecione 'Todas as OSs' ou atualize a p\u00e1gina.");
-        return;
-      }
-
-      var segue = await confirmarNaPagina(
-        "\u26a1 Gravar Notas de TODAS as OSs (" + catalogo.length + " OSs)",
-        "Deseja processar e gravar as notas do ano <b>" + ano + "</b> (Meses 1 a " + ultimoMes + ") para todas as <b>" + catalogo.length + " OS(s)</b> do cat\u00e1logo?<br><br>" +
-        "O processo ser\u00e1 executado em segundo plano com indicador de progresso.",
-        "Gravar Todas"
-      );
-      if (!segue) return;
-
-      var btn = document.getElementById("btnGravarTodasOSs");
-      var rotulo = btn ? btn.innerHTML : "";
-      var sess = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
-      var quem = sess ? (sess.login || "") : (p.get("UserEmail") || "robson.araujo@npe.com.br");
-
-      var totalGravados = 0;
-      var falhas = [];
-
-      for (var i = 0; i < catalogo.length; i++) {
-        var c = catalogo[i];
-        var osCode = extractPrimaryOSCode(c.code);
-        if (btn) btn.innerHTML = "\u23f3 " + (i + 1) + "/" + catalogo.length + " (" + osCode + ")";
-
-        for (var m = 1; m <= ultimoMes; m++) {
-          try {
-            var n = notasDaOS(osCode, m);
-            if (n && n.temDado) {
-              var gravou = await gravarNotaDoMes(osCode, m, ano, quem);
-              if (gravou) totalGravados++;
-            }
-          } catch (err) {
-            falhas.push(osCode + " M" + m);
-          }
-        }
-      }
-
-      if (btn) btn.innerHTML = rotulo;
-      if (!falhas.length) {
-        showToast("\u2705 Sucesso! " + totalGravados + " notas das " + catalogo.length + " OSs foram gravadas.");
-      } else {
-        showToast("\u26a0\ufe0f " + totalGravados + " notas gravadas. Falhas em: " + falhas.slice(0, 5).join(", ") + (falhas.length > 5 ? " e mais..." : ""));
-      }
-
-      if (typeof carregarTab5 === "function") carregarTab5(true);
-    }
 
     async function saveAllComments() {
       var saveBtn = document.querySelector(".save-btn");
@@ -7603,7 +7577,6 @@ function hydrateFromPowerBI() {
     window.notasDaOS = notasDaOS;
     window.percentuaisPorCategoria = percentuaisPorCategoria;
     window.gravarNotasDoAno = gravarNotasDoAno;
-    window.gravarNotasTodasOSs = gravarNotasTodasOSs;
     window.confirmarNaPagina = confirmarNaPagina;
     window.renderTab5 = renderTab5;
     window.carregarTab5 = carregarTab5;
