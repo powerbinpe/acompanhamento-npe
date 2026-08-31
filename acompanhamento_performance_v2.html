@@ -3478,98 +3478,74 @@ function hydrateFromPowerBI() {
         function buildTopicIndicatorCardHTML(t, commentHistory, contractCode, selMonthNum) {
           var isAcompTopic = (t.id === "prazo" || t.id === "preenchimento");
           var catColor = topicCategoryColor(isAcompTopic ? t.id : ("t" + t.id));
-          // Prazo/Preenchimento não têm ComentarioGestor próprio no ATA_COMENTARIO (não são
-          // tópicos de comentário) -- sem citação de justificativa para eles.
-          var text = (commentHistory && !isAcompTopic) ? commentHistory[String(t.id)] : null;
+          var contract = contractCode ? ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === extractPrimaryOSCode(contractCode); }) : null;
 
           var body;
           if (t.maxSum === 0) {
-            body = '<div style="padding:14px 0 4px; font-size:0.98rem; color:#94a3b8; font-style:italic; text-align:center;">Sem dado apurado no ano</div>';
+            body = '<div style="padding:10px 0 4px; font-size:0.92rem; color:#94a3b8; font-style:italic; text-align:center;">Sem dado apurado no ano</div>';
           } else {
             var tier = scoreTier(t.pctAvg);
             var pillBg = t.okCount === t.totalCount ? '#dcfce7' : (t.okCount === 0 ? '#fee2e2' : '#fef9c3');
             var pillFg = t.okCount === t.totalCount ? '#15803d' : (t.okCount === 0 ? '#b91c1c' : '#b45309');
             body =
-              '<div style="display:flex; align-items:center; gap:12px; margin-top:10px;">' +
-                '<div style="flex:1; height:15px; background:#eef2f7; border-radius:8px; overflow:hidden;"><div style="width:' + t.pctAvg.toFixed(0) + '%; height:100%; background:' + tier.main + '; border-radius:8px; transition:width 0.5s ease;"></div></div>' +
-                '<span style="font-weight:900; font-size:1.35rem; color:' + tier.dark + '; min-width:56px; text-align:right;">' + t.pctAvg.toFixed(0) + '%</span>' +
-              '</div>' +
-              '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">' +
-                '<span style="font-size:0.95rem; color:#475569; font-weight:800;">' + t.earnedSum.toFixed(1) + ' / ' + t.maxSum.toFixed(1) + ' pts</span>' +
-                '<span style="display:inline-block; padding:5px 14px; border-radius:20px; font-weight:800; font-size:0.92rem; background:' + pillBg + '; color:' + pillFg + ';">' + t.okCount + ' de ' + t.totalCount + ' meses</span>' +
+              '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px;">' +
+                '<div style="flex:1; height:34px; background:' + tier.bg + '; border:1.5px solid ' + tier.border + '; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:6px;" title="Classifica\u00e7\u00e3o: ' + tier.label + ' \u2014 ' + tier.desc + '">' +
+                  '<span style="font-size:1.15rem; line-height:1;">' + tier.icon + '</span>' +
+                  '<span style="font-weight:900; font-size:0.86rem; color:' + tier.dark + '; white-space:nowrap;">' + tier.label + '</span>' +
+                '</div>' +
+                '<span style="display:inline-block; padding:4px 10px; border-radius:14px; font-weight:800; font-size:0.78rem; background:' + pillBg + '; color:' + pillFg + '; white-space:nowrap;">' + t.okCount + ' de ' + t.totalCount + ' meses</span>' +
               '</div>';
           }
 
-          // Acumulado Ano "real" -- a mesma conta usada no card principal da Aba 1, para que o
-          // número seja idêntico em todo o app (não uma média de pontos por mês).
-          var accumBlock = "";
-          if (contractCode && typeof selMonthNum === "number") {
-            var accumPct = null, accumLabel = "Acumulado Ano";
-            if (t.id === "prazo") { accumPct = computePrazoAccumPct(contractCode, selMonthNum); accumLabel = "Pontualidade Acum. Ano"; }
-            else if (t.id === "preenchimento") { accumPct = computePreenchimentoAccumPct(contractCode, selMonthNum); accumLabel = "Preenchimento Acum. Ano"; }
-            else if (t.id === 4) { accumPct = computeAssertividadeAccumPct(contractCode, selMonthNum); accumLabel = "Assertividade Acum. Ano"; }
-            else if (t.id === 11) { var absP = new URLSearchParams(window.location.search).get("AbsenteismoAcum"); accumPct = (absP && absP !== "-") ? parseFloat(absP.replace("%", "").replace(",", ".")) / 100 : null; accumLabel = "Absenteísmo Acum. Ano"; }
-            else if (t.id === 12) { var turP = new URLSearchParams(window.location.search).get("TurnoverAcum"); accumPct = (turP && turP !== "-") ? parseFloat(turP.replace("%", "").replace(",", ".")) / 100 : null; accumLabel = "TurnOver Acum. Ano"; }
-            else if (TOPIC_ID_TO_QUAL_KEY[t.id]) { accumPct = computeQualAccumPct(contractCode, TOPIC_ID_TO_QUAL_KEY[t.id], selMonthNum); accumLabel = "Aderência Acum. Ano"; }
-            if (accumPct !== null && !isNaN(accumPct)) {
-              var accumIsGood = (t.id === 11 || t.id === 12) ? (accumPct <= 0.05) : (accumPct >= 0.8);
-              accumBlock = '<div style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; font-size:0.82rem;">' +
-                '<span style="color:#475569; font-weight:700;">' + accumLabel + ':</span>' +
-                '<span style="font-weight:800; color:' + (accumIsGood ? '#15803d' : '#b91c1c') + ';">' + (accumPct * 100).toFixed(t.id === 11 || t.id === 12 ? 2 : 0) + '%</span>' +
+          // Detalhes dos Valores e Diferenças do Indicador no Mês Selecionado
+          var valorDetalheHTML = "";
+          if (contract && typeof selMonthNum === "number") {
+            var mdUlt = (contract.monthHistory) ? contract.monthHistory[selMonthNum] : null;
+            var det = buildTopicDetailLine(isAcompTopic ? t.id : ("t" + t.id), mdUlt, contract, selMonthNum);
+            if (det) {
+              valorDetalheHTML = '<div style="margin-top:8px; padding:6px 9px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.80rem; color:#334155; font-weight:700;">' +
+                '<span style="color:#0f2b5c; font-weight:800;">' + (MONTH_SHORT_NAMES[selMonthNum] || "M\u00eas") + ':</span> ' + det +
               '</div>';
-            }
-            // SAF/CAF: contagem acumulada (não é percentual) -- soma dos meses 1..selMonthNum.
-            if (t.id === 15 || t.id === 16) {
-              var contractForSafCaf3 = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return c.code === contractCode; });
-              var acumCount = 0, temDado3 = false;
-              if (contractForSafCaf3 && contractForSafCaf3.monthHistory) {
-                for (var msc3 = 1; msc3 <= selMonthNum; msc3++) {
-                  var row3 = contractForSafCaf3.monthHistory[msc3];
-                  if (!row3) continue;
-                  temDado3 = true;
-                  acumCount += (t.id === 15 ? (row3.safCount || 0) : (row3.cafCount || 0));
-                }
-              }
-              if (temDado3) {
-                accumBlock = '<div style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; font-size:0.82rem;">' +
-                  '<span style="color:#475569; font-weight:700;">' + (t.id === 15 ? "SAF" : "CAF") + ' Acum. Ano:</span>' +
-                  '<span style="font-weight:800; color:' + (acumCount === 0 ? '#15803d' : '#b91c1c') + ';">' + acumCount + (acumCount === 1 ? ' caso' : ' casos') + '</span>' +
-                '</div>';
-              }
             }
           }
 
-          // As justificativas mês a mês não entram mais aqui -- o Resumo Anual agora é colado
-          // diretamente da IA (a partir do "Copiar Tudo p/ IA"), então repetir os comentários
-          // brutos do ano só duplicava informação.
-          var commentBlock = "";
+          // Pareceres do Gestor e do Setor de Performance do mês selecionado
+          var pareceresHTML = "";
+          if (contractCode && typeof selMonthNum === "number" && !isAcompTopic) {
+            var tRows = (window.ATA_COMENTARIOS_DB && window.ATA_COMENTARIOS_DB[contractCode] && window.ATA_COMENTARIOS_DB[contractCode][String(t.id)]) ? window.ATA_COMENTARIOS_DB[contractCode][String(t.id)] : [];
+            var gRow = tRows.filter(function(r) { return r.tipo === "GESTOR"; }).find(function(r) { return r.mes === selMonthNum; });
+            var mRow = tRows.filter(function(r) { return r.tipo === "PERFORMANCE"; }).find(function(r) { return r.mes === selMonthNum; });
+            var gTxt = gRow ? gRow.comentario : safeGetStorage("g_" + contractCode + "_m" + selMonthNum + "_" + t.id, "");
+            var mTxt = mRow ? mRow.comentario : safeGetStorage("m_" + contractCode + "_m" + selMonthNum + "_" + t.id, "");
+            
+            if (gTxt || mTxt) {
+              pareceresHTML = '<div style="margin-top:8px; display:flex; flex-direction:column; gap:4px; font-size:0.76rem;">' +
+                (gTxt ? '<div style="background:#f1f5f9; padding:5px 8px; border-radius:5px; color:#1e293b;"><b>\ud83d\udc64 Gestor:</b> ' + gTxt + '</div>' : '') +
+                (mTxt ? '<div style="background:#f0fdf4; padding:5px 8px; border-radius:5px; color:#166534; border-left:3px solid #16a34a;"><b>\ud83d\udee1\ufe0f Performance:</b> ' + mTxt + '</div>' : '') +
+              '</div>';
+            }
+          }
 
-          // Caixa do Resumo Anual -- fixa por OS+indicador, não muda com o mês selecionado.
-          // O Máster cola aqui o texto que a IA externa gerou a partir do "Copiar Tudo p/ IA".
+          // Caixa do Resumo Anual IA
           var resumoBlock = "";
           if (contractCode && !isAcompTopic) {
             var resumoVal = getResumoAnualIA(contractCode, t.id);
             resumoBlock = '<div style="margin-top:12px; padding:11px 13px; background:#faf5ff; border:1px solid #d8b4fe; border-left:4px solid #7c3aed; border-radius:6px;">' +
-              '<div style="font-size:0.80rem; font-weight:800; color:#6b21a8; text-transform:uppercase; margin-bottom:5px;">🤖 Resumo Anual</div>' +
-              '<textarea id="resumoIA_' + t.id + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este indicador..." style="width:100%; min-height:180px; font-size:1.02rem; line-height:1.55; padding:11px; border:1px solid #d8b4fe; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + resumoVal + '</textarea>' +
-              (window.isMaster ? '<button type="button" onclick="saveResumoAnualInline(' + t.id + ')" style="margin-top:7px; background:#7c3aed; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.86rem; cursor:pointer;">💾 Salvar Resumo</button>' : '') +
+              '<div style="font-size:0.80rem; font-weight:800; color:#6b21a8; text-transform:uppercase; margin-bottom:5px;">\ud83e\udd16 Resumo Anual</div>' +
+              '<textarea id="resumoIA_' + t.id + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este indicador..." style="width:100%; min-height:160px; font-size:0.95rem; line-height:1.50; padding:10px; border:1px solid #d8b4fe; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + resumoVal + '</textarea>' +
+              (window.isMaster ? '<button type="button" onclick="saveResumoAnualInline(' + t.id + ')" style="margin-top:7px; background:#7c3aed; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.86rem; cursor:pointer;">\ud83d\udcbe Salvar Resumo</button>' : '') +
             '</div>';
           }
 
-          // O topo (título + corpo + acumulado) fica num bloco de altura fixa, para que o Resumo
-          // Anual (resumoBlock) sempre comece na mesma posição em todos os cards da linha,
-          // independente de quanto conteúdo cada indicador tem acima dele.
-          // Mesmo padrão de caixa da Aba 2 (borda fina cinza + faixa de 4px na cor da categoria
-          // no topo), para manter a identidade visual igual em todas as abas.
           return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-top:4px solid ' + catColor + '; padding:16px 18px; box-shadow:0 1px 4px rgba(15,43,92,0.06); display:flex; flex-direction:column;">' +
-            '<div style="min-height:172px;">' +
+            '<div style="min-height:120px;">' +
               '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">' +
-                '<span style="font-size:1.10rem; font-weight:800; color:#1e293b;">' + (isAcompTopic ? t.name : (t.id + '. ' + t.name)) + '</span>' +
-                '<span style="font-size:0.88rem; font-weight:800; color:#94a3b8; white-space:nowrap;">' + t.weight + ' pts</span>' +
+                '<span style="font-size:1.05rem; font-weight:800; color:#1e293b;">' + (isAcompTopic ? t.name : (t.id + '. ' + t.name)) + '</span>' +
+                '<span style="font-size:0.84rem; font-weight:800; color:#94a3b8; white-space:nowrap;">' + t.weight + ' pts</span>' +
               '</div>' +
               body +
-              accumBlock +
-              commentBlock +
+              valorDetalheHTML +
+              pareceresHTML +
             '</div>' +
             resumoBlock +
           '</div>';
@@ -3868,8 +3844,13 @@ function hydrateFromPowerBI() {
       } else {
         var activeContractGov = activeOSFilter ? ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOSFilter; }) : null;
         var p2 = activeContractGov ? accumPerfPct(activeContractGov) : null;
-        govVal = p2 !== null ? p2.toFixed(1).replace(".", ",") + "%" : "-";
-        govSub = "Performance Acumulada da OS (Jan–" + (currentParams.get("SelectedMes") || "") + ")";
+        if (p2 !== null) {
+          var tGov = scoreTier(p2);
+          govVal = '<span style="color:' + tGov.dark + '; font-size:1.35rem; font-weight:900; display:inline-flex; align-items:center; gap:6px;">' + tGov.icon + ' ' + tGov.label + '</span>';
+        } else {
+          govVal = "-";
+        }
+        govSub = "Performance Acumulada da OS (Jan\u2013" + (currentParams.get("SelectedMes") || "") + ")";
       }
 
       function kpiCard(icon, iconBg, label, val, sub, subColor) {
