@@ -4771,6 +4771,13 @@ function hydrateFromPowerBI() {
         '<div style="height:100%; width:' + pct + '%; background:linear-gradient(90deg,#16a34a,#4ade80);"></div></div>';
 
       // ---- TOP 10 e Listas de Desempenho (Snapshots Globais da Empresa) ----
+      var comNota = elegiveis.map(function(o) {
+        var n = notas[o.codigo];
+        return (n && n.ultima && typeof n.ultima.notaAcum === "number" && isFinite(n.ultima.notaAcum))
+          ? { codigo: o.codigo, mes: n.ultimoMes, notaMes: n.ultima.notaMes, notaAcum: n.ultima.notaAcum, cats: n.ultima.cats }
+          : null;
+      }).filter(Boolean).sort(function(a, b) { return b.notaAcum - a.notaAcum; });
+
       var top10 = comNota.slice(0, 10);
       var intermediarias = comNota.slice(10, 20);
       var ultimasColocadas = [];
