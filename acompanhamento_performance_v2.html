@@ -3073,11 +3073,65 @@ function hydrateFromPowerBI() {
     }
 
     function scoreTier(pct) {
-      // "text" e a cor de fonte que le em cima de "main": branco sobre verde e vermelho,
-      // marrom escuro sobre o amarelo (branco no amarelo some).
-      if (pct >= _metaGeral()) return { main: "#22c55e", dark: "#15803d", bg: "#dcfce7", text: "#ffffff", label: "Meta Atingida" };
-      if (pct >= _metaAtencao()) return { main: "#eab308", dark: "#b45309", bg: "#fef9c3", text: "#422006", label: "Atenção" };
-      return { main: "#ef4444", dark: "#b91c1c", bg: "#fee2e2", text: "#ffffff", label: "Crítico" };
+      var p = typeof pct === "number" ? pct : 0;
+      if (p > 90.0) {
+        return {
+          key: "REFERENCIA",
+          label: "Refer\u00eancia Operacional",
+          shortLabel: "Refer\u00eancia",
+          statusVisual: "\ud83d\udfe2 Destaque",
+          icon: "\u2b50",
+          main: "#16a34a",
+          dark: "#15803d",
+          bg: "#dcfce7",
+          border: "#86efac",
+          text: "#ffffff",
+          desc: "Alto n\u00edvel de desempenho, refletindo excel\u00eancia na gest\u00e3o e execu\u00e7\u00e3o contratual."
+        };
+      }
+      if (p > 75.0) {
+        return {
+          key: "CONTROLADO",
+          label: "Controlado",
+          shortLabel: "Controlado",
+          statusVisual: "\ud83d\udd35 Conforme",
+          icon: "\u2705",
+          main: "#0284c7",
+          dark: "#0369a1",
+          bg: "#e0f2fe",
+          border: "#bae6fd",
+          text: "#ffffff",
+          desc: "Indicadores dentro da faixa esperada, com opera\u00e7\u00e3o est\u00e1vel e riscos controlados."
+        };
+      }
+      if (p > 50.0) {
+        return {
+          key: "RECUPERACAO",
+          label: "Em Recupera\u00e7\u00e3o",
+          shortLabel: "Recupera\u00e7\u00e3o",
+          statusVisual: "\ud83d\udfe1 Aten\u00e7\u00e3o",
+          icon: "\u26a0\ufe0f",
+          main: "#d97706",
+          dark: "#b45309",
+          bg: "#fef3c7",
+          border: "#fde68a",
+          text: "#451a03",
+          desc: "Resultados abaixo do esperado, demandando acompanhamento e execu\u00e7\u00e3o de plano de a\u00e7\u00e3o."
+        };
+      }
+      return {
+        key: "CRITICO",
+        label: "Cr\u00edtico",
+        shortLabel: "Cr\u00edtico",
+        statusVisual: "\ud83d\udd34 Cr\u00edtico",
+        icon: "\ud83d\udea8",
+        main: "#ef4444",
+        dark: "#b91c1c",
+        bg: "#fee2e2",
+        border: "#fca5a5",
+        text: "#ffffff",
+        desc: "Desempenho comprometido, com desvios relevantes e impacto potencial nos resultados contratuais. Requer atua\u00e7\u00e3o imediata."
+      };
     }
 
     function buildScoreGaugeSVG(value, max, size) {
@@ -3093,8 +3147,8 @@ function hydrateFromPowerBI() {
         '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="12"/>' +
         '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + tier.main + '" stroke-width="12" stroke-linecap="round" ' +
           'stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + offset.toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>' +
-        '<text x="' + cx + '" y="' + (cy - 2) + '" text-anchor="middle" font-size="' + (size * 0.215).toFixed(0) + '" font-weight="900" fill="' + tier.main + '" font-family="inherit">' + (pct * 100).toFixed(1) + '%</text>' +
-        '<text x="' + cx + '" y="' + (cy + size * 0.16).toFixed(0) + '" text-anchor="middle" font-size="' + (size * 0.088).toFixed(0) + '" font-weight="700" fill="#bfdbfe" font-family="inherit">meta ' + _metaGeral() + '%</text>' +
+        '<text x="' + cx + '" y="' + (cy - 4) + '" text-anchor="middle" font-size="' + (size * 0.16).toFixed(0) + '" font-weight="900" fill="' + tier.main + '" font-family="inherit">' + tier.icon + ' ' + tier.shortLabel + '</text>' +
+        '<text x="' + cx + '" y="' + (cy + size * 0.16).toFixed(0) + '" text-anchor="middle" font-size="' + (size * 0.080).toFixed(0) + '" font-weight="700" fill="#bfdbfe" font-family="inherit">' + tier.label + '</text>' +
       '</svg>';
     }
 
@@ -4671,8 +4725,9 @@ function hydrateFromPowerBI() {
     function tab5Pct(valor, tamanho) {
       if (typeof valor !== "number" || isNaN(valor) || !isFinite(valor) || valor === null) return '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>';
       var tier = scoreTier(valor);
-      return '<span style="font-weight:900; font-size:' + (tamanho || "1.05rem") + '; color:' + tier.main + ';">' +
-             valor.toFixed(1) + '%</span>';
+      return '<span style="display:inline-flex; align-items:center; justify-content:center; gap:5px; background:' + tier.bg + '; color:' + tier.dark + '; border:1.5px solid ' + tier.border + '; border-radius:6px; padding:3px 9px; font-weight:900; font-size:' + (tamanho || "0.90rem") + '; white-space:nowrap;" title="Classifica\u00e7\u00e3o: ' + tier.label + ' \u2014 ' + tier.desc + '">' +
+        '<span>' + tier.icon + '</span> ' + tier.label +
+      '</span>';
     }
 
     window.TAB5_EXPANDED = window.TAB5_EXPANDED || {};
@@ -4682,7 +4737,7 @@ function hydrateFromPowerBI() {
       renderTab5();
     }
 
-    // Pastilha por categoria: tamanho fixo padrão (175px) com ícone, nome e percentual perfeitamente alinhados
+    // Pastilha por categoria: exibe o Indicador de cada categoria
     function tab5Chips(cats) {
       if (!cats || typeof cats !== "object") return '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>';
       return '<div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">' +
@@ -4691,14 +4746,12 @@ function hydrateFromPowerBI() {
           if (typeof v !== "number" || isNaN(v) || !isFinite(v) || v === null) return "";
           var tier = scoreTier(v);
           var rotuloCat = c.key === "gov" ? "Governan\u00e7a" : (c.key === "acomp" ? "Acompanhamento" : (c.key === "ssma" ? "SSMA" : c.label));
-          return '<div title="' + c.label + '" style="width:175px; min-width:175px; box-sizing:border-box; display:inline-flex; align-items:center; justify-content:space-between; gap:6px; background:' + c.color +
-            '; border-radius:8px; padding:4px 6px 4px 9px; box-shadow:0 1px 4px rgba(0,0,0,0.12);">' +
+          return '<div title="' + c.label + ': ' + tier.label + ' \u2014 ' + tier.desc + '" style="width:205px; min-width:205px; box-sizing:border-box; display:inline-flex; align-items:center; justify-content:space-between; gap:6px; background:' + c.color + '; border-radius:8px; padding:4px 6px 4px 9px; box-shadow:0 1px 4px rgba(0,0,0,0.12);">' +
             '<div style="display:flex; align-items:center; gap:6px; min-width:0; overflow:hidden;">' +
               '<span style="font-size:1.15rem; line-height:1; flex-shrink:0;">' + c.icon + '</span>' +
-              '<span style="color:#ffffff; font-size:0.86rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:0.2px;">' + rotuloCat + '</span>' +
+              '<span style="color:#ffffff; font-size:0.84rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:0.2px;">' + rotuloCat + '</span>' +
             '</div>' +
-            '<span style="background:' + tier.main + '; color:' + tier.text +
-              '; border-radius:6px; padding:2px 7px; font-size:0.92rem; font-weight:900; line-height:1.2; flex-shrink:0; min-width:38px; text-align:center;">' + v.toFixed(0) + '%</span>' +
+            '<span style="background:' + tier.bg + '; color:' + tier.dark + '; border:1px solid ' + tier.border + '; border-radius:6px; padding:2px 6px; font-size:0.78rem; font-weight:900; line-height:1.2; flex-shrink:0; white-space:nowrap; text-align:center;">' + tier.icon + ' ' + tier.shortLabel + '</span>' +
           '</div>';
         }).join("") + '</div>';
     }
@@ -4710,9 +4763,9 @@ function hydrateFromPowerBI() {
           var v = cats[c.key];
           if (typeof v !== "number" || isNaN(v) || !isFinite(v) || v === null) return "";
           var tier = scoreTier(v);
-          return '<span title="' + c.label + ': ' + v.toFixed(0) + '%" style="display:inline-flex; align-items:center; gap:2px; background:' + c.color + '; border-radius:4px; padding:2px 4px;">' +
+          return '<span title="' + c.label + ': ' + tier.label + ' \u2014 ' + tier.desc + '" style="display:inline-flex; align-items:center; gap:2px; background:' + c.color + '; border-radius:4px; padding:2px 4px;">' +
             '<span style="font-size:0.80rem; line-height:1;">' + c.icon + '</span>' +
-            '<span style="background:' + tier.main + '; color:' + tier.text + '; border-radius:3px; padding:1px 3px; font-size:0.75rem; font-weight:900; line-height:1;">' + v.toFixed(0) + '%</span>' +
+            '<span style="background:' + tier.bg + '; color:' + tier.dark + '; border:1px solid ' + tier.border + '; border-radius:3px; padding:1px 3px; font-size:0.70rem; font-weight:900; line-height:1;">' + tier.icon + ' ' + tier.shortLabel + '</span>' +
           '</span>';
         }).join("") + '</div>';
     }
@@ -4769,9 +4822,29 @@ function hydrateFromPowerBI() {
       var html = '<div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:18px;">' +
         '<div><h2 style="margin:0; font-size:1.45rem; color:#0f2b5c; font-weight:900;">Vis\u00e3o Geral das OSs \u2014 ' + ano + '</h2>' +
         '<div style="font-size:0.90rem; color:#64748b; margin-top:4px; line-height:1.4;">Ano inteiro, m\u00eas a m\u00eas \u2014 lido da ATA_COMENTARIO. ' +
-        'O m\u00eas do filtro n\u00e3o afeta esta aba; ele vale s\u00f3 para o bot\u00e3o <b>Gravar Notas do Ano</b>.' +
+        'Classifica\u00e7\u00e3o pelos Indicadores Oficiais de Performance.' +
         '<span style="color:#94a3b8; margin-left:12px; font-size:0.82rem;">vers\u00e3o ' + (window.NPE_BUILD || "?") + '</span></div></div>' +
         '<button type="button" onclick="carregarTab5(true)" style="background:#e0f2fe; color:#075985; border:none; padding:9px 18px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer;">\u21bb Atualizar</button>' +
+      '</div>';
+
+      // Régua Visual das 4 Faixas Oficiais
+      html += '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:10px; margin-bottom:16px;">' +
+        '<div style="background:#dcfce7; border:1.5px solid #86efac; border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px;">' +
+          '<span style="font-size:1.35rem;">\u2b50</span>' +
+          '<div><div style="font-weight:900; color:#15803d; font-size:0.88rem;">Refer\u00eancia Operacional</div><div style="font-size:0.74rem; color:#166534;">90,1% a 100% \u00b7 Destaque e excel\u00eancia</div></div>' +
+        '</div>' +
+        '<div style="background:#e0f2fe; border:1.5px solid #bae6fd; border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px;">' +
+          '<span style="font-size:1.35rem;">\u2705</span>' +
+          '<div><div style="font-weight:900; color:#0369a1; font-size:0.88rem;">Controlado</div><div style="font-size:0.74rem; color:#075985;">75,1% a 90,0% \u00b7 Opera\u00e7\u00e3o est\u00e1vel e conforme</div></div>' +
+        '</div>' +
+        '<div style="background:#fef3c7; border:1.5px solid #fde68a; border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px;">' +
+          '<span style="font-size:1.35rem;">\u26a0\ufe0f</span>' +
+          '<div><div style="font-weight:900; color:#b45309; font-size:0.88rem;">Em Recupera\u00e7\u00e3o</div><div style="font-size:0.74rem; color:#92400e;">50,1% a 75,0% \u00b7 Demanda plano de a\u00e7\u00e3o</div></div>' +
+        '</div>' +
+        '<div style="background:#fee2e2; border:1.5px solid #fca5a5; border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px;">' +
+          '<span style="font-size:1.35rem;">\ud83d\udea8</span>' +
+          '<div><div style="font-weight:900; color:#b91c1c; font-size:0.88rem;">Cr\u00edtico</div><div style="font-size:0.74rem; color:#991b1b;">0,0% a 50,0% \u00b7 Requer atua\u00e7\u00e3o imediata</div></div>' +
+        '</div>' +
       '</div>';
 
       html += '<div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px;">' +
@@ -4802,9 +4875,9 @@ function hydrateFromPowerBI() {
         }).reverse(); // Mostra do último para o penúltimo, etc.
       }
 
-      html += '<h3 style="margin:0 0 6px; font-size:1.25rem; color:#0f2b5c; font-weight:900;">\ud83c\udfc6 TOP 10 \u2014 Melhores Notas do Ano</h3>' +
-        '<div style="font-size:0.90rem; color:#64748b; margin-bottom:14px; line-height:1.4;">Fotografia congelada das <b>10 OSs com maior pontua\u00e7\u00e3o acumulada</b> em ' + ano + '. ' +
-        'Cada coluna de m\u00eas traz a nota apurada naquela compet\u00eancia.</div>';
+      html += '<h3 style="margin:0 0 6px; font-size:1.25rem; color:#0f2b5c; font-weight:900;">\ud83c\udfc6 TOP 10 \u2014 Melhores Contratos do Ano</h3>' +
+        '<div style="font-size:0.90rem; color:#64748b; margin-bottom:14px; line-height:1.4;">Fotografia congelada das <b>10 OSs de maior desempenho acumulado</b> em ' + ano + '. ' +
+        'Indicadores oficiais apurados m\u00eas a m\u00eas.</div>';
 
       if (!comNota.length) {
         html += '<div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:28px 24px; margin-bottom:28px; color:#475569; font-size:0.96rem;">' +
@@ -4817,18 +4890,18 @@ function hydrateFromPowerBI() {
           '<colgroup>' +
             '<col style="width:56px;">' +
             '<col style="width:320px;">' +
-            meses.map(function() { return '<col style="width:65px;">'; }).join("") +
-            '<col style="width:140px;">' +
+            meses.map(function() { return '<col style="width:72px;">'; }).join("") +
+            '<col style="width:185px;">' +
             '<col style="width:930px;">' +
           '</colgroup>' +
           '<tr style="background:#f1f5f9;">' +
             '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:56px;">#</th>' +
             '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:320px;">OS</th>' +
             meses.map(function(mm) {
-              return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:65px;">' +
+              return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:72px;">' +
                      (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
             }).join("") +
-            '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:140px;">ACUMULADA</th>' +
+            '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:185px;">INDICADOR ACUMULADO</th>' +
             '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:930px;">POR CATEGORIA</th>' +
           '</tr>';
         top10.forEach(function(r, idx) {
@@ -4840,14 +4913,14 @@ function hydrateFromPowerBI() {
             meses.map(function(mm) {
               var reg = todos[mm];
               if (!reg || typeof reg.notaMes !== "number" || isNaN(reg.notaMes) || !isFinite(reg.notaMes)) {
-                return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:65px;">\u2014</td>';
+                return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:72px;">\u2014</td>';
               }
               var ti = scoreTier(reg.notaMes);
-              return '<td style="padding:6px 4px; text-align:center; width:65px;">' +
-                '<span style="display:inline-block; min-width:52px; padding:5px 0; border-radius:6px; background:' + ti.bg +
-                '; color:' + ti.dark + '; font-size:1.15rem; font-weight:900;">' + reg.notaMes.toFixed(0) + '%</span></td>';
+              return '<td style="padding:6px 4px; text-align:center; width:72px;" title="' + (MESES_PT[mm - 1] || mm) + ': ' + ti.label + ' \u2014 ' + ti.desc + '">' +
+                '<span style="display:inline-flex; align-items:center; justify-content:center; gap:3px; min-width:60px; padding:4px 2px; border-radius:6px; background:' + ti.bg +
+                '; color:' + ti.dark + '; border:1px solid ' + ti.border + '; font-size:0.75rem; font-weight:900; white-space:nowrap;">' + ti.icon + ' ' + ti.shortLabel + '</span></td>';
             }).join("") +
-            '<td style="padding:10px 12px; text-align:center; width:140px;">' + tab5Pct(r.notaAcum, "1.25rem") + '</td>' +
+            '<td style="padding:10px 12px; text-align:center; width:185px;">' + tab5Pct(r.notaAcum, "0.95rem") + '</td>' +
             '<td style="padding:10px 16px; text-align:left; width:930px;">' + tab5Chips(r.cats) + '</td>' +
           '</tr>';
         });
@@ -4866,11 +4939,11 @@ function hydrateFromPowerBI() {
               '<span style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.72rem; padding:2px 7px; border-radius:5px;">' + intermediarias.length + ' OSs</span>' +
             '</div>' +
             '<table style="width:100%; border-collapse:collapse; table-layout:fixed;">' +
-              '<colgroup><col style="width:38px;"><col><col style="width:75px;"><col style="width:235px;"></colgroup>' +
+              '<colgroup><col style="width:38px;"><col><col style="width:150px;"><col style="width:235px;"></colgroup>' +
               '<tr style="background:#f8fafc;">' +
                 '<th style="padding:4px 6px; text-align:center; font-size:0.75rem; font-weight:800; color:#475569;">#</th>' +
                 '<th style="padding:4px 6px; text-align:left; font-size:0.75rem; font-weight:800; color:#475569;">OS</th>' +
-                '<th style="padding:4px 6px; text-align:center; font-size:0.75rem; font-weight:800; color:#475569;">ACUM</th>' +
+                '<th style="padding:4px 6px; text-align:center; font-size:0.75rem; font-weight:800; color:#475569;">INDICADOR</th>' +
                 '<th style="padding:4px 6px; text-align:left; font-size:0.75rem; font-weight:800; color:#475569;">CATEGORIAS</th>' +
               '</tr>';
 
@@ -4879,7 +4952,7 @@ function hydrateFromPowerBI() {
             html += '<tr style="border-bottom:1px solid #f1f5f9; height:34px;">' +
               '<td style="padding:4px 6px; text-align:center; font-weight:900; color:#0369a1; font-size:0.84rem;">' + pos + '\u00ba</td>' +
               '<td style="padding:4px 6px; font-weight:800; color:#0f2b5c; font-size:0.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
-              '<td style="padding:4px 6px; text-align:center;">' + tab5Pct(r.notaAcum, "0.92rem") + '</td>' +
+              '<td style="padding:4px 6px; text-align:center;">' + tab5Pct(r.notaAcum, "0.80rem") + '</td>' +
               '<td style="padding:4px 6px; text-align:left; white-space:nowrap; overflow:hidden;">' + tab5MiniChips(r.cats) + '</td>' +
             '</tr>';
           });
@@ -4894,11 +4967,11 @@ function hydrateFromPowerBI() {
               '<span style="background:#fee2e2; color:#b91c1c; font-weight:800; font-size:0.72rem; padding:2px 7px; border-radius:5px;">' + ultimasColocadas.length + ' OSs</span>' +
             '</div>' +
             '<table style="width:100%; border-collapse:collapse; table-layout:fixed;">' +
-              '<colgroup><col style="width:38px;"><col><col style="width:75px;"><col style="width:235px;"></colgroup>' +
+              '<colgroup><col style="width:38px;"><col><col style="width:150px;"><col style="width:235px;"></colgroup>' +
               '<tr style="background:#fef2f2;">' +
                 '<th style="padding:4px 6px; text-align:center; font-size:0.75rem; font-weight:800; color:#991b1b;">#</th>' +
                 '<th style="padding:4px 6px; text-align:left; font-size:0.75rem; font-weight:800; color:#991b1b;">OS</th>' +
-                '<th style="padding:4px 6px; text-align:center; font-size:0.75rem; font-weight:800; color:#991b1b;">ACUM</th>' +
+                '<th style="padding:4px 6px; text-align:center; font-size:0.75rem; font-weight:800; color:#991b1b;">INDICADOR</th>' +
                 '<th style="padding:4px 6px; text-align:left; font-size:0.75rem; font-weight:800; color:#991b1b;">CATEGORIAS</th>' +
               '</tr>';
 
@@ -4908,7 +4981,7 @@ function hydrateFromPowerBI() {
             html += '<tr style="border-bottom:1px solid #fee2e2; background:#fffafa; height:34px;">' +
               '<td style="padding:4px 6px; text-align:center; font-weight:900; color:#b91c1c; font-size:0.84rem;">' + pos + '\u00ba</td>' +
               '<td style="padding:4px 6px; font-weight:800; color:#0f2b5c; font-size:0.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
-              '<td style="padding:4px 6px; text-align:center;">' + tab5Pct(r.notaAcum, "0.92rem") + '</td>' +
+              '<td style="padding:4px 6px; text-align:center;">' + tab5Pct(r.notaAcum, "0.80rem") + '</td>' +
               '<td style="padding:4px 6px; text-align:left; white-space:nowrap; overflow:hidden;">' + tab5MiniChips(r.cats) + '</td>' +
             '</tr>';
           });
@@ -4928,18 +5001,18 @@ function hydrateFromPowerBI() {
         '<colgroup>' +
           '<col style="width:56px;">' +
           '<col style="width:320px;">' +
-          meses.map(function() { return '<col style="width:65px;">'; }).join("") +
-          '<col style="width:140px;">' +
+          meses.map(function() { return '<col style="width:72px;">'; }).join("") +
+          '<col style="width:185px;">' +
           '<col style="width:930px;">' +
         '</colgroup>' +
         '<tr style="background:#f1f5f9;">' +
           '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:56px;">#</th>' +
           '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:320px;">LINHA DE NEG\u00d3CIO</th>' +
           meses.map(function(mm) {
-            return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:65px;">' +
+            return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:72px;">' +
                    (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
           }).join("") +
-          '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:140px;">ACUMULADA</th>' +
+          '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:185px;">INDICADOR ACUMULADO</th>' +
           '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:930px;">POR CATEGORIA</th>' +
         '</tr>';
 
@@ -4978,18 +5051,18 @@ function hydrateFromPowerBI() {
             }).filter(function(v) { return v !== null; });
 
             if (!notasMesNeg.length) {
-              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:65px;">\u2014</td>';
+              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:72px;">\u2014</td>';
             }
             var mediaMesVal = notasMesNeg.reduce(function(s, v) { return s + v; }, 0) / notasMesNeg.length;
             if (typeof mediaMesVal !== "number" || isNaN(mediaMesVal) || !isFinite(mediaMesVal)) {
-              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:65px;">\u2014</td>';
+              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem; width:72px;">\u2014</td>';
             }
             var ti = scoreTier(mediaMesVal);
-            return '<td style="padding:6px 4px; text-align:center; width:65px;">' +
-              '<span style="display:inline-block; min-width:52px; padding:5px 0; border-radius:6px; background:' + ti.bg +
-              '; color:' + ti.dark + '; font-size:1.15rem; font-weight:900;">' + mediaMesVal.toFixed(0) + '%</span></td>';
+            return '<td style="padding:6px 4px; text-align:center; width:72px;" title="' + (MESES_PT[mm - 1] || mm) + ': ' + ti.label + ' \u2014 ' + ti.desc + '">' +
+              '<span style="display:inline-flex; align-items:center; justify-content:center; gap:2px; min-width:60px; padding:4px 2px; border-radius:6px; background:' + ti.bg +
+              '; color:' + ti.dark + '; border:1px solid ' + ti.border + '; font-size:0.75rem; font-weight:900; white-space:nowrap;">' + ti.icon + ' ' + ti.shortLabel + '</span></td>';
           }).join("") +
-          '<td style="padding:10px 12px; text-align:center; width:140px;">' + (mediaAcumNeg !== null ? tab5Pct(mediaAcumNeg, "1.25rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
+          '<td style="padding:10px 12px; text-align:center; width:185px;">' + (mediaAcumNeg !== null ? tab5Pct(mediaAcumNeg, "0.95rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
           '<td style="padding:10px 16px; text-align:left; width:930px;">' + tab5Chips(catsAvgNeg) + '</td>' +
         '</tr>';
       });
@@ -5047,8 +5120,8 @@ function hydrateFromPowerBI() {
           '<td style="padding:10px 10px; text-align:center; color:#fff; font-weight:900; font-size:1.10rem; width:110px;">' +
             '<span style="background:' + tierA.main + '; color:' + tierA.text + '; border-radius:6px; padding:4px 10px;">' + a.pct + '%</span>' +
           '</td>' +
-          '<td style="padding:10px 12px; text-align:center; color:#fff; font-weight:900; font-size:1.20rem; width:140px;">' +
-            (nm && typeof nm.pct === "number" && isFinite(nm.pct) ? nm.pct.toFixed(1) + '%' : '<span style="color:rgba(255,255,255,0.5);">\u2014</span>') + '</td>' +
+          '<td style="padding:10px 12px; text-align:center; width:185px;">' +
+            (nm && typeof nm.pct === "number" && isFinite(nm.pct) ? tab5Pct(nm.pct, "0.85rem") : '<span style="color:rgba(255,255,255,0.5);">\u2014</span>') + '</td>' +
           '<td style="padding:10px 16px; text-align:left; color:rgba(255,255,255,0.78); font-size:0.92rem; font-weight:700; white-space:nowrap; width:930px;">' +
             (nm ? nm.com + ' de ' + nm.total + ' com nota' : 'sem nota') + '</td>' +
         '</tr>';
