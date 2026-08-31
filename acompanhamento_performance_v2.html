@@ -4654,20 +4654,20 @@ function hydrateFromPowerBI() {
       } else {
         html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:28px; min-width:1250px;">' +
           '<tr style="background:#f1f5f9;">' +
-            '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:56px;">#</th>' +
+            '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:56px;">#</th>' +
             '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; min-width:260px;">OS</th>' +
             meses.map(function(mm) {
               return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; min-width:62px; width:62px;">' +
                      (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
             }).join("") +
-            '<th style="padding:10px 12px; text-align:right; font-size:0.95rem; font-weight:800; color:#334155; min-width:130px;">ACUMULADA</th>' +
-            '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; min-width:920px;">POR CATEGORIA</th>' +
+            '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; min-width:130px;">ACUMULADA</th>' +
+            '<th style="padding:10px 16px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; min-width:920px;">POR CATEGORIA</th>' +
           '</tr>';
         comNota.forEach(function(r, idx) {
           var medalha = idx === 0 ? "\ud83e\udd47" : (idx === 1 ? "\ud83e\udd48" : (idx === 2 ? "\ud83e\udd49" : (idx + 1)));
           var todos = (notas[r.codigo] || {}).meses || {};
           html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
-            '<td style="padding:10px 10px; font-weight:900; color:#0f2b5c; font-size:1.15rem;">' + medalha + '</td>' +
+            '<td style="padding:10px 10px; text-align:center; font-weight:900; color:#0f2b5c; font-size:1.15rem;">' + medalha + '</td>' +
             '<td style="padding:10px 10px; font-weight:800; color:#0f2b5c; font-size:1.15rem; white-space:nowrap;">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
             meses.map(function(mm) {
               var reg = todos[mm];
@@ -4679,18 +4679,84 @@ function hydrateFromPowerBI() {
                 '<span style="display:inline-block; min-width:52px; padding:5px 0; border-radius:6px; background:' + ti.bg +
                 '; color:' + ti.dark + '; font-size:1.15rem; font-weight:900;">' + reg.notaMes.toFixed(0) + '%</span></td>';
             }).join("") +
-            '<td style="padding:10px 12px; text-align:right;">' + tab5Pct(r.notaAcum, "1.25rem") + '</td>' +
+            '<td style="padding:10px 12px; text-align:center;">' + tab5Pct(r.notaAcum, "1.25rem") + '</td>' +
             '<td style="padding:10px 16px;">' + tab5Chips(r.cats) + '</td>' +
           '</tr>';
         });
         html += '</table></div>';
       }
 
+      // ---- consolidação geral por linha de negócio (visão macro da empresa) ----
+      var linhasNegocio = ["ROTINA", "PARADA", "OFICINA"];
+      html += '<h3 style="margin:26px 0 6px; font-size:1.25rem; color:#0f2b5c; font-weight:900;">\ud83c\udfed Resultados por Linha de Neg\u00f3cio</h3>' +
+        '<div style="font-size:0.90rem; color:#64748b; margin-bottom:14px; line-height:1.4;">Vis\u00e3o comparativa da empresa por segmento operacional (<b>Rotina \u2022 Parada \u2022 Oficina</b>), ' +
+        'permitindo a qualquer gestor visualizar o desempenho m\u00e9dio consolidado.</div>';
+
+      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:28px; min-width:1250px;">' +
+        '<tr style="background:#f1f5f9;">' +
+          '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:56px;">#</th>' +
+          '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; min-width:260px;">LINHA DE NEG\u00d3CIO</th>' +
+          meses.map(function(mm) {
+            return '<th style="padding:10px 4px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; min-width:62px; width:62px;">' +
+                   (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
+          }).join("") +
+          '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; min-width:130px;">ACUMULADA</th>' +
+          '<th style="padding:10px 16px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; min-width:920px;">POR CATEGORIA</th>' +
+        '</tr>';
+
+      linhasNegocio.forEach(function(negName) {
+        var ossNeg = elegiveis.filter(function(o) {
+          var n = ((window.OS_HIER || {})[o.codigo] || {}).neg || o.neg || "";
+          return n.toUpperCase().indexOf(negName) !== -1;
+        });
+        if (!ossNeg.length) return;
+
+        var iconNeg = negName === "ROTINA" ? "\ud83d\udd04" : (negName === "PARADA" ? "\u23f1\ufe0f" : "\ud83d\udd27");
+        var comNotaNeg = ossNeg.map(function(o) {
+          return notas[o.codigo] && notas[o.codigo].ultima ? notas[o.codigo].ultima : null;
+        }).filter(Boolean);
+
+        var mediaAcumNeg = comNotaNeg.length ? (comNotaNeg.reduce(function(s, x) { return s + (x.notaAcum || 0); }, 0) / comNotaNeg.length) : null;
+
+        var catsAvgNeg = {};
+        SCORE_CATEGORIES.forEach(function(c) {
+          var vals = comNotaNeg.map(function(x) { return (x.cats && typeof x.cats[c.key] === "number") ? x.cats[c.key] : null; })
+                               .filter(function(v) { return v !== null && isFinite(v); });
+          catsAvgNeg[c.key] = vals.length ? (vals.reduce(function(s, v) { return s + v; }, 0) / vals.length) : null;
+        });
+
+        html += '<tr style="border-bottom:1px solid #f1f5f9; background:#ffffff;">' +
+          '<td style="padding:10px 10px; text-align:center; font-size:1.25rem;">' + iconNeg + '</td>' +
+          '<td style="padding:10px 10px; font-weight:900; color:#0f2b5c; font-size:1.15rem; white-space:nowrap;">' +
+            'NEG\u00d3CIO ' + negName +
+            '<span style="color:#64748b; font-weight:700; font-size:0.90rem; margin-left:10px;">(' + ossNeg.length + ' OS' + (ossNeg.length > 1 ? 's' : '') + ' \u00b7 ' + comNotaNeg.length + ' com nota)</span>' +
+          '</td>' +
+          meses.map(function(mm) {
+            var notasMesNeg = ossNeg.map(function(o) {
+              var r = (notas[o.codigo] || {}).meses ? (notas[o.codigo] || {}).meses[mm] : null;
+              return (r && isFinite(r.notaMes)) ? r.notaMes : null;
+            }).filter(function(v) { return v !== null; });
+
+            if (!notasMesNeg.length) {
+              return '<td style="padding:6px 4px; text-align:center; color:#cbd5e1; font-weight:800; font-size:1.05rem;">\u2014</td>';
+            }
+            var mediaMesVal = notasMesNeg.reduce(function(s, v) { return s + v; }, 0) / notasMesNeg.length;
+            var ti = scoreTier(mediaMesVal);
+            return '<td style="padding:6px 4px; text-align:center; min-width:62px; width:62px;">' +
+              '<span style="display:inline-block; min-width:52px; padding:5px 0; border-radius:6px; background:' + ti.bg +
+              '; color:' + ti.dark + '; font-size:1.15rem; font-weight:900;">' + mediaMesVal.toFixed(0) + '%</span></td>';
+          }).join("") +
+          '<td style="padding:10px 12px; text-align:center;">' + (mediaAcumNeg !== null ? tab5Pct(mediaAcumNeg, "1.25rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
+          '<td style="padding:10px 16px;">' + tab5Chips(catsAvgNeg) + '</td>' +
+        '</tr>';
+      });
+      html += '</table></div>';
+
       // ---- matriz mes a mes ----
       var abas = [["TODAS", "Todas (" + elegiveis.length + ")"],
                   ["PENDENTES", "Nunca preencheram (" + semAcomp.length + ")"],
                   ["FEITAS", "Com algum m\u00eas (" + comAcomp.length + ")"]];
-      html += '<h3 style="margin:0 0 6px; font-size:1.25rem; color:#0f2b5c; font-weight:900;">\ud83d\udcc5 Preenchimento m\u00eas a m\u00eas</h3>' +
+      html += '<h3 style="margin:26px 0 6px; font-size:1.25rem; color:#0f2b5c; font-weight:900;">\ud83d\udcc5 Preenchimento m\u00eas a m\u00eas</h3>' +
         '<div style="font-size:0.90rem; color:#64748b; margin-bottom:12px; line-height:1.4;">Cada c\u00e9lula traz quantos dos <b>23 t\u00f3picos</b> foram preenchidos naquele m\u00eas. ' +
         'Clique no <b>Superintendente</b> ou <b>Gerente</b> para expandir/recolher a hierarquia.</div>' +
         '<div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">' +
@@ -4738,9 +4804,9 @@ function hydrateFromPowerBI() {
           '<td style="padding:10px 10px; text-align:center; color:#fff; font-weight:900; font-size:1.10rem; min-width:100px;">' +
             '<span style="background:' + tierA.main + '; color:' + tierA.text + '; border-radius:6px; padding:4px 10px;">' + a.pct + '%</span>' +
           '</td>' +
-          '<td style="padding:10px 12px; text-align:right; color:#fff; font-weight:900; font-size:1.20rem; min-width:110px;">' +
+          '<td style="padding:10px 12px; text-align:center; color:#fff; font-weight:900; font-size:1.20rem; min-width:110px;">' +
             (nm ? nm.pct.toFixed(1) + '%' : '<span style="color:rgba(255,255,255,0.5);">\u2014</span>') + '</td>' +
-          '<td style="padding:10px 16px; color:rgba(255,255,255,0.78); font-size:0.92rem; font-weight:700; white-space:nowrap;">' +
+          '<td style="padding:10px 16px; text-align:center; color:rgba(255,255,255,0.78); font-size:0.92rem; font-weight:700; white-space:nowrap;">' +
             (nm ? nm.com + ' de ' + nm.total + ' com nota' : 'sem nota') + '</td>' +
         '</tr>';
       }
@@ -4766,8 +4832,8 @@ function hydrateFromPowerBI() {
                    (MESES_PT[mm - 1] || mm).substring(0, 3) + '</th>';
           }).join("") +
           '<th style="padding:10px 10px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; min-width:100px;">ADES\u00c3O</th>' +
-          '<th style="padding:10px 12px; text-align:right; font-size:0.95rem; font-weight:800; color:#334155; min-width:110px;">NOTA</th>' +
-          '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; min-width:920px;">POR CATEGORIA</th>' +
+          '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; min-width:110px;">NOTA</th>' +
+          '<th style="padding:10px 16px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; min-width:920px;">POR CATEGORIA</th>' +
         '</tr>';
 
       Object.keys(arvore).sort().forEach(function(sup, idxSup) {
@@ -4806,7 +4872,7 @@ function hydrateFromPowerBI() {
                     meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
                     '<td style="padding:10px 10px; text-align:center; font-weight:900; font-size:1.10rem; min-width:100px;">' +
                       '<span style="background:' + tierOS.bg + '; color:' + tierOS.dark + '; border-radius:6px; padding:4px 10px;">' + aOS.pct + '%</span></td>' +
-                    '<td style="padding:10px 12px; text-align:right;">' + ((n && n.ultima) ? tab5Pct(n.ultima.notaAcum, "1.25rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
+                    '<td style="padding:10px 12px; text-align:center;">' + ((n && n.ultima) ? tab5Pct(n.ultima.notaAcum, "1.25rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
                     '<td style="padding:10px 16px;">' + ((n && n.ultima) ? tab5Chips(n.ultima.cats) : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
                   '</tr>';
                 });
