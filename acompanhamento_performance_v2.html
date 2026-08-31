@@ -4770,27 +4770,29 @@ function hydrateFromPowerBI() {
       html += '<div style="height:12px; background:#e2e8f0; border-radius:6px; overflow:hidden; margin-bottom:24px;">' +
         '<div style="height:100%; width:' + pct + '%; background:linear-gradient(90deg,#16a34a,#4ade80);"></div></div>';
 
-      // ---- ranking pelo mes mais recente com nota ----
-      var comNota = elegiveis.map(function(o) {
-        var n = notas[o.codigo];
-        return (n && n.ultima && typeof n.ultima.notaAcum === "number" && isFinite(n.ultima.notaAcum))
-          ? { codigo: o.codigo, mes: n.ultimoMes, notaMes: n.ultima.notaMes, notaAcum: n.ultima.notaAcum, cats: n.ultima.cats }
-          : null;
-      }).filter(Boolean).sort(function(a, b) { return b.notaAcum - a.notaAcum; });
+      // ---- TOP 10 e Listas de Desempenho (Snapshots Globais da Empresa) ----
+      var top10 = comNota.slice(0, 10);
+      var intermediarias = comNota.slice(10, 20);
+      var ultimasColocadas = [];
+      if (comNota.length > 10) {
+        var qtdUltimas = Math.min(10, Math.max(0, comNota.length - 10));
+        ultimasColocadas = comNota.slice(comNota.length - qtdUltimas).map(function(item, i) {
+          return { item: item, posReal: comNota.length - qtdUltimas + i + 1 };
+        }).reverse(); // Mostra do último para o penúltimo, etc.
+      }
 
-      html += '<h3 style="margin:0 0 6px; font-size:1.25rem; color:#0f2b5c; font-weight:900;">\ud83c\udfc6 Ranking do ano</h3>' +
-        '<div style="font-size:0.90rem; color:#64748b; margin-bottom:14px; line-height:1.4;">Ordenado pela <b>acumulada</b>. ' +
-        'Cada coluna de m\u00eas traz a nota daquele m\u00eas; a compet\u00eancia fecha entre os dias 12 e 20 do m\u00eas seguinte, ' +
-        'ent\u00e3o o m\u00eas corrente nunca aparece.</div>';
+      html += '<h3 style="margin:0 0 6px; font-size:1.25rem; color:#0f2b5c; font-weight:900;">\ud83c\udfc6 TOP 10 \u2014 Melhores Notas do Ano</h3>' +
+        '<div style="font-size:0.90rem; color:#64748b; margin-bottom:14px; line-height:1.4;">Fotografia congelada das <b>10 OSs com maior pontua\u00e7\u00e3o acumulada</b> em ' + ano + '. ' +
+        'Cada coluna de m\u00eas traz a nota apurada naquela compet\u00eancia.</div>';
+
       if (!comNota.length) {
         html += '<div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:28px 24px; margin-bottom:28px; color:#475569; font-size:0.96rem;">' +
           '<b>Nenhuma nota gravada ainda em ' + ano + '.</b><br>' +
-          'A nota s\u00f3 passa a existir na lista quando algu\u00e9m salva os coment\u00e1rios, valida a OS, ou quando o ' +
-          'Setor de Performance usa o bot\u00e3o <b>Gravar Notas do Ano</b> com a OS selecionada. ' +
-          'O ranking se preenche sozinho conforme isso acontece.' +
+          'As notas s\u00e3o consolidadas automaticamente no SharePoint a partir da ATA_COMENTARIO.' +
         '</div>';
       } else {
-        html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:28px; min-width:1600px; table-layout:fixed;">' +
+        // --- 1. Tabela do TOP 10 ---
+        html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; margin-bottom:24px; min-width:1600px; table-layout:fixed;">' +
           '<colgroup>' +
             '<col style="width:56px;">' +
             '<col style="width:320px;">' +
@@ -4808,10 +4810,10 @@ function hydrateFromPowerBI() {
             '<th style="padding:10px 12px; text-align:center; font-size:0.95rem; font-weight:800; color:#334155; width:140px;">ACUMULADA</th>' +
             '<th style="padding:10px 16px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:930px;">POR CATEGORIA</th>' +
           '</tr>';
-        comNota.forEach(function(r, idx) {
+        top10.forEach(function(r, idx) {
           var medalha = idx === 0 ? "\ud83e\udd47" : (idx === 1 ? "\ud83e\udd48" : (idx === 2 ? "\ud83e\udd49" : (idx + 1)));
           var todos = (notas[r.codigo] || {}).meses || {};
-          html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
+          html += '<tr style="border-bottom:1px solid #f1f5f9; background:' + (idx < 3 ? "#f0fdf4" : "#ffffff") + ';">' +
             '<td style="padding:10px 10px; text-align:center; font-weight:900; color:#0f2b5c; font-size:1.15rem; width:56px;">' + medalha + '</td>' +
             '<td style="padding:10px 10px; font-weight:800; color:#0f2b5c; font-size:1.15rem; width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
             meses.map(function(mm) {
@@ -4829,6 +4831,68 @@ function hydrateFromPowerBI() {
           '</tr>';
         });
         html += '</table></div>';
+
+        // --- 2. Duas listas complementares lado a lado (Intermediárias vs Menores Notas) ---
+        if (intermediarias.length > 0 || ultimasColocadas.length > 0) {
+          html += '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(580px, 1fr)); gap:20px; margin-bottom:28px;">';
+
+          // Coluna Esquerda: Sequência 11º ao 20º (Em Desenvolvimento)
+          html += '<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:12px; padding:16px; box-shadow:0 4px 12px rgba(0,0,0,0.05);">' +
+            '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">' +
+              '<h4 style="margin:0; font-size:1.05rem; color:#0369a1; font-weight:900; display:flex; align-items:center; gap:6px;">' +
+                '\ud83d\udcc8 Posi\u00e7\u00f5es 11\u00ba ao ' + (10 + intermediarias.length) + '\u00ba (Em Desenvolvimento)' +
+              '</h4>' +
+              '<span style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.76rem; padding:3px 8px; border-radius:6px;">' + intermediarias.length + ' OSs</span>' +
+            '</div>' +
+            '<table style="width:100%; border-collapse:collapse;">' +
+              '<tr style="background:#f8fafc;">' +
+                '<th style="padding:6px 8px; text-align:center; font-size:0.80rem; font-weight:800; color:#475569; width:45px;">#</th>' +
+                '<th style="padding:6px 8px; text-align:left; font-size:0.80rem; font-weight:800; color:#475569;">OS</th>' +
+                '<th style="padding:6px 8px; text-align:center; font-size:0.80rem; font-weight:800; color:#475569; width:95px;">ACUMULADA</th>' +
+                '<th style="padding:6px 8px; text-align:left; font-size:0.80rem; font-weight:800; color:#475569; width:220px;">CATEGORIAS</th>' +
+              '</tr>';
+
+          intermediarias.forEach(function(r, idx) {
+            var pos = 11 + idx;
+            html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
+              '<td style="padding:7px 8px; text-align:center; font-weight:900; color:#0369a1; font-size:0.92rem;">' + pos + '\u00ba</td>' +
+              '<td style="padding:7px 8px; font-weight:800; color:#0f2b5c; font-size:0.92rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
+              '<td style="padding:7px 8px; text-align:center;">' + tab5Pct(r.notaAcum, "1.05rem") + '</td>' +
+              '<td style="padding:7px 8px; text-align:left;">' + tab5Chips(r.cats) + '</td>' +
+            '</tr>';
+          });
+          html += '</table></div>';
+
+          // Coluna Direita: Últimas Colocadas (Atenção Prioritária - do último para o penúltimo)
+          html += '<div style="background:#ffffff; border:1.5px solid #fecaca; border-radius:12px; padding:16px; box-shadow:0 4px 12px rgba(220,38,38,0.05);">' +
+            '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:2px solid #fee2e2; padding-bottom:8px;">' +
+              '<h4 style="margin:0; font-size:1.05rem; color:#b91c1c; font-weight:900; display:flex; align-items:center; gap:6px;">' +
+                '\u26a0\ufe0f Aten\u00e7\u00e3o Priorit\u00e1ria (Menores Notas / Precisam Melhorar)' +
+              '</h4>' +
+              '<span style="background:#fee2e2; color:#b91c1c; font-weight:800; font-size:0.76rem; padding:3px 8px; border-radius:6px;">' + ultimasColocadas.length + ' OSs</span>' +
+            '</div>' +
+            '<table style="width:100%; border-collapse:collapse;">' +
+              '<tr style="background:#fef2f2;">' +
+                '<th style="padding:6px 8px; text-align:center; font-size:0.80rem; font-weight:800; color:#991b1b; width:45px;">#</th>' +
+                '<th style="padding:6px 8px; text-align:left; font-size:0.80rem; font-weight:800; color:#991b1b;">OS</th>' +
+                '<th style="padding:6px 8px; text-align:center; font-size:0.80rem; font-weight:800; color:#991b1b; width:95px;">ACUMULADA</th>' +
+                '<th style="padding:6px 8px; text-align:left; font-size:0.80rem; font-weight:800; color:#991b1b; width:220px;">CATEGORIAS</th>' +
+              '</tr>';
+
+          ultimasColocadas.forEach(function(u) {
+            var r = u.item;
+            var pos = u.posReal;
+            html += '<tr style="border-bottom:1px solid #fee2e2; background:#fffafa;">' +
+              '<td style="padding:7px 8px; text-align:center; font-weight:900; color:#b91c1c; font-size:0.92rem;">' + pos + '\u00ba</td>' +
+              '<td style="padding:7px 8px; font-weight:800; color:#0f2b5c; font-size:0.92rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }) + '</td>' +
+              '<td style="padding:7px 8px; text-align:center;">' + tab5Pct(r.notaAcum, "1.05rem") + '</td>' +
+              '<td style="padding:7px 8px; text-align:left;">' + tab5Chips(r.cats) + '</td>' +
+            '</tr>';
+          });
+          html += '</table></div>';
+
+          html += '</div>'; // Fecha o grid
+        }
       }
 
       // ---- consolidação geral por linha de negócio (visão macro da empresa) ----
