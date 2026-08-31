@@ -2027,11 +2027,27 @@ function hydrateFromPowerBI() {
       };
     }
 
+    function getContractDisplayName(contract) {
+      if (!contract) return "";
+      var blocos = (typeof obterMapaDeBlocosOS === "function") ? obterMapaDeBlocosOS() : { alias: {}, rotulos: {} };
+      var primary = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(contract.code) : contract.code;
+      var rotuloBloco = blocos.rotulos[primary] || formatOSLabel(contract.code);
+      var desc = "";
+      if (contract.name) {
+        var sep = contract.name.indexOf(" - ");
+        if (sep !== -1) desc = contract.name.slice(sep + 3);
+      }
+      if (!desc && window.OS_HIER && window.OS_HIER[primary]) {
+        desc = window.OS_HIER[primary].desc || "";
+      }
+      return desc ? (rotuloBloco + " - " + desc) : (contract.name || rotuloBloco);
+    }
+
     function buildOSScorecardCardHTML(contract, curScore, avgAccum) {
       return '<div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 55%, #1e40af 100%); border-radius:16px; padding:26px 30px; color:#ffffff; border:2.5px solid #60a5fa; box-shadow:0 10px 32px rgba(0,0,0,0.30); display:flex; align-items:center; gap:32px; flex-wrap:wrap;">' +
         '<div style="flex-shrink:0;">' + buildScoreGaugeSVG(avgAccum, 100, 152) + '</div>' +
         '<div style="flex:1; min-width:220px;">' +
-          '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + contract.name + '</div>' +
+          '<div style="font-size:1.65rem; font-weight:900; margin:5px 0 3px;">' + getContractDisplayName(contract) + '</div>' +
           (META.desemp ? '' : '<div style="background:#fef9c3; color:#92400e; border:1px solid #fde68a; border-radius:6px; padding:4px 10px; font-size:0.8rem; font-weight:700; margin-bottom:8px;">⚠️ Metas de ' + (META.ano || 'ano selecionado') + ' não cadastradas — nota calculada com o padrão.</div>') +
           buildIdentificacaoOSHTML(contract) +
           buildHistoricoResponsavelHTML(contract) +
@@ -6247,6 +6263,10 @@ function hydrateFromPowerBI() {
         window.METAS_DB.parametros   = Array.isArray(data.parametros)   ? data.parametros   : [];
         window.METAS_DB.carregado = true;
         aplicarMetasNoCalculo();
+        var activeTab = safeGetStorage('pbi_active_tab', 'tabMensal');
+        if (activeTab === 'tabMensal' && typeof renderRows === 'function') renderRows();
+        if (activeTab === 'tabRanking' && typeof renderTab4Scorecard === 'function') renderTab4Scorecard();
+        if (activeTab === 'tabConsolidacao' && typeof renderAnnualConsolidation === 'function') renderAnnualConsolidation();
         if (window.TAB5 && window.TAB5.carregado && typeof renderTab5 === "function") {
           renderTab5();
         }
