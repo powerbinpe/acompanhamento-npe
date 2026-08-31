@@ -4369,7 +4369,17 @@ function hydrateFromPowerBI() {
         rotuloBloco[primaria] = formatOSLabel(limpos.join("|"));
       }
 
-      // 1. A partir de ACTIVE_CONTRACTS_CATALOG
+      // 1. A partir de METAS_DB.parametros (Cadastro de Metas -> Agrupamentos do SharePoint)
+      if (window.METAS_DB && Array.isArray(window.METAS_DB.parametros)) {
+        window.METAS_DB.parametros.forEach(function(p) {
+          if (String(p.tipo) === "GRUPO_OS" && String(p.ativo) === "Sim" && p.valor) {
+            var partes = String(p.valor).split(/[|+]/);
+            if (partes.length > 1) registrarBloco(partes);
+          }
+        });
+      }
+
+      // 2. A partir de ACTIVE_CONTRACTS_CATALOG
       var catalogo = (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined" && ACTIVE_CONTRACTS_CATALOG) ? ACTIVE_CONTRACTS_CATALOG : [];
       catalogo.forEach(function(c) {
         if (!c.code) return;
@@ -4377,7 +4387,7 @@ function hydrateFromPowerBI() {
         if (partes.length > 1) registrarBloco(partes);
       });
 
-      // 2. A partir de OSHier
+      // 3. A partir de OSHier
       var brutoHier = new URLSearchParams(window.location.search).get("OSHier") || "";
       var partesHier = brutoHier.split("~");
       if (partesHier.length >= 4) {
@@ -4389,7 +4399,7 @@ function hydrateFromPowerBI() {
         });
       }
 
-      // 3. A partir de AllowedOSList
+      // 4. A partir de AllowedOSList
       var rawAllowed = new URLSearchParams(window.location.search).get("AllowedOSList") || "";
       rawAllowed.split(",").forEach(function(item) {
         var partes = String(item).trim().split(/[|+]/);
@@ -4509,6 +4519,9 @@ function hydrateFromPowerBI() {
           return tab5Post(window.FLOW_LER_ATA_ANO_URL, { ano: ano, mes: mm });
         });
         chamadas.push(tab5Post(window.FLOW_LER_NOTAS_URL, { ano: ano }));
+        if (!window.METAS_DB.carregado && typeof carregarMetasDoFluxo === "function") {
+          chamadas.push(carregarMetasDoFluxo());
+        }
         var res = await Promise.all(chamadas);
 
         var porMes = {};
@@ -6234,6 +6247,9 @@ function hydrateFromPowerBI() {
         window.METAS_DB.parametros   = Array.isArray(data.parametros)   ? data.parametros   : [];
         window.METAS_DB.carregado = true;
         aplicarMetasNoCalculo();
+        if (window.TAB5 && window.TAB5.carregado && typeof renderTab5 === "function") {
+          renderTab5();
+        }
         var mod = document.getElementById("metasModal");
         if (mod && mod.style.display === "flex") renderMetasPanel();
       } catch (err) {
