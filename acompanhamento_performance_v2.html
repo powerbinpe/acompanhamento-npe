@@ -915,7 +915,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 00:20";
+    window.NPE_BUILD = "2026-09-02 01:10";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -5979,14 +5979,22 @@ function hydrateFromPowerBI() {
       addBinary("t2", TOPIC_WEIGHTS.t2, typeof contract.resDifAnoPct === "number", contract.resDifAnoPct >= _tol("TOL_RES_ANO", -0.05));
 
       // --- 3/4. Faturamento Mês / Assertividade Mês (FCST Atual vs FCST Anterior, margem de -5%) ---
-      addBinary("t3", TOPIC_WEIGHTS.t3, typeof contract.fatDifMesPct === "number", contract.fatDifMesPct >= _tol("TOL_FAT_MES", -0.05));
+      // Dois sentidos: faturar muito acima do previsto tambem e erro de previsao. O abs() na
+      // tolerancia e obrigatorio -- a tabela de metas guarda TOL_FAT_MES como -0,05, herdado
+      // de quando era um piso; sem ele a comparacao seria contra um numero negativo e
+      // reprovaria toda OS.
+      addBinary("t3", TOPIC_WEIGHTS.t3, typeof contract.fatDifMesPct === "number",
+        Math.abs(contract.fatDifMesPct) <= Math.abs(_tol("TOL_FAT_MES", -0.05)));
 
       // Assertividade (t4) respeita o override manual do Máster (toggleAssertiveness) -- sem
       // override, usa o cálculo automático (|dif margem| <= 5%); com override, o julgamento do
       // Máster decide o ponto, independente do valor automático.
       var assertOverride = safeGetStorage("assertiv_override_" + contract.code + "_m" + monthNum, "AUTOMATICO");
       var t4AutoApplicable = typeof contract.resDifMesPct === "number";
-      var t4AutoOk = t4AutoApplicable && contract.resDifMesPct >= -_tol("TOL_ASSERTIV_MARGEM", 0.05);
+      // Dois sentidos, pelo mesmo motivo do t3. O rotulo automatico mostrado na Aba 1 ja
+      // usava Math.abs() -- o score e que estava divergindo dele.
+      var t4AutoOk = t4AutoApplicable &&
+        Math.abs(contract.resDifMesPct) <= Math.abs(_tol("TOL_ASSERTIV_MARGEM", 0.05));
       var t4Applicable = assertOverride !== "AUTOMATICO" ? true : t4AutoApplicable;
       var t4Ok = assertOverride === "Assertivo" ? true : (assertOverride === "Não Assertivo" ? false : t4AutoOk);
       addBinary("t4", TOPIC_WEIGHTS.t4, t4Applicable, t4Ok);
@@ -6001,8 +6009,12 @@ function hydrateFromPowerBI() {
       addBinary("t8", TOPIC_WEIGHTS.t8, true, contract.indenizOk);
 
       // --- 9/10. Efetivo / HHT (Real vs Executivo, tolerância ±10%) ---
-      addBinary("t9", TOPIC_WEIGHTS.t9, typeof contract.efetivoDifPct === "number", Math.abs(contract.efetivoDifPct) <= _tol("TOL_EFETIVO", 0.10));
-      addBinary("t10", TOPIC_WEIGHTS.t10, typeof contract.hhtDifPct === "number", Math.abs(contract.hhtDifPct) <= _tol("TOL_HHT", 0.10));
+      // Efetivo: 2% para mais ou para menos (era 10%). O valor vale mesmo e o da tabela de
+      // metas -- este padrao so entra quando a tabela nao responde.
+      addBinary("t9", TOPIC_WEIGHTS.t9, typeof contract.efetivoDifPct === "number",
+        Math.abs(contract.efetivoDifPct) <= Math.abs(_tol("TOL_EFETIVO", 0.02)));
+      addBinary("t10", TOPIC_WEIGHTS.t10, typeof contract.hhtDifPct === "number",
+        Math.abs(contract.hhtDifPct) <= Math.abs(_tol("TOL_HHT", 0.10)));
 
       // --- 11/12. Absenteísmo / Turnover (vs Meta real) ---
       var absApplicable = (typeof contract.absenteismoPct === "number" && typeof contract.absenteismoMetaPct === "number");
@@ -6182,7 +6194,7 @@ function hydrateFromPowerBI() {
         var applicable = override !== "AUTOMATICO" ? true : autoApplicable;
         if (!applicable) continue;
         den++;
-        var isOk = override === "Assertivo" ? true : (override === "Não Assertivo" ? false : (monthData.resDifMesPct >= -_tol("TOL_ASSERTIV_MARGEM", 0.05)));
+        var isOk = override === "Assertivo" ? true : (override === "Não Assertivo" ? false : (Math.abs(monthData.resDifMesPct) <= Math.abs(_tol("TOL_ASSERTIV_MARGEM", 0.05))));
         if (isOk) num++;
       }
       return den > 0 ? (num / den) : null;
