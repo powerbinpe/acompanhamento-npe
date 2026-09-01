@@ -909,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 14:05";
+    window.NPE_BUILD = "2026-09-01 15:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -4426,12 +4426,47 @@ function hydrateFromPowerBI() {
     // Dicionario + indices porque com os nomes escritos por extenso em cada linha o
     // parametro passava de 4.600 caracteres na URL, e o visual falha em silencio perto
     // dos 6.650. Assim ficou em 1.687.
+    // O dicionario ocupava 2.463 caracteres em TODA carga -- identico sempre, porque nao
+    // depende da OS selecionada. Com ele na URL, 12 das 48 OSs passavam de 6.650 caracteres
+    // e o visual abria em branco sem erro nenhum (foi o caso da M00600). Agora ele mora na
+    // lista SNAPSHOT_FECHAMENTO, numa linha com ano 9999 e titulo HIERARQUIA, e a URL
+    // devolve esse espaco. A leitura pela URL continua valendo primeiro: se um dia a medida
+    // voltar a mandar, nada quebra.
     window.OS_HIER = null;
+    window.OS_HIER_RAW = null;
+    window.OS_HIER_ORIGEM = "";
+
+    function hierBruto() {
+      if (window.OS_HIER_RAW) return window.OS_HIER_RAW;
+      var daUrl = new URLSearchParams(window.location.search).get("OSHier") || "";
+      if (daUrl) { window.OS_HIER_RAW = daUrl; window.OS_HIER_ORIGEM = "URL"; }
+      return daUrl;
+    }
+
+    // Busca o dicionario no SharePoint quando a URL nao trouxe. Precisa terminar ANTES de
+    // qualquer coisa que dependa da hierarquia -- por isso a Aba 5 espera por ela.
+    async function garantirHierarquia() {
+      if (hierBruto()) return true;
+      try {
+        var linhas = await tab5Post(window.FLOW_LER_SNAPSHOT_URL, { ano: 9999 });
+        var reg = (linhas || []).filter(function(l) {
+          return l && l.dados && String(l.titulo || "").toUpperCase() === "HIERARQUIA";
+        }).sort(function(a, b) { return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0); })[0];
+        if (!reg) return false;
+        window.OS_HIER_RAW = reg.dados;
+        window.OS_HIER_ORIGEM = "SHAREPOINT:" + (reg.geradoEm || "");
+        window.OS_HIER = null;   // o cache pode ter guardado o mapa vazio de antes
+        return true;
+      } catch (e) { return false; }
+    }
+
     function carregarHierarquiaOS() {
-      if (window.OS_HIER) return window.OS_HIER;
-      var bruto = new URLSearchParams(window.location.search).get("OSHier") || "";
+      // Nao guarda mapa vazio: se ele fosse cacheado antes da leitura do SharePoint chegar,
+      // a hierarquia ficaria vazia para sempre nesta carga.
+      if (window.OS_HIER && Object.keys(window.OS_HIER).length) return window.OS_HIER;
+      var bruto = hierBruto();
       var partes = bruto.split("~");
-      if (partes.length < 4) { window.OS_HIER = {}; return window.OS_HIER; }
+      if (partes.length < 4) { return {}; }
       var sups = partes[0].split("|"), gers = partes[1].split("|"), negs = partes[2].split("|");
       var mapa = {};
       partes[3].split(";").forEach(function(linha) {
@@ -4489,9 +4524,8 @@ function hydrateFromPowerBI() {
         if (partes.length > 1) registrarBloco(partes);
       });
 
-      // 3. A partir de OSHier
-      var brutoHier = new URLSearchParams(window.location.search).get("OSHier") || "";
-      var partesHier = brutoHier.split("~");
+      // 3. A partir de OSHier (URL ou SharePoint -- mesma fonte da hierarquia)
+      var partesHier = hierBruto().split("~");
       if (partesHier.length >= 4) {
         partesHier[3].split(";").forEach(function(linha) {
           var c = linha.split(":");
@@ -4791,6 +4825,9 @@ function hydrateFromPowerBI() {
       window.TAB5.ano = ano;
       renderTab5();
       try {
+        // Sem o dicionario nao ha estrutura de Superintendente/Gerente/Gestor nem descricao
+        // das OSs -- ele tem que chegar antes de qualquer render da aba.
+        await garantirHierarquia();
         var ultimo = ultimoMesFechado(ano);
         var meses = [];
         for (var m = 1; m <= ultimo; m++) meses.push(m);
