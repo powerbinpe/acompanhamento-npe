@@ -909,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 18:10";
+    window.NPE_BUILD = "2026-09-01 19:05";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -7451,9 +7451,34 @@ function hydrateFromPowerBI() {
     }
 
     function renderUsuariosPanel(body) {
+      var s = sessaoAcesso();
       if (!ehProprietario()) {
-        body.innerHTML = '<div style="padding:30px; text-align:center; color:#92400e; background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; font-weight:700;">' +
-          'Apenas o perfil <b>PROPRIET\u00c1RIO</b> gerencia os usu\u00e1rios do Setor de Performance.</div>';
+        if (!s) {
+          body.innerHTML = '<div style="padding:30px; text-align:center; color:#92400e; background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; font-weight:700;">' +
+            'Entre com seu usu\u00e1rio para ver esta aba.</div>';
+          return;
+        }
+        // So o proprio registro. Sem lista de terceiros, sem criar, sem desativar -- isso e
+        // do dono. A troca de senha reusa a tela que ja existe (aba SENHA do acesso), que
+        // pede a senha atual antes de gravar a nova.
+        body.innerHTML =
+          '<div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:0.82rem; color:#1e3a8a;">' +
+            'Aqui voc\u00ea troca a <b>sua</b> senha. A que foi gerada no cadastro \u00e9 provis\u00f3ria \u2014 ' +
+            'troque na primeira entrada. A senha \u00e9 guardada apenas como <b>hash</b>: ningu\u00e9m consegue l\u00ea-la de volta, ' +
+            'nem quem administra a lista.' +
+          '</div>' +
+          '<div style="border:1.5px solid #e2e8f0; border-radius:10px; padding:14px 16px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;">' +
+            '<div style="min-width:0;">' +
+              '<div style="font-weight:800; font-size:0.95rem; color:#0f2b5c;">' + s.nome + '</div>' +
+              '<div style="font-size:0.78rem; color:#64748b;">' + s.login + ' &middot; ' + s.perfil + '</div>' +
+            '</div>' +
+            '<button type="button" onclick="closeMetasModal(); abrirLoginModal(\'SENHA\');"' +
+              ' style="margin-left:auto; background:#0369a1; color:#fff; border:none; padding:8px 16px;' +
+              ' border-radius:7px; font-weight:800; font-size:0.82rem; cursor:pointer;">&#128273; Trocar minha senha</button>' +
+          '</div>' +
+          '<div style="margin-top:14px; font-size:0.78rem; color:#64748b;">' +
+            'Cadastro, desativa\u00e7\u00e3o e reset de senha de outros usu\u00e1rios s\u00e3o do perfil <b>PROPRIET\u00c1RIO</b>.' +
+          '</div>';
         return;
       }
       var us = (window.ACESSO_USUARIOS || []).slice().sort(function(a, b) {
@@ -7639,7 +7664,8 @@ function hydrateFromPowerBI() {
       var barra = document.getElementById("metasAbasBar");
       if (barra) {
         var abas = [["METAS", "\ud83c\udfaf Metas"], ["ELEGIBILIDADE", "\u2699\ufe0f Elegibilidade das OSs"], ["AGRUPAMENTOS", "\ud83d\udd17 Agrupamentos"], ["RESPONSAVEIS", "\ud83d\udc64 Respons\u00e1veis"]];
-        if (ehProprietario()) abas.push(["USUARIOS", "\ud83d\udc65 Usu\u00e1rios"]);
+        // O Master ve a aba para trocar a propria senha; o conteudo dela e que muda.
+        if (sessaoAcesso()) abas.push(["USUARIOS", "\ud83d\udc65 Usu\u00e1rios"]);
         barra.innerHTML = abas.map(function(a) {
           var on = (METAS_ABA === a[0]);
           return '<button type="button" onclick="trocarAbaMetas(\'' + a[0] + '\')" style="background:' + (on ? "#0f766e" : "#e2e8f0") + '; color:' + (on ? "#fff" : "#475569") + '; border:none; padding:7px 16px; border-radius:7px; font-weight:800; font-size:0.84rem; cursor:pointer;">' + a[1] + '</button>';
@@ -7651,6 +7677,9 @@ function hydrateFromPowerBI() {
       if (METAS_ABA === "AGRUPAMENTOS") { renderAgrupamentosPanel(body); return; }
       if (METAS_ABA === "RESPONSAVEIS") { renderResponsaveisPanel(body); return; }
       if (METAS_ABA === "USUARIOS") {
+        // Sem o perfil de dono nao ha por que buscar a lista inteira: o Master so ve a si
+        // mesmo, e esses dados ja estao na sessao.
+        if (!ehProprietario()) { renderUsuariosPanel(body); return; }
         if (!window.ACESSO_USUARIOS.length) {
           body.innerHTML = '<div style="padding:36px; text-align:center; color:#64748b; font-weight:700;">Carregando usu\u00e1rios...</div>';
           carregarUsuariosAcesso().then(function() { renderUsuariosPanel(body); });
@@ -7819,7 +7848,11 @@ function hydrateFromPowerBI() {
     function fatorAmpliacao() {
       var larg = larguraUtilDaPagina();
       if (larg < 1900) return 1;
-      return Math.max(1, Math.min(larg / 700, 4.2));
+      // O divisor e a largura REAL aproximada em que o visual e exibido (~1300px). Assim o
+      // fator devolve o inverso da escala do Power BI e o texto sai do tamanho natural --
+      // como se nao houvesse reducao nenhuma. Com larg/700 ele saia ao dobro disso.
+      // Mexer aqui e o unico lugar para calibrar a fonte das caixas modais.
+      return Math.max(1, Math.min(larg / 1300, 2.6));
     }
 
     function ajustarCaixaAoVisual(overlay) {
