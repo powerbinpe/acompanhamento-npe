@@ -915,7 +915,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 02:40";
+    window.NPE_BUILD = "2026-09-02 03:15";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1121,9 +1121,29 @@ function hydrateFromPowerBI() {
       // estado que atravessa e o que vem na URL -- e a identidade ja vem: IsUserPerformance
       // nasce de USERPRINCIPALNAME() no DAX e lista os cinco Masters.
       // Sem isto a sessao morre em TODA troca de OS, que e o que inviabiliza a apuracao.
-      // No BiExplorer da FALSE (la o USERPRINCIPALNAME devolve a conta que publicou), entao
-      // naquele contexto a senha continua sendo a unica porta.
+      // No Servico da FALSE (la o USERPRINCIPALNAME devolve a conta que publicou, medido em
+      // 01/09/2026), entao naquele contexto a senha continua sendo a unica porta.
+      //
+      // A pagina esta publica no GitHub Pages: sem a trava abaixo, qualquer um que conheca o
+      // link abre no navegador, acrescenta &IsUserPerformance=TRUE e vira Master. Esse
+      // parametro e uma AFIRMACAO, nao uma credencial -- so faz sentido confiar nele quando
+      // quem o montou foi a medida, e isso so acontece dentro da moldura do Power BI.
+      // O login acima nao passa por aqui de proposito: aquilo e autenticacao de verdade.
+      if (!estaDentroDeMoldura()) return false;
       return (params.get("IsUserPerformance") || "").toUpperCase() === "TRUE";
+    }
+
+    // Fecha o caminho casual (colar a URL na barra do navegador), nao o determinado: quem
+    // embutir a pagina num iframe proprio volta a passar. Enquanto o HTML for publico,
+    // nenhuma verificacao feita AQUI DENTRO e barreira de verdade.
+    function estaDentroDeMoldura() {
+      try {
+        return window.self !== window.top;
+      } catch (e) {
+        // Acesso negado ao window.top significa moldura de outra origem -- que e exatamente
+        // o caso do visual do Power BI.
+        return true;
+      }
     }
 
     // De onde veio a autorizacao -- muda o que a tela oferece e aparece no diagnostico.
