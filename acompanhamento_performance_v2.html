@@ -909,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 17:05";
+    window.NPE_BUILD = "2026-09-01 18:10";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -2494,6 +2494,90 @@ function hydrateFromPowerBI() {
 
 
 
+
+    // ---- tendencia mes a mes dos indicadores automaticos ---------------------
+    // Cada entrada diz QUAL numero representa o topico e o que e "melhor". Os valores vem
+    // do monthHistory (o mesmo que alimenta o score), entao o selo e o ponto sempre contam
+    // a mesma historia.
+    //   maior  -> quanto maior, melhor (desvio de faturamento, satisfacao)
+    //   menor  -> quanto menor, melhor (perda, absenteismo, turnover, SAF, CAF)
+    //   modulo -> o que vale e a distancia do zero (efetivo e HHT pontuam por |desvio| <= 10%)
+    //   bool   -> verdadeiro e melhor (indenizacao)
+    var TENDENCIA_METRICA = {
+      1:  { campo: "fatDifAnoPct",   dir: "maior",  fmt: "pct" },
+      2:  { campo: "resDifAnoPct",   dir: "maior",  fmt: "pct" },
+      3:  { campo: "fatDifMesPct",   dir: "maior",  fmt: "pct" },
+      4:  { campo: "resDifMesPct",   dir: "maior",  fmt: "pct" },
+      6:  { campo: "perdaPctAcum",   dir: "menor",  fmt: "pct" },
+      8:  { campo: "indenizOk",      dir: "bool",   fmt: "bool" },
+      9:  { campo: "efetivoDifPct",  dir: "modulo", fmt: "pct" },
+      10: { campo: "hhtDifPct",      dir: "modulo", fmt: "pct" },
+      11: { campo: "absenteismoPct", dir: "menor",  fmt: "pct" },
+      12: { campo: "turnoverPct",    dir: "menor",  fmt: "pct" },
+      15: { campo: "safCount",       dir: "menor",  fmt: "int" },
+      16: { campo: "cafCount",       dir: "menor",  fmt: "int" },
+      17: { campo: "satVal",         dir: "maior",  fmt: "pct" },
+      20: { campo: "_bpTotal",       dir: "maior",  fmt: "int" }
+    };
+
+    function _valorTendencia(linha, campo) {
+      if (!linha) return null;
+      // Boas Praticas nao tem um campo unico: a meta e 3 aprovadas + 1 reconhecida.
+      if (campo === "_bpTotal") {
+        var a = Number(linha.bpAprovAcum), r = Number(linha.bpReconAcum);
+        if (!isFinite(a) && !isFinite(r)) return null;
+        return (isFinite(a) ? a : 0) + (isFinite(r) ? r : 0);
+      }
+      var v = linha[campo];
+      if (v === null || v === undefined) return null;
+      if (typeof v === "boolean") return v ? 1 : 0;
+      var n = Number(v);
+      return isFinite(n) ? n : null;
+    }
+
+    function _fmtTendencia(v, fmt) {
+      if (v === null) return "-";
+      if (fmt === "pct") return (v * 100).toFixed(2).replace(".", ",") + "%";
+      if (fmt === "bool") return v ? "Sem indeniza\u00e7\u00e3o" : "Com indeniza\u00e7\u00e3o";
+      return String(Math.round(v));
+    }
+
+    // Devolve o selo pronto, ou "" quando nao ha o que comparar. Mes 1 nunca tem selo:
+    // nao existe mes anterior dentro do ano.
+    function seloTendencia(osCode, topicId, mNum) {
+      var meta = TENDENCIA_METRICA[topicId];
+      if (!meta || !mNum || mNum < 2) return "";
+      var atual = _valorTendencia(getMonthHistoryRow(osCode, mNum), meta.campo);
+      var ant   = _valorTendencia(getMonthHistoryRow(osCode, mNum - 1), meta.campo);
+      if (atual === null || ant === null) return "";
+
+      // O que se compara depende de como o topico pontua.
+      var a = atual, b = ant;
+      if (meta.dir === "modulo") { a = Math.abs(a); b = Math.abs(b); }
+      var delta = a - b;
+      var melhor;
+      if (Math.abs(delta) < 1e-9) melhor = 0;
+      else if (meta.dir === "menor" || meta.dir === "modulo") melhor = delta < 0 ? 1 : -1;
+      else melhor = delta > 0 ? 1 : -1;
+
+      var vis = melhor === 1
+        ? { ico: "\u25b2", txt: "Melhorou", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
+        : (melhor === -1
+          ? { ico: "\u25bc", txt: "Piorou", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
+          : { ico: "\u25ac", txt: "Est\u00e1vel", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+
+      var mesAnt = (typeof MESES_PT !== "undefined" && MESES_PT[mNum - 2]) ? MESES_PT[mNum - 2] : ("m\u00eas " + (mNum - 1));
+      var titulo = mesAnt.charAt(0) + mesAnt.slice(1).toLowerCase() + ": " + _fmtTendencia(ant, meta.fmt) +
+                   "  \u2192  agora: " + _fmtTendencia(atual, meta.fmt);
+
+      return '<span title="' + titulo + '" style="display:inline-flex; align-items:center; gap:4px;' +
+             ' background:' + vis.bg + '; color:' + vis.fg + '; border:1.5px solid ' + vis.bd + ';' +
+             ' border-radius:20px; padding:2px 10px; font-size:0.74rem; font-weight:800;' +
+             ' white-space:nowrap;">' + vis.ico + ' ' + vis.txt +
+             '<span style="font-weight:600; opacity:0.85;"> vs ' +
+             mesAnt.charAt(0) + mesAnt.slice(1, 3).toLowerCase() + '</span></span>';
+    }
+
     function renderRows() {
       if (typeof updateFromURLParams === 'function') updateFromURLParams();
       var container = document.getElementById("topicsContainer");
@@ -2946,6 +3030,7 @@ function hydrateFromPowerBI() {
           '<div>' +
             '<div class="topic-header" style="margin-bottom: 6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
               '<span class="topic-title" style="font-size:1.15rem; font-weight:800; color:#0f2b5c;">#' + String(topic.id).padStart(2, '0') + ' ' + topic.name + '</span>' +
+              seloTendencia(activeOS, topic.id, monthNum) +
             '</div>' +
             '<div class="kpi-lines">' + linesHTML + '</div>' +
             qualBlockHTML +
