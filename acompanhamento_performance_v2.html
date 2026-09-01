@@ -909,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 09:10";
+    window.NPE_BUILD = "2026-09-01 14:05";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -4627,11 +4627,18 @@ function hydrateFromPowerBI() {
     // Ultimo mes que pode ter nota. O fechamento da competencia acontece entre os dias 12 e
     // 20 do mes SEGUINTE, entao o mes corrente nunca esta fechado -- nem no dia 31. Ano
     // passado vai ate dezembro.
+    // O fechamento da competencia acontece entre os dias 12 e 20 do mes seguinte, entao um
+    // mes so pode ser gravado depois do dia 20 do mes seguinte. Sem isso, em 01/09 o mes de
+    // agosto ja entrava como fechado e a gravacao criava nota de uma competencia que ainda
+    // nem foi apurada -- foi o que aconteceu com a M02000.
+    var DIA_DO_FECHAMENTO = 20;
     function ultimoMesFechado(ano) {
       var hoje = new Date();
       if (ano < hoje.getFullYear()) return 12;
       if (ano > hoje.getFullYear()) return 0;
-      return hoje.getMonth(); // getMonth() e 0-based: em agosto devolve 7, que e julho
+      var ultimo = hoje.getMonth(); // 0-based: em setembro devolve 8, que e agosto
+      if (hoje.getDate() <= DIA_DO_FECHAMENTO) ultimo -= 1;
+      return ultimo > 0 ? ultimo : 0;
     }
 
     // ---- snapshot congelado do fechamento -----------------------------------
@@ -5607,9 +5614,18 @@ function hydrateFromPowerBI() {
       // ele vale "No Prazo", TODA OS ganhava os pontos de Pontualidade -- inclusive as que
       // nunca preencheram nada. Era isso que colocava OS sem nenhuma apuracao no ranking
       // como "Controlado". Quem nao entregou nada no mes esta, por definicao, fora do prazo.
+      // "Sem Periodo Definido" conta A FAVOR: o prazo formal do processo ainda nao foi
+      // definido -- comeca na competencia de agosto/2026 -- e nao da para cobrar pontualidade
+      // contra uma regra que nao existe. Quando o periodo passar a ser definido de verdade,
+      // esses meses viram NO_PRAZO/FORA_PRAZO e a conta se ajusta sozinha.
+      // "Periodo Inativo" continua fora do score: nem a favor nem contra.
       var nadaEntregue = (comp.filledCount === 0);
-      var prazoApplicable = nadaEntregue || (periodStatus === "NO_PRAZO" || periodStatus === "FORA_PRAZO");
-      var prazoOk = !nadaEntregue && (periodStatus === "NO_PRAZO");
+      var periodoIndefinido = (periodStatus === "INDEFINIDO");
+      var prazoApplicable = nadaEntregue || periodoIndefinido ||
+                            (periodStatus === "NO_PRAZO" || periodStatus === "FORA_PRAZO");
+      // Quem nao entregou NADA no mes nao esta no prazo, nem com o periodo indefinido --
+      // era isto que dava pontos de Pontualidade a OS sem uma linha escrita.
+      var prazoOk = !nadaEntregue && (periodStatus === "NO_PRAZO" || periodoIndefinido);
       addBinary("prazo", TOPIC_WEIGHTS.prazo, prazoApplicable, prazoOk);
       addBinary("preenchimento", TOPIC_WEIGHTS.preenchimento, true, comp.status === "OK");
 
@@ -5778,9 +5794,12 @@ function hydrateFromPowerBI() {
       var num = 0, den = 0;
       for (var m = 1; m <= uptoMonth; m++) {
         var st = getSlaPeriodStatus(osCode, m);
-        if (st === "INDEFINIDO" || st === "INATIVO") continue;
+        // Mesma regra do score: "Sem Periodo Definido" conta a favor, "Periodo Inativo" fica
+        // fora, e mes sem nenhuma entrega conta contra mesmo com o periodo indefinido.
+        if (st === "INATIVO") continue;
         den++;
-        if (st === "NO_PRAZO") num++;
+        if (getOSCompletionStatus(osCode, m).filledCount === 0) continue;
+        if (st === "NO_PRAZO" || st === "INDEFINIDO") num++;
       }
       return den > 0 ? (num / den) : null;
     }
