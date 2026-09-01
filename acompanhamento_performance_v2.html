@@ -214,6 +214,10 @@
         &#127919; Cadastro de Metas
       </button>
 
+      <button type="button" id="btnArmarRegravacao" onclick="armarRegravacao()" style="display:none; background:linear-gradient(135deg,#b91c1c,#7f1d1d); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+        &#9889; Armar Regrava&ccedil;&atilde;o
+      </button>
+
       <button type="button" id="btnCongelarSnapshot" onclick="congelarSnapshot()" style="display:none; background:linear-gradient(135deg,#4338ca,#312e81); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
         &#128248; Congelar Fechamento
       </button>
@@ -915,7 +919,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 03:15";
+    window.NPE_BUILD = "2026-09-02 04:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1237,7 +1241,7 @@ function hydrateFromPowerBI() {
     // Performance, entao acompanha o Cadastro de Metas: sem sessao, nem aparecem.
     var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas", "btnCopyMonthPareceres",
                                     "btnCopyAllForAI", "btnCopyLicoes", "btnGravarNotasAno",
-                                    "btnCongelarSnapshot"];
+                                    "btnCongelarSnapshot", "btnArmarRegravacao"];
     function aplicarVisibilidadeMaster(liberado) {
       BOTOES_EXCLUSIVOS_MASTER.forEach(function(id) {
         var el = document.getElementById(id);
@@ -2700,7 +2704,28 @@ function hydrateFromPowerBI() {
               " (" + Math.round(tx.taxa * 100) + "%). " + _mesCurto(mNum) + ": " +
               (noMes ? "atendeu" : "n\u00e3o atendeu") + extra);
         }
-      } else if (meta.acum && !meta.jaAcumulado) {
+      } else if (meta.jaAcumulado) {
+        // O valor ja e o do ano. A variacao do ano e, entao, a distancia entre onde ele esta
+        // agora e onde COMECOU -- o primeiro mes com apuracao. Responde uma pergunta que o
+        // selo do mes anterior nao responde: o acumulado melhorou ou piorou desde o inicio.
+        var mIni = 0, iniBruto = null;
+        for (var mm = 1; mm <= mNum - 1 && iniBruto === null; mm++) {
+          var vv = _valorTendencia(getMonthHistoryRow(osCode, mm), meta.campo);
+          if (vv !== null) { iniBruto = vv; mIni = mm; }
+        }
+        if (iniBruto !== null && mIni < mNum) {
+          var cmpA = _compararTendencia(atual, _normTendencia(iniBruto, meta), meta);
+          var visA = cmpA === 1
+            ? { ico: "\u2191", txt: "Melhorou no ano", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
+            : (cmpA === -1
+              ? { ico: "\u2193", txt: "Piorou no ano", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
+              : { ico: "\u2248", txt: "Igual ao in\u00edcio", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+          out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
+            _chipTendencia(visA, "vs " + _mesCurto(mIni),
+              "Acumulado do ano. " + _mesCurto(mIni) + ": " + _fmtTendencia(iniBruto, meta.fmt) +
+              "  \u2192  " + _mesCurto(mNum) + ": " + _fmtTendencia(atualBruto, meta.fmt));
+        }
+      } else if (meta.acum) {
         // O acumulado do mes ANTERIOR e o "ate ali" com que se compara o mes corrente.
         var acumAnt = _valorTendencia(getMonthHistoryRow(osCode, mNum - 1), meta.acum);
         if (acumAnt !== null) {
@@ -8214,6 +8239,16 @@ function hydrateFromPowerBI() {
       // Depois do switchTab, para a Aba 5 ja estar carregando. gravarNotasDoAno() espera o
       // historico da ATA por conta propria antes de calcular qualquer coisa.
       if (modo === "REGRAVAR") autoRegravar();
+
+      // A janela armada exige uma leitura no SharePoint, entao ela chega depois da tela
+      // montada. E o caminho que funciona no Servico, onde o slicer nao consegue emitir
+      // REGRAVAR porque IsUserPerformance e FALSE para todos.
+      carregarArmado().then(function(armado) {
+        if (!armado) return;
+        if (savedTab !== 'tabVisaoGeral') switchTab('tabVisaoGeral');
+        mostrarFaixaDoModo();
+        autoRegravar();
+      });
     });
 
     document.addEventListener("keydown", function(e) {
@@ -8274,6 +8309,85 @@ function hydrateFromPowerBI() {
     window.gravarNotasDoAno = gravarNotasDoAno;
     window.congelarSnapshot = congelarSnapshot;
 
+    // ---- janela armada de regravacao ---------------------------------------
+    // Mora na SNAPSHOT_FECHAMENTO com ano 9998 e titulo REGRAVAR_ARMADO, pelo mesmo motivo
+    // do dicionario de hierarquia: e o unico armazenamento que atravessa o recarregamento
+    // do iframe. Os fluxos ja existem, entao nao ha lista nem fluxo novo para manter.
+    window.REGRAVAR_ARMADO = null;
+
+    async function carregarArmado() {
+      try {
+        var linhas = await tab5Post(window.FLOW_LER_SNAPSHOT_URL, { ano: 9998 });
+        var reg = (linhas || []).filter(function(l) {
+          return l && l.dados && String(l.titulo || "").toUpperCase() === "REGRAVAR_ARMADO";
+        }).sort(function(a, b) { return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0); })[0];
+        if (!reg) return null;
+        var d = JSON.parse(reg.dados);
+        var expira = Date.parse(d.expira || "");
+        if (!isFinite(expira) || expira <= Date.now()) return null;
+        window.REGRAVAR_ARMADO = { expira: expira, por: d.por || "" };
+        return window.REGRAVAR_ARMADO;
+      } catch (e) { return null; }
+    }
+
+    async function gravarArmado(minutos, quem) {
+      var expira = new Date(Date.now() + minutos * 60000).toISOString();
+      var r = await fetch(window.FLOW_GRAVAR_SNAPSHOT_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: 0, titulo: "REGRAVAR_ARMADO", ano: 9998, mes: 1,
+          dados: JSON.stringify({ expira: expira, por: quem }),
+          geradoPor: quem
+        })
+      });
+      return r.ok || r.status === 202;
+    }
+
+    // So o login autoriza armar. No Servico o IsUserPerformance e FALSE para todos, entao
+    // aceitar ele aqui seria aceitar ninguem -- ou, se um dia voltar a ser TRUE, aceitar
+    // qualquer um. A senha e a unica prova que vale nos dois ambientes.
+    async function armarRegravacao() {
+      var s = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
+      if (!s) {
+        showToast("\u26d4 Entre com seu usu\u00e1rio do Setor de Performance para armar.");
+        if (typeof abrirLoginModal === "function") abrirLoginModal("LOGIN");
+        return;
+      }
+      var segue = await confirmarNaPagina(
+        "\u26a1 Armar regrava\u00e7\u00e3o",
+        "Durante <b>60 minutos</b>, cada OS que voc\u00ea abrir tem as notas do ano gravadas " +
+        "automaticamente \u2014 <b>somente</b> as que ainda n\u00e3o foram regravadas hoje.\n\n" +
+        "O modo se desliga sozinho ao fim do prazo. Voc\u00ea tamb\u00e9m pode desarmar a qualquer momento.",
+        "Armar 60 min");
+      if (!segue) return;
+      var ok = await gravarArmado(60, s.login || "");
+      if (!ok) { showToast("\u274c N\u00e3o consegui armar. Verifique o fluxo NPE-Gravar-Snapshot."); return; }
+      showToast("\u26a1 Regrava\u00e7\u00e3o armada por 60 minutos.");
+      await carregarArmado();
+      mostrarFaixaDoModo();
+      autoRegravar();
+    }
+
+    async function desarmarRegravacao() {
+      var s = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
+      // Grava uma janela ja vencida: e o registro mais recente que manda, entao isto apaga
+      // o modo sem precisar de um fluxo de exclusao.
+      var ok = await gravarArmado(-1, s ? (s.login || "") : "");
+      if (!ok) { showToast("\u274c N\u00e3o consegui desarmar."); return; }
+      window.REGRAVAR_ARMADO = null;
+      showToast("\u2705 Regrava\u00e7\u00e3o desarmada.");
+      try { location.reload(); } catch (e) {}
+    }
+
+    window.armarRegravacao = armarRegravacao;
+    window.desarmarRegravacao = desarmarRegravacao;
+
+    // O modo que vale: a janela armada (funciona no Servico) ou o slicer (Desktop).
+    function modoEfetivo() {
+      if (window.REGRAVAR_ARMADO) return "REGRAVAR";
+      return modoApp();
+    }
+
     // Uma vez por carga. Sem a trava, qualquer re-render dispararia outra gravacao.
     window._AUTO_REGRAVOU = false;
     // Ja foi regravada hoje? Mesmo criterio do painel de pendencias: a nota mais recente
@@ -8298,8 +8412,10 @@ function hydrateFromPowerBI() {
 
     async function autoRegravar() {
       if (window._AUTO_REGRAVOU) return;
-      if (modoApp() !== "REGRAVAR") return;
-      if (!isUserAuthorizedMaster()) return;
+      if (modoEfetivo() !== "REGRAVAR") return;
+      // Com a janela armada, quem autorizou foi o login de quem armou -- nao ha por que
+      // exigir tambem o IsUserPerformance, que no Servico e FALSE para todos.
+      if (!window.REGRAVAR_ARMADO && !isUserAuthorizedMaster()) return;
       var p = new URLSearchParams(window.location.search);
       var os = extractPrimaryOSCode(p.get("SelectedOS") || "");
       var ano = parseInt(p.get("SelectedAno"), 10);
@@ -8318,14 +8434,23 @@ function hydrateFromPowerBI() {
     // O modo precisa ficar visivel: esquecer o slicer ligado faria o app regravar toda OS
     // que o Master abrisse, sem ninguem perceber.
     function mostrarFaixaDoModo() {
-      var modo = modoApp();
+      var antiga = document.getElementById("faixaModoApp");
+      if (antiga && antiga.parentNode) antiga.parentNode.removeChild(antiga);
+      var modo = modoEfetivo();
       if (modo !== "REGRAVAR" && modo !== "ABA5") return;
       var f = document.createElement("div");
+      f.id = "faixaModoApp";
       f.style.cssText = "position:sticky; top:0; z-index:99999; padding:8px 16px; font-weight:800;" +
         "font-size:0.92rem; text-align:center; letter-spacing:0.3px;" +
         (modo === "REGRAVAR" ? "background:#7f1d1d; color:#ffffff;" : "background:#075985; color:#ffffff;");
+      var restam = window.REGRAVAR_ARMADO
+        ? Math.max(0, Math.round((window.REGRAVAR_ARMADO.expira - Date.now()) / 60000)) : 0;
       f.innerHTML = (modo === "REGRAVAR"
-        ? "\u26a1 MODO REGRAVA\u00c7\u00c3O ATIVO \u2014 cada OS selecionada tem as notas do ano regravadas automaticamente. Volte o slicer para <b>Normal</b> ao terminar."
+        ? "\u26a1 MODO REGRAVA\u00c7\u00c3O ATIVO \u2014 cada OS selecionada tem as notas do ano regravadas automaticamente." +
+          (window.REGRAVAR_ARMADO
+            ? " Faltam <b>" + restam + " min</b>. " +
+              "<button type=\"button\" onclick=\"desarmarRegravacao()\" style=\"margin-left:8px; background:#ffffff; color:#7f1d1d; border:none; padding:3px 12px; border-radius:6px; font-weight:800; cursor:pointer;\">Desarmar agora</button>"
+            : " Volte o slicer para <b>Normal</b> ao terminar.")
         : "\ud83d\uddc2\ufe0f Abrindo direto na Aba 5. Volte o slicer para <b>Normal</b> ao terminar.");
       if (document.body.firstChild) document.body.insertBefore(f, document.body.firstChild);
       else document.body.appendChild(f);
