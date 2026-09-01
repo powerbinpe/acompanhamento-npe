@@ -919,7 +919,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 04:45";
+    window.NPE_BUILD = "2026-09-02 09:20";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -2597,6 +2597,25 @@ function hydrateFromPowerBI() {
              ' border-radius:20px; padding:2px 10px; font-size:0.74rem; font-weight:800;' +
              ' white-space:nowrap;">' + vis.ico + ' ' + vis.txt +
              '<span style="font-weight:600; opacity:0.85;"> ' + rotulo + '</span></span>';
+    }
+
+    // Versao em texto do selo, para as exportacoes. Le o HTML que seloTendencia() ja
+    // produziu e tira a formatacao, em vez de refazer as quatro ramificacoes da logica --
+    // duas implementacoes divergiriam na primeira mudanca de regra, e regra aqui muda.
+    // O rotulo visivel da a leitura ("Melhorou vs jun") e o title traz os numeros.
+    function textoTendencia(osCode, topicId, mNum) {
+      var html = "";
+      try { html = seloTendencia(osCode, topicId, mNum) || ""; } catch (e) { return ""; }
+      if (!html) return "";
+      var d = document.createElement("div");
+      d.innerHTML = html;
+      var partes = [];
+      Array.prototype.forEach.call(d.querySelectorAll("span[title]"), function(s) {
+        var rot = (s.innerText || s.textContent || "").replace(/\s+/g, " ").trim();
+        var det = (s.getAttribute("title") || "").replace(/\s+/g, " ").trim();
+        if (rot) partes.push(rot + (det ? " (" + det + ")" : ""));
+      });
+      return partes.join(" | ");
     }
 
     function _contratoDe(osCode) {
@@ -6550,6 +6569,19 @@ function hydrateFromPowerBI() {
 
         lines.push("### #" + tid + " " + topicObj.name);
         if (detalhe) lines.push("Valor apurado: " + detalhe);
+
+        // Situacao do mes pela regra do proprio score -- e a mesma que da o ponto.
+        var tpMes = (sc && sc.topics) ? sc.topics["t" + tid] : null;
+        if (tpMes) {
+          lines.push("Situa\u00e7\u00e3o no m\u00eas: " + (!tpMes.applicable
+            ? "n\u00e3o avaliado (N/A ou sem apura\u00e7\u00e3o)"
+            : (tpMes.earned >= tpMes.max - 0.01 ? "ATENDEU a meta" : "N\u00c3O atendeu a meta")));
+        }
+
+        // A leitura de tendencia: contra o mes anterior e contra o ano.
+        var tend = (typeof textoTendencia === "function") ? textoTendencia(activeOS, tid, monthNum) : "";
+        if (tend) lines.push("Tend\u00eancia: " + tend);
+
         lines.push("Gestor: " + (gVal && gVal.trim() ? gVal.trim() : "(sem justificativa)"));
         lines.push("Performance: " + (mVal && mVal.trim() ? mVal.trim() : "(sem parecer registrado)"));
         lines.push("");
@@ -6569,7 +6601,17 @@ function hydrateFromPowerBI() {
         lines.push("");
       }
 
-      lines.push("INSTRUÇÃO: com base nos valores apurados, nas justificativas do Gestor e nos pareceres do Setor de Performance acima -- e considerando também os indicadores abaixo da meta listados, mesmo que não tenham comentário registrado -- escreva uma Síntese e Recomendações Finais da Performance para o mês, destacando pontos-chave e direcionamentos concretos para os indicadores em situação crítica. Cole o resultado no campo \"Síntese e Recomendações da Performance\" (tópico #24) no app.");
+      lines.push("INSTRUÇÃO");
+      lines.push("Você é o Setor de Performance. Para cada indicador acima, leia três coisas juntas: o valor apurado, a tendência (contra o mês anterior e contra o ano) e o que o Gestor e a Performance escreveram.");
+      lines.push("");
+      lines.push("Aplique esta regra ao recomendar:");
+      lines.push("  - MELHORANDO  -> reconheça e recomende MANTER a ação que está em curso, dizendo qual é.");
+      lines.push("  - PIORANDO    -> a ação atual não está funcionando: recomende MUDAR de abordagem, propondo o que fazer diferente.");
+      lines.push("  - ESTÁVEL     -> recomende o que tentar para SAIR do patamar, não apenas manter.");
+      lines.push("");
+      lines.push("Considere também os indicadores que não bateram a meta mesmo sem comentário registrado -- a ausência de justificativa é, por si, um ponto a cobrar.");
+      lines.push("Entregue uma Síntese e Recomendações da Performance para o mês: comece pelos indicadores em situação crítica, seja concreto (o que fazer, por quem, até quando) e evite repetir o que o Gestor já escreveu.");
+      lines.push("Cole o resultado no campo \"Síntese e Recomendações da Performance\" (tópico #24) no app.");
 
       function sep2() { var s = ""; for (var i = 0; i < 50; i++) s += "-"; return s; }
 
