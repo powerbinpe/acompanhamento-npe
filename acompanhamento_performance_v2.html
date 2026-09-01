@@ -909,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 22:10";
+    window.NPE_BUILD = "2026-09-01 23:00";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -2503,21 +2503,25 @@ function hydrateFromPowerBI() {
     //   menor  -> quanto menor, melhor (perda, absenteismo, turnover, SAF, CAF)
     //   modulo -> o que vale e a distancia do zero (efetivo e HHT pontuam por |desvio| <= 10%)
     //   bool   -> verdadeiro e melhor (indenizacao)
+    // campo      -> o valor do mes
+    // acum       -> o campo ACUMULADO vindo da medida (nao uma media calculada aqui)
+    // jaAcumulado-> o proprio campo ja e acumulado por natureza; nao ha um "valor do mes"
+    //               separado, entao comparar com o mes anterior ja e a leitura do ano.
     var TENDENCIA_METRICA = {
-      1:  { campo: "fatDifAnoPct",   dir: "maior",  fmt: "pct" },
-      2:  { campo: "resDifAnoPct",   dir: "maior",  fmt: "pct" },
+      1:  { campo: "fatDifAnoPct",   dir: "maior",  fmt: "pct", jaAcumulado: true },
+      2:  { campo: "resDifAnoPct",   dir: "maior",  fmt: "pct", jaAcumulado: true },
       3:  { campo: "fatDifMesPct",   dir: "maior",  fmt: "pct" },
       4:  { campo: "resDifMesPct",   dir: "maior",  fmt: "pct" },
-      6:  { campo: "perdaPctAcum",   dir: "menor",  fmt: "pct" },
-      8:  { campo: "indenizOk",      dir: "bool",   fmt: "bool" },
+      6:  { campo: "perdaPctAcum",   dir: "menor",  fmt: "pct", jaAcumulado: true },
+      8:  { campo: "indenizOk",      dir: "bool",   fmt: "bool", jaAcumulado: true },
       9:  { campo: "efetivoDifPct",  dir: "modulo", fmt: "pct" },
       10: { campo: "hhtDifPct",      dir: "modulo", fmt: "pct" },
-      11: { campo: "absenteismoPct", dir: "menor",  fmt: "pct" },
-      12: { campo: "turnoverPct",    dir: "menor",  fmt: "pct" },
+      11: { campo: "absenteismoPct", dir: "menor",  fmt: "pct", acum: "absenteismoAcumPct" },
+      12: { campo: "turnoverPct",    dir: "menor",  fmt: "pct", acum: "turnoverAcumPct" },
       15: { campo: "safCount",       dir: "menor",  fmt: "int" },
       16: { campo: "cafCount",       dir: "menor",  fmt: "int" },
-      17: { campo: "satVal",         dir: "maior",  fmt: "pct" },
-      20: { campo: "_bpTotal",       dir: "maior",  fmt: "int" }
+      17: { campo: "satVal",         dir: "maior",  fmt: "pct", jaAcumulado: true },
+      20: { campo: "_bpTotal",       dir: "maior",  fmt: "int", jaAcumulado: true }
     };
 
     function _valorTendencia(linha, campo) {
@@ -2592,31 +2596,35 @@ function hydrateFromPowerBI() {
             ? { ico: "\u25bc", txt: "Piorou", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
             : { ico: "\u25ac", txt: "Est\u00e1vel", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
         out += _chipTendencia(vis, "vs " + _mesCurto(mNum - 1),
+          (meta.jaAcumulado ? "Valor acumulado do ano. " : "") +
           _mesCurto(mNum - 1) + ": " + _fmtTendencia(antBruto, meta.fmt) +
           "  \u2192  agora: " + _fmtTendencia(atualBruto, meta.fmt));
       }
 
-      // --- vs a media de janeiro ate o mes anterior ---
-      // A media NAO inclui o mes corrente: comparar o mes com uma media que ja o contem
-      // diluiria justamente a variacao que se quer enxergar.
-      var soma = 0, n = 0;
-      for (var m = 1; m <= mNum - 1; m++) {
-        var v = _valorTendencia(getMonthHistoryRow(osCode, m), meta.campo);
-        if (v !== null) { soma += _normTendencia(v, meta); n++; }
-      }
-      if (n >= 2) {
-        var media = soma / n;
-        var cmpM = _compararTendencia(atual, media, meta);
-        var visM = cmpM === 1
-          ? { ico: "\u2191", txt: "Melhor que a m\u00e9dia", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
-          : (cmpM === -1
-            ? { ico: "\u2193", txt: "Pior que a m\u00e9dia", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
-            : { ico: "\u2248", txt: "Na m\u00e9dia", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
-        out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
-          _chipTendencia(visM, "vs m\u00e9dia " + _mesCurto(1) + "-" + _mesCurto(mNum - 1),
-            "M\u00e9dia de " + _mesCurto(1) + " a " + _mesCurto(mNum - 1) + " (" + n + " meses): " +
-            _fmtTendencia(meta.dir === "modulo" ? media : media, meta.fmt) +
-            "  \u2192  agora: " + _fmtTendencia(atualBruto, meta.fmt));
+      // --- vs o acumulado do ano, VINDO DA MEDIDA ---
+      // Nunca uma media aritmetica calculada aqui: o acumulado do modelo pondera pelo volume
+      // de cada mes, a media simples trataria um mes de R$ 200 mil igual a um de R$ 5 milhoes.
+      // Onde a medida acumulada nao chega no payload, este selo simplesmente nao aparece --
+      // e melhor faltar do que inventar um numero que nao e o do modelo.
+      // Nos topicos ja acumulados por natureza (Faturamento Ano, Resultado Ano, Perda,
+      // Indenizacao, Satisfacao, Boas Praticas) o proprio valor e o do ano, entao o selo de
+      // cima ja e a leitura contra o historico e um segundo selo seria o mesmo numero.
+      if (meta.acum && !meta.jaAcumulado) {
+        // O acumulado do mes ANTERIOR e o "ate ali" com que se compara o mes corrente.
+        var acumAnt = _valorTendencia(getMonthHistoryRow(osCode, mNum - 1), meta.acum);
+        if (acumAnt !== null) {
+          var acumN = _normTendencia(acumAnt, meta);
+          var cmpM = _compararTendencia(atual, acumN, meta);
+          var visM = cmpM === 1
+            ? { ico: "\u2191", txt: "Melhor que o ano", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
+            : (cmpM === -1
+              ? { ico: "\u2193", txt: "Pior que o ano", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
+              : { ico: "\u2248", txt: "Igual ao ano", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+          out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
+            _chipTendencia(visM, "vs acum. " + _mesCurto(1) + "-" + _mesCurto(mNum - 1),
+              "Acumulado da medida at\u00e9 " + _mesCurto(mNum - 1) + ": " + _fmtTendencia(acumAnt, meta.fmt) +
+              "  \u2192  " + _mesCurto(mNum) + ": " + _fmtTendencia(atualBruto, meta.fmt));
+        }
       }
 
       return out;
