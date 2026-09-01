@@ -909,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 21:00";
+    window.NPE_BUILD = "2026-09-01 22:10";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -2542,40 +2542,84 @@ function hydrateFromPowerBI() {
       return String(Math.round(v));
     }
 
-    // Devolve o selo pronto, ou "" quando nao ha o que comparar. Mes 1 nunca tem selo:
-    // nao existe mes anterior dentro do ano.
-    function seloTendencia(osCode, topicId, mNum) {
-      var meta = TENDENCIA_METRICA[topicId];
-      if (!meta || !mNum || mNum < 2) return "";
-      var atual = _valorTendencia(getMonthHistoryRow(osCode, mNum), meta.campo);
-      var ant   = _valorTendencia(getMonthHistoryRow(osCode, mNum - 1), meta.campo);
-      if (atual === null || ant === null) return "";
+    // Normaliza o valor conforme a direcao do topico: no modo "modulo" o que importa e a
+    // distancia do zero, porque e assim que t9/t10 pontuam.
+    function _normTendencia(v, meta) {
+      return (v !== null && meta.dir === "modulo") ? Math.abs(v) : v;
+    }
 
-      // O que se compara depende de como o topico pontua.
-      var a = atual, b = ant;
-      if (meta.dir === "modulo") { a = Math.abs(a); b = Math.abs(b); }
-      var delta = a - b;
-      var melhor;
-      if (Math.abs(delta) < 1e-9) melhor = 0;
-      else if (meta.dir === "menor" || meta.dir === "modulo") melhor = delta < 0 ? 1 : -1;
-      else melhor = delta > 0 ? 1 : -1;
+    // 1 melhor, -1 pior, 0 igual -- sempre na direcao em que o topico pontua.
+    function _compararTendencia(a, b, meta) {
+      var d = a - b;
+      if (Math.abs(d) < 1e-9) return 0;
+      if (meta.dir === "menor" || meta.dir === "modulo") return d < 0 ? 1 : -1;
+      return d > 0 ? 1 : -1;
+    }
 
-      var vis = melhor === 1
-        ? { ico: "\u25b2", txt: "Melhorou", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
-        : (melhor === -1
-          ? { ico: "\u25bc", txt: "Piorou", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
-          : { ico: "\u25ac", txt: "Est\u00e1vel", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
-
-      var mesAnt = (typeof MESES_PT !== "undefined" && MESES_PT[mNum - 2]) ? MESES_PT[mNum - 2] : ("m\u00eas " + (mNum - 1));
-      var titulo = mesAnt.charAt(0) + mesAnt.slice(1).toLowerCase() + ": " + _fmtTendencia(ant, meta.fmt) +
-                   "  \u2192  agora: " + _fmtTendencia(atual, meta.fmt);
-
-      return '<span title="' + titulo + '" style="display:inline-flex; align-items:center; gap:4px;' +
+    function _chipTendencia(vis, rotulo, titulo) {
+      return '<span title="' + String(titulo).replace(/"/g, "&quot;") + '"' +
+             ' style="display:inline-flex; align-items:center; gap:4px;' +
              ' background:' + vis.bg + '; color:' + vis.fg + '; border:1.5px solid ' + vis.bd + ';' +
              ' border-radius:20px; padding:2px 10px; font-size:0.74rem; font-weight:800;' +
              ' white-space:nowrap;">' + vis.ico + ' ' + vis.txt +
-             '<span style="font-weight:600; opacity:0.85;"> vs ' +
-             mesAnt.charAt(0) + mesAnt.slice(1, 3).toLowerCase() + '</span></span>';
+             '<span style="font-weight:600; opacity:0.85;"> ' + rotulo + '</span></span>';
+    }
+
+    function _mesCurto(m) {
+      var n = (typeof MESES_PT !== "undefined" && MESES_PT[m - 1]) ? MESES_PT[m - 1] : ("m\u00eas " + m);
+      return n.charAt(0) + n.slice(1, 3).toLowerCase();
+    }
+
+    // Duas leituras, porque uma so engana: a OS pode estar ABAIXO da media do ano e ainda
+    // assim MELHORANDO em relacao ao mes anterior -- comeco de recuperacao. Com um selo
+    // unico isso ficava invisivel.
+    // Mes 1 nao tem selo nenhum: nao existe mes anterior nem media dentro do ano.
+    function seloTendencia(osCode, topicId, mNum) {
+      var meta = TENDENCIA_METRICA[topicId];
+      if (!meta || !mNum || mNum < 2) return "";
+      var atualBruto = _valorTendencia(getMonthHistoryRow(osCode, mNum), meta.campo);
+      if (atualBruto === null) return "";
+      var atual = _normTendencia(atualBruto, meta);
+      var out = "";
+
+      // --- vs mes anterior ---
+      var antBruto = _valorTendencia(getMonthHistoryRow(osCode, mNum - 1), meta.campo);
+      if (antBruto !== null) {
+        var cmp = _compararTendencia(atual, _normTendencia(antBruto, meta), meta);
+        var vis = cmp === 1
+          ? { ico: "\u25b2", txt: "Melhorou", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
+          : (cmp === -1
+            ? { ico: "\u25bc", txt: "Piorou", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
+            : { ico: "\u25ac", txt: "Est\u00e1vel", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+        out += _chipTendencia(vis, "vs " + _mesCurto(mNum - 1),
+          _mesCurto(mNum - 1) + ": " + _fmtTendencia(antBruto, meta.fmt) +
+          "  \u2192  agora: " + _fmtTendencia(atualBruto, meta.fmt));
+      }
+
+      // --- vs a media de janeiro ate o mes anterior ---
+      // A media NAO inclui o mes corrente: comparar o mes com uma media que ja o contem
+      // diluiria justamente a variacao que se quer enxergar.
+      var soma = 0, n = 0;
+      for (var m = 1; m <= mNum - 1; m++) {
+        var v = _valorTendencia(getMonthHistoryRow(osCode, m), meta.campo);
+        if (v !== null) { soma += _normTendencia(v, meta); n++; }
+      }
+      if (n >= 2) {
+        var media = soma / n;
+        var cmpM = _compararTendencia(atual, media, meta);
+        var visM = cmpM === 1
+          ? { ico: "\u2191", txt: "Melhor que a m\u00e9dia", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
+          : (cmpM === -1
+            ? { ico: "\u2193", txt: "Pior que a m\u00e9dia", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
+            : { ico: "\u2248", txt: "Na m\u00e9dia", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+        out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
+          _chipTendencia(visM, "vs m\u00e9dia " + _mesCurto(1) + "-" + _mesCurto(mNum - 1),
+            "M\u00e9dia de " + _mesCurto(1) + " a " + _mesCurto(mNum - 1) + " (" + n + " meses): " +
+            _fmtTendencia(meta.dir === "modulo" ? media : media, meta.fmt) +
+            "  \u2192  agora: " + _fmtTendencia(atualBruto, meta.fmt));
+      }
+
+      return out;
     }
 
     function renderRows() {
@@ -3675,9 +3719,12 @@ function hydrateFromPowerBI() {
             }
           }
 
-          // Pareceres do Gestor e do Setor de Performance do mês selecionado
+          // Os pareceres do Gestor e da Performance NAO entram aqui: eles ja estao na Aba 1,
+          // que e onde sao escritos e lidos. Repetir o texto inteiro empurrava o Resumo Anual
+          // para baixo e fazia o card virar um bloco de leitura. Foi acrescentado por outra
+          // IA, nao pedido -- removido a pedido do usuario em 01/09/2026.
           var pareceresHTML = "";
-          if (contractCode && typeof selMonthNum === "number" && !isAcompTopic) {
+          if (false && contractCode && typeof selMonthNum === "number" && !isAcompTopic) {
             var tRows = (window.ATA_COMENTARIOS_DB && window.ATA_COMENTARIOS_DB[contractCode] && window.ATA_COMENTARIOS_DB[contractCode][String(t.id)]) ? window.ATA_COMENTARIOS_DB[contractCode][String(t.id)] : [];
             var gRow = tRows.filter(function(r) { return r.tipo === "GESTOR"; }).find(function(r) { return r.mes === selMonthNum; });
             var mRow = tRows.filter(function(r) { return r.tipo === "PERFORMANCE"; }).find(function(r) { return r.mes === selMonthNum; });
@@ -3923,7 +3970,7 @@ function hydrateFromPowerBI() {
             '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">📋 Resumo dos 23 Indicadores (Acumulado do Ano)</h3>' +
             '<span style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' + osScopeLabel + '</span>' +
           '</div>' +
-          '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontuação acumulada de Janeiro até o mês selecionado, da(s) OS(s) selecionada(s) no Power BI, apurada mês a mês na Aba 2. Os cards de Superintendência/Negócio abaixo mostram apenas a média do grupo, como referência de comparação.</div>' +
+          '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Faixa apurada de janeiro até o mês selecionado, da(s) OS(s) selecionada(s) no Power BI, calculada mês a mês na Aba 2. Cada card traz o <b>valor do mês</b> e duas leituras: contra o <b>mês anterior</b> e contra a <b>média do ano até ali</b> — uma OS pode estar abaixo da média e já em recuperação. Os cards de Superintendência/Negócio abaixo mostram a média do grupo, como referência de comparação.</div>' +
           '<div style="overflow-x:auto;">' + buildTopicIndicatorTableHTML(osTopicBreakdown, activeContract, selMonthNum) + '</div>' +
         '</div>';
       } else {
