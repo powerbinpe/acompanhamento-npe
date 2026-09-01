@@ -909,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-08-31 21:54";
+    window.NPE_BUILD = "2026-09-01 09:10";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -4753,6 +4753,12 @@ function hydrateFromPowerBI() {
         var r = await fetch(window.FLOW_GRAVAR_SNAPSHOT_URL, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            // O fluxo abre com uma Condicao "id e maior que 0" para decidir entre Atualizar e
+            // Criar item. Sem o campo, chega Null, a funcao greater() quebra antes de tudo e o
+            // gatilho devolve 502 NoResponse -- parece fluxo fora do ar, mas e so isto.
+            // Zero significa "cria uma linha nova", que e o que queremos: cada congelamento
+            // vira um registro, e o leitor fica com o mais recente.
+            id: 0,
             titulo: "Fechamento " + (MESES_PT[mesFech - 1] || mesFech) + "/" + ano,
             ano: ano, mes: mesFech,
             dados: JSON.stringify(snap),
