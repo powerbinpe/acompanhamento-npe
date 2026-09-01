@@ -681,7 +681,13 @@ function hydrateOSMonthHistoryFromPowerBI(params) {
       turnoverAcumPct: f[35] !== undefined && f[35] !== "" ? (parseInt(f[35], 10) / 10000) : null,
       absenteismoAcumPct: f[36] !== undefined && f[36] !== "" ? (parseInt(f[36], 10) / 10000) : null,
       resMesAtualV: f[37] !== undefined && f[37] !== "" ? parseFloat(f[37]) : null,
-      resMesAntV: f[38] !== undefined && f[38] !== "" ? parseFloat(f[38]) : null
+      resMesAntV: f[38] !== undefined && f[38] !== "" ? parseFloat(f[38]) : null,
+      // 39 e 40 sao SAF e CAF acumulados no ano, das medidas criadas em 01/09/2026
+      // (_mQUANT_SAF_TOTAL / _mQUANT_CAF_TOTAL - ACUM. MES ATUAL). Entraram NO FIM da
+      // concatenacao de proposito: inserir no meio deslocaria todos os indices seguintes
+      // e quebraria este parser em silencio.
+      safAcum: f[39] !== undefined && f[39] !== "" ? (parseInt(f[39], 10) || 0) : null,
+      cafAcum: f[40] !== undefined && f[40] !== "" ? (parseInt(f[40], 10) || 0) : null
     };
   }
   return history;
@@ -909,7 +915,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 23:00";
+    window.NPE_BUILD = "2026-09-02 00:20";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -2510,16 +2516,16 @@ function hydrateFromPowerBI() {
     var TENDENCIA_METRICA = {
       1:  { campo: "fatDifAnoPct",   dir: "maior",  fmt: "pct", jaAcumulado: true },
       2:  { campo: "resDifAnoPct",   dir: "maior",  fmt: "pct", jaAcumulado: true },
-      3:  { campo: "fatDifMesPct",   dir: "maior",  fmt: "pct" },
-      4:  { campo: "resDifMesPct",   dir: "maior",  fmt: "pct" },
+      3:  { campo: "fatDifMesPct",   dir: "maior",  fmt: "pct", taxa: true },
+      4:  { campo: "resDifMesPct",   dir: "maior",  fmt: "pct", taxa: true },
       6:  { campo: "perdaPctAcum",   dir: "menor",  fmt: "pct", jaAcumulado: true },
       8:  { campo: "indenizOk",      dir: "bool",   fmt: "bool", jaAcumulado: true },
-      9:  { campo: "efetivoDifPct",  dir: "modulo", fmt: "pct" },
-      10: { campo: "hhtDifPct",      dir: "modulo", fmt: "pct" },
+      9:  { campo: "efetivoDifPct",  dir: "modulo", fmt: "pct", taxa: true },
+      10: { campo: "hhtDifPct",      dir: "modulo", fmt: "pct", taxa: true },
       11: { campo: "absenteismoPct", dir: "menor",  fmt: "pct", acum: "absenteismoAcumPct" },
       12: { campo: "turnoverPct",    dir: "menor",  fmt: "pct", acum: "turnoverAcumPct" },
-      15: { campo: "safCount",       dir: "menor",  fmt: "int" },
-      16: { campo: "cafCount",       dir: "menor",  fmt: "int" },
+      15: { campo: "safCount",       dir: "menor",  fmt: "int", taxa: true, acum: "safAcum" },
+      16: { campo: "cafCount",       dir: "menor",  fmt: "int", taxa: true, acum: "cafAcum" },
       17: { campo: "satVal",         dir: "maior",  fmt: "pct", jaAcumulado: true },
       20: { campo: "_bpTotal",       dir: "maior",  fmt: "int", jaAcumulado: true }
     };
@@ -2569,6 +2575,46 @@ function hydrateFromPowerBI() {
              '<span style="font-weight:600; opacity:0.85;"> ' + rotulo + '</span></span>';
     }
 
+    function _contratoDe(osCode) {
+      var alvo = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(osCode) : osCode;
+      var cat = (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined" && ACTIVE_CONTRACTS_CATALOG) ? ACTIVE_CONTRACTS_CATALOG : [];
+      for (var i = 0; i < cat.length; i++) {
+        var c = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(cat[i].code) : cat[i].code;
+        if (c === alvo) return cat[i];
+      }
+      return null;
+    }
+
+    // Em quantos dos meses APURADOS a OS atendeu o indicador, de janeiro ate ateMes.
+    // Quem decide se o mes foi atendido e o proprio calculateOSScore -- o mesmo calculo que
+    // da o ponto. Reescrever a regra aqui faria o selo e a nota discordarem no dia em que a
+    // tolerancia mudasse na tabela de metas.
+    function _taxaAtendimento(osCode, topicId, ateMes) {
+      var c = _contratoDe(osCode);
+      if (!c || typeof calculateOSScore !== "function") return null;
+      var ok = 0, n = 0;
+      for (var m = 1; m <= ateMes; m++) {
+        var sc = null;
+        try { sc = calculateOSScore(c, m); } catch (e) { sc = null; }
+        var tp = (sc && sc.topics) ? sc.topics["t" + topicId] : null;
+        if (!tp || !tp.applicable) continue;
+        n++;
+        if (tp.earned > 0) ok++;
+      }
+      return n ? { taxa: ok / n, ok: ok, n: n } : null;
+    }
+
+    // O mes corrente atendeu? 1 ou 0, pela mesma regra.
+    function _atendeuNoMes(osCode, topicId, mNum) {
+      var c = _contratoDe(osCode);
+      if (!c || typeof calculateOSScore !== "function") return null;
+      var sc = null;
+      try { sc = calculateOSScore(c, mNum); } catch (e) { return null; }
+      var tp = (sc && sc.topics) ? sc.topics["t" + topicId] : null;
+      if (!tp || !tp.applicable) return null;
+      return tp.earned > 0 ? 1 : 0;
+    }
+
     function _mesCurto(m) {
       var n = (typeof MESES_PT !== "undefined" && MESES_PT[m - 1]) ? MESES_PT[m - 1] : ("m\u00eas " + m);
       return n.charAt(0) + n.slice(1, 3).toLowerCase();
@@ -2609,7 +2655,32 @@ function hydrateFromPowerBI() {
       // Nos topicos ja acumulados por natureza (Faturamento Ano, Resultado Ano, Perda,
       // Indenizacao, Satisfacao, Boas Praticas) o proprio valor e o do ano, entao o selo de
       // cima ja e a leitura contra o historico e um segundo selo seria o mesmo numero.
-      if (meta.acum && !meta.jaAcumulado) {
+      // Indicadores binarios por mes (assertividade): a leitura do ano e a TAXA de meses
+      // atendidos, e o mes vale 1 ou 0. As duas coisas ficam na mesma escala, entao a
+      // comparacao faz sentido -- "este mes foi assertivo, e no ano foram 4 de 6".
+      if (meta.taxa) {
+        var tx = _taxaAtendimento(osCode, topicId, mNum - 1);
+        var noMes = _atendeuNoMes(osCode, topicId, mNum);
+        if (tx && noMes !== null) {
+          var cmpT = (Math.abs(noMes - tx.taxa) < 1e-9) ? 0 : (noMes > tx.taxa ? 1 : -1);
+          var visT = cmpT === 1
+            ? { ico: "\u2191", txt: "Melhor que o ano", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
+            : (cmpT === -1
+              ? { ico: "\u2193", txt: "Pior que o ano", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
+              : { ico: "\u2248", txt: "Igual ao ano", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+          // Para SAF e CAF o tooltip traz tambem o total do ano, que vem da medida acumulada.
+          var extra = "";
+          if (meta.acum) {
+            var totAno = _valorTendencia(getMonthHistoryRow(osCode, mNum - 1), meta.acum);
+            if (totAno !== null) extra = " \u00b7 " + Math.round(totAno) + " no ano at\u00e9 " + _mesCurto(mNum - 1);
+          }
+          out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
+            _chipTendencia(visT, "atendeu " + tx.ok + "/" + tx.n + " meses",
+              "Atendeu em " + tx.ok + " de " + tx.n + " meses apurados at\u00e9 " + _mesCurto(mNum - 1) +
+              " (" + Math.round(tx.taxa * 100) + "%). " + _mesCurto(mNum) + ": " +
+              (noMes ? "atendeu" : "n\u00e3o atendeu") + extra);
+        }
+      } else if (meta.acum && !meta.jaAcumulado) {
         // O acumulado do mes ANTERIOR e o "ate ali" com que se compara o mes corrente.
         var acumAnt = _valorTendencia(getMonthHistoryRow(osCode, mNum - 1), meta.acum);
         if (acumAnt !== null) {
