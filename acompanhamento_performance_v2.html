@@ -909,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 15:30";
+    window.NPE_BUILD = "2026-09-01 16:20";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1891,6 +1891,17 @@ function hydrateFromPowerBI() {
     // =========================================================================
     // 5. TAB NAVIGATION SYSTEM
     // =========================================================================
+    // O visual e recriado do zero a cada troca de OS no slicer, e dentro do iframe nao ha
+    // localStorage, sessionStorage, cookie nem window.name -- nada sobrevive. A UNICA coisa
+    // que atravessa e a URL montada pela medida. Por isso o modo vem de um slicer no
+    // relatorio (tabela PARAM_APP) em vez de um botao aqui dentro.
+    // ABA5     -> abre direto na Aba 5, em vez de jogar o usuario na Aba 1 a cada troca.
+    // REGRAVAR -> alem disso, grava as notas da OS selecionada sozinho, ao carregar.
+    // A medida so emite REGRAVAR para o Setor de Performance; aqui checamos de novo.
+    function modoApp() {
+      return String(new URLSearchParams(window.location.search).get("Modo") || "NORMAL").toUpperCase();
+    }
+
     function switchTab(tabId) {
       if (typeof tabId === 'number') {
         var tabMap = { 1: 'tabMensal', 2: 'tabConsolidacao', 3: 'tabLicoes', 4: 'tabRanking', 5: 'tabVisaoGeral' };
@@ -6386,7 +6397,7 @@ function hydrateFromPowerBI() {
       });
     }
 
-    async function gravarNotasDoAno() {
+    async function gravarNotasDoAno(semConfirmar) {
       if (!isUserAuthorizedMaster()) { showToast("\u26d4 Apenas o Setor de Performance."); return; }
       if ((window.FLOW_GRAVAR_NOTAS_URL || "").indexOf("http") !== 0) {
         showToast("\u26a0\ufe0f Fluxo de gravacao de notas nao configurado."); return;
@@ -6435,7 +6446,8 @@ function hydrateFromPowerBI() {
       }
       if (!comDado.length) { showToast("\u26a0\ufe0f Nenhum mes com dado apurado nesta OS."); return; }
 
-      var segue = await confirmarNaPagina(
+      // No modo automatico nao ha ninguem para confirmar: quem confirmou foi o slicer.
+      var segue = semConfirmar ? true : await confirmarNaPagina(
         "\ud83d\udcc5 Gravar notas do ano",
         "OS <b>" + os + "</b> \u2014 " + ano + "\n\n" +
         "<b>" + comDado.length + " m\u00eas(es)</b> com dado apurado: " + comDado.join(", ") + "\n\n" +
@@ -7835,7 +7847,13 @@ function hydrateFromPowerBI() {
       updateRoleUI();
 
       var savedTab = safeGetStorage('pbi_active_tab', 'tabMensal');
+      var modo = modoApp();
+      if (modo === "ABA5" || modo === "REGRAVAR") savedTab = 'tabVisaoGeral';
       switchTab(savedTab);
+      mostrarFaixaDoModo();
+      // Depois do switchTab, para a Aba 5 ja estar carregando. gravarNotasDoAno() espera o
+      // historico da ATA por conta propria antes de calcular qualquer coisa.
+      if (modo === "REGRAVAR") autoRegravar();
     });
 
     document.addEventListener("keydown", function(e) {
@@ -7895,6 +7913,35 @@ function hydrateFromPowerBI() {
     window.percentuaisPorCategoria = percentuaisPorCategoria;
     window.gravarNotasDoAno = gravarNotasDoAno;
     window.congelarSnapshot = congelarSnapshot;
+
+    // Uma vez por carga. Sem a trava, qualquer re-render dispararia outra gravacao.
+    window._AUTO_REGRAVOU = false;
+    async function autoRegravar() {
+      if (window._AUTO_REGRAVOU) return;
+      if (modoApp() !== "REGRAVAR") return;
+      if (!isUserAuthorizedMaster()) return;
+      var p = new URLSearchParams(window.location.search);
+      if (!extractPrimaryOSCode(p.get("SelectedOS") || "")) return;
+      window._AUTO_REGRAVOU = true;
+      await gravarNotasDoAno(true);
+    }
+    window.autoRegravar = autoRegravar;
+
+    // O modo precisa ficar visivel: esquecer o slicer ligado faria o app regravar toda OS
+    // que o Master abrisse, sem ninguem perceber.
+    function mostrarFaixaDoModo() {
+      var modo = modoApp();
+      if (modo !== "REGRAVAR" && modo !== "ABA5") return;
+      var f = document.createElement("div");
+      f.style.cssText = "position:sticky; top:0; z-index:99999; padding:8px 16px; font-weight:800;" +
+        "font-size:0.92rem; text-align:center; letter-spacing:0.3px;" +
+        (modo === "REGRAVAR" ? "background:#7f1d1d; color:#ffffff;" : "background:#075985; color:#ffffff;");
+      f.innerHTML = (modo === "REGRAVAR"
+        ? "\u26a1 MODO REGRAVA\u00c7\u00c3O ATIVO \u2014 cada OS selecionada tem as notas do ano regravadas automaticamente. Volte o slicer para <b>Normal</b> ao terminar."
+        : "\ud83d\uddc2\ufe0f Abrindo direto na Aba 5. Volte o slicer para <b>Normal</b> ao terminar.");
+      if (document.body.firstChild) document.body.insertBefore(f, document.body.firstChild);
+      else document.body.appendChild(f);
+    }
     window.confirmarNaPagina = confirmarNaPagina;
     window.renderTab5 = renderTab5;
     window.carregarTab5 = carregarTab5;
