@@ -909,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 20:15";
+    window.NPE_BUILD = "2026-09-01 21:00";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3591,10 +3591,19 @@ function hydrateFromPowerBI() {
             // visual, sem entrar em contato com as cores verde/amarelo/vermelho das barras.
             '<div style="height:4px; border-radius:3px; background:' + catColor + '; margin-top:6px; opacity:0.55;"></div>' +
             (ultimoDetalhe ? '<div style="margin-top:9px; font-size:1.23rem; font-weight:700; color:#475569; background:#f8fafc; border-radius:6px; padding:6px 9px;">' + MONTH_SHORT_NAMES[selMonthNum] + ': ' + ultimoDetalhe + '</div>' : '') +
+            // A faixa substitui o "0.0/56.0": o numero obrigava quem le a dividir de cabeca
+            // para saber se o indicador esta bom. A faixa e a mesma linguagem do cabecalho da
+            // OS, da Aba 3 e da Aba 5 -- e corPastilha() da ao Critico o fundo vermelho com
+            // letra branca, igual ao resto do painel.
             '<div style="margin-top:11px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; align-items:center; gap:10px;">' +
-              '<span style="font-size:1.14rem; font-weight:800; color:#64748b; text-transform:uppercase;">Acumulado</span>' +
-              '<div style="flex:1; height:11px; background:#eef2f7; border-radius:6px; overflow:hidden;"><div style="width:' + accumPct.toFixed(0) + '%; height:100%; background:' + accumTier.main + ';"></div></div>' +
-              '<span style="font-size:1.47rem; font-weight:900; color:' + accumTier.dark + '; white-space:nowrap;">' + (hasAny ? (earnedSum.toFixed(1) + '/' + maxSum.toFixed(1)) : '–') + '</span>' +
+              '<span style="font-size:1.14rem; font-weight:800; color:#64748b; text-transform:uppercase; white-space:nowrap;">Indicador no ano</span>' +
+              '<div style="flex:1; height:11px; background:#eef2f7; border-radius:6px; overflow:hidden;"><div style="width:' + (hasAny ? accumPct.toFixed(0) : 0) + '%; height:100%; background:' + accumTier.main + ';"></div></div>' +
+              (hasAny
+                ? '<span style="display:inline-flex; align-items:center; gap:5px; white-space:nowrap;' +
+                  ' background:' + corPastilha(accumTier).fundo + '; color:' + corPastilha(accumTier).texto + ';' +
+                  ' border:1.5px solid ' + corPastilha(accumTier).borda + '; border-radius:8px; padding:3px 12px;' +
+                  ' font-size:1.20rem; font-weight:900;">' + accumTier.icon + ' ' + (accumTier.shortLabel || accumTier.label) + '</span>'
+                : '<span style="font-size:1.14rem; font-weight:800; color:#94a3b8; white-space:nowrap;">sem apura\u00e7\u00e3o</span>') +
             '</div>' +
           '</div>';
       }
@@ -3611,6 +3620,7 @@ function hydrateFromPowerBI() {
           // apareceria de fato; a legenda de 3 cores só faz sentido lá em cima, no resumo em %
           // (nota do mês / composição da pontuação), que são médias e podem cair no meio.
           '<span>📊 Cada barra = um mês fechado (altura = % dos pontos do indicador)</span>' +
+          '<span>🏷️ No rodapé de cada card: a faixa apurada no ano</span>' +
           '<span><span style="display:inline-block; width:12px; height:12px; background:#22c55e; border-radius:3px; vertical-align:middle;"></span> Meta atingida</span>' +
           '<span><span style="display:inline-block; width:12px; height:12px; background:#ef4444; border-radius:3px; vertical-align:middle;"></span> Meta não atingida</span>' +
         '</div>' + groupsHTML + '</div>';
@@ -3901,7 +3911,7 @@ function hydrateFromPowerBI() {
             '<h3 style="margin:0; font-size:1.15rem; color:#0f2b5c; font-weight:800; display:flex; align-items:center; gap:8px;">📊 Apuração Mês a Mês por Indicador</h3>' +
             '<span style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:0.80rem; padding:4px 10px; border-radius:6px;">' + osScopeLabel + '</span>' +
           '</div>' +
-          '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontos ganhos em cada mês fechado (Janeiro até o mês selecionado) e o acumulado do ano por indicador. É esse resultado que alimenta o resumo da Aba 3.</div>' +
+          '<div style="font-size:0.78rem; color:#64748b; margin-bottom:10px;">Pontos ganhos em cada mês fechado, de janeiro até o mês selecionado. No rodapé de cada indicador, a <b>faixa apurada no ano</b> — os pontos por mês no topo do card são o peso daquele indicador. É esse resultado que alimenta o resumo da Aba 3.</div>' +
           buildTopicMonthMatrixHTML(activeContract, selMonthNum) +
         '</div>';
       } else if (tabType === "ranking") {
