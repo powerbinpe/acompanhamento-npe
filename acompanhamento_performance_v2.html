@@ -226,6 +226,10 @@
         &#128197; Gravar Notas do Ano
       </button>
 
+      <button type="button" id="btnImportarPareceres" onclick="abrirImportaLote('PARECER')" style="display:none; background:linear-gradient(135deg,#059669,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+        &#128229; Importar Pareceres
+      </button>
+
       <button type="button" id="btnCopyPareceresPerf" onclick="openCopyPareceresPerfModal()" style="display:none; background:linear-gradient(135deg,#0e7490,#155e75); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
         &#128203; Copiar Pareceres
       </button>
@@ -287,6 +291,29 @@
   </div>
 
   <!-- Modal: Exportar todos os comentários do ano para colar numa IA externa -->
+  <div id="importaLoteModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
+    <div data-larg-frac="0.66" style="background:#ffffff; border-radius:14px; width:100%; max-width:none; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #059669; overflow:hidden; display:flex; flex-direction:column; max-height:90vh;">
+      <div style="background:linear-gradient(135deg, #0f2b5c 0%, #047857 100%); padding:14px 20px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
+        <div>
+          <h3 style="margin:0; font-size:1.10rem; font-weight:800;">&#128229; Importar textos da IA</h3>
+          <p id="importaLoteSub" style="margin:2px 0 0 0; font-size:0.78rem; color:#a7f3d0;">Cole a resposta da IA. Cada bloco precisa come&ccedil;ar com o n&uacute;mero do indicador.</p>
+        </div>
+        <button type="button" onclick="document.getElementById('importaLoteModal').style.display='none';" style="background:#ef4444; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; cursor:pointer; font-size:0.88rem;">&#10005; Fechar</button>
+      </div>
+      <div style="padding:16px 20px; overflow-y:auto; flex:1;">
+        <div style="background:#ecfdf5; border:1.5px solid #a7f3d0; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:0.80rem; color:#065f46;">
+          Reconhe&ccedil;o blocos que come&ccedil;am com o n&uacute;mero do indicador &mdash; <code>### #7</code>, <code>#7</code>, <code>7)</code> ou <code>7.</code>
+          O que vier antes do primeiro n&uacute;mero &eacute; ignorado, ent&atilde;o pode colar a resposta inteira.
+        </div>
+        <textarea id="importaLoteTA" placeholder="Cole aqui a resposta da IA com os textos dos indicadores..." style="width:100%; min-height:420px; font-family:monospace; font-size:0.80rem; padding:12px; border:1.5px solid #cbd5e1; border-radius:8px; color:#0f172a; box-sizing:border-box;"></textarea>
+      </div>
+      <div style="background:#f8fafc; padding:12px 20px; border-top:1.5px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:0.76rem; color:#64748b;">&#128161; Nada &eacute; gravado sem confirma&ccedil;&atilde;o &mdash; voc&ecirc; v&ecirc; antes quantos foram reconhecidos.</span>
+        <button type="button" id="importaLoteBtn" onclick="importarEmLote('PARECER')" style="background:#059669; color:#ffffff; border:none; padding:9px 20px; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer;">&#128229; Importar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="copyAllModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
     <div data-larg-frac="0.66" style="background:#ffffff; border-radius:14px; width:100%; max-width:none; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #7c3aed; overflow:hidden; display:flex; flex-direction:column; max-height:90vh;">
       <div style="background:linear-gradient(135deg, #0f2b5c 0%, #5b21b6 100%); padding:14px 20px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
@@ -923,7 +950,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 10:05";
+    window.NPE_BUILD = "2026-09-02 11:40";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1244,6 +1271,7 @@ function hydrateFromPowerBI() {
     // Botoes que so o Setor de Performance usa. Exportar pareceres alimenta a analise da
     // Performance, entao acompanha o Cadastro de Metas: sem sessao, nem aparecem.
     var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas", "btnCopyMonthPareceres", "btnCopyPareceresPerf",
+                                    "btnImportarPareceres",
                                     "btnCopyAllForAI", "btnCopyLicoes", "btnGravarNotasAno",
                                     "btnCongelarSnapshot", "btnArmarRegravacao"];
     function aplicarVisibilidadeMaster(liberado) {
@@ -1965,6 +1993,8 @@ function hydrateFromPowerBI() {
       if (btnCopyMonthPareceresEl) btnCopyMonthPareceresEl.style.display = (tabId === 'tabMensal') ? "inline-flex" : "none";
       var btnCopyPareceresPerfEl = document.getElementById("btnCopyPareceresPerf");
       if (btnCopyPareceresPerfEl) btnCopyPareceresPerfEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
+      var btnImportarEl = document.getElementById("btnImportarPareceres");
+      if (btnImportarEl) btnImportarEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
 
       if (tabId === 'tabMensal') {
         if (tabButtons[0]) tabButtons[0].classList.add("active");
@@ -6622,6 +6652,15 @@ function hydrateFromPowerBI() {
       lines.push("Indicador que não bateu a meta e não tem justificativa: aponte a ausência como ponto a cobrar, não invente a causa.");
       lines.push("Seja curto (até 4 linhas por indicador), concreto e não repita o texto do Gestor.");
       lines.push("Cole cada parecer no campo \"Parecer do Setor de Performance\" do indicador correspondente no app.");
+      lines.push("");
+      lines.push("FORMATO DA RESPOSTA (obrigatório -- o app importa por ele)");
+      lines.push("Comece cada parecer com \"### #\" e o número do indicador, sozinho na linha, assim:");
+      lines.push("  ### #1");
+      lines.push("  <parecer do indicador 1>");
+      lines.push("  ### #2");
+      lines.push("  <parecer do indicador 2>");
+      lines.push("Não numere parágrafos dentro do parecer e não escreva nada antes do primeiro \"### #\".");
+      lines.push("Depois é só colar a resposta inteira no botão \"Importar Pareceres\" do app.");
 
       function sep2() { var s = ""; for (var i = 0; i < 50; i++) s += "-"; return s; }
 
@@ -6629,6 +6668,116 @@ function hydrateFromPowerBI() {
         "/2026 • Indicadores e justificativas do Gestor. O resultado volta no Parecer de cada indicador.",
         lines.join("\n"));
     }
+
+
+    // ---- importacao em lote dos pareceres ------------------------------------
+    // Divide o texto da IA em blocos por indicador. Devolve { "1": "texto", "7": "texto" }.
+    // Tolerante porque IA nenhuma devolve o mesmo formato duas vezes: o que vale e o numero
+    // abrindo a linha, com ou sem #, ###, **, ponto ou parentese.
+    function separarPorIndicador(texto) {
+      var linhas = String(texto || "").split(/\r?\n/);
+      var achados = {};
+      var atual = null, buffer = [];
+
+      function fechar() {
+        if (atual !== null) {
+          var corpo = buffer.join("\n").replace(/^\s+|\s+$/g, "");
+          if (corpo) achados[atual] = corpo;
+        }
+        buffer = [];
+      }
+
+      for (var i = 0; i < linhas.length; i++) {
+        var l = linhas[i];
+        // Ex.: "### #7 Receita Ideal", "**#7 -- Receita Ideal**", "7) Receita Ideal", "#7:"
+        // O numero sozinho NAO basta: "3 acoes foram abertas" abriria um indicador #3 e
+        // engoliria o resto do parecer. Um cabecalho ou tem marcador (#, ###, **) ou tem
+        // pontuacao logo apos o numero. Numero seguido de espaco e palavra e prosa.
+        var m = /^\s*(#{1,6}\s*|\*{1,2}\s*)?(#\s*)?(\d{1,2})\s*([).:\-\u2013\u2014])?\s*/.exec(l);
+        var n = m ? parseInt(m[3], 10) : 0;
+        var ehCabecalho = !!m && (!!m[1] || !!m[2] || !!m[4] || /^\s*[#*]*\s*#?\s*\d{1,2}\s*$/.test(l));
+        if (n >= 1 && n <= 24 && ehCabecalho) {
+          fechar();
+          atual = String(n);
+          // O resto da linha do marcador costuma ser so o nome do indicador; se vier texto
+          // junto, ele e parte do parecer e nao pode ser perdido.
+          var resto = l.slice(m[0].length).replace(/^\s*[\-\u2013\u2014:]\s*/, "").replace(/\*+\s*$/, "").trim();
+          // Descarta quando o resto e so o nome do topico (curto e sem pontuacao final).
+          if (resto && !(resto.length < 60 && !/[.;!?]$/.test(resto))) buffer.push(resto);
+        } else if (atual !== null) {
+          buffer.push(l);
+        }
+      }
+      fechar();
+      return achados;
+    }
+
+    // alvo: "PARECER" (caixas master_N da Aba 1) ou "RESUMO" (resumoIA_N da Aba 3)
+    async function importarEmLote(alvo) {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usu\u00e1rios M\u00e1ster podem importar."); return; }
+      var ta = document.getElementById("importaLoteTA");
+      var achados = separarPorIndicador(ta ? ta.value : "");
+      var ids = Object.keys(achados).map(Number).sort(function(a, b) { return a - b; });
+      if (!ids.length) {
+        showToast("\u26a0\ufe0f N\u00e3o reconheci nenhum indicador no texto. Cada bloco precisa come\u00e7ar com o n\u00famero do indicador.");
+        return;
+      }
+
+      var prefixo = (alvo === "RESUMO") ? "resumoIA_" : "master_";
+      var existem = ids.filter(function(n) { return document.getElementById(prefixo + n); });
+      var semCaixa = ids.filter(function(n) { return !document.getElementById(prefixo + n); });
+      if (!existem.length) {
+        showToast("\u26a0\ufe0f Os indicadores reconhecidos n\u00e3o t\u00eam caixa nesta aba.");
+        return;
+      }
+
+      var faltando = [];
+      for (var k = 1; k <= 23; k++) if (existem.indexOf(k) === -1) faltando.push("#" + k);
+
+      var segue = await confirmarNaPagina(
+        "\ud83d\udce5 Importar " + existem.length + " texto(s)",
+        "Reconheci: <b>" + existem.map(function(n) { return "#" + n; }).join(", ") + "</b>\n\n" +
+        (faltando.length ? "Sem texto no que foi colado: " + faltando.join(", ") + " \u2014 essas caixas ficam <b>como est\u00e3o</b>.\n\n" : "") +
+        (semCaixa.length ? "Ignorados (n\u00e3o existem nesta aba): " + semCaixa.map(function(n) { return "#" + n; }).join(", ") + "\n\n" : "") +
+        "O conte\u00fado atual das caixas reconhecidas ser\u00e1 <b>substitu\u00eddo</b>.",
+        "Importar");
+      if (!segue) return;
+
+      existem.forEach(function(n) {
+        var el = document.getElementById(prefixo + n);
+        el.value = achados[String(n)];
+        // Sem isto o texto fica so na tela e o Salvar nao o enxerga.
+        if (alvo === "RESUMO") {
+          if (typeof saveResumoAnualInline === "function") saveResumoAnualInline(n);
+        } else if (typeof handleCommentInput === "function") {
+          handleCommentInput(n, "MASTER", el.value);
+        }
+      });
+
+      var m = document.getElementById("importaLoteModal");
+      if (m) m.style.display = "none";
+      showToast("\u2705 " + existem.length + " texto(s) importado(s)." +
+        (alvo === "RESUMO" ? "" : " Clique em Salvar Coment\u00e1rios para gravar na ATA."));
+    }
+    window.importarEmLote = importarEmLote;
+
+    function abrirImportaLote(alvo) {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usu\u00e1rios M\u00e1ster podem importar."); return; }
+      var m = document.getElementById("importaLoteModal");
+      if (!m) return;
+      var ta = document.getElementById("importaLoteTA");
+      if (ta) ta.value = "";
+      var btn = document.getElementById("importaLoteBtn");
+      if (btn) btn.setAttribute("onclick", "importarEmLote('" + (alvo === "RESUMO" ? "RESUMO" : "PARECER") + "')");
+      var sub = document.getElementById("importaLoteSub");
+      if (sub) sub.innerText = (alvo === "RESUMO")
+        ? "Cole a resposta da IA com os resumos anuais. Cada bloco precisa come\u00e7ar com o n\u00famero do indicador."
+        : "Cole a resposta da IA com os pareceres. Cada bloco precisa come\u00e7ar com o n\u00famero do indicador.";
+      m.style.display = "flex";
+      ajustarCaixaAoVisual(m);
+      try { window.scrollTo(0, 0); } catch (e) {}
+    }
+    window.abrirImportaLote = abrirImportaLote;
 
     // Caixa unica das exportacoes -- antes cada funcao repetia estas cinco linhas.
     function mostrarCaixaCopia(subtitulo, texto) {
