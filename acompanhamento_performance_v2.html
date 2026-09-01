@@ -905,7 +905,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-08-31 20:31";
+    window.NPE_BUILD = "2026-08-31 21:29";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1997,7 +1997,8 @@ function hydrateFromPowerBI() {
     function buildNotaBadgeHTML(rotulo, valor) {
       var v = (typeof valor === "number" && !isNaN(valor)) ? valor : 0;
       var tier = scoreTier(v);
-      return '<div style="display:inline-flex; align-items:center; gap:6px; background:' + tier.bg + '; border:1.5px solid ' + tier.border + '; padding:6px 12px; border-radius:8px; font-size:0.88rem; font-weight:900; color:' + tier.dark + ';" title="Classifica\u00e7\u00e3o: ' + tier.label + ' \u2014 ' + tier.desc + '">' +
+      var cp = corPastilha(tier);
+      return '<div style="display:inline-flex; align-items:center; gap:6px; background:' + cp.fundo + '; border:1.5px solid ' + cp.borda + '; padding:6px 12px; border-radius:8px; font-size:0.88rem; font-weight:900; color:' + cp.texto + ';" title="Classifica\u00e7\u00e3o: ' + tier.label + ' \u2014 ' + tier.desc + '">' +
         '<span>' + rotulo + ':</span> <span>' + tier.icon + ' ' + tier.label + '</span>' +
       '</div>';
     }
@@ -3118,6 +3119,12 @@ function hydrateFromPowerBI() {
     // META_GERAL no painel reclassifica tudo na hora. Era assim antes e voltou a ser.
     // Texto da faixa a partir da meta cadastrada -- antes os numeros estavam escritos a
     // mao na legenda e desencontravam da classificacao assim que a meta mudava.
+    // Toda pastilha passa por aqui: quem nao define cor propria usa a clara de sempre.
+    function corPastilha(tier) {
+      return { fundo: tier.chipBg || tier.bg, texto: tier.chipText || tier.dark,
+               borda: tier.chipBg ? tier.chipBg : tier.border };
+    }
+
     function faixaTexto(chave) {
       var ref = _metaReferencia(), mg = _metaGeral(), at = _metaAtencao();
       function n(v) { return String(Math.round(v * 10) / 10).replace(".", ","); }
@@ -3127,6 +3134,10 @@ function hydrateFromPowerBI() {
       return "0% a " + n(at) + "%";
     }
 
+    // chipBg / chipText sao as cores da PASTILHA. Existem separadas de bg/dark porque
+    // tier.dark tambem e usado como cor de texto sobre fundo claro -- pintar ele de branco
+    // apagaria esses textos. Assim o Critico ganha fundo vermelho cheio com letra branca
+    // sem afetar mais nada.
     function scoreTier(pct) {
       var p = typeof pct === "number" ? pct : 0;
       if (p >= _metaReferencia()) {
@@ -3184,6 +3195,8 @@ function hydrateFromPowerBI() {
         dark: "#b91c1c",
         bg: "#fee2e2",
         border: "#fca5a5",
+        chipBg: "#dc2626",
+        chipText: "#ffffff",
         text: "#ffffff",
         desc: "Desempenho comprometido, com desvios relevantes e impacto potencial nos resultados contratuais. Requer atua\u00e7\u00e3o imediata."
       };
@@ -3214,9 +3227,9 @@ function hydrateFromPowerBI() {
               '<span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.94); font-size:1.05rem; line-height:1; flex-shrink:0;">' + c.icon + '</span>' +
               '<span style="font-size:0.86rem; font-weight:900; color:#ffffff; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">' + c.label + '</span>' +
             '</div>' +
-            '<div style="height:38px; width:100%; background:' + tier.bg + '; border:1.5px solid ' + tier.border + '; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:5px; box-sizing:border-box; padding:0 8px;" title="' + c.label + ': ' + tier.label + ' \u2014 ' + tier.desc + '">' +
+            '<div style="height:38px; width:100%; background:' + corPastilha(tier).fundo + '; border:1.5px solid ' + corPastilha(tier).borda + '; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:5px; box-sizing:border-box; padding:0 8px;" title="' + c.label + ': ' + tier.label + ' \u2014 ' + tier.desc + '">' +
               '<span style="font-size:1.1rem; line-height:1;">' + tier.icon + '</span>' +
-              '<span style="font-size:0.88rem; font-weight:900; color:' + tier.dark + '; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + tier.label + '</span>' +
+              '<span style="font-size:0.88rem; font-weight:900; color:' + corPastilha(tier).texto + '; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + tier.label + '</span>' +
             '</div>' +
           '</div>' +
           '<div style="text-align:left; font-size:0.78rem; font-weight:700; color:#e0e7ff; margin-top:4px;">' + itemPositive + '/' + itemTotal + ' itens atendidos</div>' +
@@ -3524,9 +3537,9 @@ function hydrateFromPowerBI() {
             var pillFg = t.okCount === t.totalCount ? '#15803d' : (t.okCount === 0 ? '#b91c1c' : '#b45309');
             body =
               '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px;">' +
-                '<div style="flex:1; height:34px; background:' + tier.bg + '; border:1.5px solid ' + tier.border + '; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:6px;" title="Classifica\u00e7\u00e3o: ' + tier.label + ' \u2014 ' + tier.desc + '">' +
+                '<div style="flex:1; height:34px; background:' + corPastilha(tier).fundo + '; border:1.5px solid ' + corPastilha(tier).borda + '; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:6px;" title="Classifica\u00e7\u00e3o: ' + tier.label + ' \u2014 ' + tier.desc + '">' +
                   '<span style="font-size:1.15rem; line-height:1;">' + tier.icon + '</span>' +
-                  '<span style="font-weight:900; font-size:0.86rem; color:' + tier.dark + '; white-space:nowrap;">' + tier.label + '</span>' +
+                  '<span style="font-weight:900; font-size:0.86rem; color:' + corPastilha(tier).texto + '; white-space:nowrap;">' + tier.label + '</span>' +
                 '</div>' +
                 '<span style="display:inline-block; padding:4px 10px; border-radius:14px; font-weight:800; font-size:0.78rem; background:' + pillBg + '; color:' + pillFg + '; white-space:nowrap;">' + t.okCount + ' de ' + t.totalCount + ' meses</span>' +
               '</div>';
@@ -4761,7 +4774,8 @@ function hydrateFromPowerBI() {
     function tab5Pct(valor, tamanho) {
       if (typeof valor !== "number" || isNaN(valor) || !isFinite(valor) || valor === null) return '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>';
       var tier = scoreTier(valor);
-      return '<span style="display:inline-flex; align-items:center; justify-content:center; gap:5px; background:' + tier.bg + '; color:' + tier.dark + '; border:1.5px solid ' + tier.border + '; border-radius:6px; padding:3px 9px; font-weight:900; font-size:' + (tamanho || "0.90rem") + '; white-space:nowrap;" title="Classifica\u00e7\u00e3o: ' + tier.label + ' \u2014 ' + tier.desc + '">' +
+      var cp = corPastilha(tier);
+      return '<span style="display:inline-flex; align-items:center; justify-content:center; gap:5px; background:' + cp.fundo + '; color:' + cp.texto + '; border:1.5px solid ' + cp.borda + '; border-radius:6px; padding:3px 9px; font-weight:900; font-size:' + (tamanho || "0.90rem") + '; white-space:nowrap;" title="Classifica\u00e7\u00e3o: ' + tier.label + ' \u2014 ' + tier.desc + '">' +
         '<span>' + tier.icon + '</span> ' + tier.label +
       '</span>';
     }
@@ -4790,7 +4804,7 @@ function hydrateFromPowerBI() {
               '<span style="font-size:0.95rem; line-height:1; flex-shrink:0;">' + c.icon + '</span>' +
               '<span style="color:#ffffff; font-size:0.76rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + rotuloCat + '</span>' +
             '</div>' +
-            '<div style="background:' + tier.bg + '; color:' + tier.dark + '; border-top:1px solid ' + tier.border + '; padding:4px 6px; text-align:center; font-size:0.78rem; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' +
+            '<div style="background:' + corPastilha(tier).fundo + '; color:' + corPastilha(tier).texto + '; border-top:1px solid ' + corPastilha(tier).borda + '; padding:4px 6px; text-align:center; font-size:0.78rem; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' +
               tier.icon + ' ' + tier.shortLabel +
             '</div>' +
           '</div>';
@@ -4823,7 +4837,7 @@ function hydrateFromPowerBI() {
           var tier = scoreTier(v);
           return '<span title="' + c.label + ': ' + tier.label + ' \u2014 ' + tier.desc + '" style="display:inline-flex; align-items:center; gap:2px; background:' + c.color + '; border-radius:4px; padding:2px 4px;">' +
             '<span style="font-size:0.80rem; line-height:1;">' + c.icon + '</span>' +
-            '<span style="background:' + tier.bg + '; color:' + tier.dark + '; border:1px solid ' + tier.border + '; border-radius:3px; padding:1px 3px; font-size:0.70rem; font-weight:900; line-height:1;">' + tier.icon + ' ' + tier.shortLabel + '</span>' +
+            '<span style="background:' + corPastilha(tier).fundo + '; color:' + corPastilha(tier).texto + '; border:1px solid ' + corPastilha(tier).borda + '; border-radius:3px; padding:1px 3px; font-size:0.70rem; font-weight:900; line-height:1;">' + tier.icon + ' ' + tier.shortLabel + '</span>' +
           '</span>';
         }).join("") + '</div>';
     }
@@ -4916,7 +4930,17 @@ function hydrateFromPowerBI() {
         '<div style="height:100%; width:' + pct + '%; background:linear-gradient(90deg,#16a34a,#4ade80);"></div></div>';
 
       // ---- TOP 10 e Listas de Desempenho (Snapshots Globais da Empresa) ----
-      var comNota = elegiveis.map(function(o) {
+      // OS que nunca teve um mes preenchido NAO entra em ranking: pode ser contrato novo
+      // que ainda nao entrou no processo de acompanhamento, e medir sem inicio seria
+      // inventar nota. Ela continua na estrutura de Superintendente/Gerente/Gestor mais
+      // abaixo, justamente para constar que deveria estar sendo apurada.
+      function jaIniciouApuracao(codigo) {
+        var e = resumo[codigo];
+        if (!e || !e.meses) return false;
+        return Object.keys(e.meses).some(function(mm) { return e.meses[mm].topicos > 0; });
+      }
+
+      var comNota = elegiveis.filter(function(o) { return jaIniciouApuracao(o.codigo); }).map(function(o) {
         var n = notas[o.codigo];
         return (n && n.ultima && typeof n.ultima.notaAcum === "number" && isFinite(n.ultima.notaAcum))
           ? { codigo: o.codigo, mes: n.ultimoMes, notaMes: n.ultima.notaMes, notaAcum: n.ultima.notaAcum, cats: n.ultima.cats }
@@ -4978,8 +5002,8 @@ function hydrateFromPowerBI() {
               // Meses trazem a QUANTIDADE de topicos preenchidos: e dela que sai a adesao.
               meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
               '<td style="padding:8px 6px; text-align:center;">' +
-                '<span style="display:inline-block; min-width:56px; padding:4px 6px; border-radius:6px; background:' + tierA.bg +
-                '; color:' + tierA.dark + '; border:1px solid ' + tierA.border + '; font-size:0.90rem; font-weight:900;">' + aOS.pct + '%</span></td>' +
+                '<span style="display:inline-block; min-width:56px; padding:4px 6px; border-radius:6px; background:' + corPastilha(tierA).fundo +
+                '; color:' + corPastilha(tierA).texto + '; border:1px solid ' + corPastilha(tierA).borda + '; font-size:0.90rem; font-weight:900;">' + aOS.pct + '%</span></td>' +
               '<td style="padding:8px 12px; text-align:center;">' + tab5Pct(r.notaAcum, "0.92rem") + '</td>' +
               '<td style="padding:8px 16px; text-align:left;">' + tab5Chips(r.cats, 148) + '</td>' +
             '</tr>';
@@ -5032,7 +5056,9 @@ function hydrateFromPowerBI() {
         if (!ossNeg.length) return;
 
         var iconNeg = negName === "ROTINA" ? "\ud83d\udd04" : (negName === "PARADA" ? "\u23f1\ufe0f" : "\ud83d\udd27");
-        var nmNeg = notaMediaDe(ossNeg);
+        // Mesma regra: quem nao iniciou nao entra na media do negocio.
+        var ossNegApurando = ossNeg.filter(function(o) { return jaIniciouApuracao(o.codigo); });
+        var nmNeg = notaMediaDe(ossNegApurando);
         var aNeg = adesaoDe(ossNeg);
         var tierANeg = scoreTier(aNeg.pct);
 
@@ -5063,11 +5089,11 @@ function hydrateFromPowerBI() {
               '; color:' + cor + '; font-size:0.88rem; font-weight:900;">' + texto + '</span></td>';
           }).join("") +
           '<td style="padding:8px 6px; text-align:center;">' +
-            '<span style="display:inline-block; min-width:56px; padding:4px 6px; border-radius:6px; background:' + tierANeg.bg +
-            '; color:' + tierANeg.dark + '; border:1px solid ' + tierANeg.border + '; font-size:0.90rem; font-weight:900;">' + aNeg.pct + '%</span></td>' +
+            '<span style="display:inline-block; min-width:56px; padding:4px 6px; border-radius:6px; background:' + corPastilha(tierANeg).fundo +
+            '; color:' + corPastilha(tierANeg).texto + '; border:1px solid ' + corPastilha(tierANeg).borda + '; font-size:0.90rem; font-weight:900;">' + aNeg.pct + '%</span></td>' +
           '<td style="padding:8px 12px; text-align:center;">' +
             (nmNeg && isFinite(nmNeg.pct) ? tab5Pct(nmNeg.pct, "0.92rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
-          '<td style="padding:8px 16px; text-align:left;">' + tab5Chips(catsMediaDe(ossNeg, notas), 148) + '</td>' +
+          '<td style="padding:8px 16px; text-align:left;">' + tab5Chips(catsMediaDe(ossNegApurando, notas), 148) + '</td>' +
         '</tr>';
       });
       html += '</table></div>';
@@ -5100,6 +5126,9 @@ function hydrateFromPowerBI() {
       }
       function notaMediaDe(oss) {
         var soma = 0, n = 0;
+        // OS sem inicio de apuracao nao entra na media -- entrar como zero puniria o
+        // gerente por um contrato que ainda nem comecou.
+        oss = oss.filter(function(o) { return jaIniciouApuracao(o.codigo); });
         oss.forEach(function(o) {
           var x = notas[o.codigo];
           if (x && x.ultima && typeof x.ultima.notaAcum === "number" && isFinite(x.ultima.notaAcum)) { soma += x.ultima.notaAcum; n++; }
@@ -5129,7 +5158,7 @@ function hydrateFromPowerBI() {
           // O totalizador tambem mostra as categorias -- sem elas so dava para ver ONDE o
           // nivel esta mal descendo ate cada OS, uma por uma.
           '<td style="padding:8px 16px; text-align:left; width:930px;">' +
-            (nm ? tab5Chips(catsMediaDe(oss, notas), 138)
+            (nm ? tab5Chips(catsMediaDe(oss.filter(function(o) { return jaIniciouApuracao(o.codigo); }), notas), 138)
                 : '<span style="color:rgba(255,255,255,0.55); font-size:0.92rem; font-weight:700;">sem nota</span>') + '</td>' +
         '</tr>';
       }
@@ -5147,13 +5176,13 @@ function hydrateFromPowerBI() {
         arvore[sup][ger][ges].push(o);
       });
 
-      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; min-width:1600px; table-layout:fixed;">' +
+      html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; min-width:1680px; table-layout:fixed;">' +
         '<colgroup>' +
-          '<col style="width:376px;">' +
-          meses.map(function() { return '<col style="width:65px;">'; }).join("") +
-          '<col style="width:110px;">' +
-          '<col style="width:140px;">' +
-          '<col style="width:930px;">' +
+          '<col style="width:386px;">' +
+          meses.map(function() { return '<col style="width:62px;">'; }).join("") +
+          '<col style="width:104px;">' +
+          '<col style="width:180px;">' +
+          '<col style="width:820px;">' +
         '</colgroup>' +
         '<tr style="background:#f1f5f9;">' +
           '<th style="padding:10px 10px; text-align:left; font-size:0.95rem; font-weight:800; color:#334155; width:376px;">SUPERINTENDENTE / GERENTE / GESTOR / OS</th>' +
@@ -5246,7 +5275,7 @@ function hydrateFromPowerBI() {
                     '</td>' +
                     meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
                     '<td style="padding:10px 10px; text-align:center; font-weight:900; font-size:1.10rem; width:110px;">' +
-                      '<span style="background:' + tierOS.bg + '; color:' + tierOS.dark + '; border-radius:6px; padding:4px 10px;">' + aOS.pct + '%</span></td>' +
+                      '<span style="background:' + corPastilha(tierOS).fundo + '; color:' + corPastilha(tierOS).texto + '; border-radius:6px; padding:4px 10px;">' + aOS.pct + '%</span></td>' +
                     '<td style="padding:10px 12px; text-align:center; width:140px;">' + ((n && n.ultima) ? tab5Pct(n.ultima.notaAcum, "1.25rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
                     '<td style="padding:10px 16px; text-align:left; width:930px;">' + ((n && n.ultima) ? tab5Chips(n.ultima.cats) : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
                   '</tr>';
@@ -5359,8 +5388,13 @@ function hydrateFromPowerBI() {
       // --- Prazo & Preenchimento (Governança/SLA da Aba "Painel de Preenchimentos & SLA") -- binário: preencheu tudo ou não ganha nada
       // "Sem Período Definido" e "Período Inativo" ficam de fora do score (não contam nem a favor
       // nem contra) -- só "No Prazo"/"Fora do Prazo" são avaliáveis.
-      var prazoApplicable = (periodStatus === "NO_PRAZO" || periodStatus === "FORA_PRAZO");
-      var prazoOk = (periodStatus === "NO_PRAZO");
+      // O status de prazo tem um padrao GLOBAL por mes (sla_global_period_m<mes>). Quando
+      // ele vale "No Prazo", TODA OS ganhava os pontos de Pontualidade -- inclusive as que
+      // nunca preencheram nada. Era isso que colocava OS sem nenhuma apuracao no ranking
+      // como "Controlado". Quem nao entregou nada no mes esta, por definicao, fora do prazo.
+      var nadaEntregue = (comp.filledCount === 0);
+      var prazoApplicable = nadaEntregue || (periodStatus === "NO_PRAZO" || periodStatus === "FORA_PRAZO");
+      var prazoOk = !nadaEntregue && (periodStatus === "NO_PRAZO");
       addBinary("prazo", TOPIC_WEIGHTS.prazo, prazoApplicable, prazoOk);
       addBinary("preenchimento", TOPIC_WEIGHTS.preenchimento, true, comp.status === "OK");
 
@@ -6111,10 +6145,22 @@ function hydrateFromPowerBI() {
         window._scoreCache = {};
       }
 
+      // A apuracao comeca no PRIMEIRO mes preenchido. Antes disso a OS pode nem ter
+      // entrado no processo, e gravar nota ali seria inventar resultado. Depois do inicio,
+      // mes em branco vale zero -- e ai sim conta contra.
+      var inicio = 0;
+      for (var mi = 1; mi <= ultimoMes && !inicio; mi++) {
+        if (getOSCompletionStatus(os, mi).filledCount > 0) inicio = mi;
+      }
+      if (!inicio) {
+        showToast("\u26a0\ufe0f " + os + " ainda n\u00e3o teve nenhum m\u00eas preenchido \u2014 a apura\u00e7\u00e3o come\u00e7a no primeiro m\u00eas com registro.");
+        return;
+      }
+
       var comDado = [];
-      for (var m = 1; m <= ultimoMes; m++) {
+      for (var m = inicio; m <= ultimoMes; m++) {
         var n = notasDaOS(os, m);
-        if (n && n.temDado) comDado.push(m);
+        if (n) comDado.push(m);
       }
       if (!comDado.length) { showToast("\u26a0\ufe0f Nenhum mes com dado apurado nesta OS."); return; }
 
