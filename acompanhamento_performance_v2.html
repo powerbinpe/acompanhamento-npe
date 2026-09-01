@@ -915,7 +915,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 01:10";
+    window.NPE_BUILD = "2026-09-02 02:05";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3623,8 +3623,8 @@ function hydrateFromPowerBI() {
         case "t4": return "Margem " + formatPctBR(monthData.resDifMesPct) + " vs FCST ant.";
         case "t6": return "Perda acum. " + formatPctBR(monthData.perdaPctAcum);
         case "t8": return monthData.indenizOk ? "Dentro da meta" : "Acima da meta";
-        case "t9": return formatIntBR(monthData.efetivoRealV) + " · Exec " + formatIntBR(monthData.efetivoExecV) + " pax";
-        case "t10": return formatIntBR(monthData.hhtRealV) + "h · Exec " + formatIntBR(monthData.hhtExecV) + "h";
+        case "t9": return formatIntBR(monthData.efetivoRealV) + " · Proj " + formatIntBR(monthData.efetivoExecV) + " pax";
+        case "t10": return formatIntBR(monthData.hhtRealV) + "h · Proj " + formatIntBR(monthData.hhtExecV) + "h";
         case "t11": return formatPctBR(monthData.absenteismoPct) + " (meta " + formatPctBR(monthData.absenteismoMetaPct) + ")";
         case "t12": return formatPctBR(monthData.turnoverPct) + " (meta " + formatPctBR(monthData.turnoverMetaPct) + ")";
         case "t15": return (monthData.safCount || 0) + " ocorrência(s)";
