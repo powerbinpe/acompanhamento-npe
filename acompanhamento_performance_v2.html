@@ -915,7 +915,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 02:05";
+    window.NPE_BUILD = "2026-09-02 02:40";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -8256,13 +8256,41 @@ function hydrateFromPowerBI() {
 
     // Uma vez por carga. Sem a trava, qualquer re-render dispararia outra gravacao.
     window._AUTO_REGRAVOU = false;
+    // Ja foi regravada hoje? Mesmo criterio do painel de pendencias: a nota mais recente
+    // da OS ser de hoje.
+    async function jaRegravadaHoje(osCode, ano) {
+      try {
+        var notas = await tab5Post(window.FLOW_LER_NOTAS_URL, { ano: ano });
+        var inicioDoDia = new Date(); inicioDoDia.setHours(0, 0, 0, 0);
+        var alvo = extractPrimaryOSCode(String(osCode).toUpperCase());
+        var maisRecente = 0;
+        (notas || []).forEach(function(r) {
+          if (extractPrimaryOSCode(String(r.os || "").toUpperCase()) !== alvo) return;
+          var q = Date.parse(r.atualizadoEm || "");
+          if (isFinite(q) && q > maisRecente) maisRecente = q;
+        });
+        return maisRecente >= inicioDoDia.getTime();
+      } catch (e) {
+        // Na duvida, NAO grava: repetir a gravacao e pior do que pular uma OS.
+        return true;
+      }
+    }
+
     async function autoRegravar() {
       if (window._AUTO_REGRAVOU) return;
       if (modoApp() !== "REGRAVAR") return;
       if (!isUserAuthorizedMaster()) return;
       var p = new URLSearchParams(window.location.search);
-      if (!extractPrimaryOSCode(p.get("SelectedOS") || "")) return;
+      var os = extractPrimaryOSCode(p.get("SelectedOS") || "");
+      var ano = parseInt(p.get("SelectedAno"), 10);
+      if (!os || !ano) return;
       window._AUTO_REGRAVOU = true;
+      // Trava de seguranca: so grava o que ainda esta pendente. Assim, esquecer o slicer
+      // ligado -- ou alguem sem permissao passar por ele -- nao reescreve nada duas vezes.
+      if (await jaRegravadaHoje(os, ano)) {
+        showToast("\u2713 " + os + " j\u00e1 foi regravada hoje \u2014 nada a fazer.");
+        return;
+      }
       await gravarNotasDoAno(true);
     }
     window.autoRegravar = autoRegravar;
