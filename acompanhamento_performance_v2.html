@@ -226,6 +226,10 @@
         &#128197; Gravar Notas do Ano
       </button>
 
+      <button type="button" id="btnCopyPareceresPerf" onclick="openCopyPareceresPerfModal()" style="display:none; background:linear-gradient(135deg,#0e7490,#155e75); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+        &#128203; Copiar Pareceres
+      </button>
+
       <button type="button" id="btnCopyMonthPareceres" onclick="openCopyMonthPareceresModal()" style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
         📋 Copiar Pareceres do Mês
       </button>
@@ -919,7 +923,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 09:20";
+    window.NPE_BUILD = "2026-09-02 10:05";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1239,7 +1243,7 @@ function hydrateFromPowerBI() {
 
     // Botoes que so o Setor de Performance usa. Exportar pareceres alimenta a analise da
     // Performance, entao acompanha o Cadastro de Metas: sem sessao, nem aparecem.
-    var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas", "btnCopyMonthPareceres",
+    var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas", "btnCopyMonthPareceres", "btnCopyPareceresPerf",
                                     "btnCopyAllForAI", "btnCopyLicoes", "btnGravarNotasAno",
                                     "btnCongelarSnapshot", "btnArmarRegravacao"];
     function aplicarVisibilidadeMaster(liberado) {
@@ -1959,6 +1963,8 @@ function hydrateFromPowerBI() {
       // depende do filtro de OS do Power BI) -- só faz sentido na Aba 1.
       var btnCopyMonthPareceresEl = document.getElementById("btnCopyMonthPareceres");
       if (btnCopyMonthPareceresEl) btnCopyMonthPareceresEl.style.display = (tabId === 'tabMensal') ? "inline-flex" : "none";
+      var btnCopyPareceresPerfEl = document.getElementById("btnCopyPareceresPerf");
+      if (btnCopyPareceresPerfEl) btnCopyPareceresPerfEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
 
       if (tabId === 'tabMensal') {
         if (tabButtons[0]) tabButtons[0].classList.add("active");
@@ -6582,8 +6588,10 @@ function hydrateFromPowerBI() {
         var tend = (typeof textoTendencia === "function") ? textoTendencia(activeOS, tid, monthNum) : "";
         if (tend) lines.push("Tend\u00eancia: " + tend);
 
+        // O parecer da Performance NAO entra aqui: e justamente ele que esta sendo
+        // produzido. Mandar junto faria a IA reescrever o que ja existe em vez de olhar o
+        // que o Gestor disse.
         lines.push("Gestor: " + (gVal && gVal.trim() ? gVal.trim() : "(sem justificativa)"));
-        lines.push("Performance: " + (mVal && mVal.trim() ? mVal.trim() : "(sem parecer registrado)"));
         lines.push("");
       }
 
@@ -6602,26 +6610,91 @@ function hydrateFromPowerBI() {
       }
 
       lines.push("INSTRUÇÃO");
-      lines.push("Você é o Setor de Performance. Para cada indicador acima, leia três coisas juntas: o valor apurado, a tendência (contra o mês anterior e contra o ano) e o que o Gestor e a Performance escreveram.");
+      lines.push("Você é o Setor de Performance. Escreva UM PARECER POR INDICADOR, separado e identificado pelo número do indicador.");
+      lines.push("");
+      lines.push("Para cada um, leia junto: o valor apurado, a situação no mês, a tendência (contra o mês anterior e contra o ano) e a justificativa do Gestor.");
       lines.push("");
       lines.push("Aplique esta regra ao recomendar:");
       lines.push("  - MELHORANDO  -> reconheça e recomende MANTER a ação que está em curso, dizendo qual é.");
       lines.push("  - PIORANDO    -> a ação atual não está funcionando: recomende MUDAR de abordagem, propondo o que fazer diferente.");
       lines.push("  - ESTÁVEL     -> recomende o que tentar para SAIR do patamar, não apenas manter.");
       lines.push("");
-      lines.push("Considere também os indicadores que não bateram a meta mesmo sem comentário registrado -- a ausência de justificativa é, por si, um ponto a cobrar.");
-      lines.push("Entregue uma Síntese e Recomendações da Performance para o mês: comece pelos indicadores em situação crítica, seja concreto (o que fazer, por quem, até quando) e evite repetir o que o Gestor já escreveu.");
-      lines.push("Cole o resultado no campo \"Síntese e Recomendações da Performance\" (tópico #24) no app.");
+      lines.push("Indicador que não bateu a meta e não tem justificativa: aponte a ausência como ponto a cobrar, não invente a causa.");
+      lines.push("Seja curto (até 4 linhas por indicador), concreto e não repita o texto do Gestor.");
+      lines.push("Cole cada parecer no campo \"Parecer do Setor de Performance\" do indicador correspondente no app.");
 
       function sep2() { var s = ""; for (var i = 0; i < 50; i++) s += "-"; return s; }
 
+      mostrarCaixaCopia("OS " + activeOS + " • " + (monthName || monthNum) +
+        "/2026 • Indicadores e justificativas do Gestor. O resultado volta no Parecer de cada indicador.",
+        lines.join("\n"));
+    }
+
+    // Caixa unica das exportacoes -- antes cada funcao repetia estas cinco linhas.
+    function mostrarCaixaCopia(subtitulo, texto) {
       var modal = document.getElementById("copyAllModal");
       var sub = document.getElementById("copyAllModalSubtitle");
       var ta = document.getElementById("copyAllTextarea");
-      if (sub) sub.innerText = "OS " + activeOS + " • " + (monthName || monthNum) + "/2026 • Copie e cole numa IA externa; o resultado vai manualmente no campo de Síntese (tópico #24).";
-      if (ta) ta.value = lines.join("\n");
-      if (modal) modal.style.display = "flex"; // mesma razao do abrirCaixaModal: no iframe do Power BI a caixa // nasce no topo do conteudo inteiro, nao do que esta na tela. try { window.scrollTo(0, 0); } catch (e) {}
+      if (sub) sub.innerText = subtitulo;
+      if (ta) ta.value = texto;
+      // display direto, pela mesma razao do abrirCaixaModal: no iframe do Power BI a caixa
+      // nasce no topo do conteudo inteiro, nao do que esta na tela.
+      if (modal) modal.style.display = "flex";
+      try { window.scrollTo(0, 0); } catch (e) {}
     }
+
+    // ---- botao 2: so os pareceres ja escritos, para a Sintese do mes ----------
+    function openCopyPareceresPerfModal() {
+      if (!window.isMaster) { showToast("⚠️ Apenas usuários Máster podem exportar."); return; }
+      var p = new URLSearchParams(window.location.search);
+      var rawOS = p.get("SelectedOS") || "";
+      var multi = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      var os = extractPrimaryOSCode(rawOS);
+      if (multi || !os) { showToast("⚠️ Selecione uma OS específica no Power BI."); return; }
+      var mNum = getMonthNumberFromParams(p);
+      var mName = p.get("SelectedMes") || "";
+
+      var lines = [];
+      lines.push("PARECERES DA PERFORMANCE -- OS " + os + " -- " + (mName || ("Mês " + mNum)) + "/2026");
+      lines.push("");
+
+      var comParecer = 0, semParecer = [];
+      for (var tid = 1; tid <= 23; tid++) {
+        var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
+        var mEl = document.getElementById("master_" + tid);
+        var mVal = mEl ? mEl.value : safeGetStorage("m_" + os + "_m" + mNum + "_" + tid, "");
+        if (mVal && mVal.trim()) {
+          comParecer++;
+          lines.push("### #" + tid + " " + topicObj.name);
+          lines.push(mVal.trim());
+          lines.push("");
+        } else {
+          semParecer.push("#" + tid + " " + topicObj.name);
+        }
+      }
+
+      if (!comParecer) {
+        showToast("⚠️ Nenhum parecer da Performance escrito neste mês ainda.");
+        return;
+      }
+      if (semParecer.length) {
+        lines.push("SEM PARECER REGISTRADO: " + semParecer.join("; "));
+        lines.push("");
+      }
+
+      lines.push("INSTRUÇÃO");
+      lines.push("Os textos acima são os pareceres que a Performance já emitiu, um por indicador. Agrupe-os numa única Síntese do mês.");
+      lines.push("");
+      lines.push("Organize por prioridade, não pela ordem dos indicadores: comece pelo que exige ação imediata.");
+      lines.push("Junte indicadores que apontam para a mesma causa em vez de repeti-los separados.");
+      lines.push("Feche com os direcionamentos concretos do mês -- o que fazer, por quem, até quando.");
+      lines.push("Cole o resultado no campo \"Síntese e Recomendações da Performance\" (tópico #24) no app.");
+
+      mostrarCaixaCopia("OS " + os + " • " + (mName || mNum) + "/2026 • " + comParecer +
+        " parecer(es) da Performance. O resultado vai na Síntese do mês (tópico #24).",
+        lines.join("\n"));
+    }
+    window.openCopyPareceresPerfModal = openCopyPareceresPerfModal;
 
     function openCopyAllModal() {
       if (!window.isMaster) {
