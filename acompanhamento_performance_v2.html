@@ -214,6 +214,10 @@
         &#127919; Cadastro de Metas
       </button>
 
+      <button type="button" id="btnCongelarSnapshot" onclick="congelarSnapshot()" style="display:none; background:linear-gradient(135deg,#4338ca,#312e81); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+        &#128248; Congelar Fechamento
+      </button>
+
       <button type="button" id="btnGravarNotasAno" onclick="gravarNotasDoAno()" style="display:none; background:linear-gradient(135deg,#b45309,#78350f); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
         &#128197; Gravar Notas do Ano
       </button>
@@ -905,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-08-31 21:29";
+    window.NPE_BUILD = "2026-08-31 21:54";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1206,7 +1210,8 @@ function hydrateFromPowerBI() {
     // Botoes que so o Setor de Performance usa. Exportar pareceres alimenta a analise da
     // Performance, entao acompanha o Cadastro de Metas: sem sessao, nem aparecem.
     var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas", "btnCopyMonthPareceres",
-                                    "btnCopyAllForAI", "btnCopyLicoes", "btnGravarNotasAno"];
+                                    "btnCopyAllForAI", "btnCopyLicoes", "btnGravarNotasAno",
+                                    "btnCongelarSnapshot"];
     function aplicarVisibilidadeMaster(liberado) {
       BOTOES_EXCLUSIVOS_MASTER.forEach(function(id) {
         var el = document.getElementById(id);
@@ -4534,6 +4539,24 @@ function hydrateFromPowerBI() {
       return r || "SEM RESPONS\u00c1VEL";
     }
 
+    // As OSs que o usuario tem direito de ver em detalhe. Vem do AllowedOSList, que e
+    // montado sob o filtro do relatorio -- como o modelo nao tem RLS, esse filtro e o unico
+    // sinal de seguranca que existe.
+    function tab5OSDoUsuario() {
+      var p = new URLSearchParams(window.location.search);
+      var raw = p.get("AllowedOSList") || "";
+      var permitidas = {};
+      raw.split(",").forEach(function(item) {
+        var bruto = String(item).trim().toUpperCase();
+        if (!bruto) return;
+        permitidas[extractPrimaryOSCode(bruto) || bruto] = true;
+      });
+      var todas = tab5OSElegiveis();
+      // Sem AllowedOSList nao da para restringir; melhor mostrar tudo do que esconder tudo.
+      if (!Object.keys(permitidas).length) return todas;
+      return todas.filter(function(o) { return permitidas[o.codigo]; });
+    }
+
     function tab5OSElegiveis() {
       var blocos = obterMapaDeBlocosOS();
       var hier = carregarHierarquiaOS();
@@ -4611,6 +4634,140 @@ function hydrateFromPowerBI() {
       return hoje.getMonth(); // getMonth() e 0-based: em agosto devolve 7, que e julho
     }
 
+    // ---- snapshot congelado do fechamento -----------------------------------
+    // Os blocos de cima (TOP 10, Atencao Prioritaria, Linha de Negocio) sao a visao da
+    // empresa: iguais para todo mundo, sem filtro de seguranca, e CONGELADOS -- se
+    // recalculassem a cada abertura, o ranking mudaria debaixo de quem esta olhando.
+    // A estrutura de Superintendente/Gerente/Gestor continua ao vivo e com seguranca.
+    window.FLOW_GRAVAR_SNAPSHOT_URL = safeGetStorage("npe_flow_gravar_snapshot_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/24adffb189db447681dd5a3cf1d0385f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2oeWGrDNqYYC_57Sk8ta8_ACZ0y03h-xVU8REWJ2SPA");
+    window.FLOW_LER_SNAPSHOT_URL   = safeGetStorage("npe_flow_ler_snapshot_url",   "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/07/workflows/17d843a50a304fe196cd6a75e10cd00f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=tM5zTVNKdpuNpCuQeRqKzo5oz1zNs97ya6ABTou5SNc");
+    window.TAB5_SNAPSHOT = null;
+
+    async function carregarSnapshot(ano) {
+      try {
+        var linhas = await tab5Post(window.FLOW_LER_SNAPSHOT_URL, { ano: ano });
+        // Vale o fechamento mais recente do ano: mes maior, e em empate o id maior.
+        var valida = (linhas || []).filter(function(l) { return l && l.dados; })
+          .sort(function(a, b) {
+            var dm = (parseInt(b.mes, 10) || 0) - (parseInt(a.mes, 10) || 0);
+            return dm !== 0 ? dm : ((parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0));
+          })[0];
+        if (!valida) return null;
+        var d = JSON.parse(valida.dados);
+        d._meta = { mes: parseInt(valida.mes, 10) || 0, geradoPor: valida.geradoPor, geradoEm: valida.geradoEm };
+        return d;
+      } catch (e) { return null; }
+    }
+
+    // Monta o retrato a partir do que esta na tela AGORA -- e o mesmo calculo, so que
+    // gravado. Nao recalcula nada: congela o que as notas da ATA ja dizem.
+    function montarSnapshot(ano, mes, comNota, linhasNegocio, elegiveis, resumo, notas) {
+      var mesesSnap = window.TAB5.meses || [];
+      function serie(codigo) {
+        var e = resumo[codigo] || { meses: {} };
+        var out = {};
+        Object.keys(e.meses).forEach(function(mm) { out[mm] = e.meses[mm].topicos; });
+        return out;
+      }
+      // Mesma conta do adesaoDe, escrita aqui porque aquele e local do renderTab5:
+      // meses preenchidos sobre meses do periodo.
+      function adesaoOS(codigo) {
+        var e = resumo[codigo];
+        if (!e || !e.meses || !mesesSnap.length) return 0;
+        var feitos = Object.keys(e.meses).filter(function(mm) { return e.meses[mm].topicos > 0; }).length;
+        return Math.round(feitos * 100 / mesesSnap.length);
+      }
+      var ossPorNegocio = {};
+      linhasNegocio.forEach(function(neg) {
+        var lista = elegiveis.filter(function(o) {
+          var n = ((window.OS_HIER || {})[o.codigo] || {}).neg || o.neg || "";
+          return n.toUpperCase().indexOf(neg) !== -1;
+        });
+        var apurando = lista.filter(function(o) {
+          var e = resumo[o.codigo];
+          return e && e.meses && Object.keys(e.meses).some(function(mm) { return e.meses[mm].topicos > 0; });
+        });
+        var nm = null, soma = 0, n = 0;
+        apurando.forEach(function(o) {
+          var x = notas[o.codigo];
+          if (x && x.ultima && isFinite(x.ultima.notaAcum)) { soma += x.ultima.notaAcum; n++; }
+        });
+        if (n) nm = soma / n;
+        ossPorNegocio[neg] = {
+          totalOSs: lista.length, comNota: n, notaAcum: nm,
+          cats: catsMediaDe(apurando, notas),
+          meses: (function() {
+            var m = {};
+            mesesSnap.forEach(function(mm) {
+              var s = 0;
+              lista.forEach(function(o) {
+                var e = resumo[o.codigo];
+                var reg = e && e.meses ? e.meses[mm] : null;
+                s += (reg && reg.topicos) ? reg.topicos : 0;
+              });
+              m[mm] = lista.length ? (s / lista.length) : 0;
+            });
+            return m;
+          })()
+        };
+      });
+
+      return {
+        versao: 1, ano: ano, mesFechamento: mes, meses: mesesSnap.slice(),
+        ranking: comNota.map(function(r, i) {
+          return { pos: i + 1, codigo: r.codigo, rotulo: rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo }),
+                   notaAcum: r.notaAcum, notaMes: r.notaMes, cats: r.cats,
+                   adesao: adesaoOS(r.codigo), serie: serie(r.codigo) };
+        }),
+        negocios: ossPorNegocio
+      };
+    }
+
+    async function congelarSnapshot() {
+      if (!isUserAuthorizedMaster()) { showToast("\u26d4 Apenas o Setor de Performance."); return; }
+      if (!window.TAB5.carregado) { showToast("\u26a0\ufe0f Abra a Aba 5 e espere carregar antes de congelar."); return; }
+      var ano = window.TAB5.ano;
+      var meses = window.TAB5.meses || [];
+      var mesFech = meses.length ? meses[meses.length - 1] : 0;
+      if (!mesFech) { showToast("\u26a0\ufe0f Nenhum m\u00eas fechado para congelar."); return; }
+
+      var snap = window._SNAP_PENDENTE;
+      if (!snap) { showToast("\u26a0\ufe0f Recarregue a Aba 5 antes de congelar."); return; }
+
+      var segue = await confirmarNaPagina(
+        "\ud83d\udcf8 Congelar o fechamento",
+        "Congelar o ranking de <b>" + ano + "</b> at\u00e9 <b>" + (MESES_PT[mesFech - 1] || mesFech) + "</b>?\n\n" +
+        "<b>" + snap.ranking.length + " OSs</b> entram no retrato. A partir da\u00ed, TOP 10, Aten\u00e7\u00e3o Priorit\u00e1ria e " +
+        "Linha de Neg\u00f3cio passam a mostrar estes n\u00fameros para todos, sem recalcular.\n\n" +
+        "A estrutura de Superintendentes continua ao vivo.",
+        "Congelar");
+      if (!segue) return;
+
+      var btn = document.getElementById("btnCongelarSnapshot");
+      var rot = btn ? btn.innerHTML : "";
+      if (btn) btn.innerHTML = "\u23f3 Congelando...";
+      var sess = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
+      var quem = sess ? (sess.login || "") : (new URLSearchParams(window.location.search).get("UserEmail") || "");
+      var ok = false;
+      try {
+        var r = await fetch(window.FLOW_GRAVAR_SNAPSHOT_URL, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            titulo: "Fechamento " + (MESES_PT[mesFech - 1] || mesFech) + "/" + ano,
+            ano: ano, mes: mesFech,
+            dados: JSON.stringify(snap),
+            geradoPor: quem
+          })
+        });
+        ok = r.ok || r.status === 202;
+      } catch (e) { ok = false; }
+      if (btn) btn.innerHTML = rot;
+      if (!ok) { showToast("\u274c Falha ao congelar. Verifique o fluxo NPE-Gravar-Snapshot."); return; }
+      showToast("\u2705 Fechamento congelado. Recarregando...");
+      window.TAB5_SNAPSHOT = null;
+      carregarTab5(true);
+    }
+
     async function carregarTab5(forcar) {
       var p = new URLSearchParams(window.location.search);
       var ano = parseInt(p.get("SelectedAno"), 10);
@@ -4660,6 +4817,7 @@ function hydrateFromPowerBI() {
         window.TAB5.ataPorMes = porMes;
         window.TAB5.meses = meses;
         window.TAB5.notas = notasRes;
+        window.TAB5_SNAPSHOT = await carregarSnapshot(ano);
         window.TAB5.carregado = true;
       } catch (e) {
         window.TAB5.erro = String(e && e.message ? e.message : e);
@@ -4891,6 +5049,16 @@ function hydrateFromPowerBI() {
       var semAcomp = elegiveis.filter(function(o) { return !(((resumo[o.codigo] || {}).totalMeses || 0) > 0); });
       var pct = elegiveis.length ? Math.round(comAcomp.length * 100 / elegiveis.length) : 0;
 
+      // Havendo fechamento congelado do ano, ele MANDA nos blocos de cima. Precisa ser lido
+      // aqui, antes do aviso de estado -- que e desenhado acima do ranking.
+      var snap = window.TAB5_SNAPSHOT;
+
+      // A estrutura de baixo respeita a seguranca; os blocos de cima, nao. Decisao do
+      // usuario: o ranking e a visao da empresa, o detalhe e de quem responde por ele.
+      var minhas = tab5OSDoUsuario();
+      var minhasComAcomp = minhas.filter(function(o) { return ((resumo[o.codigo] || {}).totalMeses || 0) > 0; });
+      var minhasSemAcomp = minhas.filter(function(o) { return !(((resumo[o.codigo] || {}).totalMeses || 0) > 0); });
+
       var html = '<div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:18px;">' +
         '<div><h2 style="margin:0; font-size:1.45rem; color:#0f2b5c; font-weight:900;">Vis\u00e3o Geral das OSs \u2014 ' + ano + '</h2>' +
         '<div style="font-size:0.90rem; color:#64748b; margin-top:4px; line-height:1.4;">Ano inteiro, m\u00eas a m\u00eas \u2014 lido da ATA_COMENTARIO. ' +
@@ -4919,7 +5087,17 @@ function hydrateFromPowerBI() {
         '</div>' +
       '</div>';
 
-      html += '<div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px;">' +
+      html += (snap && snap._meta
+        ? '<div style="background:#eef2ff; border:1.5px solid #c7d2fe; border-radius:10px; padding:9px 14px; margin-bottom:14px; font-size:0.86rem; color:#3730a3;">' +
+            '\ud83d\udcf8 <b>Fechamento congelado</b> em ' + (MESES_PT[(snap._meta.mes || 1) - 1] || snap._meta.mes) + '/' + ano +
+            (snap._meta.geradoPor ? ' por ' + snap._meta.geradoPor : '') +
+            ' \u2014 os blocos abaixo mostram esse retrato, iguais para todos. A estrutura de Superintendentes continua ao vivo.' +
+          '</div>'
+        : '<div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:9px 14px; margin-bottom:14px; font-size:0.86rem; color:#92400e;">' +
+            '\u26a0\ufe0f <b>Ainda n\u00e3o congelado.</b> Os n\u00fameros s\u00e3o recalculados a cada abertura e podem mudar. ' +
+            'Use <b>Congelar Fechamento</b> quando o m\u00eas estiver fechado.' +
+          '</div>') +
+        '<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">' +
         tab5Cartao("OSs eleg\u00edveis", elegiveis.length, "#0f2b5c", "#f1f5f9") +
         tab5Cartao("Acompanharam algum m\u00eas", comAcomp.length, "#15803d", "#f0fdf4") +
         tab5Cartao("Nunca preencheram", semAcomp.length, "#b91c1c", "#fef2f2") +
@@ -4946,6 +5124,23 @@ function hydrateFromPowerBI() {
           ? { codigo: o.codigo, mes: n.ultimoMes, notaMes: n.ultima.notaMes, notaAcum: n.ultima.notaAcum, cats: n.ultima.cats }
           : null;
       }).filter(Boolean).sort(function(a, b) { return b.notaAcum - a.notaAcum; });
+
+      // Linhas de negocio precisam existir antes daqui: o snapshot guarda as duas coisas.
+      var linhasNegocio = ["ROTINA", "PARADA", "OFICINA"];
+
+      // Retrato do momento -- e o que o botao Congelar grava.
+      window._SNAP_PENDENTE = montarSnapshot(ano, (meses.length ? meses[meses.length - 1] : 0),
+                                             comNota, linhasNegocio, elegiveis, resumo, notas);
+
+      // Havendo fechamento congelado do ano, ele MANDA nos blocos de cima. Recalcular a cada
+      // abertura faria o ranking mudar debaixo de quem esta olhando -- e a reuniao inteira
+      // discutiria numeros que ja mudaram.
+      if (snap && snap.ranking && snap.ranking.length) {
+        comNota = snap.ranking.map(function(r) {
+          return { codigo: r.codigo, notaAcum: r.notaAcum, notaMes: r.notaMes,
+                   cats: r.cats, adesaoCongelada: r.adesao, serieCongelada: r.serie };
+        });
+      }
 
       var top10 = comNota.slice(0, 10);
       var intermediarias = comNota.slice(10, 20);
@@ -4990,7 +5185,12 @@ function hydrateFromPowerBI() {
           linhas.forEach(function(x) {
             var r = x.item, pos = x.pos;
             var e = resumo[r.codigo] || { meses: {} };
-            var aOS = adesaoDe([{ codigo: r.codigo }]);
+            var aOS = (typeof r.adesaoCongelada === "number")
+              ? { pct: r.adesaoCongelada } : adesaoDe([{ codigo: r.codigo }]);
+            if (r.serieCongelada) {
+              e = { meses: {} };
+              Object.keys(r.serieCongelada).forEach(function(mm) { e.meses[mm] = { topicos: r.serieCongelada[mm] }; });
+            }
             var tierA = scoreTier(aOS.pct);
             var medalha = (destacarPodio && pos <= 3)
               ? (pos === 1 ? "\ud83e\udd47" : (pos === 2 ? "\ud83e\udd48" : "\ud83e\udd49"))
@@ -5025,7 +5225,6 @@ function hydrateFromPowerBI() {
       }
 
       // ---- consolidação geral por linha de negócio (visão macro da empresa) ----
-      var linhasNegocio = ["ROTINA", "PARADA", "OFICINA"];
       html += '<h3 style="margin:26px 0 6px; font-size:1.25rem; color:#0f2b5c; font-weight:900;">\ud83c\udfed Resultados por Linha de Neg\u00f3cio</h3>' +
         '<div style="font-size:0.90rem; color:#64748b; margin-bottom:14px; line-height:1.4;">Vis\u00e3o comparativa da empresa por segmento operacional (<b>Rotina \u2022 Parada \u2022 Oficina</b>), ' +
         'permitindo a qualquer gestor visualizar o desempenho m\u00e9dio consolidado.</div>';
@@ -5058,7 +5257,11 @@ function hydrateFromPowerBI() {
         var iconNeg = negName === "ROTINA" ? "\ud83d\udd04" : (negName === "PARADA" ? "\u23f1\ufe0f" : "\ud83d\udd27");
         // Mesma regra: quem nao iniciou nao entra na media do negocio.
         var ossNegApurando = ossNeg.filter(function(o) { return jaIniciouApuracao(o.codigo); });
-        var nmNeg = notaMediaDe(ossNegApurando);
+        var congeladoNeg = (snap && snap.negocios) ? snap.negocios[negName] : null;
+        var nmNeg = congeladoNeg
+          ? (isFinite(congeladoNeg.notaAcum) && congeladoNeg.notaAcum !== null
+              ? { pct: congeladoNeg.notaAcum, com: congeladoNeg.comNota, total: congeladoNeg.totalOSs } : null)
+          : notaMediaDe(ossNegApurando);
         var aNeg = adesaoDe(ossNeg);
         var tierANeg = scoreTier(aNeg.pct);
 
@@ -5073,13 +5276,18 @@ function hydrateFromPowerBI() {
           // dividida pelo numero de OSs do negocio, para comparar segmentos de tamanhos
           // diferentes sem que o maior pareca sempre melhor.
           meses.map(function(mm) {
-            var soma = 0;
-            ossNeg.forEach(function(o) {
-              var e = resumo[o.codigo];
-              var reg = e && e.meses ? e.meses[mm] : null;
-              soma += (reg && reg.topicos) ? reg.topicos : 0;
-            });
-            var media = ossNeg.length ? (soma / ossNeg.length) : 0;
+            var media;
+            if (congeladoNeg && congeladoNeg.meses && typeof congeladoNeg.meses[mm] === "number") {
+              media = congeladoNeg.meses[mm];
+            } else {
+              var soma = 0;
+              ossNeg.forEach(function(o) {
+                var e = resumo[o.codigo];
+                var reg = e && e.meses ? e.meses[mm] : null;
+                soma += (reg && reg.topicos) ? reg.topicos : 0;
+              });
+              media = ossNeg.length ? (soma / ossNeg.length) : 0;
+            }
             var cor, fundo, texto;
             if (media >= 22.5)    { cor = "#166534"; fundo = "#dcfce7"; texto = media.toFixed(0); }
             else if (media > 0)   { cor = "#92400e"; fundo = "#fef9c3"; texto = media.toFixed(1); }
@@ -5093,15 +5301,16 @@ function hydrateFromPowerBI() {
             '; color:' + corPastilha(tierANeg).texto + '; border:1px solid ' + corPastilha(tierANeg).borda + '; font-size:0.90rem; font-weight:900;">' + aNeg.pct + '%</span></td>' +
           '<td style="padding:8px 12px; text-align:center;">' +
             (nmNeg && isFinite(nmNeg.pct) ? tab5Pct(nmNeg.pct, "0.92rem") : '<span style="color:#cbd5e1; font-weight:800;">\u2014</span>') + '</td>' +
-          '<td style="padding:8px 16px; text-align:left;">' + tab5Chips(catsMediaDe(ossNegApurando, notas), 148) + '</td>' +
+          '<td style="padding:8px 16px; text-align:left;">' +
+            tab5Chips(congeladoNeg ? congeladoNeg.cats : catsMediaDe(ossNegApurando, notas), 148) + '</td>' +
         '</tr>';
       });
       html += '</table></div>';
 
       // ---- matriz mes a mes ----
-      var abas = [["TODAS", "Todas (" + elegiveis.length + ")"],
-                  ["PENDENTES", "Nunca preencheram (" + semAcomp.length + ")"],
-                  ["FEITAS", "Com algum m\u00eas (" + comAcomp.length + ")"]];
+      var abas = [["TODAS", "Todas (" + minhas.length + ")"],
+                  ["PENDENTES", "Nunca preencheram (" + minhasSemAcomp.length + ")"],
+                  ["FEITAS", "Com algum m\u00eas (" + minhasComAcomp.length + ")"]];
       html += '<h3 style="margin:26px 0 6px; font-size:1.25rem; color:#0f2b5c; font-weight:900;">\ud83d\udcc5 Preenchimento m\u00eas a m\u00eas</h3>' +
         '<div style="font-size:0.90rem; color:#64748b; margin-bottom:12px; line-height:1.4;">Cada c\u00e9lula traz quantos dos <b>23 t\u00f3picos</b> foram preenchidos naquele m\u00eas. ' +
         'Clique no <b>Superintendente</b> ou <b>Gerente</b> para expandir/recolher a hierarquia.</div>' +
@@ -5113,7 +5322,7 @@ function hydrateFromPowerBI() {
             '; border:none; padding:8px 16px; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer;">' + a[1] + '</button>';
         }).join("") + '</div>';
 
-      var lista = TAB5_FILTRO === "PENDENTES" ? semAcomp : (TAB5_FILTRO === "FEITAS" ? comAcomp : elegiveis);
+      var lista = TAB5_FILTRO === "PENDENTES" ? minhasSemAcomp : (TAB5_FILTRO === "FEITAS" ? minhasComAcomp : minhas);
 
       function adesaoDe(oss) {
         var feitos = 0, esperados = oss.length * meses.length;
@@ -7623,6 +7832,7 @@ function hydrateFromPowerBI() {
     window.notasDaOS = notasDaOS;
     window.percentuaisPorCategoria = percentuaisPorCategoria;
     window.gravarNotasDoAno = gravarNotasDoAno;
+    window.congelarSnapshot = congelarSnapshot;
     window.confirmarNaPagina = confirmarNaPagina;
     window.renderTab5 = renderTab5;
     window.carregarTab5 = carregarTab5;
