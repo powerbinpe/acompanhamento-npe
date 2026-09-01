@@ -950,7 +950,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 11:40";
+    window.NPE_BUILD = "2026-09-02 13:10";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -4170,6 +4170,14 @@ function hydrateFromPowerBI() {
     // 8. ABA 3: CONSOLIDAÇÃO ANUAL
     // =========================================================================
         function renderAnnualConsolidation() {
+      // Os resumos moram no SharePoint; a leitura e assincrona, entao na primeira vez a aba
+      // desenha sem eles e redesenha quando chegam.
+      if (window.RESUMOS_ANUAIS === null && !window._RESUMOS_CARREGANDO &&
+          typeof carregarResumosAnuais === "function") {
+        carregarResumosAnuais().then(function() {
+          try { renderAnnualConsolidation(); } catch (e) {}
+        });
+      }
       var currentParams = new URLSearchParams(window.location.search);
       var rawOS = currentParams.get("SelectedOS") || "TODAS_OS";
       var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
@@ -6375,8 +6383,86 @@ function hydrateFromPowerBI() {
     // (botão "Copiar Tudo p/ IA"), cola numa IA externa, e cola o resultado de volta aqui.
     // Sempre sobrescreve o valor anterior; salvo neste navegador (localStorage), igual ao
     // resto dos campos editáveis do app.
+
+    // ---- resumos anuais por indicador, persistidos ---------------------------
+    // ano 9996 na SNAPSHOT_FECHAMENTO, uma linha por OS. Nao vao para a ATA porque o fluxo
+    // de gravacao dela recusa mes fora de 1..12 (testado: 202 e nada gravado), e alterar
+    // aquele fluxo esta fora de questao.
+    window.RESUMOS_ANUAIS = null;          // { "M02000": { id: 12, resumos: { "1": "..." } } }
+
+    window._RESUMOS_CARREGANDO = false;
+    async function carregarResumosAnuais() {
+      // A flag e separada de RESUMOS_ANUAIS de proposito: quem chama marca um mapa vazio
+      // para nao disparar duas leituras, e usar o proprio mapa como "ja carregado" faria
+      // esta funcao sair sem ler nada.
+      if (window._RESUMOS_CARREGANDO) return window.RESUMOS_ANUAIS || {};
+      window._RESUMOS_CARREGANDO = true;
+      var mapa = {};
+      try {
+        var linhas = await tab5Post(window.FLOW_LER_SNAPSHOT_URL, { ano: 9996 });
+        (linhas || []).forEach(function(l) {
+          if (!l || !l.dados) return;
+          var tit = String(l.titulo || "");
+          if (tit.indexOf("RESUMO_ANUAL") !== 0) return;
+          var os = tit.replace("RESUMO_ANUAL", "").trim().toUpperCase();
+          if (!os) return;
+          var d = null;
+          try { d = JSON.parse(l.dados); } catch (e) { return; }
+          var idAtual = parseInt(l.id, 10) || 0;
+          // Se houver mais de uma linha da mesma OS (grava\u00e7\u00e3o antiga sem id), vale a mais nova.
+          if (!mapa[os] || idAtual > mapa[os].id) {
+            mapa[os] = { id: idAtual, resumos: (d && d.resumos) ? d.resumos : {} };
+          }
+        });
+      } catch (e) {}
+      window.RESUMOS_ANUAIS = mapa;
+      window._RESUMOS_CARREGANDO = false;
+      return mapa;
+    }
+
+    async function salvarResumosAnuais(osCode) {
+      var s = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
+      var quem = s ? (s.login || "") : (new URLSearchParams(window.location.search).get("UserEmail") || "");
+      if (!window.RESUMOS_ANUAIS) await carregarResumosAnuais();
+      var reg = (window.RESUMOS_ANUAIS || {})[osCode] || { id: 0, resumos: {} };
+
+      // Le as 23 caixas da tela; caixa vazia apaga o resumo daquele indicador.
+      var resumos = {};
+      for (var tid = 1; tid <= 23; tid++) {
+        var el = document.getElementById("resumoIA_" + tid);
+        if (!el) continue;
+        var v = (el.value || "").trim();
+        if (v) resumos[String(tid)] = v;
+      }
+
+      var r = await fetch(window.FLOW_GRAVAR_SNAPSHOT_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // id > 0 cai no ramo "Atualizar item" do fluxo: a linha e substituida, nao duplicada.
+          id: reg.id || 0,
+          titulo: "RESUMO_ANUAL " + osCode,
+          ano: 9996, mes: 1,
+          dados: JSON.stringify({ os: osCode, resumos: resumos }),
+          geradoPor: quem
+        })
+      });
+      if (!(r.ok || r.status === 202)) return false;
+      reg.resumos = resumos;
+      window.RESUMOS_ANUAIS[osCode] = reg;
+      // Uma linha nova nasce sem id conhecido; reler garante que a proxima grava\u00e7\u00e3o atualize
+      // em vez de criar outra.
+      if (!reg.id) { window.RESUMOS_ANUAIS = null; window._RESUMOS_CARREGANDO = false; await carregarResumosAnuais(); }
+      return true;
+    }
+    window.salvarResumosAnuais = salvarResumosAnuais;
+
+    // O que o usuario acabou de digitar tem prioridade sobre o que veio do SharePoint --
+    // senao um render no meio da edicao devolveria o texto antigo para a caixa.
     function getResumoAnualIA(osCode, topicId) {
-      return safeGetStorage("resumo_ia_" + osCode + "_" + topicId, "");
+      var local = safeGetStorage("resumo_ia_" + osCode + "_" + topicId, "");
+      if (local) return local;
+      var reg = (window.RESUMOS_ANUAIS || {})[String(osCode).toUpperCase()];
+      return (reg && reg.resumos && reg.resumos[String(topicId)]) ? reg.resumos[String(topicId)] : "";
     }
 
     function saveResumoAnualInline(topicId) {
@@ -6391,7 +6477,14 @@ function hydrateFromPowerBI() {
       var ta = document.getElementById("resumoIA_" + topicId);
       if (!ta) return;
       safeSetStorage("resumo_ia_" + activeOS + "_" + topicId, ta.value);
-      showToast("✅ Resumo anual do tópico #" + topicId + " salvo (fixo, independente do mês).");
+      // Grava as 23 caixas de uma vez: o registro no SharePoint e uma linha por OS, entao
+      // gravar so o topico editado apagaria os outros.
+      showToast("⏳ Gravando resumos da OS " + activeOS + "...");
+      salvarResumosAnuais(activeOS).then(function(ok) {
+        showToast(ok
+          ? "✅ Resumo anual do tópico #" + topicId + " gravado (visível para todos)."
+          : "⚠️ Resumo ficou só nesta tela — falha ao gravar no SharePoint.");
+      });
     }
 
     var MONTH_NAMES_FULL_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
