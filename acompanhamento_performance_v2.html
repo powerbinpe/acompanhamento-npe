@@ -909,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 16:20";
+    window.NPE_BUILD = "2026-09-01 17:05";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -4913,6 +4913,33 @@ function hydrateFromPowerBI() {
 
     // Notas por OS: lê as gravadas no SharePoint e complementa dinamicamente via cálculo
     // real para todas as OSs ativas de Parada, Rotina e Oficina que tenham dados apurados.
+    // Quais OSs ainda nao passaram pela regravacao desta rodada.
+    // Criterio: a nota mais recente da OS ser de HOJE. As notas antigas sao de 31/08, entao
+    // o corte por dia separa as duas geracoes sem precisar marcar nada no SharePoint.
+    // Fica de fora quem nunca preencheu nenhum mes -- essa OS nao deve ser gravada, e
+    // deixa-la na lista faria a fila nunca zerar.
+    function tab5PendentesRegravacao(elegiveis, resumo) {
+      var inicioDoDia = new Date();
+      inicioDoDia.setHours(0, 0, 0, 0);
+      var maisRecente = {};
+      (window.TAB5.notas || []).forEach(function(r) {
+        var os = extractPrimaryOSCode(String(r.os || "").toUpperCase());
+        if (!os) return;
+        var q = Date.parse(r.atualizadoEm || "");
+        if (!isFinite(q)) return;
+        if (!maisRecente[os] || q > maisRecente[os]) maisRecente[os] = q;
+      });
+      return elegiveis.filter(function(o) {
+        var e = resumo[o.codigo];
+        var iniciou = e && e.meses && Object.keys(e.meses).some(function(mm) {
+          return e.meses[mm].topicos > 0;
+        });
+        if (!iniciou) return false;
+        var q = maisRecente[o.codigo];
+        return !q || q < inicioDoDia.getTime();
+      }).map(function(o) { return o.codigo; }).sort();
+    }
+
     function tab5NotasPorOS() {
       var blocos = obterMapaDeBlocosOS();
       var mapa = {};
@@ -5158,6 +5185,7 @@ function hydrateFromPowerBI() {
             '\u26a0\ufe0f <b>Ainda n\u00e3o congelado.</b> Os n\u00fameros s\u00e3o recalculados a cada abertura e podem mudar. ' +
             'Use <b>Congelar Fechamento</b> quando o m\u00eas estiver fechado.' +
           '</div>') +
+        painelPendentes() +
         '<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">' +
         tab5Cartao("OSs eleg\u00edveis", elegiveis.length, "#0f2b5c", "#f1f5f9") +
         tab5Cartao("Acompanharam algum m\u00eas", comAcomp.length, "#15803d", "#f0fdf4") +
@@ -5185,6 +5213,45 @@ function hydrateFromPowerBI() {
           ? { codigo: o.codigo, mes: n.ultimoMes, notaMes: n.ultima.notaMes, notaAcum: n.ultima.notaAcum, cats: n.ultima.cats }
           : null;
       }).filter(Boolean).sort(function(a, b) { return b.notaAcum - a.notaAcum; });
+
+      // So o Setor de Performance regrava, entao so ele ve a fila. Para os demais o painel
+      // nao existe -- nao e informacao de gestao, e ferramenta de trabalho.
+      function painelPendentes() {
+        if (!isUserAuthorizedMaster()) return "";
+        var faltam = tab5PendentesRegravacao(elegiveis, resumo);
+        var total = elegiveis.filter(function(o) {
+          var e = resumo[o.codigo];
+          return e && e.meses && Object.keys(e.meses).some(function(mm) { return e.meses[mm].topicos > 0; });
+        }).length;
+        if (!faltam.length) {
+          return '<div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px;' +
+                 ' padding:10px 14px; margin-bottom:12px; font-size:0.90rem; color:#166534; font-weight:800;">' +
+                 '\u2705 Regrava\u00e7\u00e3o completa \u2014 todas as ' + total +
+                 ' OSs com apura\u00e7\u00e3o foram atualizadas hoje. Pode congelar o fechamento.' +
+                 '</div>';
+        }
+        var feitas = total - faltam.length;
+        var pct = total ? Math.round((feitas / total) * 100) : 0;
+        return '<div style="background:#fff7ed; border:1.5px solid #fdba74; border-radius:10px;' +
+               ' padding:10px 14px; margin-bottom:12px;">' +
+                 '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px;">' +
+                   '<span style="font-size:0.92rem; font-weight:900; color:#9a3412;">' +
+                     '\u23f3 Faltam regravar: ' + faltam.length + ' de ' + total +
+                   '</span>' +
+                   '<span style="flex:1; min-width:120px; height:8px; background:#fed7aa; border-radius:4px; overflow:hidden;">' +
+                     '<span style="display:block; height:100%; width:' + pct + '%; background:#ea580c;"></span>' +
+                   '</span>' +
+                   '<span style="font-size:0.86rem; font-weight:800; color:#9a3412;">' + pct + '%</span>' +
+                 '</div>' +
+                 '<div style="display:flex; flex-wrap:wrap; gap:5px;">' +
+                   faltam.map(function(c) {
+                     return '<span style="background:#ffffff; border:1.5px solid #fdba74; color:#9a3412;' +
+                            ' border-radius:5px; padding:2px 7px; font-size:0.82rem; font-weight:800;' +
+                            ' font-family:monospace;">' + c + '</span>';
+                   }).join("") +
+                 '</div>' +
+               '</div>';
+      }
 
       // Linhas de negocio precisam existir antes daqui: o snapshot guarda as duas coisas.
       var linhasNegocio = ["ROTINA", "PARADA", "OFICINA"];
