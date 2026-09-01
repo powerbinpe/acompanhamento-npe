@@ -954,7 +954,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 14:25";
+    window.NPE_BUILD = "2026-09-02 15:10";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3568,12 +3568,15 @@ function hydrateFromPowerBI() {
 
     // Categorias e pesos usados no cálculo real (calculateOSScoreUncached) -- mesma fonte da
     // Aba 2/ranking, para que a matriz mês a mês agrupe os tópicos exatamente como são somados.
+    // A ordem dentro de cada categoria e a NUMERICA do indicador. Tres categorias estavam
+    // fora de sequencia (t8 antes de t7, t21 antes de t19, t20 antes de t18) e isso aparecia
+    // em toda tela que percorre SCORE_CATEGORIES -- cards, matriz e exportacoes.
     var SCORE_CATEGORIES = [
-      { key: "fin", label: "Financeiro", icon: "💰", color: "#0f2b5c", topics: ["t1", "t2", "t3", "t4", "t6", "t8", "t7"] },
-      { key: "gov", label: "Governança do Contrato", icon: "📋", color: "#0e7490", topics: ["t5", "t21", "t19"] },
+      { key: "fin", label: "Financeiro", icon: "💰", color: "#0f2b5c", topics: ["t1", "t2", "t3", "t4", "t6", "t7", "t8"] },
+      { key: "gov", label: "Governança do Contrato", icon: "📋", color: "#0e7490", topics: ["t5", "t19", "t21"] },
       { key: "acomp", label: "Gestão e Acompanhamento", icon: "🗓️", color: "#1d4ed8", topics: ["prazo", "preenchimento"] },
       { key: "pes", label: "Pessoas", icon: "👥", color: "#a855f7", topics: ["t9", "t10", "t11", "t12", "t13", "t14"] },
-      { key: "ssma", label: "SSMA e Qualidade", icon: "🦺", color: "#b45309", topics: ["t15", "t16", "t17", "t20", "t18"] }
+      { key: "ssma", label: "SSMA e Qualidade", icon: "🦺", color: "#b45309", topics: ["t15", "t16", "t17", "t18", "t20"] }
     ];
 
     // Cor da categoria por key -- fonte única para qualquer lugar que precise da cor sem
