@@ -909,7 +909,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 19:05";
+    window.NPE_BUILD = "2026-09-01 20:15";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3448,13 +3448,12 @@ function hydrateFromPowerBI() {
     // valor numérico de apuração por trás, então a matriz mostra só o veredito, não um comparativo.
     var QUALITATIVE_TOPIC_IDS = ["t5", "t7", "t13", "t14", "t18", "t19", "t21"];
 
+    // Valor por extenso, com separador de milhar. A versao abreviada (R$1,71M) economizava
+    // espaco num painel que nao esta apertado, e escondia a ordem de grandeza bem no lugar
+    // onde ela e discutida na reuniao.
     function formatCompactBRL(n) {
       if (typeof n !== "number" || isNaN(n)) return "–";
-      var sign = n < 0 ? "-" : "";
-      var abs = Math.abs(n);
-      if (abs >= 1000000) return sign + "R$" + (abs / 1000000).toFixed(2).replace(".", ",") + "M";
-      if (abs >= 1000) return sign + "R$" + (abs / 1000).toFixed(0) + "k";
-      return sign + "R$" + abs.toFixed(0);
+      return (n < 0 ? "-" : "") + "R$ " + Math.round(Math.abs(n)).toLocaleString("pt-BR");
     }
     function formatIntBR(n) {
       if (typeof n !== "number" || isNaN(n)) return "–";
@@ -3651,9 +3650,17 @@ function hydrateFromPowerBI() {
           if (contract && typeof selMonthNum === "number") {
             var mdUlt = (contract.monthHistory) ? contract.monthHistory[selMonthNum] : null;
             var det = buildTopicDetailLine(isAcompTopic ? t.id : ("t" + t.id), mdUlt, contract, selMonthNum);
-            if (det) {
-              valorDetalheHTML = '<div style="margin-top:8px; padding:6px 9px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.80rem; color:#334155; font-weight:700;">' +
-                '<span style="color:#0f2b5c; font-weight:800;">' + (MONTH_SHORT_NAMES[selMonthNum] || "M\u00eas") + ':</span> ' + det +
+            // Mesma funcao da Aba 1: uma implementacao so, entao as duas abas nunca divergem.
+            // Nos topicos manuais ela devolve "" sozinha, porque ali nao existe numero apurado.
+            var selo = (typeof seloTendencia === "function" && !isAcompTopic)
+              ? seloTendencia(contractCode, t.id, selMonthNum) : "";
+            if (det || selo) {
+              valorDetalheHTML = '<div style="margin-top:8px; padding:6px 9px; background:#f8fafc;' +
+                ' border:1px solid #e2e8f0; border-radius:6px; font-size:0.80rem; color:#334155;' +
+                ' font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
+                (det ? '<span style="min-width:0;"><span style="color:#0f2b5c; font-weight:800;">' +
+                       (MONTH_SHORT_NAMES[selMonthNum] || "M\u00eas") + ':</span> ' + det + '</span>' : '') +
+                (selo ? '<span style="margin-left:auto;">' + selo + '</span>' : '') +
               '</div>';
             }
           }
