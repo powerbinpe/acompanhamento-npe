@@ -954,7 +954,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 16:00";
+    window.NPE_BUILD = "2026-09-02 17:20";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3575,7 +3575,17 @@ function hydrateFromPowerBI() {
     // Sintese) nao recebem numero na tela, ainda que 22, 23 e 24 continuem sendo a chave
     // deles na ATA -- renumerar la reinterpretaria o historico ja gravado.
     var TOPICOS_SEM_NUMERO = [22, 23, 24];
-    var NUMERO_ACOMP = { prazo: 22, preenchimento: 23 };
+    // As duas chaves de score e os dois TopicoId da ATA apontam para o mesmo indicador:
+    // na tela ele e #22/#23, no SharePoint e 26/27. Numero de tela e chave de gravacao sao
+    // coisas diferentes -- 22 e 23 ja pertencem a Renovacao e Observacoes na ATA.
+    var NUMERO_ACOMP = { prazo: 22, preenchimento: 23, 26: 22, 27: 23 };
+
+    // Topicos que tem caixa de texto na Aba 1, e portanto gravam na ATA.
+    var TOPICOS_COM_CAIXA = (function () {
+      var a = [];
+      for (var i = 1; i <= 23; i++) a.push(i);
+      return a.concat([26, 27]);
+    })();
 
     // Devolve "#07" ou "" quando o topico nao e indicador.
     function numeroIndicador(id) {
@@ -6741,7 +6751,7 @@ function hydrateFromPowerBI() {
       lines.push("PARECERES DO SETOR DE PERFORMANCE -- OS " + activeOS + " -- " + (monthName || ("Mês " + monthNum)) + "/2026");
       lines.push("");
 
-      for (var tid = 1; tid <= 23; tid++) {
+      TOPICOS_COM_CAIXA.forEach(function(tid) {
         var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
         var tMap = TOPIC_INDICATOR_MAP.find(function(t) { return t.id === tid; });
         var detalhe = (tMap && contract && monthData) ? buildTopicDetailLine(tMap.scoreId, monthData, contract, monthNum) : "";
@@ -6771,7 +6781,7 @@ function hydrateFromPowerBI() {
         // que o Gestor disse.
         lines.push("Gestor: " + (gVal && gVal.trim() ? gVal.trim() : "(sem justificativa)"));
         lines.push("");
-      }
+      });
 
       // Indicadores que não bateram a meta no mês -- para a IA considerar não só o que foi
       // escrito nos pareceres, mas também o que os números em si estão apontando.
@@ -6960,7 +6970,7 @@ function hydrateFromPowerBI() {
       lines.push("");
 
       var comParecer = 0, semParecer = [];
-      for (var tid = 1; tid <= 23; tid++) {
+      TOPICOS_COM_CAIXA.forEach(function(tid) {
         var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
         var mEl = document.getElementById("master_" + tid);
         var mVal = mEl ? mEl.value : safeGetStorage("m_" + os + "_m" + mNum + "_" + tid, "");
@@ -6970,9 +6980,9 @@ function hydrateFromPowerBI() {
           lines.push(mVal.trim());
           lines.push("");
         } else {
-          semParecer.push("#" + tid + " " + topicObj.name);
+          semParecer.push(rotuloIndicador(tid, topicObj.name));
         }
-      }
+      });
 
       if (!comParecer) {
         showToast("⚠️ Nenhum parecer da Performance escrito neste mês ainda.");
@@ -7280,7 +7290,9 @@ function hydrateFromPowerBI() {
       // linhas do lote, pra não precisar de uma linha "fantasma" só pra guardar isso.
       var slaStatusForSave = getSlaPeriodStatus(activeOS, monthNum);
 
-      for (var tid = 1; tid <= 23; tid++) {
+      // Inclui 26 e 27 (Pontualidade e Preenchimento): os cards deles sempre existiram na
+      // tela, mas ficavam de fora daqui e o texto era perdido sem aviso.
+      TOPICOS_COM_CAIXA.forEach(function(tid) {
         var gEl = document.getElementById("gestor_" + tid);
         var mEl = document.getElementById("master_" + tid);
         var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
@@ -7349,7 +7361,7 @@ function hydrateFromPowerBI() {
           SlaPeriodStatus: slaStatusForSave,
           slaPeriodStatus: slaStatusForSave
         });
-      }
+      });
 
       var fEl = document.getElementById("finalPerformanceComment");
       if (fEl) {
