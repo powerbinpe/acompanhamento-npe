@@ -226,16 +226,19 @@
         &#128197; Gravar Notas do Ano
       </button>
 
-      <button type="button" id="btnImportarPareceres" onclick="abrirImportaLote('PARECER')" style="display:none; background:linear-gradient(135deg,#059669,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-        &#128229; Importar Pareceres
+      <!-- Os tres passos da esteira, na ordem em que se usam. Antes os nomes eram quase
+           iguais ("Copiar Pareceres" / "Copiar Pareceres do Mes") para acoes opostas, e o
+           Importar aparecia antes do Gerar. -->
+      <button type="button" id="btnCopyMonthPareceres" onclick="openCopyMonthPareceresModal()" title="Passo 1: monta o texto com os indicadores e as justificativas do Gestor para a IA escrever os 25 pareceres." style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+        📋 1 &middot; Gerar Pareceres
       </button>
 
-      <button type="button" id="btnCopyPareceresPerf" onclick="openCopyPareceresPerfModal()" style="display:none; background:linear-gradient(135deg,#0e7490,#155e75); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-        &#128203; Copiar Pareceres
+      <button type="button" id="btnImportarPareceres" onclick="abrirImportaLote('PARECER')" title="Passo 2: cole aqui a resposta da IA e o app distribui cada parecer na caixa do seu indicador." style="display:none; background:linear-gradient(135deg,#059669,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+        &#128229; 2 &middot; Importar Pareceres
       </button>
 
-      <button type="button" id="btnCopyMonthPareceres" onclick="openCopyMonthPareceresModal()" style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-        📋 Copiar Pareceres do Mês
+      <button type="button" id="btnCopyPareceresPerf" onclick="openCopyPareceresPerfModal()" title="Passo 3: junta os pareceres ja escritos para a IA produzir a Sintese do mes (topico #24)." style="display:none; background:linear-gradient(135deg,#0e7490,#155e75); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+        &#128203; 3 &middot; Gerar S&iacute;ntese do M&ecirc;s
       </button>
     </div>
   </div>
@@ -954,7 +957,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 16:20";
+    window.NPE_BUILD = "2026-09-02 17:05";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -7305,10 +7308,19 @@ function hydrateFromPowerBI() {
       lines.push("Organize por prioridade, não pela ordem dos indicadores: comece pelo que exige ação imediata.");
       lines.push("Junte indicadores que apontam para a mesma causa em vez de repeti-los separados.");
       lines.push("Feche com os direcionamentos concretos do mês -- o que fazer, por quem, até quando.");
+      lines.push("");
+      lines.push("OS NÚMEROS TÊM QUE SOBREVIVER À SÍNTESE.");
+      lines.push("Cada parecer acima começa com uma linha \"Apurado:\" que traz o valor do indicador. Ao agrupar, CITE esses valores nos pontos que você levantar -- \"faturamento do ano em R$ 7,7 mi contra R$ 17,4 mi previstos\", não \"faturamento abaixo do previsto\". Uma síntese sem número não sustenta decisão nenhuma, e é dela que sai a leitura do ano.");
+      lines.push("");
+      lines.push("A QUALIDADE DAS JUSTIFICATIVAS É UM TEMA DA SÍNTESE, NÃO UM DETALHE.");
+      lines.push("Se vários indicadores vierem sem justificativa do Gestor, ou com justificativa que não condiz com os números, trate isso como um ponto próprio da síntese -- é falha de governança do contrato, e pode levar a decisão de NÃO ADERENTE. Diga quantos e quais indicadores estão nessa situação.");
+      lines.push("Indicador bom sem nenhuma ação descrita também entra: o resultado existe e não se sabe como foi obtido, então não dá para repetir.");
+      lines.push("");
+      lines.push("Use apenas o que está nos pareceres acima. Não invente ação, documento, prazo ou responsável que não esteja escrito. Não use colchetes.");
       lines.push("Cole o resultado no campo \"Síntese e Recomendações da Performance\" (tópico #24) no app.");
 
       mostrarCaixaCopia("OS " + os + " • " + (mName || mNum) + "/2026 • " + comParecer +
-        " parecer(es) da Performance. O resultado vai na Síntese do mês (tópico #24).",
+        " parecer(es) já escritos. O resultado vai colado à mão na Síntese do mês (tópico #24).",
         lines.join("\n"));
     }
     window.openCopyPareceresPerfModal = openCopyPareceresPerfModal;
