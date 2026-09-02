@@ -954,7 +954,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 15:10";
+    window.NPE_BUILD = "2026-09-02 16:00";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3256,7 +3256,7 @@ function hydrateFromPowerBI() {
         row.innerHTML = '<div class="kpi-column">' +
           '<div>' +
             '<div class="topic-header" style="margin-bottom: 6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
-              '<span class="topic-title" style="font-size:1.15rem; font-weight:800; color:#0f2b5c;">#' + String(topic.id).padStart(2, '0') + ' ' + topic.name + '</span>' +
+              '<span class="topic-title" style="font-size:1.15rem; font-weight:800; color:#0f2b5c;">' + rotuloIndicador(topic.id, topic.name) + '</span>' +
               seloTendencia(activeOS, topic.id, monthNum) +
             '</div>' +
             '<div class="kpi-lines">' + linesHTML + '</div>' +
@@ -3307,7 +3307,7 @@ function hydrateFromPowerBI() {
         
         var tHtml = '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #cbd5e1; padding-bottom:8px; margin-bottom:12px;">' +
           '<div style="font-weight:800; font-size:1.0rem; color:#0f2b5c;">📜 Linha do Tempo & Histórico Registrado em ATA_COMENTARIO • OS ' + activeOS + '</div>' +
-          '<span style="font-size:0.75rem; font-weight:700; background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:4px;">Tópico #' + String(topic.id).padStart(2, '0') + ' ' + topic.name + '</span>' +
+          '<span style="font-size:0.75rem; font-weight:700; background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:4px;">' + (numeroIndicador(topic.id) ? "Tópico " : "") + rotuloIndicador(topic.id, topic.name) + '</span>' +
           '</div>';
 
         if (topic.id === 17) {
@@ -3571,6 +3571,26 @@ function hydrateFromPowerBI() {
     // A ordem dentro de cada categoria e a NUMERICA do indicador. Tres categorias estavam
     // fora de sequencia (t8 antes de t7, t21 antes de t19, t20 antes de t18) e isso aparecia
     // em toda tela que percorre SCORE_CATEGORIES -- cards, matriz e exportacoes.
+    // Numero e de INDICADOR. Os tres campos de texto livre (Renovacao, Observacoes e a
+    // Sintese) nao recebem numero na tela, ainda que 22, 23 e 24 continuem sendo a chave
+    // deles na ATA -- renumerar la reinterpretaria o historico ja gravado.
+    var TOPICOS_SEM_NUMERO = [22, 23, 24];
+    var NUMERO_ACOMP = { prazo: 22, preenchimento: 23 };
+
+    // Devolve "#07" ou "" quando o topico nao e indicador.
+    function numeroIndicador(id) {
+      if (NUMERO_ACOMP[id]) return "#" + String(NUMERO_ACOMP[id]);
+      var n = parseInt(id, 10);
+      if (!isFinite(n) || TOPICOS_SEM_NUMERO.indexOf(n) !== -1) return "";
+      return "#" + String(n).padStart(2, "0");
+    }
+
+    // "#07 Receita Ideal" ou so "Renovacao do Contrato".
+    function rotuloIndicador(id, nome) {
+      var num = numeroIndicador(id);
+      return num ? (num + " " + nome) : nome;
+    }
+
     var SCORE_CATEGORIES = [
       { key: "fin", label: "Financeiro", icon: "💰", color: "#0f2b5c", topics: ["t1", "t2", "t3", "t4", "t6", "t7", "t8"] },
       { key: "gov", label: "Governança do Contrato", icon: "📋", color: "#0e7490", topics: ["t5", "t19", "t21"] },
@@ -3939,7 +3959,7 @@ function hydrateFromPowerBI() {
           return '<div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; border-top:4px solid ' + catColor + '; padding:16px 18px; box-shadow:0 1px 4px rgba(15,43,92,0.06); display:flex; flex-direction:column;">' +
             '<div style="min-height:120px;">' +
               '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">' +
-                '<span style="font-size:1.05rem; font-weight:800; color:#1e293b;">' + (isAcompTopic ? t.name : (t.id + '. ' + t.name)) + '</span>' +
+                '<span style="font-size:1.05rem; font-weight:800; color:#1e293b;">' + rotuloIndicador(t.id, t.name) + '</span>' +
                 '<span style="font-size:0.84rem; font-weight:800; color:#94a3b8; white-space:nowrap;">' + t.weight + ' pts</span>' +
               '</div>' +
               body +
@@ -4315,10 +4335,10 @@ function hydrateFromPowerBI() {
         };
 
         function licoesTopicLabel(id) {
-          if (id === "prazo") return "Pontualidade do Acompanhamento";
-          if (id === "preenchimento") return "Preenchimento do Acompanhamento";
+          if (id === "prazo") return "#22 Pontualidade do Acompanhamento";
+          if (id === "preenchimento") return "#23 Preenchimento do Acompanhamento";
           var t = TOPIC_INDICATOR_MAP.filter(function(x) { return x.scoreId === id; })[0];
-          return t ? t.name : id;
+          return t ? rotuloIndicador(t.id, t.name) : id;
         }
 
         // Aba intencionalmente sem filtro de OS/Gestor -- lições e riscos precisam refletir o
