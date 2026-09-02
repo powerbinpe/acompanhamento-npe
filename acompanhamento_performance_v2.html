@@ -954,7 +954,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 15:10";
+    window.NPE_BUILD = "2026-09-02 16:20";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6719,6 +6719,10 @@ function hydrateFromPowerBI() {
       lines.push("");
       lines.push("At\u00e9 6 linhas por indicador. Indicador sem parecer registrado: diga isso e resuma s\u00f3 pelos n\u00fameros.");
       lines.push("");
+      lines.push("A QUALIDADE DA EXPLICA\u00c7\u00c3O ENTRA NO RESUMO DO ANO.");
+      lines.push("Indicador que foi BEM o ano todo mas sem nenhuma a\u00e7\u00e3o descrita: diga que o resultado \u00e9 bom E que n\u00e3o h\u00e1 registro do que o produziu -- isso impede de replicar em outras OSs e \u00e9 uma fraqueza de gest\u00e3o, n\u00e3o um elogio completo.");
+      lines.push("Indicador cujas justificativas foram gen\u00e9ricas ou n\u00e3o condizem com os n\u00fameros: registre como ponto fraco recorrente do contrato, porque essa \u00e9 a base que alimenta a decis\u00e3o de ader\u00eancia.");
+      lines.push("");
       lines.push("PONTUALIDADE (#22) E PREENCHIMENTO (#23) -- LEIA COM ATEN\u00c7\u00c3O");
       lines.push("Os dois dividem UMA \u00fanica nota de Gest\u00e3o e Acompanhamento, mas medem coisas de natureza oposta e NUNCA devem ser tratados como o mesmo assunto:");
       lines.push("  - #23 Preenchimento deve SEMPRE fechar 100% (23 de 23 indicadores justificados). Qualquer n\u00famero menor \u00e9 falha de gest\u00e3o, sem atenuante: os campos estavam l\u00e1 para serem preenchidos.");
@@ -6895,6 +6899,20 @@ function hydrateFromPowerBI() {
       }
       function textoDe(r) { return (typeof r === "string") ? r : ((r && r.t) || ""); }
 
+      // Denominador dos percentuais. O usuario quer ler "12 de 64 OSs (19%)", nao "12 OSs" --
+      // e a conta vai pronta para a IA nao ter que fazer (e errar) aritmetica.
+      var totalOSs = comResumo.length;
+      var contagem = {};
+      TOPIC_INDICATOR_MAP.concat(ACOMP_INDICATOR_MAP).forEach(function(tc) {
+        var idC = (tc.id === "prazo") ? 26 : (tc.id === "preenchimento" ? 27 : tc.id);
+        var c = { POS: 0, NEG: 0 };
+        comResumo.forEach(function(os) {
+          var cls = classificar(todos[os].resumos[String(idC)]);
+          if (cls === "POS") c.POS++; else if (cls === "NEG") c.NEG++;
+        });
+        contagem[idC] = c;
+      });
+
       var qtdTextos = 0, semClassificacao = 0;
       ["POS", "NEG"].forEach(function(lado) {
         var cabecalhoPosto = false;
@@ -6920,7 +6938,11 @@ function hydrateFromPowerBI() {
           }
           qtdTextos += blocos.length;
           lines.push("");
-          lines.push("### " + rotuloIndicador(t.id, t.name));
+          var nLado = (contagem[idBusca] || {})[lado] || blocos.length;
+          var pctLado = totalOSs ? Math.round(nLado * 1000 / totalOSs) / 10 : 0;
+          lines.push("### " + rotuloIndicador(t.id, t.name) +
+                     " -- " + nLado + " de " + totalOSs + " OSs (" +
+                     String(pctLado).replace(".", ",") + "%)");
           blocos.forEach(function(l) { lines.push(l); });
         });
       });
@@ -6944,6 +6966,14 @@ function hydrateFromPowerBI() {
       lines.push("");
       lines.push("BLOCO 3 -- GEST\u00c3O DE RISCO");
       lines.push("Riscos recorrentes, indicadores cronicamente ruins e falhas de acompanhamento. Priorize por criticidade.");
+      lines.push("");
+      lines.push("SEMPRE EM PERCENTUAL SOBRE O TOTAL DE OSs.");
+      lines.push("Cada indicador acima j\u00e1 vem com a conta pronta -- \"12 de " + totalOSs + " OSs (18,8%)\". USE esses n\u00fameros ao apresentar cada destaque, porque \u00e9 a propor\u00e7\u00e3o que mostra se o caso foi pontual ou se virou padr\u00e3o na empresa. Exemplo do formato esperado: \"Resultado do Ano -- 12 de " + totalOSs + " OSs (18,8%) superaram o previsto pelo executivo, por meio de <as a\u00e7\u00f5es descritas nos resumos>\". N\u00e3o recalcule e n\u00e3o arredonde para n\u00fameros redondos.");
+      lines.push("Vale para os tr\u00eas blocos: no que deu certo, no que n\u00e3o aplicar e nos riscos.");
+      lines.push("");
+      lines.push("A A\u00c7\u00c3O \u00c9 O QUE INTERESSA, E A FALTA DELA TAMB\u00c9M.");
+      lines.push("Para cada destaque positivo, diga QUAL A\u00c7\u00c3O produziu o resultado. Quando os resumos mostrarem resultado bom mas nenhuma a\u00e7\u00e3o descrita, registre isso: o resultado existe e n\u00e3o pode ser replicado porque ningu\u00e9m documentou como foi obtido -- isso \u00e9 mat\u00e9ria do BLOCO 3, n\u00e3o do BLOCO 1.");
+      lines.push("Contratos cujas justificativas s\u00e3o gen\u00e9ricas ou n\u00e3o condizem com os n\u00fameros entram no BLOCO 3 como risco de governan\u00e7a: sem explica\u00e7\u00e3o clara n\u00e3o h\u00e1 como sustentar a ader\u00eancia do contrato.");
       lines.push("");
       lines.push("Escreva para DIVULGA\u00c7\u00c3O: nomeie o indicador e a OS, cite o resultado, e explique como foi conduzido. Use apenas o que est\u00e1 acima, n\u00e3o invente. At\u00e9 10 linhas por bloco.");
       lines.push("");
@@ -7062,7 +7092,14 @@ function hydrateFromPowerBI() {
       lines.push("  - ESTÁVEL      -> recomende o que tentar para SAIR do patamar, não apenas manter.");
       lines.push("  - NÃO AVALIADO -> escreva \"Parecer: indicador não apurado neste mês\" e, se o texto disser o motivo, o motivo. NÃO recomende nada e NÃO escreva \"Mantenha...\".");
       lines.push("");
-      lines.push("REGRA 3 -- NÃO INVENTE.");
+      lines.push("REGRA 3 -- A JUSTIFICATIVA DO GESTOR TAMB\u00c9M \u00c9 AVALIADA, N\u00c3O S\u00d3 O N\u00daMERO.");
+      lines.push("O n\u00famero diz O QUE aconteceu; a justificativa deveria dizer POR QUE e O QUE FOI FEITO. Sem isso o resultado n\u00e3o se replica no ano seguinte, nem bom nem ruim.");
+      lines.push("  - SEM justificativa e indicador BOM (atendeu, ou vem melhorando): reconhe\u00e7a o resultado E registre que o Setor de Performance orienta que TODAS as ocorr\u00eancias e as a\u00e7\u00f5es que fizeram o indicador melhorar estejam descritas. N\u00famero bom sem explica\u00e7\u00e3o n\u00e3o vira boa pr\u00e1tica: ningu\u00e9m sabe o que repetir.");
+      lines.push("  - SEM justificativa e indicador RUIM: cobre a explica\u00e7\u00e3o e o plano de a\u00e7\u00e3o, sem inventar a causa.");
+      lines.push("  - COM justificativa que N\u00c3O CONDIZ com o n\u00famero, ou gen\u00e9rica, ou que n\u00e3o explica os motivos e as a\u00e7\u00f5es de forma clara: aponte isso como PONTO FRACO, com todas as letras, e diga que a aus\u00eancia de clareza pode levar o Setor de Performance a uma decis\u00e3o de N\u00c3O ADERENTE. Preencher o campo n\u00e3o \u00e9 o mesmo que justificar.");
+      lines.push("Quando houver descompasso entre o que o Gestor escreveu e o que os n\u00fameros mostram, diga qual \u00e9 o descompasso.");
+      lines.push("");
+      lines.push("REGRA 4 -- NÃO INVENTE.");
       lines.push("Não cite documento, sistema, processo, prazo, valor ou responsável que não esteja escrito no bloco do indicador. Sem base para recomendar, escreva \"sem informação suficiente para recomendar\".");
       lines.push("Indicador que não bateu a meta e não tem justificativa: aponte a ausência como ponto a cobrar, não invente a causa.");
       lines.push("");
