@@ -954,7 +954,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-01 22:20";
+    window.NPE_BUILD = "2026-09-01 22:40";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -7340,7 +7340,13 @@ function hydrateFromPowerBI() {
     }
 
     async function gravarNotasDoAno(semConfirmar) {
-      if (!isUserAuthorizedMaster()) { showToast("\u26d4 Apenas o Setor de Performance."); return; }
+      // A janela armada tambem autoriza. Sem isto o modo armado nao gravava NADA fora do
+      // iframe -- e, pior, nao gravava no Servico: la a sessao do login morre a cada troca
+      // de OS, e a janela existe justamente para cobrir esse buraco. O autoRegravar ja
+      // aceitava a janela; era esta funcao, a que grava de fato, que recusava.
+      if (!window.REGRAVAR_ARMADO && !isUserAuthorizedMaster()) {
+        showToast("\u26d4 Apenas o Setor de Performance."); return;
+      }
       if ((window.FLOW_GRAVAR_NOTAS_URL || "").indexOf("http") !== 0) {
         showToast("\u26a0\ufe0f Fluxo de gravacao de notas nao configurado."); return;
       }
