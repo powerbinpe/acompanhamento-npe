@@ -954,7 +954,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 17:20";
+    window.NPE_BUILD = "2026-09-02 19:15";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6625,20 +6625,87 @@ function hydrateFromPowerBI() {
       { key: "licoes_risco", titulo: "🛡️ Gestão de Risco — Pontos de Atenção do Contrato", cor: "#b45309", bg: "#fffbeb", borda: "#fde68a" }
     ];
 
-    function getLicoesResumo(key) { return safeGetStorage("licoes_resumo_" + key, ""); }
+    // Os tres quadros moram na SNAPSHOT_FECHAMENTO, ano 9997, numa linha unica. Antes
+    // gravavam em safeSetStorage, que no iframe nao existe: o texto sumia na proxima troca de
+    // OS e a aba ficava vazia para todo mundo, apesar do aviso de "salvo".
+    window.LICOES_DB = null;              // { id: 9, blocos: { licoes_bom: "..." } }
+    window._LICOES_CARREGANDO = false;
+
+    async function carregarLicoes() {
+      if (window._LICOES_CARREGANDO) return window.LICOES_DB;
+      window._LICOES_CARREGANDO = true;
+      var reg = { id: 0, blocos: {} };
+      try {
+        var linhas = await tab5Post(window.FLOW_LER_SNAPSHOT_URL, { ano: 9997 });
+        var l = (linhas || []).filter(function(x) {
+          return x && x.dados && String(x.titulo || "").toUpperCase() === "LICOES";
+        }).sort(function(a, b) { return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0); })[0];
+        if (l) {
+          var d = JSON.parse(l.dados);
+          reg = { id: parseInt(l.id, 10) || 0, blocos: (d && d.blocos) ? d.blocos : {} };
+        }
+      } catch (e) {}
+      window.LICOES_DB = reg;
+      window._LICOES_CARREGANDO = false;
+      return reg;
+    }
+
+    async function salvarLicoes() {
+      var s = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
+      var quem = s ? (s.login || "") : "";
+      if (!window.LICOES_DB) await carregarLicoes();
+      var reg = window.LICOES_DB || { id: 0, blocos: {} };
+      var blocos = {};
+      LICOES_BLOCOS.forEach(function(b) {
+        var el = document.getElementById("licoesTA_" + b.key);
+        var v = el ? (el.value || "").trim() : "";
+        if (v) blocos[b.key] = v;
+      });
+      var r = await fetch(window.FLOW_GRAVAR_SNAPSHOT_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // id > 0 atualiza a linha existente; os quadros sao substituidos, nunca acumulados.
+          id: reg.id || 0, titulo: "LICOES", ano: 9997, mes: 1,
+          dados: JSON.stringify({ blocos: blocos }), geradoPor: quem
+        })
+      });
+      if (!(r.ok || r.status === 202)) return false;
+      reg.blocos = blocos;
+      window.LICOES_DB = reg;
+      if (!reg.id) { window.LICOES_DB = null; window._LICOES_CARREGANDO = false; await carregarLicoes(); }
+      return true;
+    }
+
+    // O que o usuario acabou de digitar tem prioridade sobre o que veio do SharePoint.
+    function getLicoesResumo(key) {
+      var local = safeGetStorage("licoes_resumo_" + key, "");
+      if (local) return local;
+      var reg = window.LICOES_DB;
+      return (reg && reg.blocos && reg.blocos[key]) ? reg.blocos[key] : "";
+    }
 
     function saveLicoesResumoInline(key) {
       if (!window.isMaster) { showToast("⚠️ Apenas usuários Máster podem salvar este resumo."); return; }
       var ta = document.getElementById("licoesTA_" + key);
       if (!ta) return;
       safeSetStorage("licoes_resumo_" + key, ta.value);
-      showToast("✅ Resumo salvo (fixo, visível para todos os meses).");
+      // Grava os tres de uma vez: o registro e uma linha unica, entao gravar so o editado
+      // apagaria os outros dois.
+      showToast("⏳ Gravando...");
+      salvarLicoes().then(function(ok) {
+        showToast(ok ? "✅ Resumo gravado (visível para todos)."
+                     : "⚠️ Ficou só nesta tela — falha ao gravar no SharePoint.");
+      });
     }
 
     // Estes resumos são corporativos: não dependem da OS nem do mês selecionado.
     function renderLicoesResumoSection() {
       var cont = document.getElementById("licoesResumoContainer");
       if (!cont) return;
+      // Leitura assincrona: na primeira vez a aba desenha vazia e redesenha quando chega.
+      if (window.LICOES_DB === null && !window._LICOES_CARREGANDO) {
+        carregarLicoes().then(function() { try { renderLicoesResumoSection(); } catch (e) {} });
+      }
       var blocos = LICOES_BLOCOS.map(function(b) {
         var val = getLicoesResumo(b.key);
         return '<div style="background:' + b.bg + '; border:1.5px solid ' + b.borda + '; border-left:5px solid ' + b.cor + '; border-radius:10px; padding:16px 18px;">' +
@@ -6659,69 +6726,75 @@ function hydrateFromPowerBI() {
 
     // Exporta TODAS as OS (ignora filtro), com indicadores, notas e comentários acumulados,
     // e uma instrução específica de Lições Aprendidas / Gestão de Risco.
-    function openCopyLicoesModal() {
-      if (!window.isMaster) { showToast("⚠️ Apenas usuários Máster podem exportar."); return; }
-      var currentParams = new URLSearchParams(window.location.search);
-      var selMonthNum = getMonthNumberFromParams(currentParams);
+    async function openCopyLicoesModal() {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usu\u00e1rios M\u00e1ster podem exportar."); return; }
+      var p = new URLSearchParams(window.location.search);
+      var selMonthNum = getMonthNumberFromParams(p);
+      var ano = parseInt(p.get("SelectedAno"), 10) || "\u2014";
+
+      showToast("\u23f3 Lendo os resumos anuais de todas as OSs...");
+      window.RESUMOS_ANUAIS = null; window._RESUMOS_CARREGANDO = false;
+      var todos = await carregarResumosAnuais();
+
+      var comResumo = Object.keys(todos).filter(function(os) {
+        return todos[os] && todos[os].resumos && Object.keys(todos[os].resumos).length;
+      });
+      if (!comResumo.length) {
+        showToast("\u26a0\ufe0f Nenhum resumo anual gravado ainda. Gere-os na Aba 3 antes desta exporta\u00e7\u00e3o.");
+        return;
+      }
+
+      function nomeOS(os) {
+        var c = ACTIVE_CONTRACTS_CATALOG.find(function(x) { return extractPrimaryOSCode(x.code) === os; });
+        return c ? c.name : os;
+      }
 
       var sep = "";
       for (var s = 0; s < 70; s++) sep += "=";
 
       var lines = [];
-      lines.push("LIÇÕES APRENDIDAS & GESTÃO DE RISCO -- VISÃO CORPORATIVA NPE");
-      lines.push("Ano " + (parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10) || "—") + " -- Janeiro a " + (MONTH_NAMES_FULL_PT[selMonthNum] || selMonthNum) + " -- " + ACTIVE_CONTRACTS_CATALOG.length + " OSs");
+      lines.push("RESUMOS ANUAIS POR INDICADOR -- VIS\u00c3O CORPORATIVA NPE");
+      lines.push("Ano " + ano + " -- Janeiro a " + (MONTH_NAMES_FULL_PT[selMonthNum] || selMonthNum) +
+                 " -- " + comResumo.length + " OS(s) com resumo gravado");
       lines.push(sep);
 
-      ACTIVE_CONTRACTS_CATALOG.forEach(function(c) {
-        var sc = calculateOSScore(c, selMonthNum);
-        if (!sc.hasEvaluableData) return;
-        lines.push("");
-        lines.push("### OS " + c.code + " -- " + c.name + " (" + c.negocio + " | " + c.superintendencia + " | Gestor: " + c.gestor + ")");
-        lines.push("Nota do mês: " + sc.monthScore.toFixed(1) + " pts");
-
-        var fortes = [], fracos = [];
-        for (var id in sc.topics) {
-          var tp = sc.topics[id];
-          if (!tp.applicable || tp.max <= 0) continue;
-          (tp.earned >= tp.max - 0.01 ? fortes : fracos).push(licoesTopicLabel(id));
-        }
-        if (fortes.length) lines.push("Indicadores OK: " + fortes.join("; "));
-        if (fracos.length) lines.push("Indicadores em falha: " + fracos.join("; "));
-
-        // Comentários do ano desta OS (só existem para a OS selecionada no Power BI).
-        var gh = c.commentHistory || {};
-        var mh = c.commentHistoryMaster || {};
-        TOPIC_INDICATOR_MAP.forEach(function(t) {
-          var g = gh[String(t.id)], m = mh[String(t.id)];
-          if (!g && !m) return;
-          lines.push("  [" + t.name + "]");
-          if (g) lines.push("    Gestor: " + g);
-          if (m) lines.push("    Performance: " + m);
+      // Eixo = indicador. A pergunta da aba e sobre indicadores, nao sobre contratos.
+      var qtdTextos = 0;
+      TOPIC_INDICATOR_MAP.concat(ACOMP_INDICATOR_MAP).forEach(function(t) {
+        var idBusca = (t.id === "prazo") ? 26 : (t.id === "preenchimento" ? 27 : t.id);
+        var blocos = [];
+        comResumo.forEach(function(os) {
+          var txt = todos[os].resumos[String(idBusca)];
+          if (txt && txt.trim()) blocos.push("  - " + os + " (" + nomeOS(os) + "): " + txt.trim());
         });
+        if (!blocos.length) return;
+        qtdTextos += blocos.length;
+        lines.push("");
+        lines.push("### " + rotuloIndicador(t.id, t.name));
+        blocos.forEach(function(l) { lines.push(l); });
       });
 
       lines.push("");
       lines.push(sep);
-      lines.push("INSTRUÇÃO PARA A IA:");
-      lines.push("Analise os dados acima (todas as OSs, indicadores, notas e comentários) e produza TRÊS blocos separados e claramente identificados:");
+      lines.push("INSTRU\u00c7\u00c3O");
+      lines.push("Os textos acima s\u00e3o os resumos do ano de cada indicador, em cada OS -- cada um j\u00e1 \u00e9 uma leitura consolidada do per\u00edodo. Escolha entre eles o que merece ser apresentado e produza TR\u00caS blocos.");
       lines.push("");
-      lines.push("BLOCO 1 -- O QUE DEU CERTO (Boas Práticas a Replicar):");
-      lines.push("Destaque tudo que foi apontado como BOM pelos indicadores. Para cada ponto, diga qual foi a AÇÃO relatada nos comentários que ajudou a melhorar o resultado, e em quais OSs isso aconteceu. Sugira quais outros contratos deveriam adotar essas mesmas ações.");
+      lines.push("BLOCO 1 -- O QUE DEU CERTO (boas pr\u00e1ticas a replicar)");
+      lines.push("Os indicadores de maior sucesso no ano. Para cada um: qual foi o resultado, QUAL A\u00c7\u00c3O produziu esse resultado (segundo o pr\u00f3prio resumo) e em quais OSs. Diga quais contratos deveriam adotar a mesma a\u00e7\u00e3o.");
       lines.push("");
-      lines.push("BLOCO 2 -- O QUE NÃO DEU CERTO (Erros a Não Repetir):");
-      lines.push("Destaque os indicadores que NÃO melhoraram ou pioraram. Identifique as ações que foram realizadas mas não surtiram efeito, e os casos em que nenhuma ação foi realizada. Diga em quais OSs ocorreram, para que não se repitam nem nesse contrato nem nos demais.");
+      lines.push("BLOCO 2 -- O QUE N\u00c3O APLICAR (erros a n\u00e3o repetir)");
+      lines.push("A\u00e7\u00f5es que foram tentadas e n\u00e3o surtiram efeito, e casos em que nada foi feito. Diga em quais OSs, para n\u00e3o se repetirem.");
       lines.push("");
-      lines.push("BLOCO 3 -- GESTÃO DE RISCO:");
-      lines.push("A partir dos dois blocos anteriores, liste os pontos que precisam de atenção na gestão e administração dos contratos: riscos recorrentes, indicadores cronicamente ruins e falhas de acompanhamento. Seja objetivo e priorize por criticidade.");
+      lines.push("BLOCO 3 -- GEST\u00c3O DE RISCO");
+      lines.push("Riscos recorrentes, indicadores cronicamente ruins e falhas de acompanhamento. Priorize por criticidade.");
       lines.push("");
-      lines.push("Use apenas os dados fornecidos, não invente. Máximo 10 linhas por bloco.");
+      lines.push("Escreva para DIVULGA\u00c7\u00c3O: nomeie o indicador e a OS, cite o resultado, e explique como foi conduzido. Use apenas o que est\u00e1 acima, n\u00e3o invente. At\u00e9 10 linhas por bloco.");
+      lines.push("Separe os blocos com as linhas \"BLOCO 1\", \"BLOCO 2\" e \"BLOCO 3\", e cole cada um no campo correspondente da Aba 4.");
 
-      var modal = document.getElementById("copyAllModal");
-      var sub = document.getElementById("copyAllModalSubtitle");
-      var ta = document.getElementById("copyAllTextarea");
-      if (sub) sub.innerText = "Visão corporativa (" + ACTIVE_CONTRACTS_CATALOG.length + " OSs) • Cole numa IA externa e traga os 3 blocos para os campos da Aba 4.";
-      if (ta) ta.value = lines.join("\n");
-      if (modal) modal.style.display = "flex"; // mesma razao do abrirCaixaModal: no iframe do Power BI a caixa // nasce no topo do conteudo inteiro, nao do que esta na tela. try { window.scrollTo(0, 0); } catch (e) {}
+      var texto = lines.join("\n");
+      mostrarCaixaCopia("Vis\u00e3o corporativa \u2022 " + comResumo.length + " OS(s), " + qtdTextos +
+        " resumo(s) \u2022 " + Math.round(texto.length / 1000) + " mil caracteres \u2022 os 3 blocos voltam para os campos da Aba 4.",
+        texto);
     }
 
     // Aba 1 -- copia só os 23 pareceres do Setor de Performance (Máster) do MÊS ATUAL, para
