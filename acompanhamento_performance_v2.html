@@ -954,7 +954,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 12:20";
+    window.NPE_BUILD = "2026-09-02 14:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -5182,6 +5182,35 @@ function hydrateFromPowerBI() {
       };
     }
 
+    // Quais OS+mes ainda nao tem os 23 indicadores validados. Le a ATA que a Aba 5 ja
+    // carregou (TAB5.ataPorMes), onde cada linha traz o status por OS, mes e topico.
+    // OS do ranking sem NENHUMA linha num mes conta como nao validada -- ausencia de
+    // registro nao e validacao.
+    function mesesNaoValidados(meses, snap) {
+      var apm = (window.TAB5 && window.TAB5.ataPorMes) ? window.TAB5.ataPorMes : {};
+      var validadosPorChave = {};
+      Object.keys(apm).forEach(function(m) {
+        (apm[m] || []).forEach(function(r) {
+          var tid = parseInt(r.topico, 10);
+          if (!(tid >= 1 && tid <= 23)) return;                 // mesmo criterio do statusValidacaoDoMes
+          if (String(r.status || "").indexOf("Validado") !== 0) return;
+          var k = String(r.os || "").toUpperCase() + "|" + parseInt(r.mes, 10);
+          validadosPorChave[k] = (validadosPorChave[k] || 0) + 1;
+        });
+      });
+      var faltando = [];
+      (snap && snap.ranking ? snap.ranking : []).forEach(function(linha) {
+        var os = String(linha.os || linha.codigo || "").toUpperCase();
+        if (!os) return;
+        (meses || []).forEach(function(m) {
+          if ((validadosPorChave[os + "|" + m] || 0) < 23) {
+            faltando.push(os + " " + (MESES_PT[m - 1] || m).slice(0, 3));
+          }
+        });
+      });
+      return { total: faltando.length, exemplos: faltando.slice(0, 6) };
+    }
+
     async function congelarSnapshot() {
       if (!isUserAuthorizedMaster()) { showToast("\u26d4 Apenas o Setor de Performance."); return; }
       if (!window.TAB5.carregado) { showToast("\u26a0\ufe0f Abra a Aba 5 e espere carregar antes de congelar."); return; }
@@ -5192,6 +5221,22 @@ function hydrateFromPowerBI() {
 
       var snap = window._SNAP_PENDENTE;
       if (!snap) { showToast("\u26a0\ufe0f Recarregue a Aba 5 antes de congelar."); return; }
+
+      // Congelar fixa o numero para todo mundo. Enquanto houver revisao retroativa em
+      // andamento, o retrato sai de um numero que ainda vai mudar -- por isso so congela
+      // quando TODA OS do ranking tiver TODOS os meses com os 23 indicadores validados.
+      var pend = mesesNaoValidados(meses, snap);
+      if (pend.total) {
+        await confirmarNaPagina(
+          "\u26d4 Ainda h\u00e1 valida\u00e7\u00e3o pendente",
+          "N\u00e3o d\u00e1 para congelar: <b>" + pend.total + "</b> combina\u00e7\u00e3o(oes) de OS e m\u00eas ainda " +
+          "n\u00e3o t\u00eam os 23 indicadores validados.\n\n" +
+          "Faltam, por exemplo: " + pend.exemplos.join("; ") +
+          (pend.total > pend.exemplos.length ? " e mais " + (pend.total - pend.exemplos.length) + "." : ".") +
+          "\n\nValide todos os meses at\u00e9 o \u00faltimo apurado e volte aqui.",
+          "Entendi");
+        return;
+      }
 
       var segue = await confirmarNaPagina(
         "\ud83d\udcf8 Congelar o fechamento",
@@ -6908,7 +6953,7 @@ function hydrateFromPowerBI() {
     // Aba 1 -- copia só os 23 pareceres do Setor de Performance (Máster) do MÊS ATUAL, para
     // colar numa IA externa e gerar a Síntese e Recomendações (tópico #24). Não tenta colar
     // de volta automaticamente -- o usuário mesmo cola o resultado no campo de Síntese.
-    function openCopyMonthPareceresModal() {
+    async function openCopyMonthPareceresModal() {
       if (!window.isMaster) {
         showToast("⚠️ Apenas usuários Máster podem exportar os pareceres.");
         return;
@@ -6923,6 +6968,14 @@ function hydrateFromPowerBI() {
       }
       var monthNum = getMonthNumberFromParams(currentParams);
       var monthName = currentParams.get("SelectedMes") || "";
+
+      // Sem esperar a ATA, as caixas do Gestor ainda estao vazias e o texto sai dizendo
+      // "(sem justificativa)" em indicador que TEM justificativa gravada -- a IA entao
+      // escreve cobranca por cima de texto que existe.
+      if (!window.HISTORICO_PRONTO) {
+        showToast("\u23f3 Lendo as justificativas do Gestor...");
+        try { await historicoCarregado(); } catch (e) {}
+      }
 
       // Pelo codigo PRIMARIO -- ver buildFullYearExportText. Aqui a falha era silenciosa: o
       // texto saia completo, so que sem nenhum "Valor apurado".
@@ -7056,7 +7109,9 @@ function hydrateFromPowerBI() {
         var m = /^\s*(#{1,6}\s*|\*{1,2}\s*)?(#\s*)?(\d{1,2})\s*([).:\-\u2013\u2014])?\s*/.exec(l);
         var n = m ? parseInt(m[3], 10) : 0;
         var ehCabecalho = !!m && (!!m[1] || !!m[2] || !!m[4] || /^\s*[#*]*\s*#?\s*\d{1,2}\s*$/.test(l));
-        if (n >= 1 && n <= 24 && ehCabecalho) {
+        // Ate 27: #26 Pontualidade e #27 Preenchimento tem caixa (master_26/master_27) e
+        // eram descartados aqui, silenciosamente, por um limite de 24.
+        if (n >= 1 && n <= 27 && ehCabecalho) {
           fechar();
           atual = String(n);
           // O resto da linha do marcador costuma ser so o nome do indicador; se vier texto
@@ -7470,6 +7525,21 @@ function hydrateFromPowerBI() {
 
     async function saveAllComments() {
       var saveBtn = document.querySelector(".save-btn");
+
+      // ESPERAR A ATA E OBRIGATORIO AQUI. Esta funcao le as caixas da TELA e grava; a leitura
+      // da ATA leva 1 a 3 segundos e ate ela chegar as caixas do Gestor estao VAZIAS. Salvar
+      // nessa janela grava vazio por cima das justificativas -- 23 comentarios de uma OS,
+      // um deles com mais de mil caracteres, perdidos sem aviso.
+      if (!window.HISTORICO_PRONTO) {
+        if (saveBtn) { saveBtn.innerHTML = "\u23f3 Lendo a ATA..."; saveBtn.style.opacity = "0.75"; }
+        try { await historicoCarregado(); } catch (e) {}
+        if (!window.HISTORICO_PRONTO) {
+          if (saveBtn) { saveBtn.innerHTML = "\ud83d\udcbe Salvar Coment\u00e1rios"; saveBtn.style.opacity = "1"; }
+          showToast("\u26d4 N\u00e3o consegui ler a ATA. N\u00c3O gravei \u2014 salvar agora apagaria as justificativas.");
+          return;
+        }
+      }
+
       if (saveBtn) {
         saveBtn.innerHTML = "⏳ Gravando no SharePoint...";
         saveBtn.style.opacity = "0.75";
