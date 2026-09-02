@@ -954,7 +954,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 22:40";
+    window.NPE_BUILD = "2026-09-03 09:15";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6192,8 +6192,14 @@ function hydrateFromPowerBI() {
       // --- 11/12. Absenteísmo / Turnover (vs Meta real) ---
       var absApplicable = (typeof contract.absenteismoPct === "number" && typeof contract.absenteismoMetaPct === "number");
       addBinary("t11", TOPIC_WEIGHTS.t11, absApplicable, absApplicable && contract.absenteismoPct <= contract.absenteismoMetaPct);
-      var turnApplicable = (typeof contract.turnoverPct === "number" && typeof contract.turnoverMetaPct === "number");
-      addBinary("t12", TOPIC_WEIGHTS.t12, turnApplicable, turnApplicable && contract.turnoverPct <= contract.turnoverMetaPct);
+      // Turnover em branco = nenhuma demissao do tipo turnover no mes, ou seja taxa zero,
+      // que passa em qualquer meta. Tratar como "sem apuracao" tirava o topico do score e o
+      // mes bom sumia: quem nao perdeu ninguem nao ganhava o ponto. So a META e obrigatoria --
+      // sem ela nao ha o que comparar.
+      var turnTemMeta = (typeof contract.turnoverMetaPct === "number");
+      var turnSemDemissao = (contract.turnoverPct === null || contract.turnoverPct === undefined);
+      addBinary("t12", TOPIC_WEIGHTS.t12, turnTemMeta,
+        turnTemMeta && (turnSemDemissao || contract.turnoverPct <= contract.turnoverMetaPct));
 
       addQual("he", "t13", TOPIC_WEIGHTS.t13);
       addQual("ferias", "t14", TOPIC_WEIGHTS.t14);
