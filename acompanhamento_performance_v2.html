@@ -954,7 +954,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 20:40";
+    window.NPE_BUILD = "2026-09-02 21:55";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3580,6 +3580,16 @@ function hydrateFromPowerBI() {
     // coisas diferentes -- 22 e 23 ja pertencem a Renovacao e Observacoes na ATA.
     var NUMERO_ACOMP = { prazo: 22, preenchimento: 23, 26: 22, 27: 23 };
 
+    // Cabecalho de bloco nas exportacoes. O numero e o ENDERECO (id da ATA), que o
+    // importador usa para devolver o texto na caixa certa; quando ele difere do numero de
+    // tela -- caso de Pontualidade e Preenchimento -- o de tela vai ao lado, senao quem le
+    // acha que sao indicadores diferentes.
+    function cabecalhoExport(id, nome) {
+      var tela = numeroIndicador(id);
+      var mesmo = (tela === "#" + String(id).padStart(2, "0"));
+      return "### #" + id + " " + nome + (tela && !mesmo ? " (indicador " + tela + " na tela)" : "");
+    }
+
     // Topicos que tem caixa de texto na Aba 1, e portanto gravam na ATA.
     var TOPICOS_COM_CAIXA = (function () {
       var a = [];
@@ -3955,14 +3965,18 @@ function hydrateFromPowerBI() {
             }
           }
 
-          // Caixa do Resumo Anual IA
+          // Caixa do Resumo Anual IA. Pontualidade e Preenchimento tambem tem: sem elas, a
+          // Aba 4 nunca teria destaque desses dois, que sao os que mais dizem sobre a gestao.
+          // O id da caixa e o da ATA (26/27), nao o de tela (#22/#23), para bater com o que
+          // o importador procura.
+          var idResumo = (t.id === "prazo") ? 26 : (t.id === "preenchimento" ? 27 : t.id);
           var resumoBlock = "";
-          if (contractCode && !isAcompTopic) {
-            var resumoVal = getResumoAnualIA(contractCode, t.id);
+          if (contractCode) {
+            var resumoVal = getResumoAnualIA(contractCode, idResumo);
             resumoBlock = '<div style="margin-top:12px; padding:11px 13px; background:#faf5ff; border:1px solid #d8b4fe; border-left:4px solid #7c3aed; border-radius:6px;">' +
               '<div style="font-size:0.80rem; font-weight:800; color:#6b21a8; text-transform:uppercase; margin-bottom:5px;">\ud83e\udd16 Resumo Anual</div>' +
-              '<textarea id="resumoIA_' + t.id + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este indicador..." style="width:100%; min-height:160px; font-size:0.95rem; line-height:1.50; padding:10px; border:1px solid #d8b4fe; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + resumoVal + '</textarea>' +
-              (window.isMaster ? '<button type="button" onclick="saveResumoAnualInline(' + t.id + ')" style="margin-top:7px; background:#7c3aed; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.86rem; cursor:pointer;">\ud83d\udcbe Salvar Resumo</button>' : '') +
+              '<textarea id="resumoIA_' + idResumo + '" ' + (window.isMaster ? "" : "disabled") + ' placeholder="Cole aqui o resumo gerado pela IA externa para este indicador..." style="width:100%; min-height:160px; font-size:0.95rem; line-height:1.50; padding:10px; border:1px solid #d8b4fe; border-radius:6px; box-sizing:border-box; background:' + (window.isMaster ? '#ffffff' : '#f8fafc') + '; color:#0f172a;">' + resumoVal + '</textarea>' +
+              (window.isMaster ? '<button type="button" onclick="saveResumoAnualInline(' + idResumo + ')" style="margin-top:7px; background:#7c3aed; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; font-size:0.86rem; cursor:pointer;">\ud83d\udcbe Salvar Resumo</button>' : '') +
             '</div>';
           }
 
@@ -6569,7 +6583,8 @@ function hydrateFromPowerBI() {
         return out;
       }
 
-      TOPIC_INDICATOR_MAP.forEach(function(t) {
+      TOPIC_INDICATOR_MAP.concat(ACOMP_INDICATOR_MAP).forEach(function(t) {
+        var idAta = (t.id === "prazo") ? 26 : (t.id === "preenchimento" ? 27 : t.id);
         var peso = (typeof TOPIC_WEIGHTS !== "undefined" && TOPIC_WEIGHTS[t.scoreId]) ? TOPIC_WEIGHTS[t.scoreId] : null;
 
         // Serie do ano e quantos meses atenderam -- pela regra do proprio score.
@@ -6588,14 +6603,14 @@ function hydrateFromPowerBI() {
         }
 
         lines.push("");
-        lines.push("### #" + t.id + " " + t.name + (peso ? " | peso " + peso : "") +
+        lines.push(cabecalhoExport(idAta, t.name) + (peso ? " | peso " + peso : "") +
                    (aval ? " | atendeu " + ok + " de " + aval + " meses" : " | sem meses avaliados"));
 
-        var tend = (typeof textoTendencia === "function") ? textoTendencia(activeOS, t.id, selMonthNum) : "";
+        var tend = (typeof textoTendencia === "function") ? textoTendencia(activeOS, idAta, selMonthNum) : "";
         if (tend) lines.push("Tend\u00eancia em " + (MONTH_NAMES_FULL_PT[selMonthNum] || selMonthNum) + ": " + tend);
         if (serie.length) lines.push("S\u00e9rie: " + serie.join(" \u00b7 "));
 
-        var pars = pareceresDoTopico(t.id);
+        var pars = pareceresDoTopico(idAta);
         if (pars.length) {
           lines.push("Pareceres da Performance:");
           pars.forEach(function(l) { lines.push(l); });
@@ -6618,6 +6633,8 @@ function hydrateFromPowerBI() {
       lines.push("  - o que sustentar ou mudar daqui para frente.");
       lines.push("");
       lines.push("At\u00e9 6 linhas por indicador. Indicador sem parecer registrado: diga isso e resuma s\u00f3 pelos n\u00fameros.");
+      lines.push("");
+      lines.push("OBSERVACAO: #22 Pontualidade e #23 Preenchimento tem o resultado numerico apurado EM CONJUNTO (uma unica nota de Gestao e Acompanhamento), mas sao indicadores distintos e cada um tem o seu texto. Trate-os separadamente. Nos blocos acima eles aparecem como #26 e #27, que e o endereco usado para devolver cada texto a sua caixa.");
       lines.push("");
       lines.push("FORMATO DA RESPOSTA (obrigat\u00f3rio -- o app importa por ele)");
       lines.push("Comece cada resumo com \"### #\" e o n\u00famero do indicador, sozinho na linha:");
@@ -6885,7 +6902,7 @@ function hydrateFromPowerBI() {
         var mEl = document.getElementById("master_" + tid);
         var mVal = mEl ? mEl.value : safeGetStorage("m_" + activeOS + "_m" + monthNum + "_" + tid, "");
 
-        lines.push("### #" + tid + " " + topicObj.name);
+        lines.push(cabecalhoExport(tid, topicObj.name));
         if (detalhe) lines.push("Valor apurado: " + detalhe);
 
         // Situacao do mes pela regra do proprio score -- e a mesma que da o ponto.
@@ -6932,6 +6949,8 @@ function hydrateFromPowerBI() {
       lines.push("  - ESTÁVEL     -> recomende o que tentar para SAIR do patamar, não apenas manter.");
       lines.push("");
       lines.push("Indicador que não bateu a meta e não tem justificativa: aponte a ausência como ponto a cobrar, não invente a causa.");
+      lines.push("");
+      lines.push("OBSERVACAO: #22 Pontualidade e #23 Preenchimento tem o resultado numerico apurado EM CONJUNTO (uma unica nota de Gestao e Acompanhamento), mas sao indicadores distintos e cada um tem o seu texto. Trate-os separadamente. Nos blocos acima eles aparecem como #26 e #27, que e o endereco usado para devolver cada texto a sua caixa.");
       lines.push("Seja curto (até 4 linhas por indicador), concreto e não repita o texto do Gestor.");
       lines.push("Cole cada parecer no campo \"Parecer do Setor de Performance\" do indicador correspondente no app.");
       lines.push("");
@@ -7100,7 +7119,7 @@ function hydrateFromPowerBI() {
         var mVal = mEl ? mEl.value : safeGetStorage("m_" + os + "_m" + mNum + "_" + tid, "");
         if (mVal && mVal.trim()) {
           comParecer++;
-          lines.push("### #" + tid + " " + topicObj.name);
+          lines.push(cabecalhoExport(tid, topicObj.name));
           lines.push(mVal.trim());
           lines.push("");
         } else {
