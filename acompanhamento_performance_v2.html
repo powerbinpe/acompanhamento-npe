@@ -957,7 +957,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 20:10";
+    window.NPE_BUILD = "2026-09-02 20:45";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6747,6 +6747,8 @@ function hydrateFromPowerBI() {
       lines.push("");
       lines.push("At\u00e9 6 linhas por indicador. Indicador sem parecer registrado: diga isso e resuma s\u00f3 pelos n\u00fameros.");
       lines.push("");
+      lines.push("TRAJET\u00d3RIA S\u00d3 COM N\u00daMERO. Dizer que o indicador melhorou, piorou ou ficou est\u00e1vel ao longo do ano exige citar os valores que provam -- o do primeiro m\u00eas avaliado, o do \u00faltimo, e o pior. Sem valores na s\u00e9rie nem nas linhas \"Apurado:\" dos pareceres, N\u00c3O classifique a trajet\u00f3ria: resuma o que os pareceres dizem e registre que n\u00e3o h\u00e1 valor apurado no per\u00edodo.");
+      lines.push("");
       lines.push("A QUALIDADE DA EXPLICA\u00c7\u00c3O ENTRA NO RESUMO DO ANO.");
       lines.push("Indicador que foi BEM o ano todo mas sem nenhuma a\u00e7\u00e3o descrita: diga que o resultado \u00e9 bom E que n\u00e3o h\u00e1 registro do que o produziu -- isso impede de replicar em outras OSs e \u00e9 uma fraqueza de gest\u00e3o, n\u00e3o um elogio completo.");
       lines.push("Indicador cujas justificativas foram gen\u00e9ricas ou n\u00e3o condizem com os n\u00fameros: registre como ponto fraco recorrente do contrato, porque essa \u00e9 a base que alimenta a decis\u00e3o de ader\u00eancia.");
@@ -6995,6 +6997,8 @@ function hydrateFromPowerBI() {
       lines.push("BLOCO 3 -- GEST\u00c3O DE RISCO");
       lines.push("Riscos recorrentes, indicadores cronicamente ruins e falhas de acompanhamento. Priorize por criticidade.");
       lines.push("");
+      lines.push("NENHUM DESTAQUE SEM N\u00daMERO. Um indicador s\u00f3 entra como destaque -- positivo ou negativo -- se voc\u00ea puder citar o resultado que o justifica. Se os resumos daquele indicador n\u00e3o trouxerem valor apurado, ele n\u00e3o vira destaque de resultado: no m\u00e1ximo entra no BLOCO 3 como falha de apura\u00e7\u00e3o.");
+      lines.push("");
       lines.push("SEMPRE EM PERCENTUAL SOBRE O TOTAL DE OSs.");
       lines.push("Cada indicador acima j\u00e1 vem com a conta pronta -- \"12 de " + totalOSs + " OSs (18,8%)\". USE esses n\u00fameros ao apresentar cada destaque, porque \u00e9 a propor\u00e7\u00e3o que mostra se o caso foi pontual ou se virou padr\u00e3o na empresa. Exemplo do formato esperado: \"Resultado do Ano -- 12 de " + totalOSs + " OSs (18,8%) superaram o previsto pelo executivo, por meio de <as a\u00e7\u00f5es descritas nos resumos>\". N\u00e3o recalcule e n\u00e3o arredonde para n\u00fameros redondos.");
       lines.push("Vale para os tr\u00eas blocos: no que deu certo, no que n\u00e3o aplicar e nos riscos.");
@@ -7117,6 +7121,10 @@ function hydrateFromPowerBI() {
       lines.push("Por isso a PRIMEIRA linha de cada parecer começa com \"Apurado:\" e copia, LITERALMENTE, o \"Valor apurado\" que veio no bloco daquele indicador, seguido da situação no mês e da tendência.");
       lines.push("Não arredonde, não converta e não troque esses números por palavras (\"abaixo da meta\", \"houve recuperação\") -- as palavras vêm depois, na linha \"Parecer:\".");
       lines.push("Se o bloco não trouxe \"Valor apurado\", escreva \"Apurado: não apurado neste mês\".");
+      lines.push("");
+      lines.push("NÃO AFIRME MELHORA NEM PIORA SEM O VALOR QUE PROVA.");
+      lines.push("Dizer \"melhorou\", \"piorou\", \"houve recuperação\" ou \"representou piora\" só é permitido acompanhado dos números que sustentam a frase: de quanto para quanto, ou o valor contra a meta. \"Piorou vs Jun\" sozinho não é parecer, é repetição do rótulo.");
+      lines.push("Quando o indicador NÃO tiver valor apurado (só uma classificação como \"Acima da meta\", um traço, ou apuração qualitativa pendente), NÃO classifique a trajetória. Trabalhe apenas com o que o Gestor escreveu e diga, com todas as letras, que não há valor apurado para sustentar julgamento de melhora ou piora.");
       lines.push("");
       lines.push("REGRA 2 -- A RECOMENDAÇÃO DEPENDE DA TENDÊNCIA.");
       lines.push("  - MELHORANDO   -> reconheça e recomende MANTER a ação que está em curso, dizendo qual é (ela precisa estar na justificativa do Gestor).");
@@ -7342,6 +7350,7 @@ function hydrateFromPowerBI() {
       lines.push("Feche com os direcionamentos concretos do mês -- o que fazer, por quem, até quando.");
       lines.push("");
       lines.push("OS NÚMEROS TÊM QUE SOBREVIVER À SÍNTESE.");
+      lines.push("E nenhuma afirmação de melhora ou piora entra na síntese sem o valor que a prova. Onde os pareceres não trouxerem valor apurado, relate o que eles dizem sem classificar a trajetória.");
       lines.push("Cada parecer acima começa com uma linha \"Apurado:\" que traz o valor do indicador. Ao agrupar, CITE esses valores nos pontos que você levantar -- \"faturamento do ano em R$ 7,7 mi contra R$ 17,4 mi previstos\", não \"faturamento abaixo do previsto\". Uma síntese sem número não sustenta decisão nenhuma, e é dela que sai a leitura do ano.");
       lines.push("");
       lines.push("A QUALIDADE DAS JUSTIFICATIVAS É UM TEMA DA SÍNTESE, NÃO UM DETALHE.");
