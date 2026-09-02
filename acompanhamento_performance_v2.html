@@ -954,7 +954,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 10:15";
+    window.NPE_BUILD = "2026-09-02 10:50";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6293,14 +6293,22 @@ function hydrateFromPowerBI() {
     // =========================================================================
     // 11. SLA & DEADLINE PERIOD MANAGEMENT
     // =========================================================================
-    function getSlaPeriodStatus(osCode, monthNum) {
+    // As duas funcoes abaixo normalizam o codigo na ENTRADA. Numa OS de bloco o
+    // contract.code e "M00100|M05100", mas tudo -- ATA_COMENTARIOS_DB e safeGetStorage -- e
+    // gravado sob a PRIMARIA. Quem chamava com o codigo do bloco lia zero e a nota saia
+    // errada (prazo 0/12 em vez de 12/12, ~12 pontos a menos no mes).
+    // Normalizar aqui, e nao em cada um dos 13 pontos de chamada, e o que impede a proxima
+    // funcao a chamar de repetir o erro.
+    function getSlaPeriodStatus(osCodeRaw, monthNum) {
+      var osCode = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(osCodeRaw) : osCodeRaw;
       var osOverride = safeGetStorage("sla_period_status_" + osCode + "_m" + monthNum, null);
       if (osOverride) return osOverride;
       var globalStatus = safeGetStorage("sla_global_period_m" + monthNum, "INDEFINIDO");
       return globalStatus;
     }
 
-    function getOSCompletionStatus(osCode, monthNum) {
+    function getOSCompletionStatus(osCodeRaw, monthNum) {
+      var osCode = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(osCodeRaw) : osCodeRaw;
       var filledCount = 0;
       var totalTopics = TOPICOS_PREENCHIMENTO.length;   // 23, mas agora sao os 23 INDICADORES
 
