@@ -957,7 +957,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 21:30";
+    window.NPE_BUILD = "2026-09-02 22:05";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3807,7 +3807,27 @@ function hydrateFromPowerBI() {
         case "t12": return formatPctBR(monthData.turnoverPct) + " (meta " + formatPctBR(monthData.turnoverMetaPct) + ")";
         case "t15": return (monthData.safCount || 0) + " ocorrência(s)";
         case "t16": return (monthData.cafCount || 0) + " ocorrência(s)";
-        case "t20": return (monthData.bpAprovAcum || 0) + " aprov. · " + (monthData.bpReconAcum || 0) + " reconh.";
+        case "t20": {
+          // A meta e o semestre fechado precisam aparecer: sem a meta nao ha como julgar o
+          // zero, e sem o S1 o resumo do ano nao saberia que metade dele passou em branco.
+          // Curto de proposito -- isto se multiplica por 25 indicadores e viaja para o anual.
+          var mAp = (typeof _bpAprov === "function") ? _bpAprov() : 3;
+          var mRe = (typeof _bpRecon === "function") ? _bpRecon() : 1;
+          var alvo = " (meta " + mAp + " aprov. + " + mRe + " reconh.";
+          if ((typeof _bpPerio === "function" ? _bpPerio(contract) : "S") === "E") {
+            return (monthData.bpAprovAcum || 0) + " aprov. · " + (monthData.bpReconAcum || 0) +
+                   " reconh. no evento" + alvo + " por evento)";
+          }
+          alvo += " por semestre)";
+          var a1 = monthData.bpAprovS1 || 0, r1 = monthData.bpReconS1 || 0;
+          var a2 = monthData.bpAprovS2 || 0, r2 = monthData.bpReconS2 || 0;
+          var okS1 = (a1 >= mAp && r1 >= mRe);
+          if (m <= 6) return "S1 em curso: " + a1 + " aprov. · " + r1 + " reconh." + alvo;
+          // Depois de junho o S1 esta FECHADO -- dizer se atingiu e o que sustenta o parecer.
+          return "S1 fechado: " + a1 + " aprov. · " + r1 + " reconh. — " +
+                 (okS1 ? "atingiu" : "NÃO atingiu") + alvo +
+                 " | S2 em curso: " + a2 + " · " + r2;
+        }
         default: return "";
       }
     }
