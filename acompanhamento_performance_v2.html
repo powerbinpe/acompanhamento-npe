@@ -957,7 +957,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 18:45";
+    window.NPE_BUILD = "2026-09-02 19:00";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -5528,7 +5528,9 @@ function hydrateFromPowerBI() {
               '<span style="color:' + (c.deep || c.color) + '; font-size:0.73rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + rotuloCat + '</span>' +
             '</div>' +
             '<div style="background:' + corPastilha(tier).fundo + '; color:' + corPastilha(tier).texto + '; border-top:1px solid ' + corPastilha(tier).borda + '; padding:4px 6px; text-align:center; font-size:0.78rem; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' +
-              tier.icon + ' ' + tier.shortLabel + ' \u00b7 ' + pctTxt +
+              // So o rotulo aqui: com o percentual junto, "Controlado \u00b7 70,8%" nao
+              // cabia em 153px e truncava. O numero esta no tooltip, que foi o pedido.
+              tier.icon + ' ' + tier.shortLabel +
             '</div>' +
           '</div>';
         }).join("") + '</div>';
