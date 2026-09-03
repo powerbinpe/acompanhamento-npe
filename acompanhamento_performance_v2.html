@@ -960,7 +960,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-03 13:45";
+    window.NPE_BUILD = "2026-09-03 14:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -7475,9 +7475,14 @@ function hydrateFromPowerBI() {
       lines.push("INSTRUÇÃO");
       lines.push("Os textos acima são os pareceres que a Performance já emitiu, um por indicador. Agrupe-os numa única Síntese do mês.");
       lines.push("");
-      lines.push("ESTRUTURA: UM BLOCO POR CATEGORIA, na ordem da pior nota para a melhor. São as cinco categorias que aparecem acima -- Financeiro, Governança do Contrato, Gestão e Acompanhamento, Pessoas, SSMA e Qualidade. A nota de cada uma está no cabeçalho do grupo: comece pela que mais derrubou o mês.");
-      lines.push("Em cada bloco, cite APENAS o indicador que se destacou naquela categoria -- para melhor ou para pior -- com o número que o sustenta. Um destaque por categoria, dois no máximo se houver dois fatos realmente distintos. Os demais indicadores da categoria NÃO viram texto: eles já têm parecer próprio.");
-      lines.push("TAMANHO: no máximo 2.000 caracteres no total. Cada bloco tem no máximo 4 linhas. É uma síntese de reunião, não um relatório.");
+      lines.push("O QUE ENTRA NA SÍNTESE: SÓ O QUE DESVIOU MUITO NO MÊS -- para melhor ou para pior.");
+      lines.push("Um indicador só vira destaque se saiu bem fora do normal em relação a UM destes três: a meta, o mês anterior, ou o acumulado do ano. \"Bem fora do normal\" é a diferença que chama atenção numa reunião -- um salto grande, uma virada de sinal, um valor que dobrou ou zerou. Diferença de 1 ou 2 pontos NÃO é destaque.");
+      lines.push("Para cada destaque, uma frase: o indicador, o número que mostra o tamanho do desvio (de quanto para quanto) e o encaminhamento. Agrupe numa frase só os destaques que têm a MESMA causa (ex.: distrato afeta faturamento, resultado e efetivo ao mesmo tempo).");
+      lines.push("");
+      lines.push("OS INDICADORES SOB CONTROLE NÃO ENTRAM UM A UM. Os que estão dentro ou perto da meta, estáveis, sem desvio relevante -- viram UMA linha geral no fim: \"os demais N indicadores seguem dentro da faixa esperada\". Nunca um parágrafo cada.");
+      lines.push("A nota por categoria no cabeçalho de cada grupo diz por ONDE começar a olhar (a categoria com a pior nota concentra os desvios), não obriga a citar um indicador de cada categoria.");
+      lines.push("");
+      lines.push("TAMANHO: isso deve caber em meia página. Se passou disso, você está recapitulando indicador sob controle -- corte.");
       lines.push("");
       lines.push("O QUE FICA DE FORA. Sintetizar é ESCOLHER, não recapitular. NÃO liste os indicadores um a um, e NÃO cite indicador que não tem nada de novo a dizer -- \"pendente de apuração qualitativa\", \"não apurado no mês\" e afins não entram na síntese: quem quiser o detalhe abre o parecer do indicador. Entra o que muda uma decisão: o que exige ação, o que contradiz, o que se repete em vários indicadores.");
       lines.push("Se sete indicadores estão pendentes de apuração, isso vira UMA linha (\"sete indicadores seguem pendentes de apuração qualitativa do Setor\"), nunca sete parágrafos.");
