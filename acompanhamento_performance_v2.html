@@ -960,7 +960,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-03 11:05";
+    window.NPE_BUILD = "2026-09-03 11:40";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -7174,7 +7174,8 @@ function hydrateFromPowerBI() {
       lines.push("  - DESMOBILIZAÇÃO: custo SEM faturamento é esperado (rescisões, encargos, devolução de locados) e faturamento SEM custo também (retroativos, ajustes de emissão). Não trate esses descolamentos como falha em si -- avalie se estão dimensionados e explicados. O PBD (Plano Básico de Desmobilização) é OBRIGATÓRIO neste estágio: cobre-o no indicador PBI/PBD.");
       lines.push("  - NOVA: fase de mobilização. Custo de implantação antes da receita é esperado. O PBI (Plano Básico de Implantação) é OBRIGATÓRIO neste estágio: cobre-o no indicador PBI/PBD.");
       lines.push("  - FINALIZADA: operação encerrada. Custo e faturamento só residuais (acertos finais, retroativos, verbas rescisórias). Indicador OPERACIONAL com valor diferente de zero -- efetivo, HHT, absenteísmo, hora extra -- é RESÍDUO a explicar e regularizar, não desempenho a avaliar. Se a OS chegou a FINALIZADA sem que o PBD tenha sido apurado, aponte como lacuna de processo: encerrar não é o mesmo que simplesmente parar.");
-      lines.push("SE O ESTÁGIO CADASTRADO CONTRADIZ O QUE O GESTOR ESCREVE, aponte isso -- é achado de gestão, não detalhe. Uma OS cadastrada em EXECUÇÃO cujas justificativas falam em encerramento e desmobilização está com o cadastro desatualizado, e TODOS os indicadores dela estão sendo avaliados pela régua errada. Registre no parecer do indicador em que isso aparecer e cobre a atualização do estágio.");
+      lines.push("SE O ESTÁGIO CADASTRADO CONTRADIZ O QUE O GESTOR ESCREVE, aponte isso -- é achado de gestão, não detalhe. Uma OS cadastrada em EXECUÇÃO cujas justificativas falam em encerramento e desmobilização está com o cadastro desatualizado, e TODOS os indicadores dela estão sendo avaliados pela régua errada.");
+      lines.push("Mas registre esse achado UMA ÚNICA VEZ, no primeiro indicador em que ele for relevante, e cobre ali a atualização do cadastro. É um achado da OS INTEIRA, não um achado por indicador: repeti-lo em cada parecer é o mesmo texto quatro vezes ocupando o lugar da análise. Nos demais indicadores, use o descompasso para JULGAR sem voltar a mencioná-lo.");
       lines.push("NÃO repita o estágio nos pareceres. Ele está no cabeçalho e vale para todos os indicadores -- escrevê-lo 25 vezes só infla o texto. Use-o para JULGAR, não para narrar.");
       lines.push("O ESTÁGIO EXPLICA O PERÍODO EM QUE VIGOROU, NUNCA OS MESES ANTERIORES. Encerramento em maio não justifica resultado ruim de janeiro a abril, quando a operação estava plena. Ao avaliar acumulado ou semestre, separe o que aconteceu ANTES da virada -- ali a régua é a do estágio antigo, e a cobrança continua de pé.");
       lines.push("A ÚNICA exceção é a VIRADA DE ESTÁGIO: se as justificativas indicarem que foi NESTE mês que a OS entrou em desmobilização, teve o contrato encerrado ou iniciou operação, registre a data com todas as letras. É marco do contrato, explica viradas de indicador e é o que o resumo do ano precisa ter.");
