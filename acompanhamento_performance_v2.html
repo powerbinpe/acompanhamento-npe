@@ -960,7 +960,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-03 13:00";
+    window.NPE_BUILD = "2026-09-03 13:45";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -7392,20 +7392,76 @@ function hydrateFromPowerBI() {
       lines.push("PARECERES DA PERFORMANCE -- OS " + os + " -- " + (mName || ("Mês " + mNum)) + "/2026");
       lines.push("");
 
-      var comParecer = 0, semParecer = [];
+      // Agrupado por CATEGORIA, nao numa lista linear de 25. A sintese se organiza pelas
+      // cinco categorias da nota, entao os pareceres tem que chegar assim -- e com a nota de
+      // cada categoria, que e o que diz onde o mes doeu.
+      var contratoS = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === os; });
+      var scS = contratoS ? calculateOSScore(contratoS, mNum) : null;
+      var MAXCAT = { fin: 48, gov: 9, acomp: 25, pes: 26, ssma: 25 };
+      var PTSCAT = scS ? { fin: scS.finPts, gov: scS.govPts, acomp: scS.acompPts,
+                           pes: scS.pesPts, ssma: scS.ssmaPts } : {};
+
+      // id da ATA -> categoria. 26/27 sao prazo/preenchimento; 22/23 nao tem categoria.
+      function catDoTopico(tid) {
+        var sid = (tid === 26) ? "prazo" : (tid === 27) ? "preenchimento" : null;
+        if (!sid) {
+          var tm = TOPIC_INDICATOR_MAP.find(function(x) { return x.id === tid; });
+          sid = tm ? tm.scoreId : null;
+        }
+        if (!sid) return null;
+        for (var i = 0; i < SCORE_CATEGORIES.length; i++) {
+          if (SCORE_CATEGORIES[i].topics.indexOf(sid) !== -1) return SCORE_CATEGORIES[i];
+        }
+        return null;
+      }
+
+      var comParecer = 0, semParecer = [], soltos = [];
+      SCORE_CATEGORIES.forEach(function(cat) {
+        var blocos = [];
+        TOPICOS_COM_CAIXA.forEach(function(tid) {
+          var c = catDoTopico(tid);
+          if (!c || c.key !== cat.key) return;
+          var topicObj = topicsData.find(function(x) { return x.id === tid; }) || { name: "T\u00f3pico #" + tid };
+          var mEl = document.getElementById("master_" + tid);
+          var mVal = mEl ? mEl.value : safeGetStorage("m_" + os + "_m" + mNum + "_" + tid, "");
+          if (mVal && mVal.trim()) {
+            comParecer++;
+            blocos.push(cabecalhoExport(tid, topicObj.name));
+            blocos.push(mVal.trim());
+            blocos.push("");
+          } else {
+            semParecer.push(rotuloIndicador(tid, topicObj.name));
+          }
+        });
+        if (!blocos.length) return;
+        var pts = PTSCAT[cat.key], max = MAXCAT[cat.key];
+        var nota = (typeof pts === "number" && max)
+          ? "  \u2014  " + (Math.round(pts * 1000 / max) / 10).toString().replace(".", ",") +
+            "% da categoria (" + (Math.round(pts * 10) / 10).toString().replace(".", ",") + " de " + max + " pts)"
+          : "";
+        lines.push("========== CATEGORIA: " + cat.label.toUpperCase() + nota + " ==========");
+        blocos.forEach(function(l) { lines.push(l); });
+      });
+
+      // Texto livre nao pertence a categoria nenhuma -- grupo proprio, para nao sumir.
       TOPICOS_COM_CAIXA.forEach(function(tid) {
-        var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
+        if (catDoTopico(tid)) return;
+        var topicObj = topicsData.find(function(x) { return x.id === tid; }) || { name: "T\u00f3pico #" + tid };
         var mEl = document.getElementById("master_" + tid);
         var mVal = mEl ? mEl.value : safeGetStorage("m_" + os + "_m" + mNum + "_" + tid, "");
         if (mVal && mVal.trim()) {
           comParecer++;
-          lines.push(cabecalhoExport(tid, topicObj.name));
-          lines.push(mVal.trim());
-          lines.push("");
+          soltos.push(cabecalhoExport(tid, topicObj.name));
+          soltos.push(mVal.trim());
+          soltos.push("");
         } else {
           semParecer.push(rotuloIndicador(tid, topicObj.name));
         }
       });
+      if (soltos.length) {
+        lines.push("========== T\u00d3PICOS DE TEXTO LIVRE (fora das categorias) ==========");
+        soltos.forEach(function(l) { lines.push(l); });
+      }
 
       if (!comParecer) {
         showToast("⚠️ Nenhum parecer da Performance escrito neste mês ainda.");
@@ -7419,8 +7475,9 @@ function hydrateFromPowerBI() {
       lines.push("INSTRUÇÃO");
       lines.push("Os textos acima são os pareceres que a Performance já emitiu, um por indicador. Agrupe-os numa única Síntese do mês.");
       lines.push("");
-      lines.push("TAMANHO: no máximo 2.000 caracteres, o que cabe na caixa e o que um gestor lê sem perder o fio. É uma síntese de reunião, não um relatório.");
-      lines.push("No máximo 4 blocos de texto, mais os direcionamentos no fim. Cada bloco tem no máximo 5 linhas.");
+      lines.push("ESTRUTURA: UM BLOCO POR CATEGORIA, na ordem da pior nota para a melhor. São as cinco categorias que aparecem acima -- Financeiro, Governança do Contrato, Gestão e Acompanhamento, Pessoas, SSMA e Qualidade. A nota de cada uma está no cabeçalho do grupo: comece pela que mais derrubou o mês.");
+      lines.push("Em cada bloco, cite APENAS o indicador que se destacou naquela categoria -- para melhor ou para pior -- com o número que o sustenta. Um destaque por categoria, dois no máximo se houver dois fatos realmente distintos. Os demais indicadores da categoria NÃO viram texto: eles já têm parecer próprio.");
+      lines.push("TAMANHO: no máximo 2.000 caracteres no total. Cada bloco tem no máximo 4 linhas. É uma síntese de reunião, não um relatório.");
       lines.push("");
       lines.push("O QUE FICA DE FORA. Sintetizar é ESCOLHER, não recapitular. NÃO liste os indicadores um a um, e NÃO cite indicador que não tem nada de novo a dizer -- \"pendente de apuração qualitativa\", \"não apurado no mês\" e afins não entram na síntese: quem quiser o detalhe abre o parecer do indicador. Entra o que muda uma decisão: o que exige ação, o que contradiz, o que se repete em vários indicadores.");
       lines.push("Se sete indicadores estão pendentes de apuração, isso vira UMA linha (\"sete indicadores seguem pendentes de apuração qualitativa do Setor\"), nunca sete parágrafos.");
