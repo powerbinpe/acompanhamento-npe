@@ -957,7 +957,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-02 23:15";
+    window.NPE_BUILD = "2026-09-03 08:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -7181,7 +7181,13 @@ function hydrateFromPowerBI() {
       lines.push("  - SEM justificativa e indicador BOM (atendeu, ou vem melhorando): reconhe\u00e7a o resultado E registre que o Setor de Performance orienta que TODAS as ocorr\u00eancias e as a\u00e7\u00f5es que fizeram o indicador melhorar estejam descritas. N\u00famero bom sem explica\u00e7\u00e3o n\u00e3o vira boa pr\u00e1tica: ningu\u00e9m sabe o que repetir.");
       lines.push("  - SEM justificativa e indicador RUIM: cobre a explica\u00e7\u00e3o e o plano de a\u00e7\u00e3o, sem inventar a causa.");
       lines.push("  - COM justificativa que N\u00c3O CONDIZ com o n\u00famero, ou gen\u00e9rica, ou que n\u00e3o explica os motivos e as a\u00e7\u00f5es de forma clara: aponte isso como PONTO FRACO, com todas as letras, e diga que a aus\u00eancia de clareza pode levar o Setor de Performance a uma decis\u00e3o de N\u00c3O ADERENTE. Preencher o campo n\u00e3o \u00e9 o mesmo que justificar.");
-      lines.push("Quando houver descompasso entre o que o Gestor escreveu e o que os n\u00fameros mostram, diga qual \u00e9 o descompasso.");
+      lines.push("");
+      lines.push("TODO DESCOMPASSO TERMINA EM A\u00c7\u00c3O, NUNCA EM CONSTATA\u00c7\u00c3O.");
+      lines.push("Dizer que a justificativa n\u00e3o condiz, \u00e9 gen\u00e9rica ou n\u00e3o existe \u00e9 METADE do parecer. A outra metade \u00e9 dizer O QUE FAZER, e o encaminhamento muda conforme a origem do problema:");
+      lines.push("  a) O TEXTO CONTRADIZ O N\u00daMERO (ex.: o Gestor diz que n\u00e3o h\u00e1 mais efetivo e h\u00e1 horas apuradas no mesmo m\u00eas). N\u00c3O escolha qual lado est\u00e1 errado -- voc\u00ea n\u00e3o tem como saber. Exponha as DUAS hip\u00f3teses (ou o lan\u00e7amento est\u00e1 incorreto, ou a justificativa est\u00e1 desatualizada), diga quem confere cada uma e pe\u00e7a que uma delas seja corrigida ainda neste ciclo.");
+      lines.push("  b) A JUSTIFICATIVA EXISTE MAS N\u00c3O EXPLICA O RESULTADO (cita s\u00f3 o contexto). Pe\u00e7a exatamente a informa\u00e7\u00e3o que falta, nomeada: qual per\u00edodo, qual composi\u00e7\u00e3o, qual fato gerador, qual valor. N\u00e3o repita que \"faltou clareza\" -- isso n\u00e3o diz ao Gestor o que escrever.");
+      lines.push("  c) N\u00c3O H\u00c1 JUSTIFICATIVA e o indicador est\u00e1 fora da meta. Diga o que precisa ser respondido, sem inventar a causa.");
+      lines.push("Encerrar em \"\u00e9 ponto fraco\" ou \"pode levar a N\u00c3O ADERENTE\" sem dizer o que fazer \u00e9 diagn\u00f3stico sem encaminhamento: o m\u00eas seguinte recebe o mesmo problema intacto.");
       lines.push("");
       lines.push("REGRA 4 -- NÃO INVENTE.");
       lines.push("Não cite documento, sistema, processo, prazo, valor ou responsável que não esteja escrito no bloco do indicador. Sem base para recomendar, escreva \"sem informação suficiente para recomendar\".");
@@ -7400,6 +7406,7 @@ function hydrateFromPowerBI() {
       lines.push("A QUALIDADE DAS JUSTIFICATIVAS É UM TEMA DA SÍNTESE, NÃO UM DETALHE.");
       lines.push("Se vários indicadores vierem sem justificativa do Gestor, ou com justificativa que não condiz com os números, trate isso como um ponto próprio da síntese -- é falha de governança do contrato, e pode levar a decisão de NÃO ADERENTE. Diga quantos e quais indicadores estão nessa situação.");
       lines.push("Indicador bom sem nenhuma ação descrita também entra: o resultado existe e não se sabe como foi obtido, então não dá para repetir.");
+      lines.push("Feche cada ponto com o encaminhamento: quem precisa corrigir o quê e em que prazo. Síntese que só lista fraquezas devolve ao Gestor o mesmo diagnóstico do mês anterior.");
       lines.push("");
       lines.push("Use apenas o que está nos pareceres acima. Não invente ação, documento, prazo ou responsável que não esteja escrito. Não use colchetes.");
       lines.push("Cole o resultado no campo \"Síntese e Recomendações da Performance\" (tópico #24) no app.");
