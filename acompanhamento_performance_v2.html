@@ -960,7 +960,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-04 12:18";
+    window.NPE_BUILD = "2026-09-04 12:28";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3823,8 +3823,21 @@ function hydrateFromPowerBI() {
           return (typeof iMes === "number" ? formatCompactBRL(iMes) + " no m\u00eas \u00b7 " : "sem indeniza\u00e7\u00e3o no m\u00eas \u00b7 ") +
                  formatCompactBRL(iAcu) + " acum. \u2014 " + st;
         }
-        case "t9": return formatIntBR(monthData.efetivoRealV) + " · Proj " + formatIntBR(monthData.efetivoExecV) + " pax";
-        case "t10": return formatIntBR(monthData.hhtRealV) + "h · Proj " + formatIntBR(monthData.hhtExecV) + "h";
+        // t9/t10 sao indicadores de proximidade (desvio simetrico): o "pior mes" exige o MAIOR
+        // desvio em % (modulo), nao o maior gap em numero absoluto de pax/horas -- e um gap
+        // pequeno em horas pode ser o pior % quando o projetado do mes tambem e pequeno. So
+        // mostrar os valores brutos empurrava a IA a comparar gap absoluto (errado); calcular
+        // e escrever o % aqui tira essa conta de cima dela.
+        case "t9": {
+          var e9r = monthData.efetivoRealV, e9p = monthData.efetivoExecV;
+          var dev9 = (typeof e9r === "number" && typeof e9p === "number" && e9p !== 0) ? (e9r - e9p) / e9p : null;
+          return formatIntBR(e9r) + " · Proj " + formatIntBR(e9p) + " pax" + (dev9 !== null ? " (desvio " + formatPctBR(dev9) + ")" : "");
+        }
+        case "t10": {
+          var h10r = monthData.hhtRealV, h10p = monthData.hhtExecV;
+          var dev10 = (typeof h10r === "number" && typeof h10p === "number" && h10p !== 0) ? (h10r - h10p) / h10p : null;
+          return formatIntBR(h10r) + "h · Proj " + formatIntBR(h10p) + "h" + (dev10 !== null ? " (desvio " + formatPctBR(dev10) + ")" : "");
+        }
         case "t11": return (typeof monthData.absenteismoPct === "number")
                            ? formatPctBR(monthData.absenteismoPct) + " (meta " + formatPctBR(monthData.absenteismoMetaPct) + ")"
                            : "não apurado (meta " + formatPctBR(monthData.absenteismoMetaPct) + ")";
