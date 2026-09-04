@@ -633,7 +633,11 @@ function hydrateOSScoreDataFromPowerBI(params) {
       // 33 e 34 porque Setor e Gerente foram acrescentados NO FIM da medida -- inserir no
       // meio deslocaria todos os indices seguintes e quebraria tudo silenciosamente.
       setor: f[33] || "",
-      gerente: f[34] || ""
+      gerente: f[34] || "",
+      // 35 = flag "tem comentário no mês selecionado" (mesmo uso do monthHistory, mas aqui
+      // cobre TODAS as OSs do catálogo, não só a selecionada -- usado como respaldo quando
+      // não há monthHistory disponível para a OS (ex.: matriz/Aba 4 olhando outra OS).
+      temComentarioMes: f[35] === "1"
     });
   }
   if (liveCatalog.length === 0) return;
@@ -732,7 +736,11 @@ function hydrateOSMonthHistoryFromPowerBI(params) {
       // concatenacao de proposito: inserir no meio deslocaria todos os indices seguintes
       // e quebraria este parser em silencio.
       safAcum: f[39] !== undefined && f[39] !== "" ? (parseInt(f[39], 10) || 0) : null,
-      cafAcum: f[40] !== undefined && f[40] !== "" ? (parseInt(f[40], 10) || 0) : null
+      cafAcum: f[40] !== undefined && f[40] !== "" ? (parseInt(f[40], 10) || 0) : null,
+      // 41 = flag "tem comentário nesse mês" (Gestor ou Performance, em qualquer tópico) --
+      // usado por calculateOSScoreUncached para excluir o mês inteiro da apuração enquanto
+      // ninguém escreveu nada (OS aberta no cadastro mas ainda sem operação real).
+      temComentarioMes: f[41] === "1"
     };
   }
   return history;
@@ -960,7 +968,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-04 13:02";
+    window.NPE_BUILD = "2026-09-04 16:06";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6204,7 +6212,8 @@ function hydrateFromPowerBI() {
     var MONTH_HISTORY_FIELDS = [
       "fatDifAnoPct", "resDifAnoPct", "fatDifMesPct", "resDifMesPct", "perdaPctAcum", "indenizOk",
       "efetivoDifPct", "hhtDifPct", "absenteismoPct", "absenteismoMetaPct", "turnoverPct", "turnoverMetaPct",
-      "safCount", "cafCount", "bpAprovAcum", "bpReconAcum", "bpAprovS1", "bpReconS1", "bpAprovS2", "bpReconS2"
+      "safCount", "cafCount", "bpAprovAcum", "bpReconAcum", "bpAprovS1", "bpReconS1", "bpAprovS2", "bpReconS2",
+      "temComentarioMes"
     ];
 
     // Quando existe histórico real por mês (só disponível com 1 OS selecionada no Power BI), usa
@@ -6223,6 +6232,24 @@ function hydrateFromPowerBI() {
 
     function calculateOSScoreUncached(contractRaw, monthNum) {
       var contract = resolveContractForMonth(contractRaw, monthNum);
+
+      // OS sem NENHUM comentário (Gestor ou Performance, em qualquer tópico) neste mês não
+      // entra na apuração -- continua aparecendo na lista de pendência do Gestor (isso não
+      // muda, getOSCompletionStatus roda igual mais abaixo pras outras telas), mas contar
+      // como "não atendeu" geraria nota falsa numa OS que já está cadastrada mas ainda não
+      // operou de verdade (ex.: aberta em Janeiro, só inicia em Março). Assim que QUALQUER
+      // caixa for preenchida -- mesmo um só "pendente de realização" -- o mês inteiro volta a
+      // ser apurado normalmente. temComentarioMes === undefined (dado de antes desse campo
+      // existir) NÃO bloqueia -- só bloqueia quando o valor vier explicitamente false.
+      if (contract.temComentarioMes === false) {
+        return {
+          topics: {},
+          finPts: 0, govPts: 0, acompPts: 0, pesPts: 0, ssmaPts: 0,
+          monthScore: 0,
+          hasEvaluableData: false
+        };
+      }
+
       var comp = getOSCompletionStatus(contract.code, monthNum);
       var periodStatus = getSlaPeriodStatus(contract.code, monthNum);
 
