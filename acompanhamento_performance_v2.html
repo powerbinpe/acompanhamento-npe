@@ -960,7 +960,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-04 12:28";
+    window.NPE_BUILD = "2026-09-04 12:41";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6835,6 +6835,7 @@ function hydrateFromPowerBI() {
       lines.push("ATEN\u00c7\u00c3O: a falta de justificativa NESTES DOIS campos NUNCA \u00e9 admiss\u00edvel, nem quando a meta foi atendida. Eles pr\u00f3prios entram na contagem dos 23 do Preenchimento -- deix\u00e1-los em branco \u00e9 uma das causas diretas de o Preenchimento n\u00e3o fechar 100%. Jamais escreva que a aus\u00eancia de justificativa \u00e9 aceit\u00e1vel porque o indicador atendeu: ela \u00e9, ela mesma, a falha que derruba o indicador seguinte.");
       lines.push("");
       lines.push("FORMATO DA RESPOSTA (obrigat\u00f3rio -- o app importa por ele)");
+      lines.push("NUNCA use tabela (nem em markdown, nem em HTML), slide, planilha, bullet points soltos ou qualquer outro formato -- s\u00f3 o texto corrido no padr\u00e3o \"### #N\" abaixo, para os 23 indicadores, sem exce\u00e7\u00e3o. Quem l\u00ea sua resposta \u00e9 o app, n\u00e3o uma pessoa, e ele s\u00f3 sabe importar esse padr\u00e3o -- qualquer outro formato quebra a importa\u00e7\u00e3o e apaga os resumos j\u00e1 existentes. N\u00c3O pergunte se prefiro outro formato (tabela, resumo executivo, slide) nem ofere\u00e7a essa alternativa: devolva direto os 23 blocos, sem nenhum texto antes ou depois deles.");
       lines.push("Comece cada resumo com \"### #\" e o n\u00famero do indicador, sozinho na linha. O NOME do indicador abre o texto do resumo, na linha seguinte, seguido de travess\u00e3o:");
       lines.push("  ### #1");
       lines.push("  Faturamento Ano -- <resumo do indicador 1>");
@@ -7256,6 +7257,7 @@ function hydrateFromPowerBI() {
       lines.push("Não use colchetes em lugar nenhum da resposta -- o app os remove ao gravar.");
       lines.push("");
       lines.push("FORMATO DA RESPOSTA (obrigatório -- o app importa por ele)");
+      lines.push("NUNCA use tabela (nem em markdown, nem em HTML), slide, planilha, bullet points soltos ou qualquer outro formato -- só o texto corrido no padrão \"### #N\" abaixo, para todos os indicadores, sem exceção. Quem lê sua resposta é o app, não uma pessoa, e ele só sabe importar esse padrão -- qualquer outro formato quebra a importação e apaga os pareceres já existentes. NÃO pergunte se prefiro outro formato nem ofereça essa alternativa: devolva direto os blocos, sem nenhum texto antes ou depois deles.");
       lines.push("Exatamente assim, para TODOS os indicadores da lista acima, sem pular nenhum:");
       lines.push("  ### #1");
       lines.push("  <valor apurado copiado do bloco> | Mês: <ATENDEU / NÃO ATENDEU / não avaliado> | Tendência: <copie a tendência do bloco>");
