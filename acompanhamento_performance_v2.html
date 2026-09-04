@@ -960,7 +960,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-04 12:41";
+    window.NPE_BUILD = "2026-09-04 13:02";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6795,6 +6795,7 @@ function hydrateFromPowerBI() {
       lines.push(sep);
       lines.push("INSTRU\u00c7\u00c3O");
       lines.push("Escreva UM RESUMO DO ANO POR INDICADOR, de janeiro at\u00e9 " + (MONTH_NAMES_FULL_PT[selMonthNum] || selMonthNum) + ".");
+      lines.push("AVISO ANTES DE COME\u00c7AR: a resposta \u00e9 texto corrido, indicador por indicador -- tabela (markdown, HTML ou qualquer variante), planilha, slide e colunas lado a lado N\u00c3O EXISTEM como formato de resposta aqui, nem como oferta ao final. N\u00e3o pergunte se prefiro outro formato. Se voc\u00ea j\u00e1 respondeu em tabela antes nesta mesma conversa, IGNORE esse h\u00e1bito agora: a formata\u00e7\u00e3o exigida est\u00e1 detalhada no final desta instru\u00e7\u00e3o, e \u00e9 a \u00fanica que existe.");
       lines.push("");
       lines.push("Os textos acima s\u00e3o os pareceres que a Performance emitiu m\u00eas a m\u00eas -- cada um j\u00e1 \u00e9 um resumo daquele m\u00eas. Consolide-os numa leitura do ano, sem repetir m\u00eas a m\u00eas.");
       lines.push("");
@@ -6835,7 +6836,7 @@ function hydrateFromPowerBI() {
       lines.push("ATEN\u00c7\u00c3O: a falta de justificativa NESTES DOIS campos NUNCA \u00e9 admiss\u00edvel, nem quando a meta foi atendida. Eles pr\u00f3prios entram na contagem dos 23 do Preenchimento -- deix\u00e1-los em branco \u00e9 uma das causas diretas de o Preenchimento n\u00e3o fechar 100%. Jamais escreva que a aus\u00eancia de justificativa \u00e9 aceit\u00e1vel porque o indicador atendeu: ela \u00e9, ela mesma, a falha que derruba o indicador seguinte.");
       lines.push("");
       lines.push("FORMATO DA RESPOSTA (obrigat\u00f3rio -- o app importa por ele)");
-      lines.push("NUNCA use tabela (nem em markdown, nem em HTML), slide, planilha, bullet points soltos ou qualquer outro formato -- s\u00f3 o texto corrido no padr\u00e3o \"### #N\" abaixo, para os 23 indicadores, sem exce\u00e7\u00e3o. Quem l\u00ea sua resposta \u00e9 o app, n\u00e3o uma pessoa, e ele s\u00f3 sabe importar esse padr\u00e3o -- qualquer outro formato quebra a importa\u00e7\u00e3o e apaga os resumos j\u00e1 existentes. N\u00c3O pergunte se prefiro outro formato (tabela, resumo executivo, slide) nem ofere\u00e7a essa alternativa: devolva direto os 23 blocos, sem nenhum texto antes ou depois deles.");
+      lines.push("REPETINDO O AVISO DO IN\u00cdCIO: tabela N\u00c3O \u00c9 UM FORMATO V\u00c1LIDO PARA ESTA RESPOSTA -- n\u00e3o existe, n\u00e3o \u00e9 uma op\u00e7\u00e3o entre outras, n\u00e3o pode ser oferecida nem sugerida. Isso vale mesmo que uma tabela pare\u00e7a mais organizada ou mais f\u00e1cil de ler: quem processa esta resposta \u00e9 um parser de texto, que s\u00f3 reconhece o padr\u00e3o \"### #N\" abaixo. NUNCA use tabela (markdown, HTML ou qualquer variante), slide, planilha, bullet points soltos ou qualquer outro formato -- s\u00f3 o texto corrido no padr\u00e3o \"### #N\" abaixo, para os 23 indicadores, sem exce\u00e7\u00e3o. Qualquer outro formato quebra a importa\u00e7\u00e3o e apaga os resumos j\u00e1 existentes. N\u00c3O pergunte se prefiro outro formato (tabela, resumo executivo, slide) nem ofere\u00e7a essa alternativa ao final da resposta: devolva direto os 23 blocos, sem nenhum texto antes ou depois deles.");
       lines.push("Comece cada resumo com \"### #\" e o n\u00famero do indicador, sozinho na linha. O NOME do indicador abre o texto do resumo, na linha seguinte, seguido de travess\u00e3o:");
       lines.push("  ### #1");
       lines.push("  Faturamento Ano -- <resumo do indicador 1>");
@@ -7062,6 +7063,7 @@ function hydrateFromPowerBI() {
       lines.push("");
       lines.push(sep);
       lines.push("INSTRU\u00c7\u00c3O");
+      lines.push("AVISO ANTES DE COME\u00c7AR: a resposta \u00e9 texto corrido, separado s\u00f3 pelas linhas \"BLOCO 1\", \"BLOCO 2\" e \"BLOCO 3\" (formato detalhado no final desta instru\u00e7\u00e3o). Tabela (markdown, HTML ou qualquer variante), planilha, slide e colunas lado a lado N\u00c3O EXISTEM como formato de resposta aqui, mesmo que o conte\u00fado (indicador, %, quantidade de OSs) pare\u00e7a se prestar a uma tabela -- n\u00e3o se presta: os campos da Aba 4 s\u00e3o caixas de texto corrido, n\u00e3o uma grade. N\u00e3o pergunte se prefiro outro formato, nem ofere\u00e7a essa alternativa ao final.");
       lines.push("Os textos acima s\u00e3o os resumos do ano de cada indicador, em cada OS -- cada um j\u00e1 \u00e9 uma leitura consolidada do per\u00edodo. Escolha entre eles o que merece ser apresentado e produza TR\u00caS blocos.");
       lines.push("");
       lines.push("BLOCO 1 -- O QUE DEU CERTO (boas pr\u00e1ticas a replicar)");
@@ -7087,6 +7089,7 @@ function hydrateFromPowerBI() {
       lines.push("");
       lines.push("OBSERVA\u00c7\u00c3O: #22 Pontualidade e #23 Preenchimento dividem UMA nota de Gest\u00e3o e Acompanhamento, mas medem coisas opostas: Preenchimento deve SEMPRE fechar 100% (qualquer falta \u00e9 falha de gest\u00e3o), enquanto Pontualidade varia conforme a data de entrega. Trate-os separadamente e nunca com o mesmo texto.");
       lines.push("Separe os blocos com as linhas \"BLOCO 1\", \"BLOCO 2\" e \"BLOCO 3\", e cole cada um no campo correspondente da Aba 4.");
+      lines.push("REPETINDO: tabela não é um formato válido para esta resposta -- não existe, não pode ser oferecida nem sugerida. Só texto corrido dentro de cada BLOCO.");
 
       var texto = lines.join("\n");
       mostrarCaixaCopia("Vis\u00e3o corporativa \u2022 " + comResumo.length + " OS(s), " + qtdTextos +
@@ -7193,6 +7196,7 @@ function hydrateFromPowerBI() {
       }
 
       lines.push("INSTRUÇÃO");
+      lines.push("AVISO ANTES DE COMEÇAR: a resposta é texto corrido, indicador por indicador, no padrão \"### #N\" detalhado no final desta instrução. Tabela (markdown, HTML ou qualquer variante), planilha, slide e colunas lado a lado NÃO EXISTEM como formato de resposta aqui. Não pergunte se prefiro outro formato, nem ofereça essa alternativa.");
       lines.push("Você é o Setor de Performance. Escreva UM PARECER POR INDICADOR, separado e identificado pelo número do indicador.");
       lines.push("");
       lines.push("Para cada um, leia junto: o valor apurado, a situação no mês, a tendência (contra o mês anterior e contra o ano) e a justificativa do Gestor.");
@@ -7503,6 +7507,7 @@ function hydrateFromPowerBI() {
       }
 
       lines.push("INSTRUÇÃO");
+      lines.push("AVISO ANTES DE COMEÇAR: a resposta é texto corrido (prosa), para colar numa única caixa de texto simples. Tabela (markdown, HTML ou qualquer variante), planilha, slide e colunas lado a lado NÃO EXISTEM como formato de resposta aqui -- chegam coladas e ilegíveis nesse campo. Não pergunte se prefiro outro formato, nem ofereça essa alternativa.");
       lines.push("Os textos acima são os pareceres que a Performance já emitiu, um por indicador. Agrupe-os numa única Síntese do mês.");
       lines.push("");
       lines.push("O QUE ENTRA NA SÍNTESE: SÓ O QUE DESVIOU MUITO NO MÊS -- para melhor ou para pior.");
