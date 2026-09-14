@@ -968,7 +968,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-14 15:34";
+    window.NPE_BUILD = "2026-09-14 15:36";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6592,6 +6592,12 @@ function hydrateFromPowerBI() {
         saveInlinePrazoDeadline(parseInt(el.getAttribute("data-month"), 10));
       } else if (acao === "setSlaPeriodStatusInline") {
         setSlaPeriodStatusInline(el.getAttribute("data-os"), parseInt(el.getAttribute("data-month"), 10), el.getAttribute("data-value"));
+      } else if (acao === "adicionarGrupo") {
+        adicionarGrupo();
+      } else if (acao === "definirResponsavel") {
+        definirResponsavel(el.getAttribute("data-os"));
+      } else if (acao === "removerTrocaResponsavel") {
+        removerTrocaResponsavel(el.getAttribute("data-id"));
       }
     });
 
@@ -8670,7 +8676,7 @@ function hydrateFromPowerBI() {
       '<div style="display:flex; align-items:baseline; gap:10px; margin-bottom:10px;">' +
         '<span style="font-size:0.82rem; font-weight:800; color:#0f2b5c; text-transform:uppercase;">Grupos cadastrados</span>' +
         '<span style="font-size:0.76rem; color:#64748b;">' + grupos.length + '</span>' +
-        '<button type="button" onclick="adicionarGrupo()" style="margin-left:auto; background:#0369a1; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer;">+ Novo grupo</button>' +
+        '<button type="button" data-action="adicionarGrupo" style="margin-left:auto; background:#0369a1; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer;">+ Novo grupo</button>' +
       '</div>';
 
       if (!grupos.length) {
@@ -9018,8 +9024,8 @@ function hydrateFromPowerBI() {
             '<td style="padding:6px 8px; font-size:0.80rem; color:#475569;">' + rotuloVigencia(r.inicio) + '</td>' +
             '<td style="padding:6px 8px; font-size:0.80rem; color:#475569;">' + (vigente ? '<span style="color:#16a34a; font-weight:800;">vigente</span>' : rotuloVigencia(r.fim)) + '</td>' +
             '<td style="padding:6px 8px; text-align:right; white-space:nowrap;">' +
-              (idx === 0 ? '<button type="button" onclick="definirResponsavel(\'' + o + '\')" style="background:#e0f2fe; color:#075985; border:none; padding:5px 11px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer;">Trocar</button>' : "") +
-              (idx > 0 ? '<button type="button" onclick="removerTrocaResponsavel(\'' + r.id + '\')" style="background:#fee2e2; color:#991b1b; border:none; padding:5px 11px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer;">Remover troca</button>' : "") +
+              (idx === 0 ? '<button type="button" data-action="definirResponsavel" data-os="' + o + '" style="background:#e0f2fe; color:#075985; border:none; padding:5px 11px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer;">Trocar</button>' : "") +
+              (idx > 0 ? '<button type="button" data-action="removerTrocaResponsavel" data-id="' + r.id + '" style="background:#fee2e2; color:#991b1b; border:none; padding:5px 11px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer;">Remover troca</button>' : "") +
             '</td>' +
           '</tr>';
         });
