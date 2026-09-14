@@ -968,7 +968,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-14 16:10";
+    window.NPE_BUILD = "2026-09-14 17:05";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     // Prefixos de chaves DINAMICAS (uma por mes: sla_deadline_date_m1, _m2...) que tambem
@@ -1851,6 +1851,9 @@ function hydrateFromPowerBI() {
         safeSetStorage("assertiv_override_" + osCode + "_m" + mes, r.assertOverride);
       }
       if (r.sla) safeSetStorage("sla_period_status_" + osCode + "_m" + mes, r.sla);
+      // Data limite do prazo: mesmo raciocinio do Status de Prazo (comentario acima) -- so
+      // sobrevive a troca de OS porque volta da lista a cada carga, nunca do navegador.
+      if (r.slaDeadline) safeSetStorage("sla_deadline_date_m" + mes, r.slaDeadline);
     }
 
     function applyHistoryRows(osCode, rows, anoAlvo) {
@@ -4681,7 +4684,7 @@ function hydrateFromPowerBI() {
       refreshAllScoreViews(true);
     }
 
-    function saveInlinePrazoDeadline(monthNum) {
+    async function saveInlinePrazoDeadline(monthNum) {
       if (!window.isMaster) {
         showToast("⚠️ Apenas usuários Máster podem configurar a data limite.");
         return;
@@ -4693,7 +4696,15 @@ function hydrateFromPowerBI() {
       if (!inp) { showToast("⚠️ Não encontrei o campo de data -- atualize a página e tente de novo."); return; }
       if (!inp.value) { showToast("⚠️ Selecione uma data antes de clicar em Salvar."); return; }
       safeSetStorage("sla_deadline_date_m" + monthNum, inp.value);
-      showToast("💾 Data limite do mês " + monthNum + " salva: " + inp.value.split("-").reverse().join("/"));
+      // A data nao sobrevive sozinha a troca de OS -- o slicer recria o visual do zero e nada
+      // de armazenamento do navegador atravessa isso (mesmo motivo do Status de Prazo). A unica
+      // forma confiavel e a mesma que ja usamos pra tudo que o Master decide: gravar no
+      // SharePoint e reler de la a cada carga. Em vez de um envio proprio, aproveita o mesmo
+      // "Salvar Comentarios" que ja grava o SlaPeriodStatus -- a data viaja junto no mesmo lote.
+      showToast("💾 Data limite do mês " + monthNum + " definida: " + inp.value.split("-").reverse().join("/") + " -- sincronizando com o SharePoint...");
+      if (typeof saveAllComments === "function") {
+        await saveAllComments();
+      }
       renderRows();
     }
 
@@ -7997,6 +8008,9 @@ function hydrateFromPowerBI() {
       // Status de prazo (SLA) é por OS+mês, não por tópico -- mesmo valor repetido em todas as
       // linhas do lote, pra não precisar de uma linha "fantasma" só pra guardar isso.
       var slaStatusForSave = getSlaPeriodStatus(activeOS, monthNum);
+      // Data limite do prazo é por mês (não por OS nem por tópico) -- mesmo tratamento: viaja
+      // repetida em todas as linhas do lote, sem linha fantasma.
+      var slaDeadlineForSave = safeGetStorage("sla_deadline_date_m" + monthNum, "");
 
       // Inclui 26 e 27 (Pontualidade e Preenchimento): os cards deles sempre existiram na
       // tela, mas ficavam de fora daqui e o texto era perdido sem aviso.
@@ -8067,7 +8081,9 @@ function hydrateFromPowerBI() {
           AssertividadeOverride: assertividadeOverrideForSave,
           assertividadeOverride: assertividadeOverrideForSave,
           SlaPeriodStatus: slaStatusForSave,
-          slaPeriodStatus: slaStatusForSave
+          slaPeriodStatus: slaStatusForSave,
+          SlaDeadlineDate: slaDeadlineForSave,
+          slaDeadlineDate: slaDeadlineForSave
         });
       });
 
