@@ -968,9 +968,22 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-14 15:36";
+    window.NPE_BUILD = "2026-09-14 16:10";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
+    // Prefixos de chaves DINAMICAS (uma por mes: sla_deadline_date_m1, _m2...) que tambem
+    // precisam atravessar a recarga do iframe. A data limite do prazo nao vem do servidor
+    // (diferente do Status de Prazo, que e regravado a cada carga a partir do historico da
+    // ATA_COMENTARIO -- por isso ele "gruda" e a data nao) -- so tinha a moldura como chance
+    // de sobreviver, e a moldura so carregava as 3 chaves fixas acima.
+    var PREFIXOS_PERSISTENTES = ["sla_deadline_date_m"];
+    function ehChavePersistente(chave) {
+      if (CHAVES_PERSISTENTES.indexOf(chave) !== -1) return true;
+      for (var i = 0; i < PREFIXOS_PERSISTENTES.length; i++) {
+        if (chave.indexOf(PREFIXOS_PERSISTENTES[i]) === 0) return true;
+      }
+      return false;
+    }
     var PREFIXO_MOLDURA = "NPE1:";
 
     function lerEstadoMoldura() {
@@ -985,7 +998,7 @@ function hydrateFromPowerBI() {
       } catch (e) { return {}; }
     }
     function gravarEstadoMoldura(chave, valor) {
-      if (CHAVES_PERSISTENTES.indexOf(chave) === -1) return;
+      if (!ehChavePersistente(chave)) return;
       try {
         var e = lerEstadoMoldura();
         e[chave] = valor;
@@ -998,7 +1011,7 @@ function hydrateFromPowerBI() {
         return window._GLOBAL_COMM_STORAGE[key];
       }
       // Antes dos armazenamentos: no iframe do Power BI eles nao existem, e a moldura sim.
-      if (CHAVES_PERSISTENTES.indexOf(key) !== -1) {
+      if (ehChavePersistente(key)) {
         var daMoldura = lerEstadoMoldura()[key];
         if (daMoldura !== undefined && daMoldura !== null) {
           window._GLOBAL_COMM_STORAGE[key] = daMoldura;
