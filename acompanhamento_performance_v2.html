@@ -968,7 +968,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-04 16:06";
+    window.NPE_BUILD = "2026-09-14 10:41";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6242,8 +6242,17 @@ function hydrateFromPowerBI() {
       // ser apurado normalmente. temComentarioMes === undefined (dado de antes desse campo
       // existir) NÃO bloqueia -- só bloqueia quando o valor vier explicitamente false.
       if (contract.temComentarioMes === false) {
+        // topics precisa ter a MESMA forma que o cálculo normal produz -- cada um dos 23
+        // tópicos com {earned:0, max:0, applicable:false} -- e não um objeto vazio. Código
+        // que lê sc.topics.prazo.earned direto (sem checar se a chave existe, ex.:
+        // computeGroupStats) quebra com "Cannot read properties of undefined" se o tópico
+        // simplesmente não estiver no objeto.
+        var emptyTopics = {};
+        ["prazo", "preenchimento", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9",
+         "t10", "t11", "t12", "t13", "t14", "t15", "t16", "t17", "t18", "t19", "t20", "t21"
+        ].forEach(function(id) { emptyTopics[id] = { earned: 0, max: 0, applicable: false }; });
         return {
-          topics: {},
+          topics: emptyTopics,
           finPts: 0, govPts: 0, acompPts: 0, pesPts: 0, ssmaPts: 0,
           monthScore: 0,
           hasEvaluableData: false
