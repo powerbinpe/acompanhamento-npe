@@ -968,7 +968,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-14 14:00";
+    window.NPE_BUILD = "2026-09-14 14:29";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -4669,7 +4669,11 @@ function hydrateFromPowerBI() {
         return;
       }
       var inp = document.getElementById("prazoDeadlineInput_" + monthNum);
-      if (!inp || !inp.value) return;
+      // Antes essas duas saídas eram silenciosas (nenhum toast) -- clicar em "Salvar Data" sem
+      // querer soltar o valor (ou com o campo recriado por um re-render no meio do caminho)
+      // parecia um botão morto, sem pista nenhuma do motivo. Agora sempre avisa.
+      if (!inp) { showToast("⚠️ Não encontrei o campo de data -- atualize a página e tente de novo."); return; }
+      if (!inp.value) { showToast("⚠️ Selecione uma data antes de clicar em Salvar."); return; }
       safeSetStorage("sla_deadline_date_m" + monthNum, inp.value);
       showToast("💾 Data limite do mês " + monthNum + " salva: " + inp.value.split("-").reverse().join("/"));
       renderRows();
