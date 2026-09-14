@@ -968,7 +968,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-14 10:41";
+    window.NPE_BUILD = "2026-09-14 13:48";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -7698,6 +7698,74 @@ function hydrateFromPowerBI() {
       });
     }
 
+    // Igual promptNaPagina, mas o valor só é aceito se bater (sem diferenciar maiúscula/
+    // minúscula) com uma das opções em "opcoes" -- filtra sozinho enquanto digita (datalist
+    // nativo do navegador) mas não deixa fechar com um nome que não existe na lista. Usado
+    // onde o valor tem que vir de um cadastro real (ex.: Gestor da OS, que vem da CTT), não
+    // ser digitado à mão -- digitar à mão permitia nome errado/duplicado sem ninguém notar.
+    function promptSelecaoNaPagina(titulo, texto, valorPadrao, rotuloOk, opcoes) {
+      return new Promise(function(resolve) {
+        var listaId = "_caixaLista" + Date.now();
+        var opcoesHTML = (opcoes || []).map(function(o) {
+          return '<option value="' + String(o).replace(/"/g, "&quot;") + '">';
+        }).join("");
+        var fundo = document.createElement("div");
+        fundo.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh;" +
+          "background:rgba(11,26,58,0.90); z-index:999999999; display:flex;" +
+          "justify-content:center; align-items:flex-start; padding:28px 20px; overflow-y:auto;";
+        fundo.innerHTML =
+          '<div style="background:#fff; border-radius:14px; width:100%; max-width:none; border:2.5px solid #0284c7; overflow:hidden; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
+            '<div style="background:linear-gradient(135deg,#0f2b5c,#0284c7); padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">' + titulo + '</div>' +
+            '<div style="padding:18px 20px 8px; font-size:0.90rem; color:#334155; line-height:1.6; white-space:pre-line;">' + texto + '</div>' +
+            '<div style="padding:0 20px 4px;">' +
+              '<input id="_caixaInput" type="text" list="' + listaId + '" autocomplete="off" placeholder="Comece a digitar para filtrar..." style="width:100%; padding:10px 12px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">' +
+              '<datalist id="' + listaId + '">' + opcoesHTML + '</datalist>' +
+              '<div id="_caixaErro" style="display:none; color:#b91c1c; font-size:0.80rem; font-weight:700; margin-top:6px;">⚠️ Esse nome não está no cadastro. Escolha um da lista.</div>' +
+            '</div>' +
+            '<div style="padding:14px 20px 18px; display:flex; gap:10px; justify-content:flex-end;">' +
+              '<button type="button" data-r="0" style="background:#e2e8f0; color:#475569; border:none; padding:9px 18px; border-radius:8px; font-weight:800; cursor:pointer;">Cancelar</button>' +
+              '<button type="button" data-r="1" style="background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; border:none; padding:9px 20px; border-radius:8px; font-weight:800; cursor:pointer;">' + (rotuloOk || "Confirmar") + '</button>' +
+            '</div>' +
+          '</div>';
+        function fechar(v) { try { document.body.removeChild(fundo); } catch (e) {} resolve(v); }
+        function valorValido() {
+          var digitado = String(campo.value || "").trim();
+          if (!digitado) return null;
+          var achado = (opcoes || []).filter(function(o) { return String(o).toUpperCase() === digitado.toUpperCase(); })[0];
+          return achado || null;
+        }
+        function tentarConfirmar() {
+          var v = valorValido();
+          if (v === null) {
+            document.getElementById("_caixaErro").style.display = "block";
+            campo.style.borderColor = "#fca5a5";
+            campo.focus();
+            return;
+          }
+          fechar(v);
+        }
+        var campo;
+        fundo.addEventListener("click", function(ev) {
+          var b = ev.target.closest ? ev.target.closest("button[data-r]") : null;
+          if (b) { if (b.getAttribute("data-r") === "1") tentarConfirmar(); else fechar(null); }
+          else if (ev.target === fundo) fechar(null);
+        });
+        fundo.addEventListener("keydown", function(ev) {
+          if (ev.key === "Enter") tentarConfirmar();
+          if (ev.key === "Escape") fechar(null);
+        });
+        document.body.appendChild(fundo);
+        ajustarCaixaAoVisual(fundo);
+        campo = fundo.querySelector("#_caixaInput");
+        campo.value = (valorPadrao === undefined || valorPadrao === null) ? "" : String(valorPadrao);
+        campo.addEventListener("input", function() {
+          document.getElementById("_caixaErro").style.display = "none";
+          campo.style.borderColor = "#cbd5e1";
+        });
+        try { window.scrollTo(0, 0); campo.focus(); campo.select(); } catch (e) {}
+      });
+    }
+
     // Aviso que precisa ser lido antes de seguir -- a senha provisoria vive aqui, e ela
     // aparece uma unica vez. Com alert() nativo ignorado, o usuario nunca a veria.
     function avisarNaPagina(titulo, texto) {
@@ -8805,11 +8873,26 @@ function hydrateFromPowerBI() {
       return oss.every(function(o) { return responsavelNoMes(o, anoMes) === ref; });
     }
 
+    // Lista de nomes de Gestor que realmente existem no cadastro (v\u00eam da CTT, via
+    // ACTIVE_CONTRACTS_CATALOG) -- fonte \u00fanica usada para validar quem pode ser escolhido
+    // como respons\u00e1vel, sem deixar digitar um nome que n\u00e3o existe.
+    function nomesGestoresConhecidos() {
+      var vistos = {};
+      var nomes = [];
+      (window.ACTIVE_CONTRACTS_CATALOG || []).forEach(function(c) {
+        var n = String(c.gestor || "").trim().toUpperCase();
+        if (!n || n.indexOf("SEM INFORMA") === 0 || vistos[n]) return;
+        vistos[n] = true;
+        nomes.push(n);
+      });
+      return nomes.sort();
+    }
+
     async function definirResponsavel(osCode) {
       var atual = responsavelNoMes(osCode, mesAtualDoFiltro());
-      var nome = await promptNaPagina("\ud83d\udc64 Respons\u00e1vel pela OS " + osCode,
+      var nome = await promptSelecaoNaPagina("\ud83d\udc64 Respons\u00e1vel pela OS " + osCode,
         "Quem passa a responder por esta OS. O respons\u00e1vel anterior continua valendo nos meses dele.",
-        atual || "", "Continuar");
+        atual || "", "Continuar", nomesGestoresConhecidos());
       if (nome === null) return;
       nome = String(nome).trim().toUpperCase().replace(/\|/g, " ");
       if (!nome) { showToast("\u26a0\ufe0f Informe o nome do respons\u00e1vel."); return; }
