@@ -968,7 +968,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-15 12:20";
+    window.NPE_BUILD = "2026-09-15 12:45";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3260,11 +3260,13 @@ function hydrateFromPowerBI() {
           ];
           var prazoButtonsHTML = prazoOptions.map(function(o) {
             var active = curPrazoStatus === o.val;
-            // Sem Período Definido / No Prazo / Fora do Prazo agora são automáticos (comparam
-            // a Data Limite com a data de hoje e com o que já foi salvo) -- só Período Inativo
-            // continua sendo uma decisão do Máster. Os outros três viram etiqueta, não botão.
-            var clickable = window.isMaster && o.val === "INATIVO";
-            var acaoValue = active ? "" : "INATIVO"; // clicar de novo no Inativo ativo desliga (volta ao automático)
+            // Sem Período Definido / No Prazo / Fora do Prazo agora são calculados sozinhos
+            // (Data Limite x hoje x o que já foi salvo) -- mas o Máster ainda pode forçar
+            // qualquer um na mão, pros meses de antes dessa ferramenta existir (sem Data
+            // Limite registrada, onde não tem o que calcular). Clicar no que já está ativo
+            // desliga a marcação manual e devolve pro cálculo automático.
+            var clickable = window.isMaster;
+            var acaoValue = active ? "" : o.val;
             // data-action em vez de onclick: botão criado via innerHTML num re-render -- em
             // alguns ambientes (Power BI Desktop/WebView2) o clique em onclick escrito depois
             // do carregamento inicial não dispara nada, sem erro nenhum. O listener delegado
@@ -3275,7 +3277,7 @@ function hydrateFromPowerBI() {
           }).join("");
           qualBlockHTML = '<div style="margin-top:10px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px;">' +
             '<div style="font-size:0.76rem; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:6px;">📅 Status do Prazo (' + monthName + ')</div>' +
-            (window.isMaster ? '<div style="font-size:0.72rem; color:#64748b; margin-bottom:6px;">Sem Período Definido / No Prazo / Fora do Prazo são calculados automaticamente (Data Limite x preenchimento). Só <b>Período Inativo</b> é uma marcação manual.</div>' : '') +
+            (window.isMaster ? '<div style="font-size:0.72rem; color:#64748b; margin-bottom:6px;">Calculado automaticamente (Data Limite x preenchimento). Clique num botão pra forçar manualmente -- útil pra meses de antes da Data Limite existir. Clique de novo no que já está marcado pra voltar ao automático.</div>' : '') +
             '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px;">' + prazoButtonsHTML + '</div>' +
             (window.isMaster ?
               ('<div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">' +
@@ -4705,14 +4707,15 @@ function hydrateFromPowerBI() {
     // pro cálculo automático.
     function setSlaPeriodStatusInline(osCode, monthNum, value) {
       if (!window.isMaster) {
-        showToast("⚠️ Apenas usuários Máster podem marcar Período Inativo.");
+        showToast("⚠️ Apenas usuários Máster podem alterar o status de prazo manualmente.");
         return;
       }
       safeSetStorage("sla_period_status_" + osCode + "_m" + monthNum, value);
-      if (value === "INATIVO") {
-        showToast("OS " + osCode + " (Mês " + monthNum + "): marcada como ⛔ Período Inativo.");
+      if (!value) {
+        showToast("OS " + osCode + " (Mês " + monthNum + "): marcação manual removida -- volta a ser calculado automaticamente.");
       } else {
-        showToast("OS " + osCode + " (Mês " + monthNum + "): Período Inativo removido -- volta a ser calculado automaticamente.");
+        var label = value === "INDEFINIDO" ? "⚪ Sem Período Definido" : (value === "NO_PRAZO" ? "⏱️ No Prazo" : (value === "INATIVO" ? "⛔ Período Inativo" : "⚠️ Fora do Prazo"));
+        showToast("OS " + osCode + " (Mês " + monthNum + "): marcada manualmente como " + label + ".");
       }
       refreshAllScoreViews(true);
     }
@@ -6554,7 +6557,7 @@ function hydrateFromPowerBI() {
     function getSlaPeriodStatus(osCodeRaw, monthNum) {
       var osCode = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(osCodeRaw) : osCodeRaw;
       var stored = safeGetStorage("sla_period_status_" + osCode + "_m" + monthNum, null);
-      if (stored === "INATIVO" || stored === "NO_PRAZO" || stored === "FORA_PRAZO") return stored;
+      if (stored === "INATIVO" || stored === "NO_PRAZO" || stored === "FORA_PRAZO" || stored === "INDEFINIDO") return stored;
       var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
       var deadline = (typeof getPrazoLimite === "function") ? getPrazoLimite(monthNum, ano) : "";
       if (!deadline) return "INDEFINIDO";
@@ -8067,7 +8070,7 @@ function hydrateFromPowerBI() {
       // Período Inativo (decisão do Máster) nunca é sobrescrito aqui.
       var slaStatusAtual = safeGetStorage("sla_period_status_" + activeOS + "_m" + monthNum, null);
       var slaStatusForSave;
-      if (slaStatusAtual === "INATIVO" || slaStatusAtual === "NO_PRAZO" || slaStatusAtual === "FORA_PRAZO") {
+      if (slaStatusAtual === "INATIVO" || slaStatusAtual === "NO_PRAZO" || slaStatusAtual === "FORA_PRAZO" || slaStatusAtual === "INDEFINIDO") {
         slaStatusForSave = slaStatusAtual;
       } else {
         var slaStatusAoVivo = getSlaPeriodStatus(activeOS, monthNum);
