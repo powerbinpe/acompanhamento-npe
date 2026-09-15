@@ -184,8 +184,14 @@
     }
     /* position:fixed nao ancora no que esta visivel dentro do visual HTML do Power BI -- ancora
        no conteudo INTEIRO da pagina (documentado em memoria), entao o toast nascia la embaixo,
-       fora da vista, sem ninguem perceber que salvou. Por isso e position:absolute com o "top"
-       calculado no JS (showToast) a cada chamada, usando o scroll atual. */
+       fora da vista, sem ninguem perceber que salvou. A primeira tentativa de corrigir isso
+       calculava o "top" pelo scroll (window.pageYOffset + innerHeight) -- mas dentro desse
+       iframe especifico o scroll interno e sempre ~0 e innerHeight e a altura do conteudo
+       INTEIRO (o iframe nao tem rolagem propria, quem rola e a pagina do Power BI por fora),
+       entao a conta sempre dava "la embaixo" de novo (nascia em top:4910px numa tela real).
+       A solucao de verdade: nao depender de scroll nenhum. O botao Salvar mora no cabecalho, no
+       topo do documento -- entao o toast tambem fica ancorado logo abaixo do cabecalho (calculo
+       feito em showToast a partir de .navbar, sem envolver scroll). */
     .toast.show { visibility: visible; animation: fadein 0.3s, fadeout 0.5s 3.0s; }
     @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
     @keyframes fadeout { from { opacity: 1; } to { opacity: 0; } }
@@ -492,19 +498,17 @@
       var banner = document.createElement("div");
       banner.id = "globalErrorBanner";
       // position:fixed nao ancora no que esta visivel dentro do visual HTML do Power BI --
-      // ancora no conteudo INTEIRO da pagina. Com top:0 isso nascia no topo de TUDO, e com a
-      // pagina rolada (o normal ao clicar em Salvar, que fica mais embaixo) o banner ficava
-      // fora da vista -- exatamente o mesmo problema do toast, so que aqui escondia erros de
-      // JS de verdade. position:absolute com o "top" recalculado a cada erro resolve.
-      banner.style.cssText = "display:none; position:absolute; left:0; right:0; z-index:99999999; background:#7f1d1d; color:#fff; padding:12px 16px; font:12px monospace; white-space:pre-wrap; max-height:50vh; overflow-y:auto; border-bottom:4px solid #fca5a5;";
+      // ancora no conteudo INTEIRO da pagina. A primeira correcao tentou position:absolute com
+      // "top" calculado pelo scroll -- mas nesse iframe o scroll interno e sempre ~0 (quem rola
+      // e a pagina do Power BI por fora, o iframe nao tem rolagem propria), entao o scroll
+      // nunca era a causa real do problema aqui. Como o banner e inserido como PRIMEIRO filho
+      // do body, position:absolute sem "top" nenhum ja cai naturalmente no topo do documento --
+      // exatamente onde fica o cabecalho, sempre visivel quando a pagina abre nessa posicao.
+      banner.style.cssText = "display:none; position:absolute; top:0; left:0; right:0; z-index:99999999; background:#7f1d1d; color:#fff; padding:12px 16px; font:12px monospace; white-space:pre-wrap; max-height:50vh; overflow-y:auto; border-bottom:4px solid #fca5a5;";
       document.addEventListener("DOMContentLoaded", function() {
         document.body.insertBefore(banner, document.body.firstChild);
       });
       function showBannerError(label, detail) {
-        try {
-          var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
-          banner.style.top = scrollY + "px";
-        } catch (e) {}
         banner.style.display = "block";
         banner.textContent += "🔴 " + label + ": " + detail + "\n\n";
       }
@@ -981,7 +985,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-15 15:05";
+    window.NPE_BUILD = "2026-09-15 16:20";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1912,7 +1916,12 @@ function hydrateFromPowerBI() {
       var osCode = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(rawOS) : rawOS;
       var ano = parseInt(params.get("SelectedAno"), 10);
       var url = window.FLOW_HISTORICO_URL;
-      if (!osCode || osCode === "TODAS_OS" || osCode === "TODAS" || !ano || !url) return;
+      if (!osCode || osCode === "TODAS_OS" || osCode === "TODAS" || !ano || !url) {
+        // Nada pra buscar (sem OS/ano validos ou fluxo nao configurado) -- nao ha o que
+        // esperar, entao nao trava o Salvar por uma condicao que nunca vai se resolver.
+        window.HISTORICO_PRONTO = true;
+        return;
+      }
       // Num bloco, o comentario novo vai para a ancora, mas o historico antigo esta espalhado
       // por cada OS -- entao buscamos todas e juntamos sob a ancora.
       var osDoBloco = String(rawOS).split("|").map(function(s) { return s.trim(); }).filter(Boolean);
@@ -1931,20 +1940,28 @@ function hydrateFromPowerBI() {
           var parte = await respostas[ri].json();
           if (Array.isArray(parte)) rows = rows.concat(parte);
         }
-        if (!rows.length) return;
-        var novos = applyHistoryRows(osCode, rows, ano);
-        window.__historicoCompletoCarregado = true;
-        if (typeof refreshAllScoreViews === "function") refreshAllScoreViews();
-        console.log("Historico carregado da ATA_COMENTARIO:", rows.length, "linhas de", osDoBloco.length, "OS(s),", novos, "comentarios novos");
-        window.HISTORICO_PRONTO = true;
-        // Os campos de edicao ja estao na tela quando a ATA chega -- sem repintar, o gestor
-        // veria a caixa vazia e um save gravaria vazio por cima do que existe.
-        if (!window.USUARIO_DIGITOU && typeof renderRows === "function") {
-          try { renderRows(); } catch (e) {}
+        // rows.length === 0 e um resultado LEGITIMO (OS/mes sem historico anterior -- o caso
+        // normal de quem esta preenchendo pela primeira vez) e nao pode continuar bloqueando
+        // o Salvar pra sempre. So o catch abaixo (a busca em si falhou) deixa HISTORICO_PRONTO
+        // como false, porque ai sim existe risco real de sobrescrever historico que nao
+        // conseguimos ler.
+        if (rows.length) {
+          var novos = applyHistoryRows(osCode, rows, ano);
+          window.__historicoCompletoCarregado = true;
+          if (typeof refreshAllScoreViews === "function") refreshAllScoreViews();
+          console.log("Historico carregado da ATA_COMENTARIO:", rows.length, "linhas de", osDoBloco.length, "OS(s),", novos, "comentarios novos");
+          // Os campos de edicao ja estao na tela quando a ATA chega -- sem repintar, o gestor
+          // veria a caixa vazia e um save gravaria vazio por cima do que existe.
+          if (!window.USUARIO_DIGITOU && typeof renderRows === "function") {
+            try { renderRows(); } catch (e) {}
+          }
+          // O que foi semeado (status, qualitativo, prazo, assertividade) muda a nota, entao o
+          // cache do score precisa cair para ninguem ler o valor calculado antes.
+          window._scoreCache = {};
+        } else {
+          console.log("Historico: nenhuma linha previa para", osCode, "no ano", ano, "-- OS/mes novo, sem ATA anterior.");
         }
-        // O que foi semeado (status, qualitativo, prazo, assertividade) muda a nota, entao o
-        // cache do score precisa cair para ninguem ler o valor calculado antes.
-        window._scoreCache = {};
+        window.HISTORICO_PRONTO = true;
       } catch (err) {
         // Falha aqui nao quebra a tela: o historico curto vindo da query-string continua valendo.
         console.warn("Historico: falha ao consultar o fluxo --", err);
@@ -6723,15 +6740,16 @@ function hydrateFromPowerBI() {
       var toast = document.getElementById("toast");
       if (!toast) return;
       toast.innerText = msg;
-      // position:fixed nao ancora no viewport dentro do visual HTML do Power BI -- ancora no
-      // conteudo INTEIRO da pagina, que pode ter milhares de pixels de altura. O toast sempre
-      // nasceu la embaixo, fora da vista, e ninguem via a confirmacao de que salvou. Calculamos
-      // a posicao com position:absolute toda vez, usando o scroll atual, pra cair dentro do
-      // que esta visivel agora, mesmo que o usuario tenha rolado a pagina.
+      // Nao usar scroll pra posicionar: dentro desse iframe o scroll interno e sempre ~0 e
+      // innerHeight e a altura do conteudo inteiro (milhares de px), entao qualquer conta em
+      // cima disso nasce fora da vista. O botao Salvar mora no cabecalho, no topo do
+      // documento -- entao o toast ancora logo abaixo do cabecalho, sem depender de scroll.
       try {
-        var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
-        toast.style.top = (scrollY + window.innerHeight - 90) + "px";
-      } catch (e) {}
+        var nav = document.querySelector(".navbar");
+        toast.style.top = nav ? (nav.offsetTop + nav.offsetHeight + 14) + "px" : "90px";
+      } catch (e) {
+        toast.style.top = "90px";
+      }
       toast.className = "toast show";
       setTimeout(function() {
         toast.className = toast.className.replace("show", "");
