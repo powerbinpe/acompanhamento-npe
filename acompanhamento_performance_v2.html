@@ -968,7 +968,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-15 11:40";
+    window.NPE_BUILD = "2026-09-15 12:20";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3260,17 +3260,22 @@ function hydrateFromPowerBI() {
           ];
           var prazoButtonsHTML = prazoOptions.map(function(o) {
             var active = curPrazoStatus === o.val;
-            var clickable = window.isMaster;
+            // Sem Período Definido / No Prazo / Fora do Prazo agora são automáticos (comparam
+            // a Data Limite com a data de hoje e com o que já foi salvo) -- só Período Inativo
+            // continua sendo uma decisão do Máster. Os outros três viram etiqueta, não botão.
+            var clickable = window.isMaster && o.val === "INATIVO";
+            var acaoValue = active ? "" : "INATIVO"; // clicar de novo no Inativo ativo desliga (volta ao automático)
             // data-action em vez de onclick: botão criado via innerHTML num re-render -- em
             // alguns ambientes (Power BI Desktop/WebView2) o clique em onclick escrito depois
             // do carregamento inicial não dispara nada, sem erro nenhum. O listener delegado
             // (perto de showToast) cobre isso, porque é o PRÓPRIO script original que registra
             // o addEventListener, não um atributo inline recém-criado.
-            return '<button type="button" ' + (clickable ? ('data-action="setSlaPeriodStatusInline" data-os="' + activeOS + '" data-month="' + monthNum + '" data-value="' + o.val + '"') : 'disabled') +
+            return '<button type="button" ' + (clickable ? ('data-action="setSlaPeriodStatusInline" data-os="' + activeOS + '" data-month="' + monthNum + '" data-value="' + acaoValue + '"') : 'disabled') +
               ' style="flex:1; min-width:130px; padding:6px 4px; font-size:0.76rem; font-weight:800; border-radius:6px; cursor:' + (clickable ? 'pointer' : 'not-allowed') + '; background:' + (active ? o.bg : '#ffffff') + '; color:' + (active ? o.fg : '#94a3b8') + '; border:1.5px solid ' + (active ? o.border : '#e2e8f0') + ';">' + o.label + '</button>';
           }).join("");
           qualBlockHTML = '<div style="margin-top:10px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px;">' +
             '<div style="font-size:0.76rem; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:6px;">📅 Status do Prazo (' + monthName + ')</div>' +
+            (window.isMaster ? '<div style="font-size:0.72rem; color:#64748b; margin-bottom:6px;">Sem Período Definido / No Prazo / Fora do Prazo são calculados automaticamente (Data Limite x preenchimento). Só <b>Período Inativo</b> é uma marcação manual.</div>' : '') +
             '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px;">' + prazoButtonsHTML + '</div>' +
             (window.isMaster ?
               ('<div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">' +
@@ -4694,14 +4699,21 @@ function hydrateFromPowerBI() {
 
     // Botão inline de Status de Prazo na Aba 1 (mesma função de toggleSlaPeriodStatus, mas por
     // seleção direta de opção em vez de ciclo) -- migrado do antigo Painel de Preenchimentos & SLA.
+    // Único estado de prazo que continua sendo decisão do Máster -- os outros três (Sem
+    // Período Definido / No Prazo / Fora do Prazo) agora são automáticos. Clicar de novo no
+    // Período Inativo já ativo desliga (o botão manda value="" nesse caso) e devolve o status
+    // pro cálculo automático.
     function setSlaPeriodStatusInline(osCode, monthNum, value) {
       if (!window.isMaster) {
-        showToast("⚠️ Apenas usuários Máster podem alterar o status de prazo.");
+        showToast("⚠️ Apenas usuários Máster podem marcar Período Inativo.");
         return;
       }
       safeSetStorage("sla_period_status_" + osCode + "_m" + monthNum, value);
-      var label = value === "INDEFINIDO" ? "⚪ Sem Período Definido" : (value === "NO_PRAZO" ? "⏱️ No Prazo" : (value === "INATIVO" ? "⛔ Período Inativo" : "⚠️ Fora do Prazo"));
-      showToast("OS " + osCode + " (Mês " + monthNum + "): Prazo alterado para " + label);
+      if (value === "INATIVO") {
+        showToast("OS " + osCode + " (Mês " + monthNum + "): marcada como ⛔ Período Inativo.");
+      } else {
+        showToast("OS " + osCode + " (Mês " + monthNum + "): Período Inativo removido -- volta a ser calculado automaticamente.");
+      }
       refreshAllScoreViews(true);
     }
 
@@ -6534,12 +6546,20 @@ function hydrateFromPowerBI() {
     // errada (prazo 0/12 em vez de 12/12, ~12 pontos a menos no mes).
     // Normalizar aqui, e nao em cada um dos 13 pontos de chamada, e o que impede a proxima
     // funcao a chamar de repetir o erro.
+    // Sem Período Definido / No Prazo / Fora do Prazo são automáticos -- comparam a Data
+    // Limite (getPrazoLimite) com hoje. NO_PRAZO e FORA_PRAZO travam (ficam gravados) assim
+    // que alguém salva algum comentário: ver o bloco "trava o status de prazo" em
+    // saveAllComments(). Sem nada travado ainda, é só a comparação ao vivo. Período Inativo
+    // é a única decisão manual que resta (botão do Máster).
     function getSlaPeriodStatus(osCodeRaw, monthNum) {
       var osCode = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(osCodeRaw) : osCodeRaw;
-      var osOverride = safeGetStorage("sla_period_status_" + osCode + "_m" + monthNum, null);
-      if (osOverride) return osOverride;
-      var globalStatus = safeGetStorage("sla_global_period_m" + monthNum, "INDEFINIDO");
-      return globalStatus;
+      var stored = safeGetStorage("sla_period_status_" + osCode + "_m" + monthNum, null);
+      if (stored === "INATIVO" || stored === "NO_PRAZO" || stored === "FORA_PRAZO") return stored;
+      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+      var deadline = (typeof getPrazoLimite === "function") ? getPrazoLimite(monthNum, ano) : "";
+      if (!deadline) return "INDEFINIDO";
+      var hoje = new Date().toISOString().slice(0, 10);
+      return hoje <= deadline ? "NO_PRAZO" : "FORA_PRAZO";
     }
 
     function getOSCompletionStatus(osCodeRaw, monthNum) {
@@ -8041,7 +8061,21 @@ function hydrateFromPowerBI() {
 
       // Status de prazo (SLA) é por OS+mês, não por tópico -- mesmo valor repetido em todas as
       // linhas do lote, pra não precisar de uma linha "fantasma" só pra guardar isso.
-      var slaStatusForSave = getSlaPeriodStatus(activeOS, monthNum);
+      // Trava o status de prazo: NO_PRAZO/FORA_PRAZO são calculados ao vivo (Data Limite x
+      // hoje) até a PRIMEIRA vez que algo é salvo -- daí ficam gravados para sempre, pra não
+      // "consertar" um atraso real só porque o tempo passou e a comparação mudou de lado.
+      // Período Inativo (decisão do Máster) nunca é sobrescrito aqui.
+      var slaStatusAtual = safeGetStorage("sla_period_status_" + activeOS + "_m" + monthNum, null);
+      var slaStatusForSave;
+      if (slaStatusAtual === "INATIVO" || slaStatusAtual === "NO_PRAZO" || slaStatusAtual === "FORA_PRAZO") {
+        slaStatusForSave = slaStatusAtual;
+      } else {
+        var slaStatusAoVivo = getSlaPeriodStatus(activeOS, monthNum);
+        if (slaStatusAoVivo === "NO_PRAZO" || slaStatusAoVivo === "FORA_PRAZO") {
+          safeSetStorage("sla_period_status_" + activeOS + "_m" + monthNum, slaStatusAoVivo);
+        }
+        slaStatusForSave = slaStatusAoVivo;
+      }
       // Inclui 26 e 27 (Pontualidade e Preenchimento): os cards deles sempre existiram na
       // tela, mas ficavam de fora daqui e o texto era perdido sem aviso.
       TOPICOS_COM_CAIXA.forEach(function(tid) {
