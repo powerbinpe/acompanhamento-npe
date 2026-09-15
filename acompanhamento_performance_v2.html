@@ -196,52 +196,52 @@
   <!-- Navbar Superior -->
   <div class="navbar">
     <div class="nav-tabs">
-      <button type="button" class="tab-btn active" onclick="switchTab('tabMensal')">📊 Aba 1: Acompanhamento Mensal</button>
-      <button type="button" class="tab-btn" onclick="switchTab('tabRanking')">🏆 Aba 2: Gestão de Pontuação & Ranking</button>
-      <button type="button" class="tab-btn" onclick="switchTab('tabConsolidacao')">📈 Aba 3: Consolidação Anual</button>
-      <button type="button" class="tab-btn" onclick="switchTab('tabLicoes')">💡 Aba 4: Lições Aprendidas & Gestão de Risco</button>
-      <button type="button" class="tab-btn" onclick="switchTab('tabVisaoGeral')">🗂️ Aba 5: Visão Geral das OSs</button>
+      <button type="button" class="tab-btn active" data-action="switchTab" data-tab="tabMensal">📊 Aba 1: Acompanhamento Mensal</button>
+      <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabRanking">🏆 Aba 2: Gestão de Pontuação & Ranking</button>
+      <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabConsolidacao">📈 Aba 3: Consolidação Anual</button>
+      <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabLicoes">💡 Aba 4: Lições Aprendidas & Gestão de Risco</button>
+      <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabVisaoGeral">🗂️ Aba 5: Visão Geral das OSs</button>
     </div>
 
     <div class="controls">
 
-      <button type="button" id="toggleRoleBtn" class="role-toggle-btn" onclick="toggleRole()">
+      <button type="button" id="toggleRoleBtn" class="role-toggle-btn" data-action="toggleRole">
         <span id="roleIcon">🛡️</span>
         <span id="roleText">Máster Performance</span>
       </button>
 
-      <button type="button" class="save-btn" onclick="saveAllComments()">
+      <button type="button" class="save-btn" data-action="saveAllComments">
         💾 Salvar Comentários
       </button>
 
-      <button type="button" id="btnCadastroMetas" onclick="openMetasModal()" style="display:none; background:linear-gradient(135deg,#0f766e,#065f46); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+      <button type="button" id="btnCadastroMetas" data-action="openMetasModal" style="display:none; background:linear-gradient(135deg,#0f766e,#065f46); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
         &#127919; Cadastro de Metas
       </button>
 
-      <button type="button" id="btnArmarRegravacao" onclick="armarRegravacao()" style="display:none; background:linear-gradient(135deg,#b91c1c,#7f1d1d); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+      <button type="button" id="btnArmarRegravacao" data-action="armarRegravacao" style="display:none; background:linear-gradient(135deg,#b91c1c,#7f1d1d); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
         &#9889; Armar Regrava&ccedil;&atilde;o
       </button>
 
-      <button type="button" id="btnCongelarSnapshot" onclick="congelarSnapshot()" style="display:none; background:linear-gradient(135deg,#4338ca,#312e81); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+      <button type="button" id="btnCongelarSnapshot" data-action="congelarSnapshot" style="display:none; background:linear-gradient(135deg,#4338ca,#312e81); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
         &#128248; Congelar Fechamento
       </button>
 
-      <button type="button" id="btnGravarNotasAno" onclick="gravarNotasDoAno()" style="display:none; background:linear-gradient(135deg,#b45309,#78350f); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+      <button type="button" id="btnGravarNotasAno" data-action="gravarNotasDoAno" style="display:none; background:linear-gradient(135deg,#b45309,#78350f); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
         &#128197; Gravar Notas do Ano
       </button>
 
       <!-- Os tres passos da esteira, na ordem em que se usam. Antes os nomes eram quase
            iguais ("Copiar Pareceres" / "Copiar Pareceres do Mes") para acoes opostas, e o
            Importar aparecia antes do Gerar. -->
-      <button type="button" id="btnCopyMonthPareceres" onclick="openCopyMonthPareceresModal()" title="Passo 1: monta o texto com os indicadores e as justificativas do Gestor para a IA escrever os 25 pareceres." style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+      <button type="button" id="btnCopyMonthPareceres" data-action="openCopyMonthPareceresModal" title="Passo 1: monta o texto com os indicadores e as justificativas do Gestor para a IA escrever os 25 pareceres." style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
         📋 1 &middot; Gerar Pareceres
       </button>
 
-      <button type="button" id="btnImportarPareceres" onclick="abrirImportaLote('PARECER')" title="Passo 2: cole aqui a resposta da IA e o app distribui cada parecer na caixa do seu indicador." style="display:none; background:linear-gradient(135deg,#059669,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+      <button type="button" id="btnImportarPareceres" data-action="abrirImportaLote" data-arg="PARECER" title="Passo 2: cole aqui a resposta da IA e o app distribui cada parecer na caixa do seu indicador." style="display:none; background:linear-gradient(135deg,#059669,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
         &#128229; 2 &middot; Importar Pareceres
       </button>
 
-      <button type="button" id="btnCopyPareceresPerf" onclick="openCopyPareceresPerfModal()" title="Passo 3: junta os pareceres ja escritos para a IA produzir a Sintese do mes (topico #24)." style="display:none; background:linear-gradient(135deg,#0e7490,#155e75); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+      <button type="button" id="btnCopyPareceresPerf" data-action="openCopyPareceresPerfModal" title="Passo 3: junta os pareceres ja escritos para a IA produzir a Sintese do mes (topico #24)." style="display:none; background:linear-gradient(135deg,#0e7490,#155e75); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
         &#128203; 3 &middot; Gerar S&iacute;ntese do M&ecirc;s
       </button>
     </div>
@@ -398,11 +398,11 @@
     <div id="tab2TotalEligibleOSBadge" style="margin-bottom:14px;"></div>
 
     <div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
-      <button type="button" id="btnImportarResumos" onclick="abrirImportaLote('RESUMO')" style="display:none; background:linear-gradient(135deg,#059669,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+      <button type="button" id="btnImportarResumos" data-action="abrirImportaLote" data-arg="RESUMO" style="display:none; background:linear-gradient(135deg,#059669,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
         &#128229; Importar Resumos
       </button>
 
-      <button type="button" id="btnCopyAllForAI" onclick="openCopyAllModal()" style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+      <button type="button" id="btnCopyAllForAI" data-action="openCopyAllModal" style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
         📋 Copiar Tudo
       </button>
     </div>
@@ -425,7 +425,7 @@
         </p>
       </div>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <button type="button" id="btnCopyLicoes" onclick="openCopyLicoesModal()" style="display:none; background:linear-gradient(135deg,#10b981,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+        <button type="button" id="btnCopyLicoes" data-action="openCopyLicoesModal" style="display:none; background:linear-gradient(135deg,#10b981,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
           📋 Copiar p/ IA (Lições & Riscos)
         </button>
       </div>
@@ -981,7 +981,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-15 14:10";
+    window.NPE_BUILD = "2026-09-15 15:05";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -6692,6 +6692,30 @@ function hydrateFromPowerBI() {
         definirResponsavel(el.getAttribute("data-os"));
       } else if (acao === "removerTrocaResponsavel") {
         removerTrocaResponsavel(el.getAttribute("data-id"));
+      } else if (acao === "switchTab") {
+        switchTab(el.getAttribute("data-tab"));
+      } else if (acao === "toggleRole") {
+        toggleRole();
+      } else if (acao === "saveAllComments") {
+        saveAllComments();
+      } else if (acao === "openMetasModal") {
+        openMetasModal();
+      } else if (acao === "armarRegravacao") {
+        armarRegravacao();
+      } else if (acao === "congelarSnapshot") {
+        congelarSnapshot();
+      } else if (acao === "gravarNotasDoAno") {
+        gravarNotasDoAno();
+      } else if (acao === "openCopyMonthPareceresModal") {
+        openCopyMonthPareceresModal();
+      } else if (acao === "openCopyPareceresPerfModal") {
+        openCopyPareceresPerfModal();
+      } else if (acao === "abrirImportaLote") {
+        abrirImportaLote(el.getAttribute("data-arg"));
+      } else if (acao === "openCopyAllModal") {
+        openCopyAllModal();
+      } else if (acao === "openCopyLicoesModal") {
+        openCopyLicoesModal();
       }
     });
 
