@@ -115,7 +115,7 @@
   tr.desativada td { opacity: .45; text-decoration: line-through; }
   tr.grupo-linha td { background: var(--bg-soft); border-top: 2px solid var(--line); padding: 8px; }
   tr.grupo-linha b { font-size: .86rem; }
-  td input.v { width: 104px; text-align: right; padding: 5px 7px; border: 1.5px solid var(--line); border-radius: 6px; font-variant-numeric: tabular-nums; }
+  td input.v { width: 136px; text-align: right; padding: 5px 7px; border: 1.5px solid var(--line); border-radius: 6px; font-variant-numeric: tabular-nums; }
   td input.v.calc { background: var(--bg-soft); color: var(--muted); }
   td input.t { width: 100%; min-width: 140px; padding: 5px 7px; border: 1.5px solid var(--line); border-radius: 6px; }
   td input.t + input.t { margin-top: 4px; }
@@ -284,14 +284,15 @@
   function ativa(r) { return r.Ativo !== "Nao"; }
 
   // ===========================================================================
-  // Formatacao (gravado em reais; digitado e exibido em R$ milhoes)
+  // Formatacao: gravado, digitado e exibido em reais cheios (844.354.000); margem em %
   // ===========================================================================
-  function fmtMi(v) { return v == null || isNaN(v) ? "" : (v / 1e6).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmtVal(v) { return v == null || isNaN(v) ? "" : Math.round(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 }); }
   function fmtPct(m) { return m == null || isNaN(m) ? "" : (m * 100).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%"; }
   function lerNumero(s) {
     s = String(s || "").replace(/R\$|%|\s/g, "");
     if (!s) return null;
-    if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", ".");
+    // Em pt-BR o ponto e separador de milhar: 844.354.000 = 844354000; a virgula e o decimal.
+    s = s.indexOf(",") >= 0 ? s.replace(/\./g, "").replace(",", ".") : s.replace(/\./g, "");
     var n = parseFloat(s);
     return isFinite(n) ? n : NaN;
   }
@@ -423,11 +424,11 @@
       var s = k.slice(2), a = somar(linhasDoTotal("S:" + s)), b = somar(linhasDoTotal("SG:" + s));
       if (!a.n) return "";
       var dif = b.f - a.f;
-      return Math.abs(dif) < 5000 ? '<span class="dif ok">bate com a meta do superintendente</span>' : '<span class="dif alerta">diferença de ' + fmtMi(dif) + " mi no faturamento</span>";
+      return Math.abs(dif) < 5000 ? '<span class="dif ok">bate com a meta do superintendente</span>' : '<span class="dif alerta">diferença de ' + fmtVal(dif) + " mi no faturamento</span>";
     }
     var t = somar(linhasDoTotal(k));
     if (!t.n) return '<span class="chip sem">sem meta</span>';
-    return "<span>FAT <b>" + fmtMi(t.f) + "</b></span><span>RES <b>" + fmtMi(t.r) + "</b></span><span><b>" + (t.f ? fmtPct(t.r / t.f) : "—") + "</b></span>";
+    return "<span>FAT <b>" + fmtVal(t.f) + "</b></span><span>RES <b>" + fmtVal(t.r) + "</b></span><span><b>" + (t.f ? fmtPct(t.r / t.f) : "—") + "</b></span>";
   }
   function htmlTotal(k, leve) { return '<span class="' + (k.indexOf("D:") === 0 ? "" : "tot" + (leve ? " leve" : "")) + '" data-tot="' + esc(k) + '">' + conteudoTotal(k) + "</span>"; }
   function atualizarTotais() {
@@ -599,7 +600,7 @@
     var vis = todas ? rs : rs.filter(function (r) { return casa(textoLinha(r)); });
     if (!vis.length) return '<div class="vazio">' + (rs.length ? "Nenhuma linha no filtro." : vazio) + "</div>";
     return '<div class="rolagem"><table><thead><tr><th>Negócio</th><th>Classificação</th><th>Classif. adicional</th><th>Descrição</th>' +
-      '<th class="n">Faturamento (R$ mi)</th><th class="n">Resultado (R$ mi)</th><th class="n">% Margem</th>' + (edita ? "<th></th>" : "") + "</tr></thead><tbody>" +
+      '<th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th>' + (edita ? "<th></th>" : "") + "</tr></thead><tbody>" +
       vis.map(function (r) {
         return "<tr" + atributosLinha(r) + ">" + combo(r, "Negocio", edita) + combo(r, "Classificacao", edita) +
           texto(r, "ClassificacaoAdicional", edita, "Classificação adicional") + texto(r, "Descricao", edita, "Descrição") +
@@ -627,7 +628,7 @@
     var itens = itensBlocoOS(), porNeg = {};
     itens.forEach(function (x) { var n = x.ctt ? x.ctt.negocio : x.r.Negocio; if (!n || !ativa(x.r)) return; porNeg[n] = porNeg[n] || { f: 0, r: 0 }; porNeg[n].f += x.r.FatMeta || 0; porNeg[n].r += x.r.ResMeta || 0; });
     linhas.forEach(function (r) { if (r.Nivel === "NEGOCIO" && ativa(r) && r.Negocio) { porNeg[r.Negocio] = porNeg[r.Negocio] || { f: 0, r: 0 }; porNeg[r.Negocio].f += r.FatMeta || 0; porNeg[r.Negocio].r += r.ResMeta || 0; } });
-    var conf = Object.keys(porNeg).sort().map(function (n) { return n + " " + fmtMi(porNeg[n].f) + " / " + fmtMi(porNeg[n].r); }).join(" · ");
+    var conf = Object.keys(porNeg).sort().map(function (n) { return n + " " + fmtVal(porNeg[n].f) + " / " + fmtVal(porNeg[n].r); }).join(" · ");
     return '<section class="caixa" id="cx-E"><div class="caixa-topo"><h2>Empresa</h2><span class="dica">Meta da diretoria por negócio</span>' + htmlTotal("E") +
       '<span class="dir">' + (edita ? botaoNovo("EMPRESA") : "") + "</span></div>" +
       tabelaMeta(rs, edita, "Nenhuma meta da empresa.", casa("EMPRESA")) +
@@ -715,7 +716,7 @@
       '<span class="dir">' + (edita ? botaoNovo("PROSPECCAO", "", "+ Adicionar prospecção") : "") + "</span></div>";
     if (!corpo) return h + '<div class="vazio">' + (itens.length ? "Nada no filtro." : "Nenhuma OS recebida da CTT.") + "</div></section>";
     return h + '<div class="rolagem"><table><thead><tr><th>OS / prospecção</th><th>Gerente</th><th>Superintendente</th><th>Negócio</th><th>Classificação</th>' +
-      '<th class="n">Faturamento (R$ mi)</th><th class="n">Resultado (R$ mi)</th><th class="n">% Margem</th><th>Situação</th>' + (edita ? "<th></th>" : "") + "</tr></thead><tbody>" + corpo + "</tbody></table></div></section>";
+      '<th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th><th>Situação</th>' + (edita ? "<th></th>" : "") + "</tr></thead><tbody>" + corpo + "</tbody></table></div></section>";
   }
   function linhaOSHtml(x, edita) {
     var r = x.r, o = x.ctt, cod = o ? o.cod : r.CodOS;
@@ -761,7 +762,7 @@
     return '<td><input class="t' + (r.id && alterado(r, campo) ? " alterado" : "") + '" data-f="' + campo + '" value="' + esc(r[campo]) + '" aria-label="' + esc(rotulo) + '"></td>';
   }
   function numero(r, campo, edita, rotulo, calculado) {
-    var v = campo === "MargemMeta" ? fmtPct(r[campo]) : fmtMi(r[campo]);
+    var v = campo === "MargemMeta" ? fmtPct(r[campo]) : fmtVal(r[campo]);
     if (!edita) return '<td class="n">' + v + "</td>";
     return '<td class="n"><input class="v' + (calculado ? " calc" : "") + (alterado(r, campo) ? " alterado" : "") + '" data-f="' + campo + '" value="' + esc(v) + '" inputmode="decimal" aria-label="' + esc(rotulo) + '"' + (calculado ? ' title="Calculado; digite aqui para inverter o cálculo"' : "") + "></td>";
   }
@@ -830,7 +831,7 @@
   function porUid(uid) { return linhas.filter(function (r) { return r.uid === uid; })[0]; }
   function recalcular(r) {
     if (!r.FatMeta) { if (r.EntradaPor !== "MARGEM") r.MargemMeta = null; return; }
-    if (r.EntradaPor === "MARGEM") { if (r.MargemMeta != null) r.ResMeta = Math.round(r.FatMeta * r.MargemMeta * 100) / 100; }
+    if (r.EntradaPor === "MARGEM") { if (r.MargemMeta != null) r.ResMeta = Math.round(r.FatMeta * r.MargemMeta); }
     else if (r.ResMeta != null) r.MargemMeta = Math.round(r.ResMeta / r.FatMeta * 1e6) / 1e6;
     else r.MargemMeta = null;
   }
@@ -843,10 +844,10 @@
     msgStatus = ""; corStatus = "";
     if (campo === "FatMeta" || campo === "ResMeta" || campo === "MargemMeta") {
       var n = lerNumero(el.value);
-      if (isNaN(n)) { msgStatus = "Valor inválido: use números, por exemplo 12,5"; corStatus = "erro"; atualizarNoLugar(tr, r); return; }
+      if (isNaN(n)) { msgStatus = "Valor inválido: use números, por exemplo 844.354.000"; corStatus = "erro"; atualizarNoLugar(tr, r); return; }
       if (campo === "MargemMeta") { r.MargemMeta = n == null ? null : n / 100; r.EntradaPor = "MARGEM"; }
-      else if (campo === "ResMeta") { r.ResMeta = n == null ? null : n * 1e6; r.EntradaPor = "RESULTADO"; }
-      else r.FatMeta = n == null ? null : n * 1e6;
+      else if (campo === "ResMeta") { r.ResMeta = n; r.EntradaPor = "RESULTADO"; }
+      else r.FatMeta = n;
       if (!r.EntradaPor) r.EntradaPor = "RESULTADO";
       recalcular(r);
     } else {
@@ -858,7 +859,7 @@
   function atualizarNoLugar(tr, r) {
     tr.querySelectorAll("input[data-f]").forEach(function (i) {
       var c = i.getAttribute("data-f"), numerico = c === "FatMeta" || c === "ResMeta" || c === "MargemMeta";
-      if (numerico) i.value = c === "MargemMeta" ? fmtPct(r[c]) : fmtMi(r[c]);
+      if (numerico) i.value = c === "MargemMeta" ? fmtPct(r[c]) : fmtVal(r[c]);
       else i.value = r[c] || "";
       if (numerico) i.classList.toggle("calc", (c === "ResMeta" && r.EntradaPor === "MARGEM") || (c === "MargemMeta" && r.EntradaPor !== "MARGEM"));
       i.classList.toggle("alterado", numerico ? alterado(r, c) : !!(r.id && alterado(r, c)));
