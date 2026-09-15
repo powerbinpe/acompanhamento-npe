@@ -382,41 +382,56 @@
       '<button type="button" class="btn sec peq" data-acao="sair">Sair</button>';
   }
 
-  function htmlLogin(msg) {
-    return '<form class="login" id="formLogin" autocomplete="off">' +
+  // Sem <form>: o iframe do visual HTML do Power BI e sandbox sem allow-forms, e o envio de
+  // formulario e bloqueado sem erro nenhum -- o botao parecia morto (15/09/2026).
+  function htmlLogin(msg, loginDigitado) {
+    return '<div class="login" id="formLogin">' +
       "<h2>Metas do ano · só Master</h2>" +
       "<p>Entre com o mesmo usuário do Acompanhamento Mensal.</p>" +
       (erroCarga ? '<div class="aviso erro"><p>' + esc(erroCarga) + "</p></div>" : "") +
-      (msg ? '<div class="aviso erro"><p>' + esc(msg) + "</p></div>" : "") +
-      '<label for="lgUsuario">Usuário</label><input id="lgUsuario" type="text" required>' +
-      '<label for="lgSenha">Senha</label><input id="lgSenha" type="password" required>' +
-      '<button type="submit" class="btn" id="lgEntrar">Entrar</button></form>';
+      '<div class="aviso erro" id="lgMsg"' + (msg ? "" : " hidden") + '><p>' + esc(msg || "") + "</p></div>" +
+      '<label for="lgUsuario">Usuário</label><input id="lgUsuario" type="text" autocomplete="off" value="' + esc(loginDigitado || "") + '">' +
+      '<label for="lgSenha">Senha</label><input id="lgSenha" type="password" autocomplete="off">' +
+      '<button type="button" class="btn" id="lgEntrar">Entrar</button></div>';
   }
   function ligarLogin() {
-    var f = document.getElementById("formLogin");
-    if (!f) return;
-    f.addEventListener("submit", async function (ev) {
-      ev.preventDefault();
-      var login = document.getElementById("lgUsuario").value.toLowerCase().trim();
-      var senha = document.getElementById("lgSenha").value;
-      var btn = document.getElementById("lgEntrar");
-      btn.disabled = true; btn.textContent = "Verificando...";
-      try {
-        var hash = await derivarHash(login, senha);
-        var res = await postar(FLOW.login, { login: login, hash: hash });
-        if (res.status !== 200 || !res.json || res.json.ok !== true) {
-          document.getElementById("painel").innerHTML = htmlLogin(res.status === 200 ? "Usuário ou senha incorretos." : "Falha ao consultar o servidor (" + res.status + ").");
-          ligarLogin(); return;
-        }
-        sessao = { login: login, nome: res.json.nome || login, perfil: res.json.perfil || "MASTER", hash: hash, ts: Date.now() };
-        gravarSessao(sessao);
-        erroCarga = "";
-        carregar();
-      } catch (e) {
-        document.getElementById("painel").innerHTML = htmlLogin("Não foi possível validar o acesso agora.");
-        ligarLogin();
-      }
+    var btn = document.getElementById("lgEntrar");
+    if (!btn) return;
+    btn.addEventListener("click", entrar);
+    ["lgUsuario", "lgSenha"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); entrar(); } });
     });
+  }
+  function avisoLogin(msg, login) {
+    document.getElementById("painel").innerHTML = htmlLogin(msg, login);
+    ligarLogin();
+    var s = document.getElementById(login ? "lgSenha" : "lgUsuario");
+    if (s) s.focus();
+  }
+  async function entrar() {
+    var btn = document.getElementById("lgEntrar");
+    if (!btn || btn.disabled) return;
+    var login = document.getElementById("lgUsuario").value.toLowerCase().trim();
+    var senha = document.getElementById("lgSenha").value;
+    if (!login || !senha) { avisoLogin("Informe usuário e senha.", login); return; }
+    btn.disabled = true; btn.textContent = "Verificando...";
+    var msg = document.getElementById("lgMsg"); if (msg) msg.hidden = true;
+    try {
+      if (!window.crypto || !crypto.subtle) { avisoLogin("Este navegador não permite validar a senha aqui (criptografia indisponível).", login); return; }
+      var hash = await derivarHash(login, senha);
+      var res = await postar(FLOW.login, { login: login, hash: hash });
+      if (res.status !== 200 || !res.json || res.json.ok !== true) {
+        avisoLogin(res.status === 200 ? "Usuário ou senha incorretos." : "Falha ao consultar o servidor (HTTP " + res.status + ").", login);
+        return;
+      }
+      sessao = { login: login, nome: res.json.nome || login, perfil: res.json.perfil || "MASTER", hash: hash, ts: Date.now() };
+      gravarSessao(sessao);
+      erroCarga = "";
+      carregar();
+    } catch (e) {
+      avisoLogin("Não foi possível validar o acesso agora (" + (e && e.message ? e.message : "erro de rede") + ").", login);
+    }
   }
 
   function casaFiltro(txt) { return !filtro || txt.toUpperCase().indexOf(filtro.toUpperCase()) >= 0; }
