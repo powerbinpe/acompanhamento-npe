@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RPCO · Destaques</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-main: #0b1a3a;
+    --bg-bar: #10244d;
+    --bg-card: #ffffff;
+    --bg-soft: #f1f5f9;
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --ok: #16a34a;
+    --warn: #b45309;
+    --warn-bg: #fef3c7;
+    --danger: #b91c1c;
+    --danger-bg: #fee2e2;
+    --text: #0f172a;
+    --muted: #475569;
+    --line: #cbd5e1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: var(--bg-main); color: var(--text); font-size: 14px; }
+  button, input, select { font-family: inherit; font-size: inherit; }
+  .app { padding: 16px 20px 40px; }
+
+  .topo { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--bg-bar); border: 1px solid #1e3a70; border-radius: 12px; padding: 12px 18px; color: #e2e8f0; }
+  .marca { font-weight: 800; font-size: 1.15rem; letter-spacing: .02em; color: #fff; }
+  .marca span { font-weight: 600; font-size: .85rem; color: #93c5fd; margin-left: 10px; letter-spacing: .06em; }
+  .sessao { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: .85rem; }
+  .pill { background: #1d4ed8; color: #fff; border-radius: 999px; padding: 3px 10px; font-weight: 800; font-size: .72rem; letter-spacing: .06em; }
+  .pill.prop { background: #047857; }
+  .btn { border: none; border-radius: 8px; padding: 8px 14px; font-weight: 800; cursor: pointer; background: var(--accent); color: #fff; }
+  .btn:hover { background: var(--accent-dark); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.sec { background: #e2e8f0; color: #334155; }
+  .btn.sec:hover { background: #cbd5e1; }
+  .btn.ok { background: var(--ok); }
+  .btn.peq { padding: 5px 10px; font-size: .78rem; }
+  .btn:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #93c5fd; outline-offset: 1px; }
+
+  .abas { display: flex; gap: 6px; margin: 14px 0 0; flex-wrap: wrap; }
+  .aba { background: transparent; color: #cbd5e1; border: 1px solid #1e3a70; border-bottom: none; border-radius: 10px 10px 0 0; padding: 10px 18px; font-weight: 700; cursor: pointer; }
+  .aba.on { background: var(--bg-card); color: var(--text); border-color: var(--bg-card); }
+  .painel { background: var(--bg-card); border-radius: 0 12px 12px 12px; padding: 20px; min-height: 400px; }
+
+  .aviso { border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .aviso h3 { font-size: 1rem; margin-bottom: 4px; }
+  .aviso p { color: var(--muted); font-size: .86rem; }
+  .aviso.warn { background: var(--warn-bg); border: 1px solid #fcd34d; }
+  .aviso.warn h3 { color: #92400e; }
+  .aviso.erro { background: var(--danger-bg); border: 1px solid #fecaca; }
+  .aviso.erro h3 { color: #991b1b; }
+  .aviso.info { background: #eff6ff; border: 1px solid #bfdbfe; }
+  .aviso.info h3 { color: #1e3a8a; }
+  .codigos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .codigos button { border: 1px solid #fcd34d; background: #fff; border-radius: 6px; padding: 3px 8px; font-weight: 700; font-size: .78rem; cursor: pointer; color: #92400e; }
+  .aviso.erro .codigos button { border-color: #fecaca; color: #991b1b; }
+
+  .login { max-width: 380px; margin: 40px auto; border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+  .login h2 { font-size: 1.1rem; margin-bottom: 4px; }
+  .login p { color: var(--muted); font-size: .85rem; margin-bottom: 16px; }
+  .login label { display: block; font-size: .74rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 10px 0 4px; }
+  .login input { width: 100%; padding: 9px 11px; border: 1.5px solid var(--line); border-radius: 8px; }
+  .login .btn { width: 100%; margin-top: 16px; padding: 10px; }
+
+  .barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .barra input[type=search] { flex: 1 1 260px; max-width: 420px; padding: 8px 11px; border: 1.5px solid var(--line); border-radius: 8px; }
+  .barra .status { font-size: .84rem; font-weight: 700; color: var(--muted); }
+  .barra .status.ok { color: var(--ok); }
+  .barra .status.erro { color: var(--danger); }
+  .barra .dir { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .confirma { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+  .bloco { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 18px; overflow: hidden; }
+  .bloco-topo { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 10px 14px; background: var(--bg-soft); border-bottom: 1px solid var(--line); }
+  .bloco-topo h3 { font-size: .95rem; letter-spacing: .06em; text-transform: uppercase; }
+  .bloco-topo .dica { color: var(--muted); font-size: .8rem; }
+  .bloco-topo .dir { margin-left: auto; }
+  .rolagem { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+  th { text-align: left; font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 8px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; background: #fff; }
+  td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+  tbody tr:hover td { background: #f8fafc; }
+  th.n, td.n { text-align: right; }
+  td.n, .num { font-variant-numeric: tabular-nums; }
+  tr.pend td { background: #fffbeb; }
+  tr.foco td { background: #dbeafe !important; }
+  tr.novo td { background: #f0fdf4; }
+  tr.desativada td { opacity: .45; text-decoration: line-through; }
+  tfoot td { font-weight: 800; background: var(--bg-soft); border-bottom: none; }
+  td input.v { width: 104px; text-align: right; padding: 5px 7px; border: 1.5px solid var(--line); border-radius: 6px; font-variant-numeric: tabular-nums; }
+  td input.v.calc { background: #f1f5f9; color: var(--muted); }
+  td input.t { width: 100%; min-width: 150px; padding: 5px 7px; border: 1.5px solid var(--line); border-radius: 6px; }
+  td select { padding: 5px 6px; border: 1.5px solid var(--line); border-radius: 6px; max-width: 240px; background: #fff; }
+  td input.alterado, td select.alterado { border-color: #f59e0b; }
+  .os { font-weight: 800; }
+  tr[data-os] td:first-child { min-width: 240px; }
+  tr[data-os] td:nth-child(2), tr[data-os] td:nth-child(3) { white-space: nowrap; }
+  .desc { color: var(--muted); font-size: .78rem; }
+  .chip { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: .7rem; font-weight: 800; white-space: nowrap; margin: 1px 2px 1px 0; }
+  .chip.sem { background: var(--warn-bg); color: #92400e; }
+  .chip.def { background: #dcfce7; color: #166534; }
+  .chip.fora { background: #e2e8f0; color: #334155; }
+  .chip.viol { background: var(--danger-bg); color: #991b1b; }
+  .chip.sync { background: #dbeafe; color: #1e40af; }
+  .ref { color: var(--muted); white-space: nowrap; }
+  .vazio { color: var(--muted); padding: 14px; font-size: .85rem; }
+  .x { background: none; border: none; color: #94a3b8; font-weight: 800; cursor: pointer; font-size: 1rem; padding: 0 4px; }
+  .x:hover { color: var(--danger); }
+  .construcao { padding: 60px 20px; text-align: center; color: var(--muted); }
+  .construcao h2 { color: var(--text); margin-bottom: 6px; }
+  .diag { margin-top: 12px; font-size: .7rem; color: #64748b; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topo">
+    <div class="marca">NPE<span id="subtitulo">RPCO</span></div>
+    <div class="sessao" id="sessao"></div>
+  </div>
+  <div class="abas" role="tablist" id="abas"></div>
+  <div class="painel" id="painel"></div>
+  <div class="diag" id="diag"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ===========================================================================
+  // Fluxos (Power Automate). Ler e Gravar conferem login + hash na PARAM_ACESSO:
+  // ler exige Master ativo, gravar exige o PROPRIETARIO.
+  // ===========================================================================
+  var FLOW = {
+    login:  "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/bcf1295963df418f91a48dd71ea02e60/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VfbYQC2H12f_6GZCSMmrctJBKF1B8ns4TalVByCO688",
+    ler:    "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/20/workflows/a343fee6cc6345d681e0dd483dbb9d05/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=3nqkHSexMoJM-hcvhonWaF5vzaYENBy8ONwHhwyNEww",
+    gravar: "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/f42b6d3d1a8f45588136d0ce70d2d2ab/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=npaAIzRXLDdrejvhShfxykRxpHqrX2iiPHH373XtEo8"
+  };
+  var ITERACOES = 200000;
+  // Os unicos superintendentes operacionais (decisao do usuario, 15/09/2026). Os nomes
+  // continuam vindo da CTT; aqui ficam so os codigos.
+  var SUPER_OPERACIONAIS = ["000096", "000070", "000238", "000117"];
+  var ESTAGIOS = { E: "EXECUCAO", N: "NOVA", D: "DEMOBILIZACAO", F: "FINALIZADA", X: "" };
+  var LOTE = 20;
+
+  // ===========================================================================
+  // Dados da CTT, montados pela medida _mHTML_RPCO
+  // ===========================================================================
+  var P = new URLSearchParams(location.search);
+  var ANO = parseInt(P.get("Ano"), 10) || new Date().getFullYear();
+  var TEM_CTT = P.has("OS");
+  function pad6(c) { c = String(c || "").trim(); return c && /^\d+$/.test(c) ? ("000000" + c).slice(-6) : c; }
+  function lista(nome) { return String(P.get(nome) || "").split("|").filter(Boolean); }
+  function dicionario(nome) {
+    var d = {};
+    lista(nome).forEach(function (x) { var i = x.indexOf(":"); if (i > 0) d[pad6(x.slice(0, i))] = x.slice(i + 1); });
+    return d;
+  }
+  var NEG = lista("NEG"), CLS = lista("CLS"), GER = dicionario("GER"), SUP = dicionario("SUP");
+  var OS_CTT = {};
+  String(P.get("OS") || "").split(";").filter(Boolean).forEach(function (l) {
+    var f = l.split(",");
+    if (f.length < 7) return;
+    var fl = f[6] || "";
+    OS_CTT[f[0]] = {
+      cod: f[0], desc: f[1], codGer: pad6(f[2]), codSup: pad6(f[3]),
+      negocio: NEG[+f[4]] || "", classificacao: CLS[+f[5]] || "",
+      status: fl.charAt(0) === "A" ? "ATIVO" : "ATUAL",
+      estagio: ESTAGIOS.hasOwnProperty(fl.charAt(1)) ? ESTAGIOS[fl.charAt(1)] : fl.charAt(1),
+      fora: fl.charAt(2) === "1"
+    };
+  });
+  function violacao(o) {
+    if (o.status === "ATIVO" && ["EXECUCAO", "DEMOBILIZACAO", "NOVA"].indexOf(o.estagio) < 0) return "ATIVO · " + (o.estagio || "SEM ESTAGIO");
+    if (o.status === "ATUAL" && o.estagio !== "FINALIZADA") return "ATUAL · " + (o.estagio || "SEM ESTAGIO");
+    return "";
+  }
+
+  // ===========================================================================
+  // Sessao: dentro do visual do Power BI so o window.name atravessa a recarga do iframe
+  // (filtro trocado recria a pagina). Guarda o hash para ler/gravar sem pedir a senha a
+  // cada filtro; expira em 8 horas. A senha nunca e guardada.
+  // ===========================================================================
+  var PREFIXO = "NPERPCO1:";
+  var sessao = null;
+  function lerSessao() {
+    try {
+      if (String(window.name).indexOf(PREFIXO) === 0) {
+        var s = JSON.parse(window.name.slice(PREFIXO.length));
+        if (s && s.login && s.hash && Date.now() - s.ts < 8 * 3600 * 1000) return s;
+      }
+    } catch (e) {}
+    return null;
+  }
+  function gravarSessao(s) { try { window.name = s ? PREFIXO + JSON.stringify(s) : ""; } catch (e) {} }
+  function ehProprietario() { return !!sessao && sessao.perfil === "PROPRIETARIO"; }
+
+  async function derivarHash(login, senha) {
+    var enc = new TextEncoder();
+    var chave = await crypto.subtle.importKey("raw", enc.encode(senha), "PBKDF2", false, ["deriveBits"]);
+    var bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(String(login).toLowerCase().trim()), iterations: ITERACOES, hash: "SHA-256" }, chave, 256);
+    return Array.from(new Uint8Array(bits)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+  }
+  async function postar(url, corpo) {
+    var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+    var txt = await r.text();
+    var json = null;
+    try { json = txt ? JSON.parse(txt) : null; } catch (e) {}
+    return { status: r.status, json: json };
+  }
+
+  // ===========================================================================
+  // Estado
+  // ===========================================================================
+  var abaAtiva = "metas";
+  var linhas = [];          // itens da META_FINANCEIRA do ano, normalizados
+  var carregando = false, erroCarga = "", filtro = "", msgStatus = "", corStatus = "";
+  var confirmando = false, gravando = false, focoOS = "";
+  var seq = 0;
+
+  var CAMPOS_TXT = ["Title", "Nivel", "CodOS", "CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "Nome", "EntradaPor", "Situacao", "Ativo", "Origem"];
+  function normalizar(it) {
+    var r = { uid: "r" + (++seq), id: parseInt(it.ID || it.Id || it.id, 10) || 0, _orig: {} };
+    CAMPOS_TXT.forEach(function (c) { r[c] = it[c] == null ? "" : String(it[c]); });
+    ["FatMeta", "ResMeta", "MargemMeta"].forEach(function (c) { r[c] = it[c] == null || it[c] === "" ? null : Number(it[c]); });
+    r.Ano = Number(it.Ano) || 0;
+    snapshot(r);
+    return r;
+  }
+  var CAMPOS_EDIT = ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "FatMeta", "ResMeta", "MargemMeta", "EntradaPor", "Ativo"];
+  function snapshot(r) { r._orig = {}; CAMPOS_EDIT.forEach(function (c) { r._orig[c] = r[c]; }); }
+  function alterado(r, c) { return !r.id || !numIgual(r[c], r._orig[c]); }
+  function numIgual(a, b) {
+    if (typeof a === "number" || typeof b === "number") {
+      if (a == null || b == null) return a == b;
+      return Math.abs(a - b) < 1e-6;
+    }
+    return String(a == null ? "" : a) === String(b == null ? "" : b);
+  }
+  function linhaAlterada(r) { return !r.id || CAMPOS_EDIT.some(function (c) { return alterado(r, c); }); }
+
+  // ===========================================================================
+  // Formatacao (valores gravados em reais; digitados e exibidos em R$ milhoes)
+  // ===========================================================================
+  function fmtMi(v) { return v == null || isNaN(v) ? "" : (v / 1e6).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmtPct(m) { return m == null || isNaN(m) ? "" : (m * 100).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%"; }
+  function lerNumero(s) {
+    s = String(s || "").replace(/R\$|%|\s/g, "");
+    if (!s) return null;
+    if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", ".");
+    var n = parseFloat(s);
+    return isFinite(n) ? n : NaN;
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function soma(rs, c) { return rs.reduce(function (a, r) { return a + (r[c] || 0); }, 0); }
+
+  // ===========================================================================
+  // Resolucao de nomes: sempre a CTT; a lista so quando o codigo nao esta na CTT ativa
+  // ===========================================================================
+  function nomeGer(cod, doLista) { return GER[cod] || doLista || cod || ""; }
+  function nomeSup(cod, doLista) { return SUP[cod] || doLista || cod || ""; }
+  function superDeLocacoes(codGer) {
+    for (var k in OS_CTT) { var o = OS_CTT[k]; if (o.negocio === "LOCACOES" && o.codGer === codGer && o.codSup) return o.codSup; }
+    return "";
+  }
+  function opcoesNeg() { return NEG.length ? NEG : unicos(linhas.map(function (r) { return r.Negocio; })); }
+  function opcoesCls() { return CLS.length ? CLS : unicos(linhas.map(function (r) { return r.Classificacao; })); }
+  function unicos(a) { return a.filter(function (v, i) { return v && a.indexOf(v) === i; }).sort(); }
+  function opcoesGer() {
+    var m = {};
+    Object.keys(GER).forEach(function (c) { m[c] = GER[c]; });
+    linhas.forEach(function (r) { if (r.CodGerente && !m[r.CodGerente]) m[r.CodGerente] = r.Gerente || r.CodGerente; });
+    return Object.keys(m).map(function (c) { return [c, m[c]]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); });
+  }
+  function opcoesSup(atual, nomeAtual) {
+    var ops = SUPER_OPERACIONAIS.map(function (c) {
+      var n = SUP[c];
+      if (!n) { var l = linhas.filter(function (r) { return r.CodSuperintendente === c && r.Superintendente; })[0]; n = l ? l.Superintendente : c; }
+      return [c, n];
+    });
+    if (atual && SUPER_OPERACIONAIS.indexOf(atual) < 0) ops.push([atual, nomeSup(atual, nomeAtual)]);
+    return ops.sort(function (a, b) { return a[1].localeCompare(b[1]); });
+  }
+
+  // ===========================================================================
+  // Linhas de OS: a CTT define quem aparece; a lista traz o valor da meta
+  // ===========================================================================
+  function linhaOS(cod) { return linhas.filter(function (r) { return r.Nivel === "OS" && r.CodOS === cod; })[0]; }
+  function montarOS() {
+    var saida = [], vistos = {};
+    Object.keys(OS_CTT).sort().forEach(function (cod) {
+      var o = OS_CTT[cod], r = linhaOS(cod);
+      var temMeta = r && r.FatMeta > 0;
+      if (o.fora && !temMeta) return;               // setor excluido so aparece com meta no ano
+      if (!r) {
+        r = { uid: "os-" + cod, id: 0, Title: ANO + "|OS|" + cod, Nivel: "OS", CodOS: cod, Ano: ANO, FatMeta: null, ResMeta: null, MargemMeta: null, EntradaPor: "", Ativo: "Sim", _virtual: true, _orig: {} };
+        CAMPOS_TXT.forEach(function (c) { if (r[c] == null) r[c] = ""; });
+        r.Title = ANO + "|OS|" + cod; r.Nivel = "OS"; r.CodOS = cod; r.Ativo = "Sim";
+        snapshot(r);
+        linhas.push(r);
+      }
+      vistos[cod] = true;
+      saida.push({ r: r, ctt: o });
+    });
+    linhas.forEach(function (r) {
+      if (r.Nivel === "OS" && !vistos[r.CodOS] && (r.FatMeta > 0 || !r._virtual)) saida.push({ r: r, ctt: null });
+    });
+    return saida;
+  }
+  // Atributos da CTT gravados junto com a meta (a CTT manda; a lista acompanha)
+  function divergenciasCTT(item) {
+    var o = item.ctt, r = item.r;
+    if (!o) return [];
+    var d = [];
+    if (o.codGer !== r.CodGerente || nomeGer(o.codGer) !== r.Gerente) d.push("gerente");
+    if (o.codSup !== r.CodSuperintendente || nomeSup(o.codSup) !== r.Superintendente) d.push("superintendente");
+    if (o.negocio !== r.Negocio) d.push("negocio");
+    if (o.classificacao !== r.Classificacao) d.push("classificacao");
+    return d;
+  }
+  function aplicarCTT(item) {
+    var o = item.ctt, r = item.r;
+    r.CodGerente = o.codGer; r.Gerente = nomeGer(o.codGer);
+    r.CodSuperintendente = o.codSup; r.Superintendente = nomeSup(o.codSup);
+    r.Negocio = o.negocio; r.Classificacao = o.classificacao;
+  }
+
+  // ===========================================================================
+  // Carga
+  // ===========================================================================
+  async function carregar() {
+    if (!sessao) return;
+    carregando = true; erroCarga = ""; render();
+    try {
+      var res = await postar(FLOW.ler, { login: sessao.login, hash: sessao.hash });
+      if (res.status === 403) { erroCarga = "Acesso restrito a usuarios Master. Entre novamente."; sessao = null; gravarSessao(null); }
+      else if (res.status !== 200 || !Array.isArray(res.json)) { erroCarga = "Nao foi possivel ler as metas (HTTP " + res.status + ")."; }
+      else {
+        seq = 0;
+        linhas = res.json.map(normalizar).filter(function (r) { return r.Ano === ANO && r.Ativo !== "Nao"; });
+      }
+    } catch (e) {
+      erroCarga = "Nao foi possivel ler as metas agora. Verifique a conexao e tente de novo.";
+    }
+    carregando = false;
+    render();
+  }
+
+  // ===========================================================================
+  // Renderizacao
+  // ===========================================================================
+  var ABAS = [["metas", "Metas"], ["operacional", "Acompanhamento Operacional"], ["destaques", "Destaques"], ["gerenciais", "Gerenciais"]];
+  function render() {
+    document.getElementById("subtitulo").textContent = "RPCO · " + ANO;
+    renderSessao();
+    document.getElementById("abas").innerHTML = ABAS.map(function (a) {
+      return '<button type="button" role="tab" class="aba' + (a[0] === abaAtiva ? " on" : "") + '" aria-selected="' + (a[0] === abaAtiva) + '" data-aba="' + a[0] + '">' + a[1] + "</button>";
+    }).join("");
+    var painel = document.getElementById("painel");
+    if (!sessao) { painel.innerHTML = htmlLogin(); ligarLogin(); }
+    else if (abaAtiva !== "metas") painel.innerHTML = '<div class="construcao"><h2>' + esc(ABAS.filter(function (a) { return a[0] === abaAtiva; })[0][1]) + "</h2><p>Aba em construção: entra depois da confirmação da aba Metas.</p></div>";
+    else painel.innerHTML = htmlMetas();
+    document.getElementById("diag").textContent = TEM_CTT
+      ? "CTT: " + Object.keys(OS_CTT).length + " OS · " + Object.keys(GER).length + " gerentes · " + Object.keys(SUP).length + " superintendentes"
+      : "Sem dados da CTT: abra pela página DESTAQUES do Power BI.";
+    if (focoOS) {
+      var tr = document.querySelector('tr[data-os="' + focoOS + '"]');
+      if (tr) { tr.classList.add("foco"); tr.scrollIntoView({ block: "center" }); var i = tr.querySelector("input"); if (i) i.focus(); }
+      focoOS = "";
+    }
+  }
+  function renderSessao() {
+    var el = document.getElementById("sessao");
+    if (!sessao) { el.innerHTML = '<span>Acesso restrito ao Setor de Performance</span>'; return; }
+    el.innerHTML = "<b>" + esc(sessao.nome || sessao.login) + '</b><span class="pill' + (ehProprietario() ? " prop" : "") + '">' + esc(sessao.perfil) + "</span>" +
+      '<button type="button" class="btn sec peq" data-acao="sair">Sair</button>';
+  }
+
+  function htmlLogin(msg) {
+    return '<form class="login" id="formLogin" autocomplete="off">' +
+      "<h2>Metas do ano · só Master</h2>" +
+      "<p>Entre com o mesmo usuário do Acompanhamento Mensal.</p>" +
+      (erroCarga ? '<div class="aviso erro"><p>' + esc(erroCarga) + "</p></div>" : "") +
+      (msg ? '<div class="aviso erro"><p>' + esc(msg) + "</p></div>" : "") +
+      '<label for="lgUsuario">Usuário</label><input id="lgUsuario" type="text" required>' +
+      '<label for="lgSenha">Senha</label><input id="lgSenha" type="password" required>' +
+      '<button type="submit" class="btn" id="lgEntrar">Entrar</button></form>';
+  }
+  function ligarLogin() {
+    var f = document.getElementById("formLogin");
+    if (!f) return;
+    f.addEventListener("submit", async function (ev) {
+      ev.preventDefault();
+      var login = document.getElementById("lgUsuario").value.toLowerCase().trim();
+      var senha = document.getElementById("lgSenha").value;
+      var btn = document.getElementById("lgEntrar");
+      btn.disabled = true; btn.textContent = "Verificando...";
+      try {
+        var hash = await derivarHash(login, senha);
+        var res = await postar(FLOW.login, { login: login, hash: hash });
+        if (res.status !== 200 || !res.json || res.json.ok !== true) {
+          document.getElementById("painel").innerHTML = htmlLogin(res.status === 200 ? "Usuário ou senha incorretos." : "Falha ao consultar o servidor (" + res.status + ").");
+          ligarLogin(); return;
+        }
+        sessao = { login: login, nome: res.json.nome || login, perfil: res.json.perfil || "MASTER", hash: hash, ts: Date.now() };
+        gravarSessao(sessao);
+        erroCarga = "";
+        carregar();
+      } catch (e) {
+        document.getElementById("painel").innerHTML = htmlLogin("Não foi possível validar o acesso agora.");
+        ligarLogin();
+      }
+    });
+  }
+
+  function casaFiltro(txt) { return !filtro || txt.toUpperCase().indexOf(filtro.toUpperCase()) >= 0; }
+
+  function htmlMetas() {
+    if (carregando) return '<div class="vazio">Carregando metas de ' + ANO + "...</div>";
+    if (erroCarga) return '<div class="aviso erro"><h3>Metas indisponíveis</h3><p>' + esc(erroCarga) + '</p></div><button type="button" class="btn" data-acao="recarregar">Tentar de novo</button>';
+    var edita = ehProprietario();
+    var itensOS = montarOS();
+    return '<div id="topoMetas">' + htmlTopo(itensOS, edita) + "</div>" + htmlBlocos(itensOS, edita);
+  }
+
+  function htmlTopo(itensOS, edita) {
+    var h = "";
+
+    // ---- avisos que abrem a aba
+    var semMeta = itensOS.filter(function (x) { return x.ctt && !x.ctt.fora && !(x.r.FatMeta > 0); });
+    var viol = itensOS.filter(function (x) { return x.ctt && violacao(x.ctt); });
+    if (!TEM_CTT) h += '<div class="aviso info"><h3>Sem dados da CTT</h3><p>A página foi aberta fora do Power BI: a lista de OSs vigentes, os nomes e os avisos dependem da CTT enviada pelo relatório.</p></div>';
+    if (semMeta.length) {
+      h += '<div class="aviso warn"><h3>' + semMeta.length + (semMeta.length === 1 ? " OS vigente está" : " OSs vigentes estão") + " sem meta de " + ANO + "</h3>" +
+        "<p>Estão ativas na CTT e ainda não têm faturamento e resultado definidos." + (edita ? " Clique no código para preencher." : "") + '</p><div class="codigos">' +
+        semMeta.map(function (x) { return '<button type="button" data-irOS="' + esc(x.ctt.cod) + '" title="' + esc(x.ctt.desc) + '">' + esc(x.ctt.cod) + "</button>"; }).join("") + "</div></div>";
+    }
+    if (viol.length) {
+      h += '<div class="aviso erro"><h3>' + viol.length + (viol.length === 1 ? " OS com status e estágio fora da regra" : " OSs com status e estágio fora da regra") + " na CTT</h3>" +
+        '<p>ATIVO só com estágio EXECUCAO, DEMOBILIZACAO ou NOVA; ATUAL sempre FINALIZADA. Corrigir na CTT.</p><div class="codigos">' +
+        viol.map(function (x) { return '<button type="button" data-irOS="' + esc(x.ctt.cod) + '">' + esc(x.ctt.cod + " · " + violacao(x.ctt)) + "</button>"; }).join("") + "</div></div>";
+    }
+
+    // ---- barra de acoes
+    var pend = pendencias(itensOS);
+    h += '<div class="barra"><input type="search" id="filtro" placeholder="Filtrar por OS, nome, negócio ou descrição" value="' + esc(filtro) + '" aria-label="Filtrar linhas">';
+    h += '<span class="status ' + corStatus + '" role="status">' + esc(msgStatus) + "</span>";
+    h += '<div class="dir">' + (edita
+      ? (pend.novas + pend.alteradas ? '<span class="chip sem">' + (pend.novas + pend.alteradas) + ((pend.novas + pend.alteradas) === 1 ? " alteração não gravada" : " alterações não gravadas") + "</span>" : "") +
+        (pend.ctt ? '<span class="chip sync" title="Gerente, superintendente, negócio ou classificação mudaram na CTT; a lista acompanha ao salvar">' + pend.ctt + (pend.ctt === 1 ? " OS com CTT atualizada" : " OSs com CTT atualizada") + "</span>" : "") +
+        (pend.total ? "" : '<span class="chip def">tudo gravado</span>') +
+        '<button type="button" class="btn sec" data-acao="recarregar"' + (gravando ? " disabled" : "") + '>Recarregar</button>' +
+        '<button type="button" class="btn ok" data-acao="salvar"' + (pend.total && !gravando ? "" : " disabled") + ">" + (gravando ? "Gravando..." : "Salvar alterações") + "</button>"
+      : '<span class="chip fora">Consulta · só o proprietário altera metas</span><button type="button" class="btn sec" data-acao="recarregar">Recarregar</button>') + "</div></div>";
+    if (confirmando) {
+      h += '<div class="confirma"><b>Gravar ' + pend.total + (pend.total === 1 ? " linha" : " linhas") + " na META_FINANCEIRA?</b><span>" +
+        [pend.novas ? pend.novas + " nova(s)" : "", pend.alteradas ? pend.alteradas + " alterada(s)" : "", pend.ctt ? pend.ctt + " atualizada(s) pela CTT" : ""].filter(Boolean).join(" · ") +
+        '</span><button type="button" class="btn ok" data-acao="confirmarSalvar">Gravar</button><button type="button" class="btn sec" data-acao="cancelarSalvar">Cancelar</button></div>';
+    }
+    return h;
+  }
+
+  function htmlBlocos(itensOS, edita) {
+    var h = "";
+    // ---- blocos na ordem definida: Empresa, Superintendente, Gerente, OS, Prospeccao
+    h += bloco("EMPRESA", "Empresa", "Meta da diretoria por negócio e classificação; a soma das OSs é só para conferência",
+      linhas.filter(function (r) { return r.Nivel === "EMPRESA"; }),
+      ["neg", "cls", "adic", "desc", "fat", "res", "mar", "refOS"], edita, itensOS);
+    h += bloco("SUPERINTENDENTE", "Superintendente", "Uma linha por negócio e classificação; pode repetir para meta ponderada",
+      linhas.filter(function (r) { return r.Nivel === "SUPERINTENDENTE"; }),
+      ["sup", "neg", "cls", "adic", "desc", "fat", "res", "mar"], edita);
+    h += bloco("GERENTE", "Gerente", "Uma linha por negócio e classificação; pode repetir para meta ponderada",
+      linhas.filter(function (r) { return r.Nivel === "GERENTE" || r.Nivel === "NEGOCIO"; }),
+      ["ger", "sup", "neg", "cls", "adic", "desc", "fat", "res", "mar"], edita);
+    h += blocoOS(itensOS, edita);
+    h += bloco("PROSPECCAO", "Prospecção", "Detalhe separado: não soma na meta do gerente",
+      linhas.filter(function (r) { return r.Nivel === "PROSPECCAO"; }),
+      ["ger", "sup", "neg", "cls", "adic", "cli", "desc", "fat", "res", "mar"], edita);
+    return h;
+  }
+
+  var TITULOS = { neg: "Negócio", cls: "Classificação", adic: "Classif. adicional", desc: "Descrição", cli: "Cliente", ger: "Gerente", sup: "Superintendente", fat: "Faturamento (R$ mi)", res: "Resultado (R$ mi)", mar: "% Margem", refOS: "Soma das OSs · fat / res" };
+
+  function textoLinha(r) { return [r.Title, r.CodOS, r.Gerente, nomeGer(r.CodGerente), r.Superintendente, nomeSup(r.CodSuperintendente), r.Negocio, r.Classificacao, r.ClassificacaoAdicional, r.Descricao, r.Cliente, r.Nome].join(" "); }
+
+  function bloco(nivel, titulo, dica, rs, cols, edita, itensOS) {
+    var vis = rs.filter(function (r) { return casaFiltro(textoLinha(r)); });
+    var h = '<section class="bloco" aria-label="' + esc(titulo) + '"><div class="bloco-topo"><h3>' + esc(titulo) + "</h3><span class=\"dica\">" + esc(dica) + " · " + rs.length + (rs.length === 1 ? " linha" : " linhas") + "</span>" +
+      (edita ? '<span class="dir"><button type="button" class="btn peq" data-novo="' + nivel + '">+ Adicionar linha</button></span>' : "") + "</div>";
+    if (!vis.length) return h + '<div class="vazio">' + (rs.length ? "Nenhuma linha no filtro." : "Nenhuma meta cadastrada.") + "</div></section>";
+    h += '<div class="rolagem"><table data-cols="' + cols.join(",") + '" data-edita="' + (edita ? 1 : 0) + '"><thead><tr>' + cols.map(function (c) { return "<th" + (["fat", "res", "mar", "refOS"].indexOf(c) >= 0 ? ' class="n"' : "") + ">" + TITULOS[c] + "</th>"; }).join("") + (edita ? "<th></th>" : "") + "</tr></thead><tbody>";
+    vis.forEach(function (r) {
+      h += '<tr data-uid="' + r.uid + '"' + (!r.id ? ' class="novo"' : r.Ativo === "Nao" ? ' class="desativada" title="Será desativada ao salvar; clique no × de novo para manter"' : "") + ">" + cols.map(function (c) { return celula(r, c, edita, itensOS); }).join("") +
+        (edita ? '<td><button type="button" class="x" data-remover="' + r.uid + '" title="' + (r.id ? "Desativar esta meta" : "Descartar linha nova") + '" aria-label="Remover linha">×</button></td>' : "") + "</tr>";
+    });
+    h += "</tbody>" + rodape(vis, cols, edita, vis.length !== rs.length) + "</table></div></section>";
+    return h;
+  }
+
+  function blocoOS(itens, edita) {
+    var vis = itens.filter(function (x) { return casaFiltro(textoLinha(x.r) + " " + (x.ctt ? x.ctt.cod + " " + x.ctt.desc + " " + nomeGer(x.ctt.codGer) + " " + nomeSup(x.ctt.codSup) + " " + x.ctt.negocio + " " + x.ctt.classificacao : "")); });
+    vis.sort(function (a, b) {
+      // Ordena pelo valor GRAVADO: a linha nao pula de lugar enquanto a meta e digitada
+      var pa = a.ctt && !a.ctt.fora && !(a.r._orig.FatMeta > 0) ? 0 : 1, pb = b.ctt && !b.ctt.fora && !(b.r._orig.FatMeta > 0) ? 0 : 1;
+      return pa - pb || String(a.r.CodOS).localeCompare(String(b.r.CodOS));
+    });
+    var vigentes = itens.filter(function (x) { return x.ctt && !x.ctt.fora; }).length;
+    var h = '<section class="bloco" aria-label="OS"><div class="bloco-topo"><h3>OS</h3><span class="dica">' + vigentes + " vigentes na CTT · gerente, superintendente, negócio e classificação vêm da CTT · pendentes no topo</span></div>";
+    if (!vis.length) return h + '<div class="vazio">' + (itens.length ? "Nenhuma OS no filtro." : "Nenhuma OS recebida da CTT.") + "</div></section>";
+    h += '<div class="rolagem"><table data-cols="os,g,s,n,c,fat,res,mar,sit" data-edita="0"><thead><tr><th>OS</th><th>Gerente</th><th>Superintendente</th><th>Negócio</th><th>Classificação</th><th class="n">Faturamento (R$ mi)</th><th class="n">Resultado (R$ mi)</th><th class="n">% Margem</th><th>Situação</th></tr></thead><tbody>';
+    vis.forEach(function (x) {
+      var r = x.r, o = x.ctt;
+      var cod = o ? o.cod : r.CodOS;
+      var ger = o ? nomeGer(o.codGer) : nomeGer(r.CodGerente, r.Gerente);
+      var sup = o ? nomeSup(o.codSup) : nomeSup(r.CodSuperintendente, r.Superintendente);
+      var neg = o ? o.negocio : r.Negocio, cls = o ? o.classificacao : r.Classificacao;
+      var pend = o && !o.fora && !(r._orig.FatMeta > 0);
+      h += '<tr data-uid="' + r.uid + '" data-os="' + esc(cod) + '"' + (pend ? ' class="pend"' : "") + '><td><span class="os">' + esc(cod) + '</span><div class="desc">' + esc(o ? o.desc : (r.Nome || r.Descricao)) + "</div></td>" +
+        "<td>" + esc(ger) + "</td><td>" + esc(sup) + "</td><td>" + esc(neg) + "</td><td>" + esc(cls) + "</td>" +
+        celula(r, "fat", edita) + celula(r, "res", edita) + celula(r, "mar", edita) + '<td class="sit">' + chipsOS(x) + "</td></tr>";
+    });
+    h += "</tbody>" + rodape(vis.map(function (x) { return x.r; }), ["os", "g", "s", "n", "c", "fat", "res", "mar", "sit"], false, vis.length !== itens.length) + "</table></div></section>";
+    return h;
+  }
+
+  function chipsOS(x) {
+    var r = x.r, o = x.ctt, chips = [];
+    if (o && !o.fora && !(r.FatMeta > 0)) chips.push('<span class="chip sem">sem meta</span>');
+    else if (r.FatMeta > 0) chips.push('<span class="chip def">definida</span>');
+    if (o && o.fora) chips.push('<span class="chip fora">fora das vigentes</span>');
+    if (!o) chips.push('<span class="chip fora">não ativa na CTT</span>');
+    if (o && violacao(o)) chips.push('<span class="chip viol">CTT: ' + esc(violacao(o)) + "</span>");
+    var dv = r.id ? divergenciasCTT(x) : [];
+    if (dv.length) chips.push('<span class="chip sync" title="A lista guarda outro valor; a CTT manda e a lista é atualizada ao salvar">CTT atualizou ' + esc(dv.join(", ")) + "</span>");
+    return chips.join("");
+  }
+
+  function rodape(rs, cols, edita, filtrado) {
+    var f = soma(rs, "FatMeta"), r = soma(rs, "ResMeta");
+    var primeiroNum = cols.indexOf("fat");
+    var h = "<tfoot><tr>";
+    h += '<td colspan="' + primeiroNum + '">' + (filtrado ? "Total do filtro" : "Total") + "</td>";
+    h += '<td class="n">' + fmtMi(f) + '</td><td class="n">' + fmtMi(r) + '</td><td class="n">' + (f ? fmtPct(r / f) : "") + "</td>";
+    var resto = cols.length - primeiroNum - 3 + (edita ? 1 : 0);
+    if (resto > 0) h += '<td colspan="' + resto + '"></td>';
+    return h + "</tr></tfoot>";
+  }
+
+  function select(r, campo, ops, edita, rotulo) {
+    var val = r[campo];
+    if (!edita) { var o = ops.filter(function (x) { return x[0] === val; })[0]; return "<td>" + esc(o ? o[1] : val) + "</td>"; }
+    var temVal = ops.some(function (x) { return x[0] === val; });
+    return '<td><select data-f="' + campo + '" aria-label="' + esc(rotulo) + '"' + (alterado(r, campo) && r.id ? ' class="alterado"' : "") + ">" +
+      (temVal ? "" : '<option value="' + esc(val) + '">' + esc(val || "Escolher...") + "</option>") +
+      ops.map(function (x) { return '<option value="' + esc(x[0]) + '"' + (x[0] === val ? " selected" : "") + ">" + esc(x[1]) + "</option>"; }).join("") + "</select></td>";
+  }
+  function celula(r, c, edita, itensOS) {
+    switch (c) {
+      case "neg": return select(r, "Negocio", opcoesNeg().map(function (v) { return [v, v]; }), edita, "Negócio");
+      case "cls": return select(r, "Classificacao", opcoesCls().map(function (v) { return [v, v]; }), edita, "Classificação");
+      case "ger": return select(r, "CodGerente", opcoesGer(), edita, "Gerente");
+      case "sup": {
+        if (!r.CodSuperintendente && r.Nivel === "NEGOCIO") {
+          var cs = superDeLocacoes(r.CodGerente);
+          if (cs) return "<td>" + esc(nomeSup(cs)) + ' <span class="chip fora" title="Sem superintendente gravado: exibido o da CTT">CTT</span></td>';
+        }
+        return select(r, "CodSuperintendente", opcoesSup(r.CodSuperintendente, r.Superintendente), edita, "Superintendente");
+      }
+      case "adic": return texto(r, "ClassificacaoAdicional", edita, "Classificação adicional");
+      case "desc": return texto(r, "Descricao", edita, "Descrição");
+      case "cli": return texto(r, "Cliente", edita, "Cliente");
+      case "fat": return numero(r, "FatMeta", edita, "Faturamento", false);
+      case "res": return numero(r, "ResMeta", edita, "Resultado", r.EntradaPor === "MARGEM");
+      case "mar": return numero(r, "MargemMeta", edita, "Margem", r.EntradaPor !== "MARGEM");
+      case "refOS": {
+        var os = (itensOS || []).filter(function (x) { var n = x.ctt ? x.ctt.negocio : x.r.Negocio, k = x.ctt ? x.ctt.classificacao : x.r.Classificacao; return n === r.Negocio && k === r.Classificacao; });
+        var f = os.reduce(function (a, x) { return a + (x.r.FatMeta || 0); }, 0), s = os.reduce(function (a, x) { return a + (x.r.ResMeta || 0); }, 0);
+        return '<td class="n ref">' + (os.length ? fmtMi(f) + " / " + fmtMi(s) : "—") + "</td>";
+      }
+    }
+    return "<td></td>";
+  }
+  function texto(r, campo, edita, rotulo) {
+    if (!edita) return "<td>" + esc(r[campo]) + "</td>";
+    return '<td><input class="t' + (alterado(r, campo) && r.id ? " alterado" : "") + '" data-f="' + campo + '" value="' + esc(r[campo]) + '" aria-label="' + esc(rotulo) + '"></td>';
+  }
+  function numero(r, campo, edita, rotulo, calculado) {
+    var v = campo === "MargemMeta" ? fmtPct(r[campo]) : fmtMi(r[campo]);
+    if (!edita) return '<td class="n">' + v + "</td>";
+    return '<td class="n"><input class="v' + (calculado ? " calc" : "") + (!numIgual(r[campo], r._orig[campo]) ? " alterado" : "") + '" data-f="' + campo + '" value="' + esc(v) + '" inputmode="decimal" aria-label="' + esc(rotulo) + '"' + (calculado ? ' title="Calculado; digite aqui para inverter o cálculo"' : "") + "></td>";
+  }
+
+  // ===========================================================================
+  // Edicao
+  // ===========================================================================
+  function porUid(uid) { return linhas.filter(function (r) { return r.uid === uid; })[0]; }
+  function recalcular(r) {
+    if (r.FatMeta == null || !r.FatMeta) { if (r.EntradaPor !== "MARGEM") r.MargemMeta = null; return; }
+    if (r.EntradaPor === "MARGEM") { if (r.MargemMeta != null) r.ResMeta = Math.round(r.FatMeta * r.MargemMeta * 100) / 100; }
+    else if (r.ResMeta != null) r.MargemMeta = Math.round(r.ResMeta / r.FatMeta * 1e6) / 1e6;
+    else r.MargemMeta = null;
+  }
+  function editar(el) {
+    var tr = el.closest("tr[data-uid]");
+    if (!tr) return;
+    var r = porUid(tr.getAttribute("data-uid"));
+    if (!r) return;
+    var campo = el.getAttribute("data-f");
+    msgStatus = ""; corStatus = "";
+    if (campo === "FatMeta" || campo === "ResMeta" || campo === "MargemMeta") {
+      var n = lerNumero(el.value);
+      if (isNaN(n)) { msgStatus = "Valor inválido: use números, por exemplo 12,5"; corStatus = "erro"; render(); return; }
+      if (campo === "MargemMeta") { r.MargemMeta = n == null ? null : n / 100; r.EntradaPor = "MARGEM"; }
+      else if (campo === "ResMeta") { r.ResMeta = n == null ? null : n * 1e6; r.EntradaPor = "RESULTADO"; }
+      else r.FatMeta = n == null ? null : n * 1e6;
+      if (!r.EntradaPor) r.EntradaPor = "RESULTADO";
+      recalcular(r);
+    } else if (campo === "CodGerente") {
+      r.CodGerente = el.value; r.Gerente = nomeGer(el.value);
+    } else if (campo === "CodSuperintendente") {
+      r.CodSuperintendente = el.value; r.Superintendente = nomeSup(el.value);
+    } else {
+      r[campo] = campo === "Descricao" || campo === "ClassificacaoAdicional" || campo === "Cliente" ? semAcento(el.value).toUpperCase() : el.value;
+    }
+    if (el.tagName === "SELECT") { render(); return; }
+    atualizarNoLugar(tr, r);
+  }
+  // Numero e texto: atualiza so a linha, o total da tabela e o topo (avisos e barra). Redesenhar
+  // a tela inteira tirava o foco do campo seguinte e o proximo numero caia no campo errado.
+  function atualizarNoLugar(tr, r) {
+    tr.querySelectorAll("input[data-f]").forEach(function (i) {
+      var c = i.getAttribute("data-f"), numerico = c === "FatMeta" || c === "ResMeta" || c === "MargemMeta";
+      if (numerico) i.value = c === "MargemMeta" ? fmtPct(r[c]) : fmtMi(r[c]);
+      else i.value = r[c] || "";
+      i.classList.toggle("calc", (c === "ResMeta" && r.EntradaPor === "MARGEM") || (c === "MargemMeta" && r.EntradaPor !== "MARGEM"));
+      i.classList.toggle("alterado", numerico ? !numIgual(r[c], r._orig[c]) : !!(r.id && alterado(r, c)));
+    });
+    var itensOS = montarOS();
+    var sit = tr.querySelector("td.sit");
+    if (sit) { var x = itensOS.filter(function (y) { return y.r.uid === r.uid; })[0]; if (x) sit.innerHTML = chipsOS(x); }
+    var tabela = tr.closest("table"), tf = tabela && tabela.querySelector("tfoot");
+    if (tf) {
+      var rs = [].map.call(tabela.querySelectorAll("tbody tr[data-uid]"), function (t) { return porUid(t.getAttribute("data-uid")); }).filter(Boolean);
+      tf.outerHTML = rodape(rs, tabela.getAttribute("data-cols").split(","), tabela.getAttribute("data-edita") === "1", !!filtro);
+    }
+    var topo = document.getElementById("topoMetas");
+    if (topo) topo.innerHTML = htmlTopo(itensOS, ehProprietario());
+  }
+  function semAcento(s) { return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+
+  function novaLinha(nivel) {
+    var r = { uid: "n" + (++seq), id: 0, Ano: ANO, Nivel: nivel, FatMeta: null, ResMeta: null, MargemMeta: null, EntradaPor: "RESULTADO", Ativo: "Sim", _orig: {} };
+    CAMPOS_TXT.forEach(function (c) { if (r[c] == null) r[c] = ""; });
+    r.Nivel = nivel; r.EntradaPor = "RESULTADO"; r.Ativo = "Sim";
+    linhas.push(r);
+    filtro = "";
+    render();
+    var tr = document.querySelector('tr[data-uid="' + r.uid + '"]');
+    if (tr) { tr.scrollIntoView({ block: "center" }); var s = tr.querySelector("select, input"); if (s) s.focus(); }
+  }
+  function remover(uid) {
+    var r = porUid(uid);
+    if (!r) return;
+    if (!r.id) linhas = linhas.filter(function (x) { return x.uid !== uid; });
+    else r.Ativo = r.Ativo === "Nao" ? "Sim" : "Nao";
+    render();
+  }
+
+  // ===========================================================================
+  // Gravacao
+  // ===========================================================================
+  function pendencias(itensOS) {
+    var novas = 0, alteradas = 0, ctt = 0, lista = [];
+    linhas.forEach(function (r) {
+      if (r.Nivel === "OS") return;
+      if (!r.id) { novas++; lista.push({ r: r }); }
+      else if (linhaAlterada(r)) { alteradas++; lista.push({ r: r }); }
+    });
+    (itensOS || []).forEach(function (x) {
+      var r = x.r, mudouValor = ["FatMeta", "ResMeta", "MargemMeta", "EntradaPor"].some(function (c) { return !numIgual(r[c], r._orig[c]); });
+      if (!r.id) { if (r.FatMeta != null || r.ResMeta != null) { novas++; lista.push(x); } return; }
+      if (mudouValor) { alteradas++; lista.push(x); }
+      else if (divergenciasCTT(x).length) { ctt++; lista.push(x); }
+    });
+    return { novas: novas, alteradas: alteradas, ctt: ctt, total: novas + alteradas + ctt, lista: lista };
+  }
+  function proximaChave(prefixo) {
+    var max = 0;
+    linhas.forEach(function (r) {
+      if (r.Title && r.Title.indexOf(prefixo + "|") === 0) { var n = parseInt(r.Title.slice(prefixo.length + 1), 10); if (n > max) max = n; }
+    });
+    return prefixo + "|" + ("000" + (max + 1)).slice(-3);
+  }
+  function validar(lista) {
+    for (var i = 0; i < lista.length; i++) {
+      var r = lista[i].r, n = r.Nivel;
+      if (n === "OS") continue;
+      if (r.Ativo === "Nao") continue;
+      if (!r.Negocio || !r.Classificacao) return "Toda linha de " + n.toLowerCase() + " precisa de negócio e classificação.";
+      if ((n === "SUPERINTENDENTE") && !r.CodSuperintendente) return "Escolha o superintendente das linhas novas.";
+      if ((n === "GERENTE" || n === "PROSPECCAO") && !r.CodGerente) return "Escolha o gerente das linhas de " + (n === "GERENTE" ? "gerente" : "prospecção") + ".";
+    }
+    return "";
+  }
+  function payload(x) {
+    var r = x.r, agora = new Date().toISOString(), campos = {};
+    if (x.ctt) aplicarCTT(x);
+    if (!r.id) {
+      if (r.Nivel === "OS") r.Title = ANO + "|OS|" + r.CodOS;
+      else if (r.Nivel === "EMPRESA") r.Title = proximaChave(ANO + "|EMPRESA");
+      else if (r.Nivel === "PROSPECCAO") r.Title = proximaChave(ANO + "|PROSPECCAO");
+      else if (r.Nivel === "SUPERINTENDENTE") r.Title = proximaChave(ANO + "|SUPERINTENDENTE|" + r.CodSuperintendente);
+      else r.Title = proximaChave(ANO + "|GERENTE|" + r.CodGerente);
+      campos.Title = r.Title; campos.Ano = ANO; campos.Nivel = r.Nivel; campos.CodOS = r.CodOS || "";
+      campos.Situacao = "RASCUNHO"; campos.Origem = "APP";
+    }
+    ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "EntradaPor", "Ativo"].forEach(function (c) { campos[c] = r[c] || ""; });
+    if (r.Nivel !== "OS") ["ClassificacaoAdicional", "Descricao", "Cliente"].forEach(function (c) { campos[c] = r[c] || ""; });
+    campos.FatMeta = r.FatMeta; campos.ResMeta = r.ResMeta; campos.MargemMeta = r.MargemMeta;
+    campos.AtualizadoPor = sessao.login; campos.AtualizadoEm = agora;
+    return { id: r.id, campos: campos };
+  }
+  async function salvar() {
+    var p = pendencias(montarOS());
+    var erro = validar(p.lista);
+    confirmando = false;
+    if (erro) { msgStatus = erro; corStatus = "erro"; render(); return; }
+    gravando = true; msgStatus = "Gravando " + p.total + (p.total === 1 ? " linha..." : " linhas..."); corStatus = ""; render();
+    var itens = p.lista.map(payload);
+    try {
+      for (var i = 0; i < itens.length; i += LOTE) {
+        var res = await postar(FLOW.gravar, { login: sessao.login, hash: sessao.hash, itens: itens.slice(i, i + LOTE) });
+        if (res.status !== 200) {
+          throw new Error(res.status === 403 ? "Somente o proprietário pode gravar metas." : "Falha ao gravar no SharePoint (HTTP " + res.status + "). " + (i ? i + " linhas já tinham sido gravadas." : "Nada foi gravado."));
+        }
+      }
+      gravando = false;
+      await carregar();
+      msgStatus = "Gravado: " + itens.length + (itens.length === 1 ? " linha." : " linhas."); corStatus = "ok";
+      render();
+    } catch (e) {
+      gravando = false;
+      msgStatus = e.message || "Falha ao gravar."; corStatus = "erro";
+      await carregar();
+      msgStatus = e.message || "Falha ao gravar."; corStatus = "erro";
+      render();
+    }
+  }
+
+  // ===========================================================================
+  // Eventos (delegados: a tela e redesenhada a cada alteracao)
+  // ===========================================================================
+  document.addEventListener("click", function (ev) {
+    var t = ev.target.closest("button");
+    if (!t) return;
+    if (t.hasAttribute("data-aba")) { abaAtiva = t.getAttribute("data-aba"); render(); return; }
+    if (t.hasAttribute("data-irOS") || t.hasAttribute("data-iros")) { filtro = ""; focoOS = t.getAttribute("data-irOS") || t.getAttribute("data-iros"); render(); return; }
+    if (t.hasAttribute("data-novo")) { novaLinha(t.getAttribute("data-novo")); return; }
+    if (t.hasAttribute("data-remover")) { remover(t.getAttribute("data-remover")); return; }
+    var a = t.getAttribute("data-acao");
+    if (a === "sair") { sessao = null; gravarSessao(null); linhas = []; erroCarga = ""; render(); }
+    else if (a === "recarregar") { msgStatus = ""; carregar(); }
+    else if (a === "salvar") { confirmando = true; render(); }
+    else if (a === "cancelarSalvar") { confirmando = false; render(); }
+    else if (a === "confirmarSalvar") salvar();
+  });
+  document.addEventListener("change", function (ev) {
+    if (ev.target.matches("#painel [data-f]")) editar(ev.target);
+  });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter" && ev.target.matches("#painel input[data-f]")) { ev.preventDefault(); ev.target.blur(); }
+  });
+  var tFiltro = null;
+  document.addEventListener("input", function (ev) {
+    if (ev.target.id !== "filtro") return;
+    clearTimeout(tFiltro);
+    tFiltro = setTimeout(function () {
+      filtro = ev.target.value;
+      var pos = ev.target.selectionStart;
+      render();
+      var f = document.getElementById("filtro");
+      if (f) { f.focus(); try { f.setSelectionRange(pos, pos); } catch (e) {} }
+    }, 250);
+  });
+
+  // ===========================================================================
+  sessao = lerSessao();
+  render();
+  if (sessao) carregar();
+})();
+</script>
+</body>
+</html>
