@@ -172,7 +172,7 @@
   tr.cab.nivel2 th.n { padding-left: 10px; }
   tr.grande td { font-size: .95rem; }
   tr.grande td input.v, tr.grande .combo { font-size: .95rem; padding: 9px 12px; }
-  table.arvore { table-layout: fixed; min-width: 1700px; }
+  table.arvore .sit:empty { display: none; }
   table.arvore th.grupo-col { text-align: center; border-bottom: 1px solid var(--line-soft); }
   tr.no td { font-weight: 700; }
   tr.no.nivel1 td { background: var(--bg-soft); border-top: 2px solid var(--line); font-size: .95rem; padding-left: 12px; }
@@ -878,7 +878,6 @@
   }
   function casaOS(x) { return casa(x.ctt.desc + " " + x.ctt.negocio + " " + x.ctt.classificacao); }
   function celulas3(base) { return '<td class="n">' + celTotal(base, "f") + '</td><td class="n">' + celTotal(base, "r") + '</td><td class="n">' + celTotal(base, "p") + "</td>"; }
-  var COL_OS = '<colgroup><col><col style="width:190px"><col style="width:210px"><col style="width:250px"><col style="width:250px"><col style="width:160px"><col style="width:280px"></colgroup>';
   function htmlOS(edita) {
     var arv = arvoreOS(), corpo = "";
     Object.keys(arv).sort(porNomeSup).forEach(function (s) {
@@ -894,33 +893,33 @@
           var oss = arv[s][g][t].filter(function (x) { return todasT || casaOS(x); }).sort(function (a, b) { return a.ctt.cod.localeCompare(b.ctt.cod); });
           if (!oss.length) return;
           var chT = "T:" + g + "~" + t, abT = !!abertosOS[chT] || (!!filtro && !todasT);
-          blocoG += '<tr class="no nivel3"><td colspan="3">' + seta("data-os-toggle", chT, abT, t) + '<span class="papel">Gestor</span> ' + esc(t) +
+          blocoG += '<tr class="no nivel3"><td colspan="4">' + seta("data-os-toggle", chT, abT, t) + '<span class="papel">Gestor</span> ' + esc(t) +
             ' <span class="dica">· ' + oss.length + (oss.length === 1 ? " OS" : " OSs") + "</span></td>" + celulas3("OT:" + g + "~" + t) + "<td></td></tr>";
           if (abT) oss.forEach(function (x) { blocoG += linhaOSHtml(x, edita); });
         });
         if (!blocoG) return;
-        blocoS += '<tr class="no nivel2"><td colspan="3">' + seta("data-os-toggle", chG, abG, nomeG) + '<span class="papel">Gerente</span> ' + esc(nomeG) + "</td>" +
+        blocoS += '<tr class="no nivel2"><td colspan="4">' + seta("data-os-toggle", chG, abG, nomeG) + '<span class="papel">Gerente</span> ' + esc(nomeG) + "</td>" +
           celulas3("OG:" + g) + "<td></td></tr>";
         if (abG) blocoS += blocoG;
       });
       if (!blocoS) return;
-      corpo += '<tr class="no nivel1"><td colspan="3">' + seta("data-os-toggle", chS, abS, nomeS) + '<span class="papel">Superintendente</span> ' + esc(nomeS) + "</td>" +
+      corpo += '<tr class="no nivel1"><td colspan="4">' + seta("data-os-toggle", chS, abS, nomeS) + '<span class="papel">Superintendente</span> ' + esc(nomeS) + "</td>" +
         celulas3("OSS:" + s) + "<td></td></tr>";
       if (abS) corpo += blocoS;
     });
     var h = '<h2 class="grupo-titulo">OS<span class="dir"><button type="button" class="btn abre peq" data-os-todos="1">Abrir todos</button><button type="button" class="btn abre peq" data-os-todos="0">Fechar todos</button></span></h2><section class="caixa" id="cx-OS">';
     if (!corpo) return h + '<div class="vazio">' + (Object.keys(OS_CTT).length ? "Nada no filtro." : "Nenhuma OS recebida da CTT.") + "</div></section>";
-    return h + '<div class="rolagem"><table class="arvore">' + COL_OS +
-      '<thead><tr><th>Superintendente · Gerente · Gestor · OS</th><th>Negócio</th><th>Classificação</th><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th><th>Situação</th></tr></thead><tbody>' + corpo + "</tbody></table></div></section>";
+    return h + '<div class="rolagem"><table class="grade arvore">' + COLGROUP + "<thead>" + cabecalho("Total das OSs", "OS", "") +
+      '<tr class="titulos"><th colspan="2">Superintendente · Gerente · Gestor · OS</th><th>Negócio</th><th>Classificação</th>' + TIT_VAL + '</tr></thead><tbody>' + corpo + "</tbody></table></div></section>";
   }
   function linhaOSHtml(x, edita) {
     var r = x.r, o = x.ctt, hist = textoHistorico(o.cod);
-    var h = "<tr" + atributosLinha(r, "folha") + ' data-os="' + esc(o.cod) + '"><td><div class="os">' + esc(o.desc) + "</div>" + (hist ? '<div class="desc">' + esc(hist) + "</div>" : "") + "</td>" +
+    var h = "<tr" + atributosLinha(r, "folha") + ' data-os="' + esc(o.cod) + '"><td colspan="2"><div class="os">' + esc(o.desc) + "</div>" + (hist ? '<div class="desc">' + esc(hist) + "</div>" : "") + '<div class="sit">' + chipsItem(x) + "</div></td>" +
       "<td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td>" +
       numero(r, "FatMeta", edita, "Faturamento", false) + numero(r, "ResMeta", edita, "Resultado", r.EntradaPor === "MARGEM") + numero(r, "MargemMeta", edita, "Margem", r.EntradaPor !== "MARGEM") +
-      '<td class="sit">' + chipsItem(x) + "</td></tr>";
+      "<td></td></tr>";
     // Observacao da CTT fica na propria OS, destacada logo abaixo dela
-    if (violacao(o)) h += '<tr class="obs"><td colspan="7">⚠ Observação da CTT: ' + esc(o.desc) + " está com " + esc(violacao(o)) + ". Corrigir o cadastro (ATIVO só em EXECUCAO, DEMOBILIZACAO ou NOVA; ATUAL e ENCERRADO sempre FINALIZADA).</td></tr>";
+    if (violacao(o)) h += '<tr class="obs"><td colspan="8">⚠ Observação da CTT: ' + esc(o.desc) + " está com " + esc(violacao(o)) + ". Corrigir o cadastro (ATIVO só em EXECUCAO, DEMOBILIZACAO ou NOVA; ATUAL e ENCERRADO sempre FINALIZADA).</td></tr>";
     return h;
   }
   function chipsItem(x) {
@@ -1055,7 +1054,7 @@
         if (numerico) i.classList.toggle("calc", (c === "ResMeta" && r.EntradaPor === "MARGEM") || (c === "MargemMeta" && r.EntradaPor !== "MARGEM"));
         i.classList.toggle("alterado", numerico ? alterado(r, c) : !!(r.id && alterado(r, c)));
       });
-      var sit = tr.querySelector("td.sit");
+      var sit = tr.querySelector(".sit");
       if (sit) { var x = montarOS().filter(function (y) { return y.r.uid === r.uid; })[0]; if (x) sit.innerHTML = chipsItem(x); }
     });
     atualizarTotais();
