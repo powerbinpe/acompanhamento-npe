@@ -26,7 +26,9 @@
     --line-soft: #e2e8f0;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: var(--bg-main); color: var(--text); font-size: 14px; position: relative; }
+  /* Fontes 50% maiores que a primeira versao (pedido de 16/09): rem passa a valer 24px */
+  html { font-size: 24px; }
+  body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: var(--bg-main); color: var(--text); font-size: 21px; position: relative; }
   button, input { font-family: inherit; font-size: inherit; }
   .app { padding: 16px 20px 40px; }
 
@@ -42,7 +44,7 @@
   .btn.sec { background: #e2e8f0; color: #334155; }
   .btn.sec:hover { background: #cbd5e1; }
   .btn.ok { background: var(--ok); }
-  .btn.peq { padding: 5px 10px; font-size: .76rem; }
+  .btn.peq { padding: 4px 10px; font-size: .74rem; }
   .btn:focus-visible, input:focus-visible, .combo:focus-visible { outline: 3px solid #93c5fd; outline-offset: 1px; }
 
   .abas { display: flex; gap: 6px; margin: 14px 0 0; flex-wrap: wrap; }
@@ -60,10 +62,18 @@
   .aviso.info { background: var(--accent-soft); border: 1px solid #bfdbfe; }
   .aviso.info h3 { color: #1e3a8a; }
   .codigos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-  .codigos button { border: 1px solid #fcd34d; background: #fff; border-radius: 6px; padding: 3px 8px; font-weight: 700; font-size: .78rem; cursor: pointer; color: #92400e; }
-  .aviso.erro .codigos button { border-color: #fecaca; color: #991b1b; }
+  .codigos button { border: 1px solid #fcd34d; background: #fff; border-radius: 6px; padding: 4px 9px; font-size: .78rem; cursor: pointer; color: #78350f; text-align: left; }
+  .codigos button b { color: #92400e; margin-right: 4px; }
+  .codigos button.on { background: #92400e; color: #fff; border-color: #92400e; }
+  .codigos button.on b { color: #fff; }
 
-  .login { max-width: 380px; margin: 40px auto; border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+  .rapido { border: 2px solid #f59e0b; border-radius: 10px; margin: -6px 0 16px; background: #fffbeb; }
+  .rapido-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px 0; }
+  .rapido-topo h4 { font-size: .9rem; }
+  .rapido-topo .dir { margin-left: auto; display: flex; gap: 8px; }
+  .rapido table td { border-bottom: none; }
+
+  .login { max-width: 560px; margin: 40px auto; border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
   .login h2 { font-size: 1.1rem; margin-bottom: 4px; }
   .login p { color: var(--muted); font-size: .85rem; margin-bottom: 16px; }
   .login label { display: block; font-size: .74rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 10px 0 4px; }
@@ -79,58 +89,66 @@
   .confirma { background: var(--accent-soft); border: 1px solid #93c5fd; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 
   .grupo-titulo { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 26px 0 10px; }
-  .caixa { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 18px; background: #fff; }
+  .caixa { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 18px; background: #fff; overflow: hidden; }
   .caixa-topo { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
-  .caixa-topo h2 { font-size: 1.05rem; letter-spacing: .04em; text-transform: uppercase; }
   .caixa-topo h3 { font-size: 1rem; }
-  .caixa-topo h4 { font-size: .92rem; }
   .caixa-topo .dir { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .caixa.super > .caixa-topo { background: var(--bg-soft); border-radius: 12px 12px 0 0; }
-  .caixa.sub { margin: 0 0 12px; background: var(--bg-sub); border-color: var(--line-soft); }
-  .caixa.sub > .caixa-topo { border-bottom-color: var(--line-soft); }
-  .gerentes { padding: 12px 14px 2px; }
-  .gerentes-titulo { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-  .papel { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-  .dica { color: var(--muted); font-size: .8rem; }
-  .nota { color: var(--muted); font-size: .76rem; font-style: italic; }
-  .tot { display: inline-flex; gap: 12px; align-items: baseline; background: var(--accent-soft); border: 1px solid #bfdbfe; color: #1e3a8a; border-radius: 8px; padding: 5px 10px; font-size: .78rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .tot b { font-size: .95rem; color: #0f172a; }
-  .tot.leve { background: #fff; border-color: var(--line-soft); color: var(--muted); }
-  .tot.leve b { font-size: .84rem; color: var(--muted); }
-  .conferencia { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; font-size: .78rem; color: var(--muted); border-top: 1px dashed var(--line-soft); }
-  .dif { font-weight: 800; }
+  .papel { font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-left: 8px; }
+  .dica { color: var(--muted); font-size: .8rem; font-weight: 400; }
+  .nota { color: var(--muted); font-size: .74rem; font-style: italic; font-weight: 400; margin-left: 8px; }
+  .dif { font-weight: 800; margin-left: 8px; }
   .dif.ok { color: var(--ok); }
   .dif.alerta { color: #b45309; }
 
+  /* Grade unica: toda tabela de meta usa as mesmas larguras, entao os valores de empresa,
+     superintendentes e gerentes ficam alinhados na mesma coluna em qualquer caixa. */
   .rolagem { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: .84rem; }
-  th { text-align: left; font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 8px 8px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
-  td { padding: 5px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
-  tbody tr:last-child td { border-bottom: none; }
+  table.grade { table-layout: fixed; min-width: 1620px; }
+  col.c-neg, col.c-cls { width: 250px; }
+  col.c-adic { width: 280px; }
+  col.c-num { width: 250px; }
+  col.c-pct { width: 160px; }
+  col.c-x { width: 56px; }
+  th { text-align: left; font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 10px 10px; white-space: nowrap; }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
   th.n, td.n { text-align: right; }
   td.n { font-variant-numeric: tabular-nums; }
+  tr.cab th { font-size: .95rem; letter-spacing: 0; text-transform: none; color: var(--text); padding: 12px 8px 10px 14px; background: var(--bg-soft); border-top: 1px solid var(--line); white-space: normal; }
+  tr.cab th.n { padding-right: 8px; }
+  tr.cab .dir { float: right; }
+  tr.cab .val { display: inline-block; min-width: 100%; background: var(--accent-soft); border: 1px solid #bfdbfe; border-radius: 6px; padding: 4px 8px; font-size: .95rem; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; text-align: right; }
+  table.sub tr.cab th { background: var(--bg-sub); font-size: .88rem; padding-left: 34px; }
+  table.sub tr.cab th.n { padding-left: 8px; }
+  tr.ref td { font-size: .76rem; color: var(--muted); background: #fff; padding: 4px 8px; }
+  tr.ref td:first-child { padding-left: 14px; }
+  table.sub tr.ref td:first-child { padding-left: 34px; }
+  tr.ref .val { font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+  tr.titulos th { border-bottom: 1px solid var(--line-soft); background: #fff; }
+  tr.resumo td { font-weight: 700; }
+  tr.resumo td.n { font-size: .92rem; }
   tr.pend td { background: #fffbeb; }
   tr.foco td { background: #dbeafe !important; }
   tr.novo td { background: #f0fdf4; }
   tr.desativada td { opacity: .45; text-decoration: line-through; }
   tr.grupo-linha td { background: var(--bg-soft); border-top: 2px solid var(--line); padding: 8px; }
   tr.grupo-linha b { font-size: .86rem; }
-  td input.v { width: 136px; text-align: right; padding: 5px 7px; border: 1.5px solid var(--line); border-radius: 6px; font-variant-numeric: tabular-nums; }
+  tr.obs td { background: var(--danger-bg); color: #991b1b; font-size: .78rem; font-weight: 700; padding: 5px 8px 7px 20px; }
+  td input.v { width: 100%; text-align: right; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 6px; font-variant-numeric: tabular-nums; }
   td input.v.calc { background: var(--bg-soft); color: var(--muted); }
-  td input.t { width: 100%; min-width: 140px; padding: 5px 7px; border: 1.5px solid var(--line); border-radius: 6px; }
+  td input.t { width: 100%; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 6px; }
   td input.t + input.t { margin-top: 4px; }
   td input.alterado, .combo.alterado { border-color: #f59e0b; }
-  .combo { display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 130px; width: 100%; max-width: 250px; padding: 5px 8px; border: 1.5px solid var(--line); border-radius: 6px; background: #fff; color: var(--text); cursor: pointer; text-align: left; }
+  .combo { display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 7px 11px; border: 1.5px solid var(--line); border-radius: 6px; background: #fff; color: var(--text); cursor: pointer; text-align: left; }
   .combo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .combo i { font-style: normal; color: var(--muted); font-size: .7rem; }
   .combo.vazio span { color: #94a3b8; }
-  .flutuante { position: absolute; z-index: 50; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 28px rgba(15, 23, 42, .22); max-height: 300px; overflow-y: auto; padding: 4px; }
+  .flutuante { position: absolute; z-index: 50; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 28px rgba(15, 23, 42, .22); max-height: 450px; overflow-y: auto; padding: 6px; }
   .flutuante .filtro-combo { width: 100%; padding: 6px 8px; border: 1.5px solid var(--line); border-radius: 6px; margin-bottom: 4px; }
-  .opcao { padding: 6px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; font-size: .84rem; }
+  .opcao { padding: 9px 14px; border-radius: 6px; cursor: pointer; white-space: nowrap; font-size: .84rem; }
   .opcao.ativa { background: #dbeafe; }
   .opcao.atual { font-weight: 800; }
   .os { font-weight: 800; }
-  tr[data-os] td:first-child, tr.prosp td:first-child { min-width: 230px; }
   .desc { color: var(--muted); font-size: .78rem; }
   .chip { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: .7rem; font-weight: 800; white-space: nowrap; margin: 1px 2px 1px 0; }
   .chip.sem { background: var(--warn-bg); color: #92400e; }
@@ -139,7 +157,7 @@
   .chip.viol { background: var(--danger-bg); color: #991b1b; }
   .chip.sync { background: #dbeafe; color: #1e40af; }
   .chip.pros { background: #ede9fe; color: #5b21b6; }
-  .vazio { color: var(--muted); padding: 12px 14px; font-size: .84rem; }
+  .vazio { color: var(--muted); padding: 10px 14px; font-size: .82rem; }
   .x { background: none; border: none; color: #94a3b8; font-weight: 800; cursor: pointer; font-size: 1rem; padding: 0 4px; }
   .x:hover { color: var(--danger); }
   .construcao { padding: 60px 20px; text-align: center; color: var(--muted); }
@@ -208,8 +226,8 @@
   // Regra da CTT: ATIVO so em EXECUCAO/DEMOBILIZACAO/NOVA; ATUAL sempre FINALIZADA.
   // ATUAL + FINALIZADA continua no acompanhamento; so ENCERRADO sai (e nem chega aqui).
   function violacao(o) {
-    if (o.status === "ATIVO" && ["EXECUCAO", "DEMOBILIZACAO", "NOVA"].indexOf(o.estagio) < 0) return "ATIVO · " + (o.estagio || "SEM ESTAGIO");
-    if (o.status === "ATUAL" && o.estagio !== "FINALIZADA") return "ATUAL · " + (o.estagio || "SEM ESTAGIO");
+    if (o.status === "ATIVO" && ["EXECUCAO", "DEMOBILIZACAO", "NOVA"].indexOf(o.estagio) < 0) return "status ATIVO com estágio " + (o.estagio || "em branco");
+    if (o.status === "ATUAL" && o.estagio !== "FINALIZADA") return "status ATUAL com estágio " + (o.estagio || "em branco");
     return "";
   }
 
@@ -251,7 +269,7 @@
   var abaAtiva = "metas";
   var linhas = [];
   var carregando = false, erroCarga = "", filtro = "", msgStatus = "", corStatus = "";
-  var confirmando = false, gravando = false, focoAlvo = "";
+  var confirmando = false, gravando = false, focoAlvo = "", rapidoOS = "";
   var seq = 0;
 
   var CAMPOS_TXT = ["Title", "Nivel", "CodOS", "CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "Nome", "EntradaPor", "Situacao", "Ativo", "Origem"];
@@ -287,7 +305,7 @@
   // Formatacao: gravado, digitado e exibido em reais cheios (844.354.000); margem em %
   // ===========================================================================
   function fmtVal(v) { return v == null || isNaN(v) ? "" : Math.round(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 }); }
-  function fmtPct(m) { return m == null || isNaN(m) ? "" : (m * 100).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%"; }
+  function fmtPct(m) { return m == null || isNaN(m) ? "" : (m * 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%"; }
   function lerNumero(s) {
     s = String(s || "").replace(/R\$|%|\s/g, "");
     if (!s) return null;
@@ -331,7 +349,6 @@
   function opcoesGer() {
     var m = {};
     Object.keys(GER).forEach(function (c) { m[c] = GER[c].nome; });
-    linhas.forEach(function (r) { if (r.CodGerente && !m[r.CodGerente]) m[r.CodGerente] = r.Gerente || r.CodGerente; });
     return Object.keys(m).map(function (c) { return [c, m[c]]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); });
   }
   function opcoesCampo(campo) {
@@ -343,6 +360,7 @@
 
   // ===========================================================================
   // OS: a CTT define quem aparece; a lista traz a meta. Prospeccoes ficam junto do gerente.
+  // OS encerrada que tinha meta no ano continua (dados gravados da CTT na carga).
   // ===========================================================================
   function linhaOS(cod) { return linhas.filter(function (r) { return r.Nivel === "OS" && r.CodOS === cod; })[0]; }
   function montarOS() {
@@ -366,6 +384,7 @@
   function itensBlocoOS() {
     return montarOS().concat(linhas.filter(function (r) { return r.Nivel === "PROSPECCAO"; }).map(function (r) { return { tipo: "P", r: r, ctt: null, ger: r.CodGerente }; }));
   }
+  function pendentesOS() { return montarOS().filter(function (x) { return x.ctt && !(x.r._orig.FatMeta > 0); }); }
   function divergenciasCTT(x) {
     var o = x.ctt, r = x.r;
     if (!o) return [];
@@ -381,6 +400,7 @@
     r.CodGerente = o.codGer; r.Gerente = nomeGer(o.codGer);
     r.CodSuperintendente = o.codSup; r.Superintendente = nomeSup(o.codSup);
     r.Negocio = o.negocio; r.Classificacao = o.classificacao;
+    r.Nome = o.cod + " - " + o.desc;
   }
   // Linhas com gerente (meta de gerente, prospeccao, Locacoes): superintendente e nome vem da CTT
   function divergeCTTLinha(r) {
@@ -399,19 +419,28 @@
     }
     if (r.Nivel === "SUPERINTENDENTE" && SUP[r.CodSuperintendente]) r.Superintendente = SUP[r.CodSuperintendente];
   }
+  // Empresa: linha com negocio = tabela por negocio; sem negocio = tabela por classificacao
+  function grupoEmpresa(r) { return r._grupoEmp || (r.Negocio ? "N" : "C"); }
 
   // ===========================================================================
-  // Totais (cabecalhos das caixas e subtotais), recalculados no lugar
+  // Totais (cabecalhos, referencias e resumo), recalculados no lugar
+  //   chave "base|parte", parte = f (faturamento), r (resultado) ou p (margem)
   // ===========================================================================
+  function nivel(n) { return linhas.filter(function (r) { return r.Nivel === n; }); }
   function linhasDoTotal(k) {
     var i = k.indexOf(":"), t = i < 0 ? k : k.slice(0, i), c = i < 0 ? "" : k.slice(i + 1);
-    if (t === "E") return linhas.filter(function (r) { return r.Nivel === "EMPRESA"; });
-    if (t === "S") return linhas.filter(function (r) { return r.Nivel === "SUPERINTENDENTE" && r.CodSuperintendente === c; });
-    if (t === "G") return linhas.filter(function (r) { return r.Nivel === "GERENTE" && r.CodGerente === c; });
-    if (t === "SG") { var gs = gerentesDoSuper(c); return linhas.filter(function (r) { return r.Nivel === "GERENTE" && gs.indexOf(r.CodGerente) >= 0; }); }
-    if (t === "L") return linhas.filter(function (r) { return r.Nivel === "NEGOCIO"; });
+    if (t === "EN") return nivel("EMPRESA").filter(function (r) { return grupoEmpresa(r) === "N"; });
+    if (t === "EC") return nivel("EMPRESA").filter(function (r) { return grupoEmpresa(r) === "C"; });
+    if (t === "S") return nivel("SUPERINTENDENTE").filter(function (r) { return r.CodSuperintendente === c; });
+    if (t === "G") return nivel("GERENTE").filter(function (r) { return r.CodGerente === c; });
+    if (t === "SG") { var gs = gerentesDoSuper(c); return nivel("GERENTE").filter(function (r) { return gs.indexOf(r.CodGerente) >= 0; }); }
+    if (t === "L") return nivel("NEGOCIO");
     if (t === "OG") return itensBlocoOS().filter(function (x) { return x.ger === c; }).map(function (x) { return x.r; });
     if (t === "OS") return itensBlocoOS().map(function (x) { return x.r; });
+    // Resumo: Locacoes entra nos tres niveis, como na linha 1 do META 26
+    if (t === "RS") return nivel("SUPERINTENDENTE").concat(nivel("NEGOCIO"));
+    if (t === "RG") return nivel("GERENTE").concat(nivel("NEGOCIO"));
+    if (t === "RO") return itensBlocoOS().map(function (x) { return x.r; }).concat(nivel("NEGOCIO"));
     return [];
   }
   function somar(rs) {
@@ -419,20 +448,29 @@
     rs.forEach(function (x) { if (!ativa(x)) return; if (x.FatMeta != null) { f += x.FatMeta; n++; } if (x.ResMeta != null) r += x.ResMeta; });
     return { f: f, r: r, n: n };
   }
-  function conteudoTotal(k) {
-    if (k.indexOf("D:") === 0) {
-      var s = k.slice(2), a = somar(linhasDoTotal("S:" + s)), b = somar(linhasDoTotal("SG:" + s));
+  function valorTotal(chave) {
+    var i = chave.lastIndexOf("|"), base = chave.slice(0, i), parte = chave.slice(i + 1);
+    if (base.indexOf("D:") === 0) {
+      var s = base.slice(2), a = somar(linhasDoTotal("S:" + s)), b = somar(linhasDoTotal("SG:" + s));
       if (!a.n) return "";
       var dif = b.f - a.f;
-      return Math.abs(dif) < 5000 ? '<span class="dif ok">bate com a meta do superintendente</span>' : '<span class="dif alerta">diferença de ' + fmtVal(dif) + " mi no faturamento</span>";
+      return Math.abs(dif) < 1 ? '<span class="dif ok">bate com a meta do superintendente</span>' : '<span class="dif alerta">diferença de ' + fmtVal(dif) + " no faturamento</span>";
     }
-    var t = somar(linhasDoTotal(k));
-    if (!t.n) return '<span class="chip sem">sem meta</span>';
-    return "<span>FAT <b>" + fmtVal(t.f) + "</b></span><span>RES <b>" + fmtVal(t.r) + "</b></span><span><b>" + (t.f ? fmtPct(t.r / t.f) : "—") + "</b></span>";
+    var t = somar(linhasDoTotal(base));
+    if (!t.n) return parte === "f" ? '<span class="chip sem">sem meta</span>' : "";
+    if (parte === "f") return fmtVal(t.f);
+    if (parte === "r") return fmtVal(t.r);
+    return t.f ? fmtPct(t.r / t.f) : "";
   }
-  function htmlTotal(k, leve) { return '<span class="' + (k.indexOf("D:") === 0 ? "" : "tot" + (leve ? " leve" : "")) + '" data-tot="' + esc(k) + '">' + conteudoTotal(k) + "</span>"; }
+  function celTotal(base, parte, destaque) {
+    var k = base + "|" + parte;
+    return '<span class="' + (destaque ? "val" : "val") + '" data-tot="' + esc(k) + '">' + valorTotal(k) + "</span>";
+  }
+  function celulasTotais(base, destaque) {
+    return '<th class="n">' + celTotal(base, "f", destaque) + '</th><th class="n">' + celTotal(base, "r", destaque) + '</th><th class="n">' + celTotal(base, "p", destaque) + "</th><th></th>";
+  }
   function atualizarTotais() {
-    document.querySelectorAll("[data-tot]").forEach(function (el) { el.innerHTML = conteudoTotal(el.getAttribute("data-tot")); });
+    document.querySelectorAll("[data-tot]").forEach(function (el) { el.innerHTML = valorTotal(el.getAttribute("data-tot")); });
   }
 
   // ===========================================================================
@@ -475,7 +513,7 @@
       ? "CTT: " + Object.keys(OS_CTT).length + " OS · " + Object.keys(GER).length + " gerentes · " + Object.keys(SUP).length + " superintendentes"
       : "Sem dados da CTT: abra pela página DESTAQUES do Power BI.";
     if (focoAlvo) {
-      var alvo = focoAlvo.indexOf("os:") === 0 ? document.querySelector('tr[data-os="' + focoAlvo.slice(3) + '"]') : document.getElementById(focoAlvo);
+      var alvo = focoAlvo.indexOf("os:") === 0 ? document.querySelector('#cx-OS tr[data-os="' + focoAlvo.slice(3) + '"]') : document.getElementById(focoAlvo);
       if (alvo) {
         if (alvo.tagName === "TR") alvo.classList.add("foco");
         alvo.scrollIntoView({ block: "center" });
@@ -548,36 +586,41 @@
     if (carregando) return '<div class="vazio">Carregando metas de ' + ANO + "...</div>";
     if (erroCarga) return '<div class="aviso erro"><h3>Metas indisponíveis</h3><p>' + esc(erroCarga) + '</p></div><button type="button" class="btn" data-acao="recarregar">Tentar de novo</button>';
     var edita = ehProprietario();
-    return '<div id="topoMetas">' + htmlTopo(edita) + "</div>" + htmlEmpresa(edita) + htmlSupers(edita) + htmlLocacoes(edita) + htmlOutrosGerentes(edita) + htmlOS(edita);
+    return '<div id="topoMetas">' + htmlTopo(edita) + "</div>" + '<div id="rapido">' + htmlRapido(edita) + "</div>" + '<div id="barraMetas">' + htmlBarra(edita) + "</div>" +
+      htmlResumo() + htmlEmpresa(edita) + htmlSupers(edita) + htmlLocacoes(edita) + htmlOutrosGerentes(edita) + htmlOS(edita);
   }
 
+  // ---- aviso de OS vigente sem meta: clicar abre o cadastro rapido logo abaixo
   function htmlTopo(edita) {
     var h = "";
-    var itensOS = montarOS();
-    var semMeta = itensOS.filter(function (x) { return x.ctt && !(x.r.FatMeta > 0); });
-    var viol = itensOS.filter(function (x) { return x.ctt && violacao(x.ctt); });
-    var comOS = gerentesComOS();
-    var gerSemMeta = Object.keys(comOS).filter(function (g) {
-      return SUPER_OPERACIONAIS.indexOf(supDoGerente(g)) >= 0 && !linhas.some(function (r) { return r.Nivel === "GERENTE" && r.CodGerente === g && ativa(r) && r.FatMeta > 0; });
-    }).sort(porNomeGer);
     if (!TEM_CTT) h += '<div class="aviso info"><h3>Sem dados da CTT</h3><p>A página foi aberta fora do Power BI: OSs vigentes, nomes e avisos dependem da CTT enviada pelo relatório.</p></div>';
-    if (semMeta.length) {
-      h += '<div class="aviso warn"><h3>' + semMeta.length + (semMeta.length === 1 ? " OS vigente está" : " OSs vigentes estão") + " sem meta de " + ANO + "</h3>" +
-        "<p>Estão ativas na CTT e ainda não têm faturamento e resultado definidos." + (edita ? " Clique no código para preencher." : "") + '</p><div class="codigos">' +
-        semMeta.map(function (x) { return '<button type="button" data-ir="os:' + esc(x.ctt.cod) + '" title="' + esc(x.ctt.desc) + '">' + esc(x.ctt.cod) + "</button>"; }).join("") + "</div></div>";
+    var pend = pendentesOS();
+    if (pend.length) {
+      h += '<div class="aviso warn"><h3>' + pend.length + (pend.length === 1 ? " OS vigente está" : " OSs vigentes estão") + " sem meta de " + ANO + "</h3>" +
+        "<p>" + (edita ? "Clique na OS para cadastrar a meta aqui mesmo; depois de gravada ela sai desta lista." : "Estão ativas na CTT e ainda não têm faturamento e resultado definidos.") + '</p><div class="codigos">' +
+        pend.map(function (x) {
+          var c = x.ctt.cod;
+          return '<button type="button" ' + (edita ? 'data-rapido="' + esc(c) + '"' : 'data-ir="os:' + esc(c) + '"') + (rapidoOS === c ? ' class="on" aria-expanded="true"' : "") + "><b>" + esc(c) + "</b>" + esc(x.ctt.desc) + "</button>";
+        }).join("") + "</div></div>";
     }
-    if (gerSemMeta.length) {
-      h += '<div class="aviso warn"><h3>' + gerSemMeta.length + (gerSemMeta.length === 1 ? " gerente com OS vigente está" : " gerentes com OS vigente estão") + " sem meta de " + ANO + "</h3>" +
-        '<p>Têm OS ativa na CTT e nenhuma meta de gerente cadastrada.</p><div class="codigos">' +
-        gerSemMeta.map(function (g) { return '<button type="button" data-ir="cx-G-' + esc(g) + '">' + esc(nomeGer(g)) + "</button>"; }).join("") + "</div></div>";
-    }
-    if (viol.length) {
-      h += '<div class="aviso erro"><h3>' + viol.length + (viol.length === 1 ? " OS com status e estágio fora da regra" : " OSs com status e estágio fora da regra") + " na CTT</h3>" +
-        '<p>ATIVO só com estágio EXECUCAO, DEMOBILIZACAO ou NOVA; ATUAL sempre FINALIZADA. Corrigir na CTT.</p><div class="codigos">' +
-        viol.map(function (x) { return '<button type="button" data-ir="os:' + esc(x.ctt.cod) + '">' + esc(x.ctt.cod + " · " + violacao(x.ctt)) + "</button>"; }).join("") + "</div></div>";
-    }
+    return h;
+  }
 
-    var pend = pendencias();
+  function htmlRapido(edita) {
+    if (!edita || !rapidoOS) return "";
+    var x = montarOS().filter(function (y) { return y.ctt && y.ctt.cod === rapidoOS; })[0];
+    if (!x) { rapidoOS = ""; return ""; }
+    var o = x.ctt, r = x.r;
+    return '<div class="rapido" id="cx-rapido"><div class="rapido-topo"><h4>Meta de ' + esc(o.cod) + ' · <span class="dica">' + esc(o.desc) + "</span></h4>" +
+      '<span class="dir"><button type="button" class="btn ok peq" data-acao="gravarRapido"' + (gravando ? " disabled" : "") + ">" + (gravando ? "Gravando..." : "Gravar meta") + '</button><button type="button" class="btn sec peq" data-acao="fecharRapido">Fechar</button></span></div>' +
+      '<div class="rolagem"><table><thead><tr><th>Gerente</th><th>Superintendente</th><th>Negócio</th><th>Classificação</th><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th></tr></thead><tbody>' +
+      "<tr" + atributosLinha(r) + "><td>" + esc(nomeGer(o.codGer)) + "</td><td>" + esc(nomeSup(o.codSup)) + "</td><td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td>" +
+      numero(r, "FatMeta", true, "Faturamento", false) + numero(r, "ResMeta", true, "Resultado", r.EntradaPor === "MARGEM") + numero(r, "MargemMeta", true, "Margem", r.EntradaPor !== "MARGEM") +
+      "</tr></tbody></table></div></div>";
+  }
+
+  function htmlBarra(edita) {
+    var h = "", pend = pendencias();
     h += '<div class="barra"><input type="search" id="filtro" placeholder="Filtrar por nome, OS, negócio ou descrição" value="' + esc(filtro) + '" aria-label="Filtrar">';
     h += '<span class="status ' + corStatus + '" role="status">' + esc(msgStatus) + "</span>";
     h += '<div class="dir">' + (edita
@@ -595,19 +638,26 @@
     return h;
   }
 
-  // ---- tabela de linhas de meta (Empresa, Superintendente, Gerente, Locacoes)
-  function tabelaMeta(rs, edita, vazio, todas) {
-    var vis = todas ? rs : rs.filter(function (r) { return casa(textoLinha(r)); });
-    if (!vis.length) return '<div class="vazio">' + (rs.length ? "Nenhuma linha no filtro." : vazio) + "</div>";
-    return '<div class="rolagem"><table><thead><tr><th>Negócio</th><th>Classificação</th><th>Classif. adicional</th><th>Descrição</th>' +
-      '<th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th>' + (edita ? "<th></th>" : "") + "</tr></thead><tbody>" +
-      vis.map(function (r) {
-        return "<tr" + atributosLinha(r) + ">" + combo(r, "Negocio", edita) + combo(r, "Classificacao", edita) +
-          texto(r, "ClassificacaoAdicional", edita, "Classificação adicional") + texto(r, "Descricao", edita, "Descrição") +
-          numero(r, "FatMeta", edita, "Faturamento", false) + numero(r, "ResMeta", edita, "Resultado", r.EntradaPor === "MARGEM") +
-          numero(r, "MargemMeta", edita, "Margem", r.EntradaPor !== "MARGEM") + (edita ? botaoRemover(r) : "") + "</tr>";
-      }).join("") + "</tbody></table></div>";
+  // ---- grade comum
+  var COLGROUP = '<colgroup><col class="c-neg"><col class="c-cls"><col class="c-adic"><col><col class="c-num"><col class="c-num"><col class="c-pct"><col class="c-x"></colgroup>';
+  var TITULOS = '<tr class="titulos"><th>Negócio</th><th>Classificação</th><th>Classif. adicional</th><th>Descrição</th><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th><th></th></tr>';
+  function cabecalho(nomeHtml, base, acoes) {
+    return '<tr class="cab"><th colspan="4">' + nomeHtml + (acoes ? '<span class="dir">' + acoes + "</span>" : "") + "</th>" + celulasTotais(base, true) + "</tr>";
   }
+  function linhaRef(rotuloHtml, base, extra) {
+    return '<tr class="ref"><td colspan="4">' + rotuloHtml + (extra || "") + '</td><td class="n">' + celTotal(base, "f") + '</td><td class="n">' + celTotal(base, "r") + '</td><td class="n">' + celTotal(base, "p") + "</td><td></td></tr>";
+  }
+  function linhasMeta(rs, edita, vazio, todas) {
+    var vis = todas ? rs : rs.filter(function (r) { return casa(textoLinha(r)); });
+    if (!vis.length) return '<tr><td colspan="8" class="vazio">' + (rs.length ? "Nenhuma linha no filtro." : vazio) + "</td></tr>";
+    return vis.map(function (r) {
+      return "<tr" + atributosLinha(r) + ">" + combo(r, "Negocio", edita) + combo(r, "Classificacao", edita) +
+        texto(r, "ClassificacaoAdicional", edita, "Classificação adicional") + texto(r, "Descricao", edita, "Descrição") +
+        numero(r, "FatMeta", edita, "Faturamento", false) + numero(r, "ResMeta", edita, "Resultado", r.EntradaPor === "MARGEM") +
+        numero(r, "MargemMeta", edita, "Margem", r.EntradaPor !== "MARGEM") + (edita ? botaoRemover(r) : "<td></td>") + "</tr>";
+    }).join("");
+  }
+  function tabela(classe, conteudo) { return '<div class="rolagem"><table class="grade' + (classe ? " " + classe : "") + '">' + COLGROUP + conteudo + "</table></div>"; }
   function atributosLinha(r, extra) {
     var cls = [];
     if (!r.id && !r._virtual) cls.push("novo");
@@ -622,71 +672,82 @@
     return '<button type="button" class="btn peq" data-novo="' + nivel + '"' + (cod ? ' data-cod="' + esc(cod) + '"' : "") + ">" + (rotulo || "+ Adicionar linha") + "</button>";
   }
 
+  // ---- resumo, como a linha 1 do META 26
+  function htmlResumo() {
+    var linhasResumo = [
+      ["EN", "Empresa · por negócio"],
+      ["EC", "Empresa · por classificação"],
+      ["RS", "Superintendentes (com Locações)"],
+      ["RG", "Gerentes (com Locações)"],
+      ["RO", "OSs e prospecções (com Locações)"]
+    ];
+    return '<h2 class="grupo-titulo">Resumo das metas de ' + ANO + '</h2><section class="caixa" id="cx-R">' +
+      tabela("", "<thead>" + TITULOS.replace("<th>Negócio</th><th>Classificação</th><th>Classif. adicional</th><th>Descrição</th>", '<th colspan="4">Nível</th>') + "</thead><tbody>" +
+        linhasResumo.map(function (l) {
+          return '<tr class="resumo"><td colspan="4">' + l[1] + '</td><td class="n">' + celTotal(l[0], "f") + '</td><td class="n">' + celTotal(l[0], "r") + '</td><td class="n">' + celTotal(l[0], "p") + "</td><td></td></tr>";
+        }).join("") + "</tbody>") + "</section>";
+  }
+
   function htmlEmpresa(edita) {
-    var rs = linhas.filter(function (r) { return r.Nivel === "EMPRESA"; });
-    if (filtro && !casa("EMPRESA") && !rs.some(function (r) { return casa(textoLinha(r)); })) return "";
-    var itens = itensBlocoOS(), porNeg = {};
-    itens.forEach(function (x) { var n = x.ctt ? x.ctt.negocio : x.r.Negocio; if (!n || !ativa(x.r)) return; porNeg[n] = porNeg[n] || { f: 0, r: 0 }; porNeg[n].f += x.r.FatMeta || 0; porNeg[n].r += x.r.ResMeta || 0; });
-    linhas.forEach(function (r) { if (r.Nivel === "NEGOCIO" && ativa(r) && r.Negocio) { porNeg[r.Negocio] = porNeg[r.Negocio] || { f: 0, r: 0 }; porNeg[r.Negocio].f += r.FatMeta || 0; porNeg[r.Negocio].r += r.ResMeta || 0; } });
-    var conf = Object.keys(porNeg).sort().map(function (n) { return n + " " + fmtVal(porNeg[n].f) + " / " + fmtVal(porNeg[n].r); }).join(" · ");
-    return '<section class="caixa" id="cx-E"><div class="caixa-topo"><h2>Empresa</h2><span class="dica">Meta da diretoria por negócio</span>' + htmlTotal("E") +
-      '<span class="dir">' + (edita ? botaoNovo("EMPRESA") : "") + "</span></div>" +
-      tabelaMeta(rs, edita, "Nenhuma meta da empresa.", casa("EMPRESA")) +
-      (conf ? '<div class="conferencia">Conferência · soma das OSs, prospecções e Locações por negócio: ' + esc(conf) + "</div>" : "") + "</section>";
+    var rs = nivel("EMPRESA");
+    var n = rs.filter(function (r) { return grupoEmpresa(r) === "N"; }), c = rs.filter(function (r) { return grupoEmpresa(r) === "C"; });
+    var todas = casa("EMPRESA");
+    if (filtro && !todas && !rs.some(function (r) { return casa(textoLinha(r)); })) return "";
+    return '<h2 class="grupo-titulo">Empresa</h2><section class="caixa" id="cx-E">' +
+      tabela("", "<thead>" + cabecalho("Empresa · por negócio", "EN", edita ? botaoNovo("EMPRESA", "N") : "") + TITULOS + "</thead><tbody>" + linhasMeta(n, edita, "Nenhuma meta por negócio.", todas) + "</tbody>") +
+      tabela("", "<thead>" + cabecalho("Empresa · por classificação", "EC", edita ? botaoNovo("EMPRESA", "C") : "") + TITULOS + "</thead><tbody>" + linhasMeta(c, edita, "Nenhuma meta por classificação.", todas) + "</tbody>") +
+      "</section>";
   }
 
   function htmlSupers(edita) {
     var supers = SUPER_OPERACIONAIS.slice();
-    linhas.forEach(function (r) { if (r.Nivel === "SUPERINTENDENTE" && r.CodSuperintendente && supers.indexOf(r.CodSuperintendente) < 0) supers.push(r.CodSuperintendente); });
+    nivel("SUPERINTENDENTE").forEach(function (r) { if (r.CodSuperintendente && supers.indexOf(r.CodSuperintendente) < 0) supers.push(r.CodSuperintendente); });
     supers.sort(porNomeSup);
     var h = "";
     supers.forEach(function (s) {
-      var rs = linhas.filter(function (r) { return r.Nivel === "SUPERINTENDENTE" && r.CodSuperintendente === s; });
+      var rs = nivel("SUPERINTENDENTE").filter(function (r) { return r.CodSuperintendente === s; });
       var nome = nomeSup(s, rs[0] ? rs[0].Superintendente : "");
       var nomeCasa = casa(nome);
-      var gers = gerentesDoSuper(s);
-      var subs = gers.map(function (g) { return htmlGerente(g, edita, nomeCasa); }).join("");
+      var subs = gerentesDoSuper(s).map(function (g) { return htmlGerente(g, edita, nomeCasa); }).join("");
       if (filtro && !nomeCasa && !subs && !rs.some(function (r) { return casa(textoLinha(r)); })) return;
-      h += '<section class="caixa super" id="cx-S-' + esc(s) + '"><div class="caixa-topo"><h3>' + esc(nome) + '</h3><span class="papel">Superintendente</span>' + htmlTotal("S:" + s) +
-        '<span class="dir">' + (edita ? botaoNovo("SUPERINTENDENTE", s) : "") + "</span></div>" +
-        tabelaMeta(rs, edita, "Sem meta cadastrada para o superintendente.", nomeCasa) +
-        '<div class="conferencia">Soma das metas dos gerentes: ' + htmlTotal("SG:" + s, true) + htmlTotal("D:" + s) + "</div>" +
-        '<div class="gerentes"><div class="gerentes-titulo">Gerentes de ' + esc(nome) + "</div>" + (subs || '<div class="vazio">Nenhum gerente com OS ativa ou meta.</div>') + "</div></section>";
+      h += '<section class="caixa" id="cx-S-' + esc(s) + '">' +
+        tabela("", "<thead>" + cabecalho(esc(nome) + '<span class="papel">Superintendente</span>', "S:" + s, edita ? botaoNovo("SUPERINTENDENTE", s) : "") +
+          linhaRef("Soma das metas dos gerentes", "SG:" + s, '<span data-tot="D:' + esc(s) + '|x">' + valorTotal("D:" + s + "|x") + "</span>") + TITULOS + "</thead><tbody>" +
+          linhasMeta(rs, edita, "Sem meta cadastrada para o superintendente.", nomeCasa) + "</tbody>") +
+        (subs || '<div class="vazio">Nenhum gerente com OS ativa ou meta.</div>') + "</section>";
     });
-    return h ? '<h2 class="grupo-titulo">Superintendentes e gerentes</h2>' + h : "";
+    return h ? '<h2 class="grupo-titulo">Superintendentes e seus gerentes</h2>' + h : "";
   }
 
   function htmlGerente(g, edita, paiCasa) {
-    var rs = linhas.filter(function (r) { return r.Nivel === "GERENTE" && r.CodGerente === g; });
+    var rs = nivel("GERENTE").filter(function (r) { return r.CodGerente === g; });
     var nome = nomeGer(g, rs[0] ? rs[0].Gerente : "");
     var todas = paiCasa || casa(nome);
     if (filtro && !todas && !rs.some(function (r) { return casa(textoLinha(r)); })) return "";
-    return '<div class="caixa sub" id="cx-G-' + esc(g) + '"><div class="caixa-topo"><h4>' + esc(nome) + '</h4><span class="papel">Gerente</span>' +
-      (GER[g] ? "" : '<span class="nota">sem OS ativa na CTT</span>') + htmlTotal("G:" + g) +
-      '<span class="dica">OSs e prospecções: </span>' + htmlTotal("OG:" + g, true) +
-      '<span class="dir">' + (edita ? botaoNovo("GERENTE", g) : "") + "</span></div>" +
-      tabelaMeta(rs, edita, "Sem meta cadastrada para o gerente.", todas) + "</div>";
+    return '<div id="cx-G-' + esc(g) + '">' +
+      tabela("sub", "<thead>" + cabecalho(esc(nome) + '<span class="papel">Gerente</span>' + (GER[g] ? "" : '<span class="nota">sem OS ativa na CTT</span>'), "G:" + g, edita ? botaoNovo("GERENTE", g) : "") +
+        linhaRef("OSs e prospecções do gerente", "OG:" + g) + "</thead><tbody>" +
+        linhasMeta(rs, edita, "Sem meta cadastrada para o gerente.", todas) + "</tbody>") + "</div>";
   }
 
   function htmlLocacoes(edita) {
-    var rs = linhas.filter(function (r) { return r.Nivel === "NEGOCIO"; });
+    var rs = nivel("NEGOCIO");
     if (!rs.length) return "";
     if (filtro && !casa("LOCACOES") && !rs.some(function (r) { return casa(textoLinha(r)); })) return "";
     var g = rs[0].CodGerente;
-    return '<h2 class="grupo-titulo">Locações</h2><section class="caixa" id="cx-L"><div class="caixa-topo"><h3>Locações</h3>' +
-      '<span class="dica">Gerente <b>' + esc(nomeGer(g, rs[0].Gerente)) + "</b> · Superintendente <b>" + esc(nomeSupDoGerente(g)) + "</b></span>" + htmlTotal("L") + "</div>" +
-      tabelaMeta(rs, edita, "", true) + "</section>";
+    return '<h2 class="grupo-titulo">Locações</h2><section class="caixa" id="cx-L">' +
+      tabela("", "<thead>" + cabecalho('Locações<span class="papel">Gerente</span> ' + esc(nomeGer(g, rs[0].Gerente)) + '<span class="papel">Superintendente</span> ' + esc(nomeSupDoGerente(g)), "L", "") + TITULOS + "</thead><tbody>" +
+        linhasMeta(rs, edita, "", true) + "</tbody>") + "</section>";
   }
 
   // Gerente com meta cujo superintendente na CTT nao e operacional (nao cabe em nenhuma caixa acima)
   function htmlOutrosGerentes(edita) {
     var mostrados = {};
     SUPER_OPERACIONAIS.forEach(function (s) { gerentesDoSuper(s).forEach(function (g) { mostrados[g] = 1; }); });
-    linhas.forEach(function (r) { if (r.Nivel === "SUPERINTENDENTE" && SUPER_OPERACIONAIS.indexOf(r.CodSuperintendente) < 0) gerentesDoSuper(r.CodSuperintendente).forEach(function (g) { mostrados[g] = 1; }); });
-    var outros = unicos(linhas.filter(function (r) { return r.Nivel === "GERENTE" && r.CodGerente && !mostrados[r.CodGerente]; }).map(function (r) { return r.CodGerente; })).sort(porNomeGer);
-    if (!outros.length) return "";
+    nivel("SUPERINTENDENTE").forEach(function (r) { gerentesDoSuper(r.CodSuperintendente).forEach(function (g) { mostrados[g] = 1; }); });
+    var outros = unicos(nivel("GERENTE").filter(function (r) { return r.CodGerente && !mostrados[r.CodGerente]; }).map(function (r) { return r.CodGerente; })).sort(porNomeGer);
     var subs = outros.map(function (g) { return htmlGerente(g, edita, false); }).join("");
-    return subs ? '<h2 class="grupo-titulo">Outros gerentes</h2><section class="caixa"><div class="gerentes">' + subs + "</div></section>" : "";
+    return subs ? '<h2 class="grupo-titulo">Outros gerentes</h2><section class="caixa">' + subs + "</section>" : "";
   }
 
   function htmlOS(edita) {
@@ -697,8 +758,8 @@
       if (!a) return -1; if (!b) return 1;
       return nomeSupDoGerente(a).localeCompare(nomeSupDoGerente(b)) || porNomeGer(a, b);
     });
-    var vigentes = itens.filter(function (x) { return x.ctt; }).length, prosp = itens.filter(function (x) { return x.tipo === "P"; }).length;
-    var corpo = "";
+    var vigentes = itens.filter(function (x) { return x.ctt; }).length, encerradas = itens.filter(function (x) { return x.tipo === "OS" && !x.ctt; }).length, prosp = itens.filter(function (x) { return x.tipo === "P"; }).length;
+    var ncol = edita ? 10 : 9, corpo = "";
     chaves.forEach(function (g) {
       var nomeG = g ? nomeGer(g, (grupos[g][0].r || {}).Gerente) : "Sem gerente";
       var nomeS = g ? nomeSupDoGerente(g) : "";
@@ -709,24 +770,28 @@
         if (a.tipo !== b.tipo) return a.tipo === "OS" ? -1 : 1;
         return a.tipo === "OS" ? String(a.r.CodOS || (a.ctt && a.ctt.cod)).localeCompare(String(b.r.CodOS || (b.ctt && b.ctt.cod))) : String(a.r.Cliente).localeCompare(String(b.r.Cliente));
       });
-      corpo += '<tr class="grupo-linha"><td colspan="' + (edita ? 10 : 9) + '"><b>' + esc(nomeG) + "</b>" + (nomeS ? ' <span class="dica">· ' + esc(nomeS) + "</span> " : " ") + htmlTotal("OG:" + g, true) + "</td></tr>";
-      vis.forEach(function (x) { corpo += x.tipo === "OS" ? linhaOSHtml(x, edita) : linhaProspHtml(x, edita); });
+      corpo += '<tr class="grupo-linha"><td colspan="5"><b>' + esc(nomeG) + "</b>" + (nomeS ? ' <span class="dica">· ' + esc(nomeS) + "</span>" : "") + '</td><td class="n">' + celTotal("OG:" + g, "f") + '</td><td class="n">' + celTotal("OG:" + g, "r") + '</td><td class="n">' + celTotal("OG:" + g, "p") + '</td><td colspan="' + (ncol - 8) + '"></td></tr>';
+      vis.forEach(function (x) { corpo += x.tipo === "OS" ? linhaOSHtml(x, edita, ncol) : linhaProspHtml(x, edita); });
     });
-    var h = '<h2 class="grupo-titulo">OSs e prospecções</h2><section class="caixa" id="cx-OS"><div class="caixa-topo"><h3>OS</h3><span class="dica">' + vigentes + " OSs ativas na CTT · " + prosp + " prospecções · agrupadas por gerente</span>" + htmlTotal("OS") +
+    var h = '<h2 class="grupo-titulo">OSs e prospecções</h2><section class="caixa" id="cx-OS"><div class="caixa-topo"><h3>OS</h3><span class="dica">' + vigentes + " ativas na CTT · " + encerradas + " encerradas com meta no ano · " + prosp + " prospecções · agrupadas por gerente</span>" +
       '<span class="dir">' + (edita ? botaoNovo("PROSPECCAO", "", "+ Adicionar prospecção") : "") + "</span></div>";
     if (!corpo) return h + '<div class="vazio">' + (itens.length ? "Nada no filtro." : "Nenhuma OS recebida da CTT.") + "</div></section>";
     return h + '<div class="rolagem"><table><thead><tr><th>OS / prospecção</th><th>Gerente</th><th>Superintendente</th><th>Negócio</th><th>Classificação</th>' +
       '<th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th><th>Situação</th>' + (edita ? "<th></th>" : "") + "</tr></thead><tbody>" + corpo + "</tbody></table></div></section>";
   }
-  function linhaOSHtml(x, edita) {
+  function linhaOSHtml(x, edita, ncol) {
     var r = x.r, o = x.ctt, cod = o ? o.cod : r.CodOS;
     var ger = o ? nomeGer(o.codGer) : nomeGer(r.CodGerente, r.Gerente);
     var sup = o ? nomeSup(o.codSup) : nomeSup(r.CodSuperintendente, r.Superintendente);
+    var desc = o ? o.desc : String(r.Nome || "").replace(new RegExp("^" + cod + "\\s*-\\s*"), "");
     var pend = o && !(r._orig.FatMeta > 0);
-    return "<tr" + atributosLinha(r, pend ? "pend" : "") + ' data-os="' + esc(cod) + '"><td><span class="os">' + esc(cod) + '</span><div class="desc">' + esc(o ? o.desc : (r.Nome || r.Descricao)) + "</div></td>" +
+    var h = "<tr" + atributosLinha(r, pend ? "pend" : "") + ' data-os="' + esc(cod) + '"><td><span class="os">' + esc(cod) + '</span><div class="desc">' + esc(desc) + "</div></td>" +
       "<td>" + esc(ger) + "</td><td>" + esc(sup) + "</td><td>" + esc(o ? o.negocio : r.Negocio) + "</td><td>" + esc(o ? o.classificacao : r.Classificacao) + "</td>" +
       numero(r, "FatMeta", edita, "Faturamento", false) + numero(r, "ResMeta", edita, "Resultado", r.EntradaPor === "MARGEM") + numero(r, "MargemMeta", edita, "Margem", r.EntradaPor !== "MARGEM") +
       '<td class="sit">' + chipsItem(x) + "</td>" + (edita ? "<td></td>" : "") + "</tr>";
+    // Observacao da CTT fica na propria OS, destacada logo abaixo dela
+    if (o && violacao(o)) h += '<tr class="obs"><td colspan="' + ncol + '">⚠ Observação da CTT: ' + esc(o.cod) + " está com " + esc(violacao(o)) + ". Corrigir o cadastro (ATIVO só em EXECUCAO, DEMOBILIZACAO ou NOVA; ATUAL sempre FINALIZADA).</td></tr>";
+    return h;
   }
   function linhaProspHtml(x, edita) {
     var r = x.r;
@@ -735,7 +800,7 @@
         '<input class="t" data-f="Descricao" value="' + esc(r.Descricao || r.Nome) + '" placeholder="Descrição" aria-label="Descrição">' +
         '<input class="t" data-f="ClassificacaoAdicional" value="' + esc(r.ClassificacaoAdicional) + '" placeholder="Classif. adicional" aria-label="Classificação adicional">'
       : '<span class="chip pros">PROSPECÇÃO</span> <b>' + esc(r.Cliente) + '</b><div class="desc">' + esc([r.Descricao || r.Nome, r.ClassificacaoAdicional].filter(Boolean).join(" · ")) + "</div>";
-    return "<tr" + atributosLinha(r, "prosp") + "><td>" + ident + "</td>" + combo(r, "CodGerente", edita) + "<td>" + esc(r.CodGerente ? nomeSupDoGerente(r.CodGerente) : "") + "</td>" +
+    return "<tr" + atributosLinha(r, "prosp") + '><td style="min-width:340px">' + ident + "</td>" + combo(r, "CodGerente", edita) + "<td>" + esc(r.CodGerente ? nomeSupDoGerente(r.CodGerente) : "") + "</td>" +
       combo(r, "Negocio", edita) + combo(r, "Classificacao", edita) +
       numero(r, "FatMeta", edita, "Faturamento", false) + numero(r, "ResMeta", edita, "Resultado", r.EntradaPor === "MARGEM") + numero(r, "MargemMeta", edita, "Margem", r.EntradaPor !== "MARGEM") +
       '<td class="sit">' + chipsItem(x) + "</td>" + (edita ? botaoRemover(r) : "") + "</tr>";
@@ -744,8 +809,8 @@
     var r = x.r, o = x.ctt, chips = [];
     if (r.FatMeta > 0) chips.push('<span class="chip def">definida</span>');
     else chips.push('<span class="chip sem">sem meta</span>');
-    if (x.tipo === "OS" && !o) chips.push('<span class="chip fora">não ativa na CTT</span>');
-    if (o && violacao(o)) chips.push('<span class="chip viol">CTT: ' + esc(violacao(o)) + "</span>");
+    if (x.tipo === "OS" && !o) chips.push('<span class="chip fora">encerrada na CTT</span>');
+    if (o && violacao(o)) chips.push('<span class="chip viol">ver observação</span>');
     if (o && r.id && divergenciasCTT(x).length) chips.push('<span class="chip sync" title="A lista guarda outro valor; a CTT manda e a lista é atualizada ao salvar">CTT atualizou ' + esc(divergenciasCTT(x).join(", ")) + "</span>");
     return chips.join("");
   }
@@ -784,7 +849,7 @@
     fl.innerHTML = (ops.length > 8 ? '<input class="filtro-combo" type="text" placeholder="Digite para filtrar" aria-label="Filtrar opções">' : "") + '<div class="opcoes" role="listbox"></div>';
     desenharOpcoes();
     var rect = btn.getBoundingClientRect();
-    fl.style.minWidth = Math.max(rect.width, 180) + "px";
+    fl.style.minWidth = Math.max(rect.width, 270) + "px";
     fl.style.left = (rect.left + window.pageXOffset) + "px";
     fl.style.top = (rect.bottom + window.pageYOffset + 3) + "px";
     fl.hidden = false;
@@ -844,7 +909,7 @@
     msgStatus = ""; corStatus = "";
     if (campo === "FatMeta" || campo === "ResMeta" || campo === "MargemMeta") {
       var n = lerNumero(el.value);
-      if (isNaN(n)) { msgStatus = "Valor inválido: use números, por exemplo 844.354.000"; corStatus = "erro"; atualizarNoLugar(tr, r); return; }
+      if (isNaN(n)) { msgStatus = "Valor inválido: use números, por exemplo 844.354.000"; corStatus = "erro"; atualizarNoLugar(r); return; }
       if (campo === "MargemMeta") { r.MargemMeta = n == null ? null : n / 100; r.EntradaPor = "MARGEM"; }
       else if (campo === "ResMeta") { r.ResMeta = n; r.EntradaPor = "RESULTADO"; }
       else r.FatMeta = n;
@@ -853,28 +918,46 @@
     } else {
       r[campo] = semAcento(el.value).toUpperCase().trim();
     }
-    atualizarNoLugar(tr, r);
+    atualizarNoLugar(r);
   }
-  // Atualiza so a linha, os totais e o topo: redesenhar tudo tirava o foco do campo seguinte.
-  function atualizarNoLugar(tr, r) {
-    tr.querySelectorAll("input[data-f]").forEach(function (i) {
-      var c = i.getAttribute("data-f"), numerico = c === "FatMeta" || c === "ResMeta" || c === "MargemMeta";
-      if (numerico) i.value = c === "MargemMeta" ? fmtPct(r[c]) : fmtVal(r[c]);
-      else i.value = r[c] || "";
-      if (numerico) i.classList.toggle("calc", (c === "ResMeta" && r.EntradaPor === "MARGEM") || (c === "MargemMeta" && r.EntradaPor !== "MARGEM"));
-      i.classList.toggle("alterado", numerico ? alterado(r, c) : !!(r.id && alterado(r, c)));
+  // Atualiza as copias da linha (a OS pode estar no cadastro rapido e no bloco de OS), os totais
+  // e a barra. Redesenhar tudo tirava o foco do campo seguinte.
+  function atualizarNoLugar(r) {
+    document.querySelectorAll('tr[data-uid="' + r.uid + '"]').forEach(function (tr) {
+      tr.querySelectorAll("input[data-f]").forEach(function (i) {
+        if (i === document.activeElement) return;
+        var c = i.getAttribute("data-f"), numerico = c === "FatMeta" || c === "ResMeta" || c === "MargemMeta";
+        if (numerico) i.value = c === "MargemMeta" ? fmtPct(r[c]) : fmtVal(r[c]);
+        else i.value = r[c] || "";
+      });
+      tr.querySelectorAll("input[data-f]").forEach(function (i) {
+        var c = i.getAttribute("data-f"), numerico = c === "FatMeta" || c === "ResMeta" || c === "MargemMeta";
+        if (numerico) i.classList.toggle("calc", (c === "ResMeta" && r.EntradaPor === "MARGEM") || (c === "MargemMeta" && r.EntradaPor !== "MARGEM"));
+        i.classList.toggle("alterado", numerico ? alterado(r, c) : !!(r.id && alterado(r, c)));
+      });
+      var sit = tr.querySelector("td.sit");
+      if (sit) { var x = itensBlocoOS().filter(function (y) { return y.r.uid === r.uid; })[0]; if (x) sit.innerHTML = chipsItem(x); }
     });
-    var sit = tr.querySelector("td.sit");
-    if (sit) { var x = itensBlocoOS().filter(function (y) { return y.r.uid === r.uid; })[0]; if (x) sit.innerHTML = chipsItem(x); }
+    // o campo que acabou de mudar recebe o valor formatado
+    var ativo = document.activeElement;
+    if (ativo && ativo.matches && ativo.matches("input[data-f]")) {
+      var trA = ativo.closest("tr[data-uid]");
+      if (trA && trA.getAttribute("data-uid") !== r.uid) ativo = null;
+    }
     atualizarTotais();
-    var topo = document.getElementById("topoMetas");
-    if (topo) topo.innerHTML = htmlTopo(ehProprietario());
+    var barra = document.getElementById("barraMetas");
+    if (barra) {
+      var f = document.getElementById("filtro"), temFoco = f && f === document.activeElement;
+      barra.innerHTML = htmlBarra(ehProprietario());
+      if (temFoco) { var nf = document.getElementById("filtro"); if (nf) nf.focus(); }
+    }
   }
-  function novaLinha(nivel, cod) {
-    var r = linhaVazia(nivel);
-    if (nivel === "SUPERINTENDENTE") { r.CodSuperintendente = cod; r.Superintendente = nomeSup(cod); }
-    if (nivel === "GERENTE") { r.CodGerente = cod; r.Gerente = nomeGer(cod); r.CodSuperintendente = supDoGerente(cod); r.Superintendente = nomeSup(r.CodSuperintendente); }
-    if (nivel === "PROSPECCAO") r.Classificacao = "PROSPECCAO";
+  function novaLinha(nivelNovo, cod) {
+    var r = linhaVazia(nivelNovo);
+    if (nivelNovo === "EMPRESA") r._grupoEmp = cod === "C" ? "C" : "N";
+    if (nivelNovo === "SUPERINTENDENTE") { r.CodSuperintendente = cod; r.Superintendente = nomeSup(cod); }
+    if (nivelNovo === "GERENTE") { r.CodGerente = cod; r.Gerente = nomeGer(cod); r.CodSuperintendente = supDoGerente(cod); r.Superintendente = nomeSup(r.CodSuperintendente); }
+    if (nivelNovo === "PROSPECCAO") r.Classificacao = "PROSPECCAO";
     linhas.push(r);
     filtro = "";
     render();
@@ -919,7 +1002,8 @@
     for (var i = 0; i < lista.length; i++) {
       var r = lista[i].r;
       if (r.Nivel === "OS" || r.Ativo === "Nao") continue;
-      if (r.Nivel === "EMPRESA" && !r.Negocio) return "Toda linha da Empresa precisa de negócio.";
+      if (r.Nivel === "EMPRESA" && grupoEmpresa(r) === "N" && !r.Negocio) return "Linha da Empresa por negócio precisa do negócio.";
+      if (r.Nivel === "EMPRESA" && grupoEmpresa(r) === "C" && !r.Classificacao) return "Linha da Empresa por classificação precisa da classificação.";
       if (r.Nivel === "PROSPECCAO" && (!r.CodGerente || !r.Negocio)) return "Toda prospecção precisa de gerente e negócio.";
       if (r.Nivel === "PROSPECCAO" && !r.Cliente) return "Informe o cliente da prospecção.";
     }
@@ -928,6 +1012,7 @@
   function payload(x) {
     var r = x.r, campos = {};
     if (x.ctt) aplicarCTT(x); else aplicarCTTLinha(r);
+    if (r.Nivel === "EMPRESA" && grupoEmpresa(r) === "C") r.Negocio = "";
     if (!r.id) {
       if (r.Nivel === "OS") r.Title = ANO + "|OS|" + r.CodOS;
       else if (r.Nivel === "EMPRESA") r.Title = proximaChave(ANO + "|EMPRESA");
@@ -939,16 +1024,19 @@
       campos.Situacao = "RASCUNHO"; campos.Origem = "APP";
     }
     ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "EntradaPor", "Ativo"].forEach(function (c) { campos[c] = r[c] || ""; });
-    if (r.Nivel !== "OS") ["ClassificacaoAdicional", "Descricao", "Cliente"].forEach(function (c) { campos[c] = r[c] || ""; });
+    if (r.Nivel === "OS") { if (x.ctt) campos.Nome = r.Nome; }
+    else ["ClassificacaoAdicional", "Descricao", "Cliente"].forEach(function (c) { campos[c] = r[c] || ""; });
     campos.FatMeta = r.FatMeta; campos.ResMeta = r.ResMeta; campos.MargemMeta = r.MargemMeta;
     campos.AtualizadoPor = sessao.login; campos.AtualizadoEm = new Date().toISOString();
     return { id: r.id, campos: campos };
   }
-  async function salvar() {
+  // Grava tudo o que esta pendente (inclusive a OS do cadastro rapido) e recarrega da lista
+  async function salvar(mensagemOk) {
     var p = pendencias();
     var erro = validar(p.lista);
     confirmando = false;
-    if (erro) { msgStatus = erro; corStatus = "erro"; render(); return; }
+    if (erro) { msgStatus = erro; corStatus = "erro"; render(); return false; }
+    if (!p.total) { msgStatus = "Nada para gravar."; corStatus = ""; render(); return false; }
     gravando = true; msgStatus = "Gravando " + p.total + (p.total === 1 ? " linha..." : " linhas..."); corStatus = ""; render();
     var itens = p.lista.map(payload), falha = "";
     try {
@@ -962,9 +1050,18 @@
     } catch (e) { falha = "Falha de conexão ao gravar."; }
     gravando = false;
     await carregar();
-    msgStatus = falha || ("Gravado: " + itens.length + (itens.length === 1 ? " linha." : " linhas."));
+    msgStatus = falha || mensagemOk || ("Gravado: " + itens.length + (itens.length === 1 ? " linha." : " linhas."));
     corStatus = falha ? "erro" : "ok";
     render();
+    return !falha;
+  }
+  async function gravarRapido() {
+    var x = montarOS().filter(function (y) { return y.ctt && y.ctt.cod === rapidoOS; })[0];
+    if (!x) return;
+    if (!(x.r.FatMeta > 0)) { msgStatus = "Informe o faturamento da " + rapidoOS + " antes de gravar."; corStatus = "erro"; render(); return; }
+    var cod = rapidoOS;
+    var ok = await salvar("Meta da " + cod + " gravada.");
+    if (ok) { rapidoOS = ""; render(); }
   }
 
   // ===========================================================================
@@ -978,15 +1075,25 @@
     if (!t) return;
     if (t.hasAttribute("data-combo")) { if (comboAtual && comboAtual.btn === t) fecharCombo(); else abrirCombo(t); return; }
     if (t.hasAttribute("data-aba")) { abaAtiva = t.getAttribute("data-aba"); render(); return; }
+    if (t.hasAttribute("data-rapido")) {
+      var c = t.getAttribute("data-rapido");
+      rapidoOS = rapidoOS === c ? "" : c;
+      render();
+      var inp = document.querySelector("#cx-rapido input[data-f='FatMeta']");
+      if (inp) { inp.focus(); inp.select(); }
+      return;
+    }
     if (t.hasAttribute("data-ir")) { filtro = ""; focoAlvo = t.getAttribute("data-ir"); render(); return; }
     if (t.hasAttribute("data-novo")) { novaLinha(t.getAttribute("data-novo"), t.getAttribute("data-cod") || ""); return; }
     if (t.hasAttribute("data-remover")) { remover(t.getAttribute("data-remover")); return; }
     var a = t.getAttribute("data-acao");
-    if (a === "sair") { sessao = null; gravarSessao(null); linhas = []; erroCarga = ""; render(); }
+    if (a === "sair") { sessao = null; gravarSessao(null); linhas = []; erroCarga = ""; rapidoOS = ""; render(); }
     else if (a === "recarregar") { msgStatus = ""; carregar(); }
     else if (a === "salvar") { confirmando = true; render(); }
     else if (a === "cancelarSalvar") { confirmando = false; render(); }
     else if (a === "confirmarSalvar") salvar();
+    else if (a === "gravarRapido") gravarRapido();
+    else if (a === "fecharRapido") { rapidoOS = ""; render(); }
   });
   document.addEventListener("change", function (ev) {
     if (ev.target.matches("#painel input[data-f]")) editar(ev.target);
