@@ -136,6 +136,8 @@
   tr.desativada td { opacity: .45; text-decoration: line-through; }
   tr.grupo-linha td { background: var(--bg-soft); border-top: 2px solid var(--line); padding: 8px 10px; }
   tr.grupo-linha b { font-size: .86rem; }
+  textarea.obs-geral { width: 100%; box-sizing: border-box; font: inherit; line-height: 1.5; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-card); color: inherit; resize: vertical; }
+  .obs-geral.leitura { white-space: pre-wrap; line-height: 1.5; }
   tr.obs td { background: var(--danger-bg); color: #991b1b; font-size: .78rem; font-weight: 700; padding: 6px 10px 8px 20px; }
   td input.v { width: 100%; text-align: right; padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 6px; font-variant-numeric: tabular-nums; }
   td input.v.calc { background: var(--bg-soft); color: var(--muted); }
@@ -170,7 +172,7 @@
   tr.cab.nivel2 th.n { padding-left: 10px; }
   tr.grande td { font-size: .95rem; }
   tr.grande td input.v, tr.grande .combo { font-size: .95rem; padding: 9px 12px; }
-  table.arvore { table-layout: fixed; min-width: 2240px; }
+  table.arvore { table-layout: fixed; min-width: 1700px; }
   table.arvore th.grupo-col { text-align: center; border-bottom: 1px solid var(--line-soft); }
   tr.no td { font-weight: 700; }
   tr.no.nivel1 td { background: var(--bg-soft); border-top: 2px solid var(--line); font-size: .95rem; padding-left: 12px; }
@@ -294,8 +296,8 @@
   var RESP = [], RESP_OK = false;      // cadastro de Responsaveis (Tipo RESPONSAVEL)
   var seq = 0;
 
-  var CAMPOS_TXT = ["Title", "Nivel", "CodOS", "CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "Nome", "EntradaPor", "Situacao", "Ativo", "Origem"];
-  var CAMPOS_EDIT = ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "FatMeta", "ResMeta", "MargemMeta", "EntradaPor", "Ativo"];
+  var CAMPOS_TXT = ["Title", "Nivel", "CodOS", "CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "Nome", "Justificativa", "EntradaPor", "Situacao", "Ativo", "Origem"];
+  var CAMPOS_EDIT = ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "FatMeta", "ResMeta", "MargemMeta", "EntradaPor", "Ativo", "Justificativa"];
   function normalizar(it) {
     var r = { uid: "r" + (++seq), id: parseInt(it.ID || it.Id || it.id, 10) || 0 };
     CAMPOS_TXT.forEach(function (c) { r[c] = it[c] == null ? "" : String(it[c]); });
@@ -446,6 +448,7 @@
     var i = k.indexOf(":"), t = i < 0 ? k : k.slice(0, i), c = i < 0 ? "" : k.slice(i + 1);
     if (t === "EN") return nivel("EMPRESA").filter(function (r) { return grupoEmpresa(r) === "N"; });
     if (t === "EC") return nivel("EMPRESA").filter(function (r) { return grupoEmpresa(r) === "C"; });
+    if (t === "ST") return nivel("SUPERINTENDENTE");
     if (t === "S") return nivel("SUPERINTENDENTE").filter(function (r) { return r.CodSuperintendente === c; });
     if (t === "G") return nivel("GERENTE").filter(function (r) { return r.CodGerente === c; });
     if (t === "SG") { var gs = gerentesDoSuper(c); return nivel("GERENTE").filter(function (r) { return gs.indexOf(r.CodGerente) >= 0; }); }
@@ -626,7 +629,7 @@
     if (erroCarga) return '<div class="aviso erro"><h3>Metas indisponíveis</h3><p>' + esc(erroCarga) + '</p></div><button type="button" class="btn" data-acao="recarregar">Tentar de novo</button>';
     var edita = ehProprietario();
     return '<div id="topoMetas">' + htmlTopo(edita) + "</div>" + '<div id="rapido">' + htmlRapido(edita) + "</div>" + '<div id="barraMetas">' + htmlBarra(edita) + "</div>" +
-      htmlEmpresa(edita) + htmlSupers(edita) + htmlLocacoes(edita) + htmlOutrosGerentes(edita) + htmlOS(edita);
+      htmlEmpresa(edita) + htmlSupers(edita) + htmlOutrosGerentes(edita) + htmlOS(edita) + htmlObservacoes(edita);
   }
 
   // ---- aviso de OS vigente sem meta: clicar abre o cadastro rapido logo abaixo
@@ -773,28 +776,21 @@
       }
       h += '<section class="caixa" id="cx-S-' + esc(s) + '">' + tabela("", "<tbody>" + corpo + "</tbody>") + "</section>";
     });
-    return h ? '<h2 class="grupo-titulo">Superintendentes e seus gerentes<span class="dir"><button type="button" class="btn abre peq" data-abrirtodos="1">Abrir todos</button><button type="button" class="btn abre peq" data-abrirtodos="0">Fechar todos</button></span></h2>' + h : "";
+    if (!h) return "";
+    return '<h2 class="grupo-titulo">Superintendentes e seus gerentes<span class="dir"><button type="button" class="btn abre peq" data-abrirtodos="1">Abrir todos</button><button type="button" class="btn abre peq" data-abrirtodos="0">Fechar todos</button></span></h2>' +
+      '<section class="caixa" id="cx-ST">' + tabela("", "<thead>" + cabecalho("Superintendentes · total geral", "ST", "") + "</thead>") + "</section>" + h;
   }
 
   // ---- Gerente: uma linha com a meta (coluna L); aberto, mostra as linhas e a distribuicao
   function linhasGerente(g, edita) {
     var rs = nivel("GERENTE").filter(function (r) { return r.CodGerente === g; });
-    var pr = prospeccoes(g);
-    var nome = nomeGer(g, (rs[0] || pr[0] || {}).Gerente);
+    var nome = nomeGer(g, (rs[0] || {}).Gerente);
     var aberto = !!abertosG[g] || (!!filtro && !casa(nome) && casaGerente(g));
     var h = '<tr class="cab nivel2" id="cx-G-' + esc(g) + '"><th colspan="4">' + seta("data-abrirg", g, aberto, nome) + esc(nome) + '<span class="papel">Gerente</span>' +
       (GER[g] ? "" : '<span class="nota">sem OS ativa na CTT</span>') +
-      (aberto && edita ? '<span class="dir">' + botaoNovo("GERENTE", g) + botaoNovo("PROSPECCAO", g, "+ Prospecção") + "</span>" : "") + "</th>" + celulasTotais("G:" + g) + "</tr>";
+      (aberto && edita ? '<span class="dir">' + botaoNovo("GERENTE", g) + "</span>" : "") + "</th>" + celulasTotais("G:" + g) + "</tr>";
     if (!aberto) return h;
-    var negs = unicos(osCarteira(g).map(function (x) { return x.ctt.negocio; }));
-    var agreg = negs.map(function (n) {
-      var qtd = osCarteira(g, n).length;
-      return '<tr class="agreg"><td>' + esc(n) + "</td><td>CARTEIRA</td><td></td><td>" + qtd + (qtd === 1 ? " OS" : " OSs") + ' (detalhe na lista de OS)</td><td class="n">' + celTotal("DC:" + g + ":" + n, "f") + '</td><td class="n">' + celTotal("DC:" + g + ":" + n, "r") + '</td><td class="n">' + celTotal("DC:" + g + ":" + n, "p") + "</td><td></td></tr>";
-    }).join("");
-    return h + TITULOS + linhasMeta(rs, edita, "Sem meta cadastrada para o gerente.", true) +
-      '<tr class="secao"><td colspan="8">Distribuição da meta · OSs de carteira e prospecções</td></tr>' +
-      ((agreg + pr.map(function (r) { return linhaProspeccao(r, edita); }).join("")) || '<tr><td colspan="8" class="vazio">Sem OSs de carteira nem prospecções.</td></tr>') +
-      linhaRef("Soma da distribuição", "DG:" + g, '<span data-tot="DD:' + esc(g) + '|x">' + valorTotal("DD:" + g + "|x") + "</span>", "soma");
+    return h + TITULOS + linhasMeta(rs, edita, "Sem meta cadastrada para o gerente.", true);
   }
   function linhaProspeccao(r, edita) {
     var cli = edita
@@ -804,6 +800,19 @@
       texto(r, "ClassificacaoAdicional", edita, "Classificação adicional") + "<td>" + cli + "</td>" + valoresLinha(r, edita) + "</tr>";
   }
 
+  // ---- Observacoes gerais do ano (mudancas de gerente/superintendente, revisoes): texto livre
+  function linhaObs() {
+    var r = nivel("OBSERVACAO")[0];
+    if (!r) { r = linhaVazia("OBSERVACAO"); r._virtual = true; linhas.push(r); }
+    return r;
+  }
+  function htmlObservacoes(edita) {
+    var r = linhaObs();
+    var corpo = edita
+      ? '<textarea class="obs-geral" id="obsGeral" data-f="Justificativa" rows="8" aria-label="Observações gerais">' + esc(r.Justificativa) + "</textarea>"
+      : (r.Justificativa ? '<div class="obs-geral leitura">' + esc(r.Justificativa) + "</div>" : '<div class="vazio">Nenhuma observação registrada.</div>');
+    return '<h2 class="grupo-titulo">Observações gerais</h2><section class="caixa" id="cx-OBS"><table class="grade"><tbody><tr' + atributosLinha(r) + '><td>' + corpo + "</td></tr></tbody></table></section>";
+  }
   function htmlLocacoes(edita) {
     var rs = nivel("NEGOCIO");
     if (!rs.length) return "";
@@ -869,7 +878,7 @@
   }
   function casaOS(x) { return casa(x.ctt.desc + " " + x.ctt.negocio + " " + x.ctt.classificacao); }
   function celulas3(base) { return '<td class="n">' + celTotal(base, "f") + '</td><td class="n">' + celTotal(base, "r") + '</td><td class="n">' + celTotal(base, "p") + "</td>"; }
-  var COL_OS = '<colgroup><col><col style="width:190px"><col style="width:210px"><col style="width:220px"><col style="width:220px"><col style="width:130px"><col style="width:220px"><col style="width:220px"><col style="width:130px"><col style="width:280px"></colgroup>';
+  var COL_OS = '<colgroup><col><col style="width:190px"><col style="width:210px"><col style="width:250px"><col style="width:250px"><col style="width:160px"><col style="width:280px"></colgroup>';
   function htmlOS(edita) {
     var arv = arvoreOS(), corpo = "";
     Object.keys(arv).sort(porNomeSup).forEach(function (s) {
@@ -886,33 +895,32 @@
           if (!oss.length) return;
           var chT = "T:" + g + "~" + t, abT = !!abertosOS[chT] || (!!filtro && !todasT);
           blocoG += '<tr class="no nivel3"><td colspan="3">' + seta("data-os-toggle", chT, abT, t) + '<span class="papel">Gestor</span> ' + esc(t) +
-            ' <span class="dica">· ' + oss.length + (oss.length === 1 ? " OS" : " OSs") + "</span></td><td></td><td></td><td></td>" + celulas3("OT:" + g + "~" + t) + "<td></td></tr>";
+            ' <span class="dica">· ' + oss.length + (oss.length === 1 ? " OS" : " OSs") + "</span></td>" + celulas3("OT:" + g + "~" + t) + "<td></td></tr>";
           if (abT) oss.forEach(function (x) { blocoG += linhaOSHtml(x, edita); });
         });
         if (!blocoG) return;
         blocoS += '<tr class="no nivel2"><td colspan="3">' + seta("data-os-toggle", chG, abG, nomeG) + '<span class="papel">Gerente</span> ' + esc(nomeG) + "</td>" +
-          celulas3("G:" + g) + celulas3("OG:" + g) + '<td><span data-tot="DOS:G:' + esc(g) + '|x">' + valorTotal("DOS:G:" + g + "|x") + "</span></td></tr>";
+          celulas3("OG:" + g) + "<td></td></tr>";
         if (abG) blocoS += blocoG;
       });
       if (!blocoS) return;
       corpo += '<tr class="no nivel1"><td colspan="3">' + seta("data-os-toggle", chS, abS, nomeS) + '<span class="papel">Superintendente</span> ' + esc(nomeS) + "</td>" +
-        celulas3("S:" + s) + celulas3("OSS:" + s) + '<td><span data-tot="DOS:S:' + esc(s) + '|x">' + valorTotal("DOS:S:" + s + "|x") + "</span></td></tr>";
+        celulas3("OSS:" + s) + "<td></td></tr>";
       if (abS) corpo += blocoS;
     });
     var h = '<h2 class="grupo-titulo">OS<span class="dir"><button type="button" class="btn abre peq" data-os-todos="1">Abrir todos</button><button type="button" class="btn abre peq" data-os-todos="0">Fechar todos</button></span></h2><section class="caixa" id="cx-OS">';
     if (!corpo) return h + '<div class="vazio">' + (Object.keys(OS_CTT).length ? "Nada no filtro." : "Nenhuma OS recebida da CTT.") + "</div></section>";
     return h + '<div class="rolagem"><table class="arvore">' + COL_OS +
-      '<thead><tr><th rowspan="2">Superintendente · Gerente · Gestor · OS</th><th rowspan="2">Negócio</th><th rowspan="2">Classificação</th><th colspan="3" class="grupo-col">Meta</th><th colspan="3" class="grupo-col">Soma das OSs</th><th rowspan="2">Situação</th></tr>' +
-      '<tr><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th></tr></thead><tbody>' + corpo + "</tbody></table></div></section>";
+      '<thead><tr><th>Superintendente · Gerente · Gestor · OS</th><th>Negócio</th><th>Classificação</th><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th><th>Situação</th></tr></thead><tbody>' + corpo + "</tbody></table></div></section>";
   }
   function linhaOSHtml(x, edita) {
     var r = x.r, o = x.ctt, hist = textoHistorico(o.cod);
     var h = "<tr" + atributosLinha(r, "folha") + ' data-os="' + esc(o.cod) + '"><td><div class="os">' + esc(o.desc) + "</div>" + (hist ? '<div class="desc">' + esc(hist) + "</div>" : "") + "</td>" +
-      "<td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td><td></td><td></td><td></td>" +
+      "<td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td>" +
       numero(r, "FatMeta", edita, "Faturamento", false) + numero(r, "ResMeta", edita, "Resultado", r.EntradaPor === "MARGEM") + numero(r, "MargemMeta", edita, "Margem", r.EntradaPor !== "MARGEM") +
       '<td class="sit">' + chipsItem(x) + "</td></tr>";
     // Observacao da CTT fica na propria OS, destacada logo abaixo dela
-    if (violacao(o)) h += '<tr class="obs"><td colspan="10">⚠ Observação da CTT: ' + esc(o.desc) + " está com " + esc(violacao(o)) + ". Corrigir o cadastro (ATIVO só em EXECUCAO, DEMOBILIZACAO ou NOVA; ATUAL e ENCERRADO sempre FINALIZADA).</td></tr>";
+    if (violacao(o)) h += '<tr class="obs"><td colspan="7">⚠ Observação da CTT: ' + esc(o.desc) + " está com " + esc(violacao(o)) + ". Corrigir o cadastro (ATIVO só em EXECUCAO, DEMOBILIZACAO ou NOVA; ATUAL e ENCERRADO sempre FINALIZADA).</td></tr>";
     return h;
   }
   function chipsItem(x) {
@@ -1027,6 +1035,8 @@
       else r.FatMeta = n;
       if (!r.EntradaPor) r.EntradaPor = "RESULTADO";
       recalcular(r);
+    } else if (campo === "Justificativa") {
+      r[campo] = el.value.replace(/\s+$/, "");
     } else {
       r[campo] = semAcento(el.value).toUpperCase().trim();
     }
@@ -1087,6 +1097,7 @@
     var novas = 0, alteradas = 0, ctt = 0, lista = [];
     linhas.forEach(function (r) {
       if (r.Nivel === "OS") return;
+      if (r.Nivel === "OBSERVACAO" && !r.id && !r.Justificativa) return;
       if (!r.id) { novas++; lista.push({ r: r }); }
       else if (linhaAlterada(r)) { alteradas++; lista.push({ r: r }); }
       else if (divergeCTTLinha(r)) { ctt++; lista.push({ r: r }); }
@@ -1134,6 +1145,7 @@
     }
     ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "EntradaPor", "Ativo"].forEach(function (c) { campos[c] = r[c] || ""; });
     if (r.Nivel === "OS") campos.Nome = r.Nome;
+    else if (r.Nivel === "OBSERVACAO") campos.Justificativa = r.Justificativa || "";
     else ["ClassificacaoAdicional", "Descricao", "Cliente"].forEach(function (c) { campos[c] = r[c] || ""; });
     campos.FatMeta = r.FatMeta; campos.ResMeta = r.ResMeta; campos.MargemMeta = r.MargemMeta;
     campos.AtualizadoPor = sessao.login; campos.AtualizadoEm = new Date().toISOString();
@@ -1233,7 +1245,7 @@
     else if (a === "fecharRapido") { rapidoOS = ""; render(); }
   });
   document.addEventListener("change", function (ev) {
-    if (ev.target.matches("#painel input[data-f]")) editar(ev.target);
+    if (ev.target.matches("#painel input[data-f], #painel textarea[data-f]")) editar(ev.target);
   });
   document.addEventListener("keydown", function (ev) {
     if (comboAtual) {
