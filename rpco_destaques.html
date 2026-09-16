@@ -164,6 +164,20 @@
   .construcao { padding: 60px 20px; text-align: center; color: var(--muted); }
   .construcao h2 { color: var(--text); margin-bottom: 6px; }
   .diag { margin-top: 12px; font-size: .7rem; color: #64748b; }
+  .seta { border: 1px solid var(--line); background: #fff; color: #1e3a8a; border-radius: 6px; min-width: 1.6rem; height: 1.6rem; margin-right: 10px; cursor: pointer; font-size: .8rem; line-height: 1; vertical-align: middle; }
+  .seta:hover { background: var(--accent-soft); }
+  tr.cab.nivel2 th { background: var(--bg-sub); font-size: .9rem; padding-left: 44px; border-top: 1px solid var(--line-soft); }
+  tr.cab.nivel2 th.n { padding-left: 10px; }
+  tr.grande td { font-size: .95rem; }
+  tr.grande td input.v, tr.grande .combo { font-size: .95rem; padding: 9px 12px; }
+  table.arvore { table-layout: fixed; min-width: 2240px; }
+  table.arvore th.grupo-col { text-align: center; border-bottom: 1px solid var(--line-soft); }
+  tr.no td { font-weight: 700; }
+  tr.no.nivel1 td { background: var(--bg-soft); border-top: 2px solid var(--line); font-size: .95rem; padding-left: 12px; }
+  tr.no.nivel2 td { background: var(--bg-sub); }
+  tr.no.nivel2 td:first-child { padding-left: 44px; }
+  tr.no.nivel3 td:first-child { padding-left: 76px; }
+  tr.folha td:first-child, tr.obs td { padding-left: 116px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
 </style>
 </head>
@@ -190,7 +204,9 @@
   var FLOW = {
     login:  "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/bcf1295963df418f91a48dd71ea02e60/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VfbYQC2H12f_6GZCSMmrctJBKF1B8ns4TalVByCO688",
     ler:    "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/20/workflows/a343fee6cc6345d681e0dd483dbb9d05/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=3nqkHSexMoJM-hcvhonWaF5vzaYENBy8ONwHhwyNEww",
-    gravar: "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/f42b6d3d1a8f45588136d0ce70d2d2ab/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=npaAIzRXLDdrejvhShfxykRxpHqrX2iiPHH373XtEo8"
+    gravar: "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/f42b6d3d1a8f45588136d0ce70d2d2ab/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=npaAIzRXLDdrejvhShfxykRxpHqrX2iiPHH373XtEo8",
+    // NPE-Ler-Metas (publico): traz o cadastro de Responsaveis do Acompanhamento de Performance
+    metas:  "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/eee057e0905d4712aa0317bb0acd74c3/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xDFTcuw4PksmljQDhYgPLtMDZtUeOWxXHojiUPzGCR0"
   };
   var ITERACOES = 200000;
   // Os unicos superintendentes operacionais (decisao do usuario, 15/09/2026). Os nomes vem da CTT.
@@ -274,6 +290,8 @@
   var carregando = false, erroCarga = "", filtro = "", msgStatus = "", corStatus = "";
   var confirmando = false, gravando = false, focoAlvo = "", rapidoOS = "";
   var abertos = {};   // superintendentes com os gerentes abertos
+  var abertosG = {}, abertosOS = {};   // gerentes abertos; nos abertos da arvore de OS
+  var RESP = [], RESP_OK = false;      // cadastro de Responsaveis (Tipo RESPONSAVEL)
   var seq = 0;
 
   var CAMPOS_TXT = ["Title", "Nivel", "CodOS", "CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "Nome", "EntradaPor", "Situacao", "Ativo", "Origem"];
@@ -436,6 +454,11 @@
     if (t === "L") return nivel("NEGOCIO");
     if (t === "OG") return montarOS().filter(function (x) { return x.ger === c; }).map(function (x) { return x.r; });
     if (t === "OS") return montarOS().map(function (x) { return x.r; });
+    if (t === "OSS") return montarOS().filter(function (x) { return x.ctt.codSup === c; }).map(function (x) { return x.r; });
+    if (t === "OT") {
+      var k2 = c.indexOf("~"), gg = c.slice(0, k2), tt = c.slice(k2 + 1);
+      return montarOS().filter(function (x) { return x.ger === gg && nomeGestor(x.ctt.cod) === tt; }).map(function (x) { return x.r; });
+    }
     return [];
   }
   function somar(rs) {
@@ -453,6 +476,7 @@
     var i = chave.lastIndexOf("|"), base = chave.slice(0, i), parte = chave.slice(i + 1);
     if (base.indexOf("D:") === 0) { var s = base.slice(2); return textoDiferenca(somar(linhasDoTotal("S:" + s)), somar(linhasDoTotal("SG:" + s)), "do superintendente"); }
     if (base.indexOf("DD:") === 0) { var g = base.slice(3); return textoDiferenca(somar(linhasDoTotal("G:" + g)), somar(linhasDoTotal("DG:" + g)), "do gerente"); }
+    if (base.indexOf("DOS:") === 0) { var kk = base.slice(4); return textoDiferenca(somar(linhasDoTotal(kk)), somar(linhasDoTotal((kk.charAt(0) === "S" ? "OSS:" : "OG:") + kk.slice(2))), ""); }
     var t = somar(linhasDoTotal(base));
     if (!t.n) return parte === "f" ? '<span class="chip sem">sem meta</span>' : "";
     if (parte === "f") return fmtVal(t.f);
@@ -477,13 +501,21 @@
     if (!sessao) return;
     carregando = true; erroCarga = ""; render();
     try {
+      var pMetas = postar(FLOW.metas, {}).catch(function () { return null; });
       var res = await postar(FLOW.ler, { login: sessao.login, hash: sessao.hash });
       tratarLeitura(res);
+      tratarResp(await pMetas);
     } catch (e) {
       erroCarga = "Não foi possível ler as metas agora. Verifique a conexão e tente de novo.";
     }
     carregando = false;
     render();
+  }
+  function tratarResp(res) {
+    if (res && res.status === 200 && res.json && Array.isArray(res.json.parametros)) {
+      RESP = res.json.parametros.filter(function (p) { return String(p.tipo) === "RESPONSAVEL" && String(p.ativo) === "Sim"; });
+      RESP_OK = true;
+    } else RESP_OK = false;
   }
   function tratarLeitura(res) {
     if (res.status === 403) { erroCarga = "Acesso restrito a usuários Master. Entre novamente."; sessao = null; gravarSessao(null); }
@@ -566,6 +598,7 @@
       var hash = await derivarHash(login, senha);
       var pLogin = postar(FLOW.login, { login: login, hash: hash });
       var pLer = postar(FLOW.ler, { login: login, hash: hash }).catch(function () { return null; });
+      var pMetas = postar(FLOW.metas, {}).catch(function () { return null; });
       var res = await pLogin;
       if (res.status !== 200 || !res.json || res.json.ok !== true) {
         avisoLogin(res.status === 200 ? "Usuário ou senha incorretos." : "Falha ao consultar o servidor (HTTP " + res.status + ").", login);
@@ -578,6 +611,7 @@
       var ler = await pLer;
       carregando = false;
       if (ler) tratarLeitura(ler); else erroCarga = "Não foi possível ler as metas agora. Verifique a conexão e tente de novo.";
+      tratarResp(await pMetas);
       render();
     } catch (e) {
       avisoLogin("Não foi possível validar o acesso agora (" + (e && e.message ? e.message : "erro de rede") + ").", login);
@@ -685,23 +719,35 @@
     var campo = dim === "N" ? "Negocio" : "Classificacao";
     var vis = todas ? rs : rs.filter(function (r) { return casa(textoLinha(r)); });
     if (!vis.length) return '<tr><td colspan="8" class="vazio">' + (rs.length ? "Nenhuma linha no filtro." : "Nenhuma meta cadastrada.") + "</td></tr>";
-    return vis.map(function (r) {
-      return "<tr" + atributosLinha(r) + ">" + combo(r, campo, edita, 2) + texto(r, "ClassificacaoAdicional", edita, "Classificação adicional") + texto(r, "Descricao", edita, "Descrição") + valoresLinha(r, edita) + "</tr>";
-    }).join("");
+    return vis.map(function (r) { return "<tr" + atributosLinha(r, "grande") + ">" + combo(r, campo, edita, 4) + valoresLinha(r, edita) + "</tr>"; }).join("");
   }
   function htmlEmpresa(edita) {
     var rs = nivel("EMPRESA");
     var n = rs.filter(function (r) { return grupoEmpresa(r) === "N"; }), c = rs.filter(function (r) { return grupoEmpresa(r) === "C"; });
     var todas = casa("EMPRESA");
     if (filtro && !todas && !rs.some(function (r) { return casa(textoLinha(r)); })) return "";
-    var tit = function (rotulo) { return '<tr class="titulos"><th colspan="2">' + rotulo + "</th><th>Classif. adicional</th><th>Descrição</th>" + TIT_VAL + "</tr>"; };
+    var tit = function (rotulo) { return '<tr class="titulos"><th colspan="4">' + rotulo + "</th>" + TIT_VAL + "</tr>"; };
     return '<h2 class="grupo-titulo">Empresa</h2><section class="caixa" id="cx-E">' +
       tabela("", "<thead>" + cabecalho("Empresa · por negócio", "EN", edita ? botaoNovo("EMPRESA", "N") : "") + tit("Negócio") + "</thead><tbody>" + linhasEmpresa(n, edita, "N", todas) + "</tbody>") +
       tabela("", "<thead>" + cabecalho("Empresa · por classificação", "EC", edita ? botaoNovo("EMPRESA", "C") : "") + tit("Classificação") + "</thead><tbody>" + linhasEmpresa(c, edita, "C", todas) + "</tbody>") +
       "</section>";
   }
 
-  // ---- Superintendentes: meta nas linhas da coluna O; botao abre/fecha os gerentes
+  // ---- Arvore na mesma caixa: Superintendente (uma linha) > Gerente (uma linha) > detalhe.
+  // A seta fica no inicio, junto do nome; abrir mostra o detalhamento por negocio.
+  function seta(attr, chave, aberto, rotulo) {
+    return '<button type="button" class="seta" ' + attr + '="' + esc(chave) + '" aria-expanded="' + !!aberto + '" aria-label="' + (aberto ? "Recolher " : "Exibir ") + esc(rotulo) + '">' + (aberto ? "▾" : "▸") + "</button>";
+  }
+  var TIT_SUP = '<tr class="titulos"><th colspan="2">Negócio</th><th colspan="2">Classificação</th>' + TIT_VAL + "</tr>";
+  function linhasSuper(rs, edita, vazio) {
+    if (!rs.length) return '<tr><td colspan="8" class="vazio">' + vazio + "</td></tr>";
+    return rs.map(function (r) { return "<tr" + atributosLinha(r, "grande") + ">" + combo(r, "Negocio", edita, 2) + combo(r, "Classificacao", edita, 2) + valoresLinha(r, edita) + "</tr>"; }).join("");
+  }
+  function casaGerente(g) {
+    if (!filtro) return true;
+    var rs = nivel("GERENTE").filter(function (r) { return r.CodGerente === g; }).concat(prospeccoes(g));
+    return casa(nomeGer(g, (rs[0] || {}).Gerente)) || rs.some(function (r) { return casa(textoLinha(r)); });
+  }
   function supersVisiveis() {
     var supers = SUPER_OPERACIONAIS.slice();
     nivel("SUPERINTENDENTE").forEach(function (r) { if (r.CodSuperintendente && supers.indexOf(r.CodSuperintendente) < 0) supers.push(r.CodSuperintendente); });
@@ -714,39 +760,41 @@
       var nome = nomeSup(s, rs[0] ? rs[0].Superintendente : "");
       var nomeCasa = casa(nome);
       var gers = gerentesDoSuper(s);
-      var subs = gers.map(function (g) { return htmlGerente(g, edita, nomeCasa); }).join("");
-      if (filtro && !nomeCasa && !subs && !rs.some(function (r) { return casa(textoLinha(r)); })) return;
-      var aberto = abertos[s] || (filtro && subs);
-      var botao = '<button type="button" class="btn abre peq" data-abrir="' + esc(s) + '" aria-expanded="' + !!aberto + '">' + (aberto ? "▾ Fechar gerentes" : "▸ Ver gerentes (" + gers.length + ")") + "</button>";
-      h += '<section class="caixa" id="cx-S-' + esc(s) + '">' +
-        tabela("", "<thead>" + cabecalho(esc(nome) + '<span class="papel">Superintendente</span>', "S:" + s, botao + (edita ? botaoNovo("SUPERINTENDENTE", s) : "")) +
-          linhaRef("Soma das metas dos gerentes", "SG:" + s, '<span data-tot="D:' + esc(s) + '|x">' + valorTotal("D:" + s + "|x") + "</span>") + TITULOS + "</thead><tbody>" +
-          linhasMeta(rs, edita, "Sem meta cadastrada para o superintendente.", nomeCasa) + "</tbody>") +
-        (aberto ? (subs || '<div class="vazio">Nenhum gerente com OS ou meta.</div>') : "") + "</section>";
+      var gersCasam = gers.filter(casaGerente);
+      if (filtro && !nomeCasa && !gersCasam.length) return;
+      var aberto = !!abertos[s] || (!!filtro && !nomeCasa);
+      var corpo = '<tr class="cab nivel1"><th colspan="4">' + seta("data-abrir", s, aberto, nome) + esc(nome) +
+        '<span class="papel">Superintendente · ' + gers.length + (gers.length === 1 ? " gerente" : " gerentes") + "</span>" +
+        (aberto && edita ? '<span class="dir">' + botaoNovo("SUPERINTENDENTE", s) + "</span>" : "") + "</th>" + celulasTotais("S:" + s) + "</tr>";
+      if (aberto) {
+        corpo += TIT_SUP + linhasSuper(rs, edita, "Sem meta cadastrada para o superintendente.") +
+          linhaRef("Soma das metas dos gerentes", "SG:" + s, '<span data-tot="D:' + esc(s) + '|x">' + valorTotal("D:" + s + "|x") + "</span>");
+        (filtro && !nomeCasa ? gersCasam : gers).forEach(function (g) { corpo += linhasGerente(g, edita); });
+      }
+      h += '<section class="caixa" id="cx-S-' + esc(s) + '">' + tabela("", "<tbody>" + corpo + "</tbody>") + "</section>";
     });
     return h ? '<h2 class="grupo-titulo">Superintendentes e seus gerentes<span class="dir"><button type="button" class="btn abre peq" data-abrirtodos="1">Abrir todos</button><button type="button" class="btn abre peq" data-abrirtodos="0">Fechar todos</button></span></h2>' + h : "";
   }
 
-  // ---- Gerente: meta (coluna L) e a distribuicao (OSs de carteira + prospeccoes)
-  function htmlGerente(g, edita, paiCasa) {
+  // ---- Gerente: uma linha com a meta (coluna L); aberto, mostra as linhas e a distribuicao
+  function linhasGerente(g, edita) {
     var rs = nivel("GERENTE").filter(function (r) { return r.CodGerente === g; });
     var pr = prospeccoes(g);
     var nome = nomeGer(g, (rs[0] || pr[0] || {}).Gerente);
-    var todas = paiCasa || casa(nome);
-    if (filtro && !todas && !rs.concat(pr).some(function (r) { return casa(textoLinha(r)); })) return "";
+    var aberto = !!abertosG[g] || (!!filtro && !casa(nome) && casaGerente(g));
+    var h = '<tr class="cab nivel2" id="cx-G-' + esc(g) + '"><th colspan="4">' + seta("data-abrirg", g, aberto, nome) + esc(nome) + '<span class="papel">Gerente</span>' +
+      (GER[g] ? "" : '<span class="nota">sem OS ativa na CTT</span>') +
+      (aberto && edita ? '<span class="dir">' + botaoNovo("GERENTE", g) + botaoNovo("PROSPECCAO", g, "+ Prospecção") + "</span>" : "") + "</th>" + celulasTotais("G:" + g) + "</tr>";
+    if (!aberto) return h;
     var negs = unicos(osCarteira(g).map(function (x) { return x.ctt.negocio; }));
     var agreg = negs.map(function (n) {
       var qtd = osCarteira(g, n).length;
       return '<tr class="agreg"><td>' + esc(n) + "</td><td>CARTEIRA</td><td></td><td>" + qtd + (qtd === 1 ? " OS" : " OSs") + ' (detalhe na lista de OS)</td><td class="n">' + celTotal("DC:" + g + ":" + n, "f") + '</td><td class="n">' + celTotal("DC:" + g + ":" + n, "r") + '</td><td class="n">' + celTotal("DC:" + g + ":" + n, "p") + "</td><td></td></tr>";
     }).join("");
-    var visPr = todas ? pr : pr.filter(function (r) { return casa(textoLinha(r)); });
-    var linhasPr = visPr.map(function (r) { return linhaProspeccao(r, edita); }).join("");
-    return '<div id="cx-G-' + esc(g) + '">' +
-      tabela("sub", "<thead>" + cabecalho(esc(nome) + '<span class="papel">Gerente</span>' + (GER[g] ? "" : '<span class="nota">sem OS ativa na CTT</span>'), "G:" + g, edita ? botaoNovo("GERENTE", g) : "") + "</thead><tbody>" +
-        linhasMeta(rs, edita, "Sem meta cadastrada para o gerente.", todas) +
-        '<tr class="secao"><td colspan="8">Distribuição da meta · OSs de carteira e prospecções' + (edita ? ' <span style="float:right">' + botaoNovo("PROSPECCAO", g, "+ Prospecção") + "</span>" : "") + "</td></tr>" +
-        (agreg + linhasPr || '<tr><td colspan="8" class="vazio">Sem OSs de carteira nem prospecções.</td></tr>') +
-        linhaRef("Soma da distribuição", "DG:" + g, '<span data-tot="DD:' + esc(g) + '|x">' + valorTotal("DD:" + g + "|x") + "</span>", "soma") + "</tbody>") + "</div>";
+    return h + TITULOS + linhasMeta(rs, edita, "Sem meta cadastrada para o gerente.", true) +
+      '<tr class="secao"><td colspan="8">Distribuição da meta · OSs de carteira e prospecções</td></tr>' +
+      ((agreg + pr.map(function (r) { return linhaProspeccao(r, edita); }).join("")) || '<tr><td colspan="8" class="vazio">Sem OSs de carteira nem prospecções.</td></tr>') +
+      linhaRef("Soma da distribuição", "DG:" + g, '<span data-tot="DD:' + esc(g) + '|x">' + valorTotal("DD:" + g + "|x") + "</span>", "soma");
   }
   function linhaProspeccao(r, edita) {
     var cli = edita
@@ -762,60 +810,123 @@
     if (filtro && !casa("LOCACOES") && !rs.some(function (r) { return casa(textoLinha(r)); })) return "";
     var g = rs[0].CodGerente;
     return '<h2 class="grupo-titulo">Locações</h2><section class="caixa" id="cx-L">' +
-      tabela("", "<thead>" + cabecalho('Locações<span class="papel">Gerente</span> ' + esc(nomeGer(g, rs[0].Gerente)) + '<span class="papel">Superintendente</span> ' + esc(nomeSupDoGerente(g)), "L", "") + TITULOS + "</thead><tbody>" +
-        linhasMeta(rs, edita, "", true) + "</tbody>") + "</section>";
+      tabela("", "<thead>" + cabecalho('Locações<span class="papel">Gerente</span> ' + esc(nomeGer(g, rs[0].Gerente)) + '<span class="papel">Superintendente</span> ' + esc(nomeSupDoGerente(g)), "L", "") + TIT_SUP + "</thead><tbody>" +
+        linhasSuper(rs, edita, "") + "</tbody>") + "</section>";
   }
 
   // Gerente com meta cujo superintendente na CTT nao e operacional (nao cabe em nenhuma caixa acima)
   function htmlOutrosGerentes(edita) {
     var mostrados = {};
     supersVisiveis().forEach(function (s) { gerentesDoSuper(s).forEach(function (g) { mostrados[g] = 1; }); });
-    var outros = unicos(linhas.filter(function (r) { return (r.Nivel === "GERENTE" || r.Nivel === "PROSPECCAO") && r.CodGerente && !mostrados[r.CodGerente]; }).map(function (r) { return r.CodGerente; })).sort(porNomeGer);
-    var subs = outros.map(function (g) { return htmlGerente(g, edita, false); }).join("");
-    return subs ? '<h2 class="grupo-titulo">Outros gerentes</h2><section class="caixa">' + subs + "</section>" : "";
+    var outros = unicos(linhas.filter(function (r) { return (r.Nivel === "GERENTE" || r.Nivel === "PROSPECCAO") && r.CodGerente && !mostrados[r.CodGerente]; }).map(function (r) { return r.CodGerente; })).sort(porNomeGer).filter(casaGerente);
+    if (!outros.length) return "";
+    return '<h2 class="grupo-titulo">Outros gerentes</h2><section class="caixa">' + tabela("", "<tbody>" + outros.map(function (g) { return linhasGerente(g, edita); }).join("") + "</tbody>") + "</section>";
   }
 
-  // ---- OS: so as OSs da CTT, agrupadas por gerente
-  function htmlOS(edita) {
-    var itens = montarOS();
-    var grupos = {};
-    itens.forEach(function (x) { (grupos[x.ger || ""] = grupos[x.ger || ""] || []).push(x); });
-    var chaves = Object.keys(grupos).sort(function (a, b) {
-      return nomeSupDoGerente(a).localeCompare(nomeSupDoGerente(b)) || porNomeGer(a, b);
-    });
-    var ncol = 8, corpo = "";
-    chaves.forEach(function (g) {
-      var nomeG = nomeGer(g), nomeS = nomeSupDoGerente(g);
-      var grupoCasa = casa(nomeG) || casa(nomeS);
-      var vis = grupos[g].filter(function (x) { return grupoCasa || casa(x.ctt.desc + " " + x.ctt.negocio + " " + x.ctt.classificacao); });
-      if (!vis.length) return;
-      vis.sort(function (a, b) { return a.ctt.cod.localeCompare(b.ctt.cod); });
-      corpo += '<tr class="grupo-linha"><td colspan="4"><b>' + esc(nomeG) + '</b> <span class="dica">· ' + esc(nomeS) + '</span></td><td class="n">' + celTotal("OG:" + g, "f") + '</td><td class="n">' + celTotal("OG:" + g, "r") + '</td><td class="n">' + celTotal("OG:" + g, "p") + "</td><td></td></tr>";
-      vis.forEach(function (x) { corpo += linhaOSHtml(x, edita, ncol); });
-    });
-    var h = '<h2 class="grupo-titulo">OS</h2><section class="caixa" id="cx-OS">';
-    if (!corpo) return h + '<div class="vazio">' + (itens.length ? "Nada no filtro." : "Nenhuma OS recebida da CTT.") + "</div></section>";
-    return h + '<div class="rolagem"><table><thead><tr><th>OS</th><th>Gerente</th><th>Negócio</th><th>Classificação</th>' +
-      '<th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th><th>Situação</th></tr></thead><tbody>' + corpo + "</tbody></table></div></section>";
+  // ---- Responsavel (Gestor) da OS: cadastro de Responsaveis do Acompanhamento de Performance
+  // (PARAM_ELEGIBILIDADE, Tipo RESPONSAVEL). Guarda o mes em que cada um assume; o fim e o mes
+  // anterior ao proximo inicio. Nao usa o GESTOR DO CONTRATO da CTT, que reescreve o passado.
+  function mesRef() {
+    var d = new Date(), a = d.getFullYear();
+    return ANO === a ? ANO * 100 + d.getMonth() + 1 : (ANO < a ? ANO * 100 + 12 : ANO * 100 + 1);
   }
-  function linhaOSHtml(x, edita, ncol) {
-    var r = x.r, o = x.ctt;
-    var pend = !(r._orig.FatMeta > 0);
-    var h = "<tr" + atributosLinha(r, pend ? "pend" : "") + ' data-os="' + esc(o.cod) + '"><td class="os">' + esc(o.desc) + "</td>" +
-      "<td>" + esc(nomeGer(o.codGer)) + "</td><td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td>" +
+  function mesAnterior(am) { var a = Math.floor(am / 100), m = am % 100; return m === 1 ? (a - 1) * 100 + 12 : a * 100 + m - 1; }
+  function fmtMes(am) { return am ? ("0" + (am % 100)).slice(-2) + "/" + Math.floor(am / 100) : ""; }
+  function historicoResp(cod) {
+    var h = RESP.filter(function (p) { return String(p.valor || "").split("|")[0].trim().toUpperCase() === String(cod).toUpperCase(); })
+      .map(function (p) { return { nome: String(p.valor).split("|").slice(1).join("|").trim(), inicio: parseInt(p.vigencia, 10) || 0 }; })
+      .sort(function (a, b) { return a.inicio - b.inicio; });
+    h.forEach(function (r, i) { r.fim = i + 1 < h.length ? mesAnterior(h[i + 1].inicio) : 0; });
+    return h;
+  }
+  function gestorDaOS(cod) { var h = historicoResp(cod).filter(function (r) { return r.inicio <= mesRef(); }); return h.length ? h[h.length - 1] : null; }
+  function nomeGestor(cod) {
+    var g = gestorDaOS(cod);
+    return g ? g.nome : (RESP_OK ? "SEM RESPONSÁVEL NO CADASTRO" : "CADASTRO DE RESPONSÁVEIS INDISPONÍVEL");
+  }
+  function textoHistorico(cod) {
+    var h = historicoResp(cod);
+    if (h.length < 2) return "";
+    var ini = ANO * 100 + 1, atual = gestorDaOS(cod);
+    var ant = h.filter(function (r) {
+      var ehAtual = atual && r.inicio === atual.inicio && r.nome === atual.nome;
+      return !ehAtual && r.inicio <= mesRef() && (!r.fim || r.fim >= ini);
+    });
+    return (atual ? "Gestor atual " + atual.nome + " desde " + fmtMes(atual.inicio) : "") +
+      (ant.length ? " · antes: " + ant.map(function (r) { return r.nome + " (" + fmtMes(r.inicio) + " a " + fmtMes(r.fim) + ")"; }).join(", ") : "");
+  }
+
+  // ---- OS em arvore: Superintendente > Gerente > Gestor > OS, com meta x soma das OSs
+  function arvoreOS() {
+    var arv = {};
+    montarOS().forEach(function (x) {
+      var s = x.ctt.codSup, g = x.ger, t = nomeGestor(x.ctt.cod);
+      arv[s] = arv[s] || {};
+      arv[s][g] = arv[s][g] || {};
+      (arv[s][g][t] = arv[s][g][t] || []).push(x);
+    });
+    return arv;
+  }
+  function casaOS(x) { return casa(x.ctt.desc + " " + x.ctt.negocio + " " + x.ctt.classificacao); }
+  function celulas3(base) { return '<td class="n">' + celTotal(base, "f") + '</td><td class="n">' + celTotal(base, "r") + '</td><td class="n">' + celTotal(base, "p") + "</td>"; }
+  var COL_OS = '<colgroup><col><col style="width:190px"><col style="width:210px"><col style="width:220px"><col style="width:220px"><col style="width:130px"><col style="width:220px"><col style="width:220px"><col style="width:130px"><col style="width:280px"></colgroup>';
+  function htmlOS(edita) {
+    var arv = arvoreOS(), corpo = "";
+    Object.keys(arv).sort(porNomeSup).forEach(function (s) {
+      var nomeS = nomeSup(s), todasS = casa(nomeS);
+      var chS = "S:" + s, abS = !!abertosOS[chS] || (!!filtro && !todasS);
+      var blocoS = "";
+      Object.keys(arv[s]).sort(porNomeGer).forEach(function (g) {
+        var nomeG = nomeGer(g), todasG = todasS || casa(nomeG);
+        var chG = "G:" + g, abG = !!abertosOS[chG] || (!!filtro && !todasG);
+        var blocoG = "";
+        Object.keys(arv[s][g]).sort().forEach(function (t) {
+          var todasT = todasG || casa(t);
+          var oss = arv[s][g][t].filter(function (x) { return todasT || casaOS(x); }).sort(function (a, b) { return a.ctt.cod.localeCompare(b.ctt.cod); });
+          if (!oss.length) return;
+          var chT = "T:" + g + "~" + t, abT = !!abertosOS[chT] || (!!filtro && !todasT);
+          blocoG += '<tr class="no nivel3"><td colspan="3">' + seta("data-os-toggle", chT, abT, t) + '<span class="papel">Gestor</span> ' + esc(t) +
+            ' <span class="dica">· ' + oss.length + (oss.length === 1 ? " OS" : " OSs") + "</span></td><td></td><td></td><td></td>" + celulas3("OT:" + g + "~" + t) + "<td></td></tr>";
+          if (abT) oss.forEach(function (x) { blocoG += linhaOSHtml(x, edita); });
+        });
+        if (!blocoG) return;
+        blocoS += '<tr class="no nivel2"><td colspan="3">' + seta("data-os-toggle", chG, abG, nomeG) + '<span class="papel">Gerente</span> ' + esc(nomeG) + "</td>" +
+          celulas3("G:" + g) + celulas3("OG:" + g) + '<td><span data-tot="DOS:G:' + esc(g) + '|x">' + valorTotal("DOS:G:" + g + "|x") + "</span></td></tr>";
+        if (abG) blocoS += blocoG;
+      });
+      if (!blocoS) return;
+      corpo += '<tr class="no nivel1"><td colspan="3">' + seta("data-os-toggle", chS, abS, nomeS) + '<span class="papel">Superintendente</span> ' + esc(nomeS) + "</td>" +
+        celulas3("S:" + s) + celulas3("OSS:" + s) + '<td><span data-tot="DOS:S:' + esc(s) + '|x">' + valorTotal("DOS:S:" + s + "|x") + "</span></td></tr>";
+      if (abS) corpo += blocoS;
+    });
+    var h = '<h2 class="grupo-titulo">OS<span class="dir"><button type="button" class="btn abre peq" data-os-todos="1">Abrir todos</button><button type="button" class="btn abre peq" data-os-todos="0">Fechar todos</button></span></h2><section class="caixa" id="cx-OS">';
+    if (!corpo) return h + '<div class="vazio">' + (Object.keys(OS_CTT).length ? "Nada no filtro." : "Nenhuma OS recebida da CTT.") + "</div></section>";
+    return h + '<div class="rolagem"><table class="arvore">' + COL_OS +
+      '<thead><tr><th rowspan="2">Superintendente · Gerente · Gestor · OS</th><th rowspan="2">Negócio</th><th rowspan="2">Classificação</th><th colspan="3" class="grupo-col">Meta</th><th colspan="3" class="grupo-col">Soma das OSs</th><th rowspan="2">Situação</th></tr>' +
+      '<tr><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th></tr></thead><tbody>' + corpo + "</tbody></table></div></section>";
+  }
+  function linhaOSHtml(x, edita) {
+    var r = x.r, o = x.ctt, hist = textoHistorico(o.cod);
+    var h = "<tr" + atributosLinha(r, "folha") + ' data-os="' + esc(o.cod) + '"><td><div class="os">' + esc(o.desc) + "</div>" + (hist ? '<div class="desc">' + esc(hist) + "</div>" : "") + "</td>" +
+      "<td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td><td></td><td></td><td></td>" +
       numero(r, "FatMeta", edita, "Faturamento", false) + numero(r, "ResMeta", edita, "Resultado", r.EntradaPor === "MARGEM") + numero(r, "MargemMeta", edita, "Margem", r.EntradaPor !== "MARGEM") +
       '<td class="sit">' + chipsItem(x) + "</td></tr>";
     // Observacao da CTT fica na propria OS, destacada logo abaixo dela
-    if (violacao(o)) h += '<tr class="obs"><td colspan="' + ncol + '">⚠ Observação da CTT: ' + esc(o.desc) + " está com " + esc(violacao(o)) + ". Corrigir o cadastro (ATIVO só em EXECUCAO, DEMOBILIZACAO ou NOVA; ATUAL e ENCERRADO sempre FINALIZADA).</td></tr>";
+    if (violacao(o)) h += '<tr class="obs"><td colspan="10">⚠ Observação da CTT: ' + esc(o.desc) + " está com " + esc(violacao(o)) + ". Corrigir o cadastro (ATIVO só em EXECUCAO, DEMOBILIZACAO ou NOVA; ATUAL e ENCERRADO sempre FINALIZADA).</td></tr>";
     return h;
   }
   function chipsItem(x) {
     var r = x.r, o = x.ctt, chips = [];
-    if (r.FatMeta > 0) chips.push('<span class="chip def">definida</span>');
-    else chips.push('<span class="chip sem">sem meta</span>');
     if (violacao(o)) chips.push('<span class="chip viol">ver observação</span>');
     if (r.id && divergenciasCTT(x).length) chips.push('<span class="chip sync" title="A lista guarda outro valor; a CTT manda e a lista é atualizada ao salvar">CTT atualizou ' + esc(divergenciasCTT(x).join(", ")) + "</span>");
     return chips.join("");
+  }
+  function abrirCaminhoOS(cod) {
+    var o = OS_CTT[cod];
+    if (!o) return;
+    abertosOS["S:" + o.codSup] = true;
+    abertosOS["G:" + o.codGer] = true;
+    abertosOS["T:" + o.codGer + "~" + nomeGestor(cod)] = true;
   }
 
   function combo(r, campo, edita, colspan) {
@@ -952,7 +1063,7 @@
     if (nivelNovo === "GERENTE" || nivelNovo === "PROSPECCAO") {
       r.CodGerente = cod; r.Gerente = nomeGer(cod);
       r.CodSuperintendente = supDoGerente(cod); r.Superintendente = nomeSup(r.CodSuperintendente);
-      var s = r.CodSuperintendente; if (s) abertos[s] = true;
+      var s = r.CodSuperintendente; if (s) abertos[s] = true; abertosG[cod] = true;
     }
     if (nivelNovo === "PROSPECCAO") r.Classificacao = "PROSPECCAO";
     linhas.push(r);
@@ -1073,7 +1184,34 @@
     if (t.hasAttribute("data-combo")) { if (comboAtual && comboAtual.btn === t) fecharCombo(); else abrirCombo(t); return; }
     if (t.hasAttribute("data-aba")) { abaAtiva = t.getAttribute("data-aba"); render(); return; }
     if (t.hasAttribute("data-abrir")) { var s = t.getAttribute("data-abrir"); abertos[s] = !abertos[s]; render(); var b = document.querySelector('[data-abrir="' + s + '"]'); if (b) b.focus(); return; }
-    if (t.hasAttribute("data-abrirtodos")) { var abrir = t.getAttribute("data-abrirtodos") === "1"; supersVisiveis().forEach(function (x) { abertos[x] = abrir; }); render(); return; }
+    if (t.hasAttribute("data-abrirtodos")) { var abrir = t.getAttribute("data-abrirtodos") === "1"; supersVisiveis().forEach(function (x) { abertos[x] = abrir; gerentesDoSuper(x).forEach(function (g) { abertosG[g] = abrir; }); }); render(); return; }
+    if (t.hasAttribute("data-abrirg")) {
+      var gg = t.getAttribute("data-abrirg");
+      abertosG[gg] = !abertosG[gg];
+      render();
+      var bg = document.querySelector('[data-abrirg="' + gg + '"]'); if (bg) bg.focus();
+      return;
+    }
+    if (t.hasAttribute("data-os-toggle")) {
+      var ko = t.getAttribute("data-os-toggle");
+      abertosOS[ko] = !abertosOS[ko];
+      render();
+      var bo = [].filter.call(document.querySelectorAll("[data-os-toggle]"), function (e) { return e.getAttribute("data-os-toggle") === ko; })[0];
+      if (bo) bo.focus();
+      return;
+    }
+    if (t.hasAttribute("data-os-todos")) {
+      var abrirOS = t.getAttribute("data-os-todos") === "1", arv = arvoreOS();
+      Object.keys(arv).forEach(function (sx) {
+        abertosOS["S:" + sx] = abrirOS;
+        Object.keys(arv[sx]).forEach(function (g) {
+          abertosOS["G:" + g] = abrirOS;
+          Object.keys(arv[sx][g]).forEach(function (tt) { abertosOS["T:" + g + "~" + tt] = abrirOS; });
+        });
+      });
+      render();
+      return;
+    }
     if (t.hasAttribute("data-rapido")) {
       var c = t.getAttribute("data-rapido");
       rapidoOS = rapidoOS === c ? "" : c;
@@ -1082,7 +1220,7 @@
       if (inp) { inp.focus(); inp.select(); }
       return;
     }
-    if (t.hasAttribute("data-ir")) { filtro = ""; focoAlvo = t.getAttribute("data-ir"); render(); return; }
+    if (t.hasAttribute("data-ir")) { filtro = ""; focoAlvo = t.getAttribute("data-ir"); if (focoAlvo.indexOf("os:") === 0) abrirCaminhoOS(focoAlvo.slice(3)); render(); return; }
     if (t.hasAttribute("data-novo")) { novaLinha(t.getAttribute("data-novo"), t.getAttribute("data-cod") || ""); return; }
     if (t.hasAttribute("data-remover")) { remover(t.getAttribute("data-remover")); return; }
     var a = t.getAttribute("data-acao");
