@@ -172,6 +172,32 @@
   .form-fora { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
   .form-fora textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 6px; resize: vertical; }
   .form-fora .dir { display: flex; gap: 8px; }
+  .caixa.acomp { padding: 16px; }
+  .caixa.acomp h4.sub { font-size: .95rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 10px; }
+  .cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); gap: 16px; }
+  .destaque .cartao { border-width: 2px; border-color: var(--bg-bar); }
+  .cartao { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--bg-sub); }
+  .cartao header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .cartao h3 { font-size: 1.15rem; }
+  .cartao header span { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .cartao .par { display: grid; grid-template-columns: 1fr 1fr auto; gap: 18px; align-items: start; }
+  .cartao .rotulo { display: block; font-size: .8rem; font-weight: 800; color: var(--muted); margin-bottom: 6px; }
+  .barras { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+  .linha-barra { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+  .linha-barra .rot { width: 58px; font-size: .78rem; color: var(--muted); }
+  .linha-barra b { font-size: .95rem; }
+  .tubo { flex: 1; min-width: 90px; height: 16px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+  .tubo i { display: block; height: 100%; border-radius: 999px; background: #94a3b8; }
+  .tubo i.atual { background: #2563eb; }
+  .tubo i.atual.ok { background: #16a34a; }
+  .cartao .dif { font-size: .9rem; font-weight: 800; }
+  .dif.acima { color: #166534; }
+  .dif.abaixo { color: #b91c1c; }
+  .dif.neutro { color: var(--muted); font-weight: 600; }
+  .margens .duas { display: flex; flex-direction: column; gap: 6px; font-size: .95rem; white-space: nowrap; }
+  table.acomp-arvore td.dif-cel .acima { color: #166534; font-weight: 800; }
+  table.acomp-arvore td.dif-cel .abaixo { color: #b91c1c; font-weight: 800; }
+  table.acomp-arvore { min-width: 1900px; }
   .chip.sync { background: #dbeafe; color: #1e40af; }
   .vazio { color: var(--muted); padding: 10px 14px; font-size: .82rem; }
   .x { background: none; border: none; color: #94a3b8; font-weight: 800; cursor: pointer; font-size: 1rem; padding: 0 4px; }
@@ -242,6 +268,10 @@
   function lista(nome) { return String(P.get(nome) || "").split("|").filter(Boolean); }
   function decodificar(s) { try { return decodeURIComponent(s); } catch (e) { return s; } }
   var NEG = lista("NEG"), CLS = lista("CLS");
+  // v8: os numeros vao em base 36 para caber na URL; nada e arredondado
+  function n36(x) { if (x === undefined || x === "") return null; var neg = x.charAt(0) === "-"; var v = parseInt(neg ? x.slice(1) : x, 36); return isNaN(v) ? null : (neg ? -v : v); }
+  function parPorIndice(nome) { return String(P.get(nome) || "").split("|").filter(Boolean).map(function (p) { var q = p.split(":"); return { f: n36(q[0]) || 0, r: n36(q[1]) || 0 }; }); }
+  var AT_NEG = parPorIndice("ATN"), AT_CLS = parPorIndice("ATC");
   var GER = {}, SUP = {};
   lista("GER").forEach(function (x) { var p = x.split(":"); if (p.length >= 2 && !GER[pad6(p[0])]) GER[pad6(p[0])] = { nome: p[1], sup: pad6(p[2] || "") }; });
   lista("SUP").forEach(function (x) { var i = x.indexOf(":"); if (i > 0) SUP[pad6(x.slice(0, i))] = x.slice(i + 1); });
@@ -256,8 +286,9 @@
       status: STATUS[fl.charAt(0)] || fl.charAt(0),
       estagio: ESTAGIOS.hasOwnProperty(fl.charAt(1)) ? ESTAGIOS[fl.charAt(1)] : fl.charAt(1),
       // Executivo do ano (medidas BRUTO do ano), base para definir a meta
-      fatAno: f[7] === undefined || f[7] === "" ? null : Number(f[7]),
-      resAno: f[8] === undefined || f[8] === "" ? null : Number(f[8])
+      fatAno: n36(f[7]), resAno: n36(f[8]),
+      // atual do ano (realizado + projetado) da OS, para o Acompanhamento
+      fatAtual: n36(f[9]) || 0, resAtual: n36(f[10]) || 0
     };
   });
   // Regra da CTT: ATIVO so em EXECUCAO/DEMOBILIZACAO/NOVA; ATUAL e ENCERRADO sempre FINALIZADA.
@@ -285,6 +316,8 @@
   }
   function gravarSessao(s) { try { window.name = s ? PREFIXO + JSON.stringify(s) : ""; } catch (e) {} }
   function ehProprietario() { return !!sessao && sessao.perfil === "PROPRIETARIO"; }
+  // Master = quem entrou pela PARAM_ACESSO; so ele ve o consolidado da empresa
+  function ehMaster() { return !!sessao; }
 
   async function derivarHash(login, senha) {
     var enc = new TextEncoder();
@@ -596,8 +629,10 @@
       return '<button type="button" role="tab" class="aba' + (a[0] === abaAtiva ? " on" : "") + '" aria-selected="' + (a[0] === abaAtiva) + '" data-aba="' + a[0] + '">' + a[1] + "</button>";
     }).join("");
     var painel = document.getElementById("painel");
-    if (!sessao) { painel.innerHTML = htmlLogin(); ligarLogin(); }
-    else if (abaAtiva !== "metas") painel.innerHTML = '<div class="construcao"><h2>' + esc(ABAS.filter(function (a) { return a[0] === abaAtiva; })[0][1]) + "</h2><p>Aba em construção: entra depois da confirmação da aba Metas.</p></div>";
+    if (!sessao && abaAtiva === "metas") { painel.innerHTML = htmlLogin(); ligarLogin(); }
+    else if (abaAtiva === "operacional") painel.innerHTML = htmlAcompanhamento();
+    else if (abaAtiva === "gerenciais") painel.innerHTML = htmlGerenciais();
+    else if (abaAtiva !== "metas") painel.innerHTML = '<div class="construcao"><h2>' + esc(ABAS.filter(function (a) { return a[0] === abaAtiva; })[0][1]) + "</h2><p>Aba em construção.</p></div>";
     else painel.innerHTML = htmlMetas();
     document.getElementById("diag").textContent = TEM_CTT
       ? "CTT: " + Object.keys(OS_CTT).length + " OS · " + Object.keys(GER).length + " gerentes · " + Object.keys(SUP).length + " superintendentes"
@@ -1014,6 +1049,134 @@
     abertosOS["T:" + o.codGer + "~" + nomeGestor(cod)] = true;
   }
 
+  // ===========================================================================
+  // Acompanhamento: meta (lista) x atual do ano (modelo) e a diferenca.
+  // O atual por OS vem da CTT do relatorio, ja filtrada pela seguranca da plataforma;
+  // superintendente, gerente e gestor sao a soma das OSs que a pessoa enxerga.
+  // ===========================================================================
+  function difTexto(meta, atual) {
+    if (!meta) return '<span class="dif neutro">sem meta cadastrada</span>';
+    var d = atual - meta, p = d / meta;
+    return '<span class="dif ' + (d >= 0 ? "acima" : "abaixo") + '">' + (d >= 0 ? "+" : "-") + fmtVal(Math.abs(d)) + " · " + (d >= 0 ? "+" : "-") + fmtPct(Math.abs(p)) + "</span>";
+  }
+  function barras(meta, atual) {
+    var max = Math.max(Math.abs(meta), Math.abs(atual)) || 1;
+    var lm = Math.max(2, Math.round(Math.abs(meta) / max * 100)), la = Math.max(2, Math.round(Math.abs(atual) / max * 100));
+    return '<div class="barras">' +
+      '<div class="linha-barra"><span class="rot">Meta</span><span class="tubo"><i class="meta" style="width:' + lm + '%"></i></span><b>' + fmtVal(meta) + "</b></div>" +
+      '<div class="linha-barra"><span class="rot">Atual</span><span class="tubo"><i class="atual' + (atual >= meta ? " ok" : "") + '" style="width:' + la + '%"></i></span><b>' + fmtVal(atual) + "</b></div></div>";
+  }
+  function cartao(titulo, sub, m, a) {
+    return '<article class="cartao"><header><h3>' + esc(titulo) + "</h3>" + (sub ? "<span>" + esc(sub) + "</span>" : "") + "</header>" +
+      '<div class="par"><div class="bloco"><span class="rotulo">Faturamento</span>' + barras(m.f, a.f) + difTexto(m.f, a.f) + "</div>" +
+      '<div class="bloco"><span class="rotulo">Resultado</span>' + barras(m.r, a.r) + difTexto(m.r, a.r) + "</div>" +
+      '<div class="bloco margens"><span class="rotulo">% Margem</span><div class="duas"><span>Meta <b>' + (m.f ? fmtPct(m.r / m.f) : "—") + "</b></span>" +
+      "<span>Atual <b>" + (a.f ? fmtPct(a.r / a.f) : "—") + "</b></span></div>" +
+      (m.f && a.f ? '<span class="dif ' + (a.r / a.f >= m.r / m.f ? "acima" : "abaixo") + '">' + ((a.r / a.f - m.r / m.f) >= 0 ? "+" : "-") + fmtPct(Math.abs(a.r / a.f - m.r / m.f)) + " p.p.</span>" : "") +
+      "</div></div></article>";
+  }
+  function somaAtual(xs) {
+    var f = 0, r = 0;
+    xs.forEach(function (x) { f += x.ctt.fatAtual || 0; r += x.ctt.resAtual || 0; });
+    return { f: f, r: r };
+  }
+  function metaDe(chave) { var t = somar(linhasDoTotal(chave)); return { f: t.f, r: t.r, n: t.n }; }
+  function atualDeNeg(i) { return AT_NEG[i] || { f: 0, r: 0 }; }
+  function atualDeCls(i) { return AT_CLS[i] || { f: 0, r: 0 }; }
+
+  function htmlEmpresaAcomp() {
+    if (!ehMaster()) return '<div class="aviso info"><h3>Empresa</h3><p>O consolidado da empresa é restrito aos usuários Master. Entre com seu acesso para vê-lo.</p></div>';
+    var metasN = nivel("EMPRESA").filter(function (r) { return grupoEmpresa(r) === "N"; });
+    var metasC = nivel("EMPRESA").filter(function (r) { return grupoEmpresa(r) === "C"; });
+    var somaPor = function (rs, campo, valor) {
+      var t = somar(rs.filter(function (r) { return r[campo] === valor; }));
+      return { f: t.f, r: t.r };
+    };
+    var totM = somar(metasN), totA = { f: 0, r: 0 };
+    NEG.forEach(function (n, i) { totA.f += atualDeNeg(i).f; totA.r += atualDeNeg(i).r; });
+    var cartoesN = NEG.map(function (n, i) { return cartao(n, "Negócio", somaPor(metasN, "Negocio", n), atualDeNeg(i)); }).join("");
+    var cartoesC = CLS.map(function (c, i) { return cartao(c, "Classificação", somaPor(metasC, "Classificacao", c), atualDeCls(i)); }).join("");
+    return '<h2 class="grupo-titulo">Empresa · ' + ANO + "</h2>" +
+      '<section class="caixa acomp"><div class="destaque">' + cartao("Total da empresa", "Meta x atual do ano", { f: totM.f, r: totM.r }, totA) + "</div>" +
+      '<h4 class="sub">Por negócio</h4><div class="cartoes">' + cartoesN + "</div>" +
+      '<h4 class="sub">Por classificação</h4><div class="cartoes">' + cartoesC + "</div></section>";
+  }
+
+  function htmlSupersAcomp() {
+    var supers = {};
+    montarOS().forEach(function (x) { supers[x.ctt.codSup] = 1; });
+    supersVisiveis().forEach(function (s) { if (nivel("SUPERINTENDENTE").some(function (r) { return r.CodSuperintendente === s; })) supers[s] = 1; });
+    var lista = Object.keys(supers).sort(porNomeSup);
+    if (!lista.length) return "";
+    var cartoes = lista.map(function (s) {
+      var oss = montarOS().filter(function (x) { return x.ctt.codSup === s; });
+      return cartao(nomeSup(s), oss.length + (oss.length === 1 ? " OS" : " OSs"), metaDe("S:" + s), somaAtual(oss));
+    }).join("");
+    return '<h2 class="grupo-titulo">Superintendências · ' + ANO + '</h2><section class="caixa acomp"><div class="cartoes">' + cartoes + "</div></section>";
+  }
+
+  function htmlGerentesAcomp() {
+    var gers = {};
+    montarOS().forEach(function (x) { gers[x.ger] = 1; });
+    var lista = Object.keys(gers).sort(porNomeGer);
+    if (!lista.length) return "";
+    var cartoes = lista.map(function (g) {
+      var oss = montarOS().filter(function (x) { return x.ger === g; });
+      return cartao(nomeGer(g), nomeSupDoGerente(g), metaDe("G:" + g), somaAtual(oss));
+    }).join("");
+    return '<h2 class="grupo-titulo">Gerências · ' + ANO + '</h2><section class="caixa acomp"><div class="cartoes">' + cartoes + "</div></section>";
+  }
+
+  function htmlAcompanhamento() {
+    if (carregando) return '<div class="vazio">Carregando ' + ANO + "...</div>";
+    if (!TEM_CTT) return '<div class="aviso info"><h3>Sem dados da CTT</h3><p>Abra pela página DESTAQUES do Power BI: o atual do ano vem do modelo.</p></div>';
+    return htmlEmpresaAcomp() + htmlSupersAcomp() + htmlGerentesAcomp();
+  }
+
+  // ---- Gerenciais: recolhimento Superintendencia > Gerencia > Gestor > OS
+  function linhaAcomp(classe, rotuloHtml, m, a, colspan) {
+    var difF = m.f ? (a.f - m.f) : null, difR = m.f || m.r ? (a.r - m.r) : null;
+    return '<tr class="' + classe + '"><td' + (colspan ? ' colspan="' + colspan + '"' : "") + ">" + rotuloHtml + "</td>" +
+      '<td class="n">' + (m.n ? fmtVal(m.f) : "—") + '</td><td class="n">' + fmtVal(a.f) + '</td><td class="n dif-cel">' + (difF == null ? "—" : (difF >= 0 ? '<span class="acima">+' : '<span class="abaixo">-') + fmtVal(Math.abs(difF)) + "</span>") + "</td>" +
+      '<td class="n">' + (m.n ? fmtVal(m.r) : "—") + '</td><td class="n">' + fmtVal(a.r) + '</td><td class="n dif-cel">' + (difR == null ? "—" : (difR >= 0 ? '<span class="acima">+' : '<span class="abaixo">-') + fmtVal(Math.abs(difR)) + "</span>") + "</td>" +
+      '<td class="n">' + (m.f ? fmtPct(m.r / m.f) : "—") + '</td><td class="n">' + (a.f ? fmtPct(a.r / a.f) : "—") + "</td></tr>";
+  }
+  function htmlGerenciais() {
+    if (carregando) return '<div class="vazio">Carregando ' + ANO + "...</div>";
+    if (!TEM_CTT) return '<div class="aviso info"><h3>Sem dados da CTT</h3><p>Abra pela página DESTAQUES do Power BI.</p></div>';
+    var arv = arvoreOS(), corpo = "";
+    Object.keys(arv).sort(porNomeSup).forEach(function (s) {
+      var chS = "AS:" + s, abS = !!abertosOS[chS];
+      var ossS = montarOS().filter(function (x) { return x.ctt.codSup === s; });
+      corpo += linhaAcomp("no nivel1", seta("data-os-toggle", chS, abS, nomeSup(s)) + '<span class="papel">Superintendente</span> ' + esc(nomeSup(s)), metaDe("S:" + s), somaAtual(ossS));
+      if (!abS) return;
+      Object.keys(arv[s]).sort(porNomeGer).forEach(function (g) {
+        var chG = "AG:" + g, abG = !!abertosOS[chG];
+        var ossG = montarOS().filter(function (x) { return x.ger === g; });
+        corpo += linhaAcomp("no nivel2", seta("data-os-toggle", chG, abG, nomeGer(g)) + '<span class="papel">Gerente</span> ' + esc(nomeGer(g)), metaDe("G:" + g), somaAtual(ossG));
+        if (!abG) return;
+        Object.keys(arv[s][g]).sort().forEach(function (t) {
+          var chT = "AT:" + g + "~" + t, abT = !!abertosOS[chT];
+          var oss = arv[s][g][t];
+          corpo += linhaAcomp("no nivel3", seta("data-os-toggle", chT, abT, t) + '<span class="papel">Gestor</span> ' + esc(t) + ' <span class="dica">· ' + oss.length + (oss.length === 1 ? " OS" : " OSs") + "</span>", metaDe("OT:" + g + "~" + t), somaAtual(oss));
+          if (!abT) return;
+          oss.slice().sort(function (a, b) { return a.ctt.cod.localeCompare(b.ctt.cod); }).forEach(function (x) {
+            var m = { f: x.r.FatMeta || 0, r: x.r.ResMeta || 0, n: x.r._orig.FatMeta > 0 ? 1 : 0 };
+            corpo += linhaAcomp("folha", '<div class="os">' + esc(x.ctt.desc) + "</div>" + (foraDaMeta(x) ? '<span class="chip fora">FORA DA META</span>' : m.n ? "" : '<span class="chip adef">A DEFINIR</span>'), m, { f: x.ctt.fatAtual || 0, r: x.ctt.resAtual || 0 });
+          });
+        });
+      });
+    });
+    if (!corpo) return '<div class="vazio">Nenhuma OS recebida da CTT.</div>';
+    return '<h2 class="grupo-titulo">Meta x atual · ' + ANO + '<span class="dir"><button type="button" class="btn abre peq" data-acomp-todos="1">Abrir todos</button><button type="button" class="btn abre peq" data-acomp-todos="0">Fechar todos</button></span></h2>' +
+      '<section class="caixa"><div class="rolagem"><table class="grade acomp-arvore">' +
+      '<colgroup><col><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-pct"><col class="c-pct"></colgroup>' +
+      '<thead><tr class="titulos"><th>Superintendência · Gerência · Gestor · OS</th>' +
+      '<th class="n">Fat. meta</th><th class="n">Fat. atual</th><th class="n">Dif. fat.</th>' +
+      '<th class="n">Res. meta</th><th class="n">Res. atual</th><th class="n">Dif. res.</th>' +
+      '<th class="n">% meta</th><th class="n">% atual</th></tr></thead><tbody>' + corpo + "</tbody></table></div></section>";
+  }
+
   function combo(r, campo, edita, colspan) {
     var ops = opcoesCampo(campo), val = r[campo] || "";
     var o = ops.filter(function (x) { return x[0] === val; })[0];
@@ -1289,6 +1452,18 @@
       render();
       var bo = [].filter.call(document.querySelectorAll("[data-os-toggle]"), function (e) { return e.getAttribute("data-os-toggle") === ko; })[0];
       if (bo) bo.focus();
+      return;
+    }
+    if (t.hasAttribute("data-acomp-todos")) {
+      var abrirA = t.getAttribute("data-acomp-todos") === "1", arvA = arvoreOS();
+      Object.keys(arvA).forEach(function (sx) {
+        abertosOS["AS:" + sx] = abrirA;
+        Object.keys(arvA[sx]).forEach(function (g) {
+          abertosOS["AG:" + g] = abrirA;
+          Object.keys(arvA[sx][g]).forEach(function (tt) { abertosOS["AT:" + g + "~" + tt] = abrirA; });
+        });
+      });
+      render();
       return;
     }
     if (t.hasAttribute("data-os-todos")) {
