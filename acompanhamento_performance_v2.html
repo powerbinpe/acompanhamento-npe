@@ -985,7 +985,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-18 10:15";
+    window.NPE_BUILD = "2026-09-18 11:40";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -2672,7 +2672,25 @@ function hydrateFromPowerBI() {
       15: { campo: "safCount",       dir: "menor",  fmt: "int", taxa: true, acum: "safAcum" },
       16: { campo: "cafCount",       dir: "menor",  fmt: "int", taxa: true, acum: "cafAcum" },
       17: { campo: "satVal",         dir: "maior",  fmt: "pct", jaAcumulado: true },
-      20: { campo: "_bpTotal",       dir: "maior",  fmt: "int", jaAcumulado: true }
+      20: { campo: "_bpTotal",       dir: "maior",  fmt: "int", jaAcumulado: true },
+      // Tópicos SEM valor numérico continuo: os 7 qualitativos (aderente/não aderente por
+      // decisão do Máster) e Pontualidade/Preenchimento (binário por mês, calculado pela
+      // própria apuração). Não têm "campo" pra ler do OSMonthHistory -- é por isso que
+      // Satisfação também não aparecia (histórico: 18/09/2026), só que Satisfação tem sua
+      // própria função (é anual). Estes aqui usam sempre o MESMO cálculo que dá o ponto
+      // (calculateOSScore, via _taxaAtendimento/_atendeuNoMes em seloTendencia), então nunca
+      // podem discordar da nota.
+      5:  { binario: true, taxa: true }, // Notificação/SLA
+      7:  { binario: true, taxa: true }, // Receita Ideal
+      13: { binario: true, taxa: true }, // Excesso Hora Extra
+      14: { binario: true, taxa: true }, // Acúmulo de Férias
+      18: { binario: true, taxa: true }, // LTCAT/LIPAE
+      19: { binario: true, taxa: true }, // PBI/PBD
+      21: { binario: true, taxa: true }, // Gestão de Risco
+      26: { binario: true, taxa: true }, // Pontualidade (id de tela da Aba 1)
+      27: { binario: true, taxa: true }, // Preenchimento (id de tela da Aba 1)
+      "prazo":          { binario: true, taxa: true }, // mesmo tópico, chave usada na Aba 3/4
+      "preenchimento":  { binario: true, taxa: true }  // mesmo tópico, chave usada na Aba 3/4
     };
 
     function _valorTendencia(linha, campo) {
@@ -2719,7 +2737,7 @@ function hydrateFromPowerBI() {
       return '<span title="' + String(titulo).replace(/"/g, "&quot;") + '"' +
              ' style="display:inline-flex; align-items:center; gap:4px;' +
              ' background:' + vis.bg + '; color:' + vis.fg + '; border:1.5px solid ' + vis.bd + ';' +
-             ' border-radius:20px; padding:2px 10px; font-size:0.74rem; font-weight:800;' +
+             ' border-radius:20px; padding:3px 11px; font-size:0.86rem; font-weight:800;' +
              ' white-space:nowrap;">' + vis.ico + ' ' + vis.txt +
              '<span style="font-weight:600; opacity:0.85;"> ' + rotulo + '</span></span>';
     }
@@ -2753,6 +2771,15 @@ function hydrateFromPowerBI() {
       return null;
     }
 
+    // Pontualidade/Preenchimento tem duas chaves pro mesmo topico: 26/27 (id de tela, usado na
+    // Aba 1) e "prazo"/"preenchimento" (chave de calculateOSScore, usada na Aba 3/4). Os demais
+    // topicos usam sempre "t<id>".
+    function _scoreKeyTendencia(topicId) {
+      if (topicId === 26 || topicId === "prazo") return "prazo";
+      if (topicId === 27 || topicId === "preenchimento") return "preenchimento";
+      return "t" + topicId;
+    }
+
     // Em quantos dos meses APURADOS a OS atendeu o indicador, de janeiro ate ateMes.
     // Quem decide se o mes foi atendido e o proprio calculateOSScore -- o mesmo calculo que
     // da o ponto. Reescrever a regra aqui faria o selo e a nota discordarem no dia em que a
@@ -2760,11 +2787,12 @@ function hydrateFromPowerBI() {
     function _taxaAtendimento(osCode, topicId, ateMes) {
       var c = _contratoDe(osCode);
       if (!c || typeof calculateOSScore !== "function") return null;
+      var chave = _scoreKeyTendencia(topicId);
       var ok = 0, n = 0;
       for (var m = 1; m <= ateMes; m++) {
         var sc = null;
         try { sc = calculateOSScore(c, m); } catch (e) { sc = null; }
-        var tp = (sc && sc.topics) ? sc.topics["t" + topicId] : null;
+        var tp = (sc && sc.topics) ? sc.topics[chave] : null;
         if (!tp || !tp.applicable) continue;
         n++;
         if (tp.earned > 0) ok++;
@@ -2778,7 +2806,7 @@ function hydrateFromPowerBI() {
       if (!c || typeof calculateOSScore !== "function") return null;
       var sc = null;
       try { sc = calculateOSScore(c, mNum); } catch (e) { return null; }
-      var tp = (sc && sc.topics) ? sc.topics["t" + topicId] : null;
+      var tp = (sc && sc.topics) ? sc.topics[_scoreKeyTendencia(topicId)] : null;
       if (!tp || !tp.applicable) return null;
       return tp.earned > 0 ? 1 : 0;
     }
@@ -2795,24 +2823,44 @@ function hydrateFromPowerBI() {
     function seloTendencia(osCode, topicId, mNum) {
       var meta = TENDENCIA_METRICA[topicId];
       if (!meta || !mNum || mNum < 2) return "";
-      var atualBruto = _valorTendencia(getMonthHistoryRow(osCode, mNum), meta.campo);
-      if (atualBruto === null) return "";
-      var atual = _normTendencia(atualBruto, meta);
       var out = "";
 
-      // --- vs mes anterior ---
-      var antBruto = _valorTendencia(getMonthHistoryRow(osCode, mNum - 1), meta.campo);
-      if (antBruto !== null) {
-        var cmp = _compararTendencia(atual, _normTendencia(antBruto, meta), meta);
-        var vis = cmp === 1
-          ? { ico: "\u25b2", txt: "Melhorou", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
-          : (cmp === -1
-            ? { ico: "\u25bc", txt: "Piorou", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
-            : { ico: "\u25ac", txt: "Est\u00e1vel", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
-        out += _chipTendencia(vis, "vs " + _mesCurto(mNum - 1),
-          (meta.jaAcumulado ? "Valor acumulado do ano. " : "") +
-          _mesCurto(mNum - 1) + ": " + _fmtTendencia(antBruto, meta.fmt) +
-          "  \u2192  agora: " + _fmtTendencia(atualBruto, meta.fmt));
+      if (meta.binario) {
+        // Sem valor numerico continuo (qualitativo, ou Prazo/Preenchimento): a leitura vem do
+        // MESMO calculo que da o ponto (calculateOSScore via _atendeuNoMes), nunca de um campo
+        // numerico que esses topicos nem tem no OSMonthHistory.
+        var agoraBin = _atendeuNoMes(osCode, topicId, mNum);
+        var antesBin = _atendeuNoMes(osCode, topicId, mNum - 1);
+        if (agoraBin !== null && antesBin !== null) {
+          var cmpB = (agoraBin === antesBin) ? 0 : (agoraBin > antesBin ? 1 : -1);
+          var visB = cmpB === 1
+            ? { ico: "\u25b2", txt: "Melhorou", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
+            : (cmpB === -1
+              ? { ico: "\u25bc", txt: "Piorou", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
+              : { ico: "\u25ac", txt: "Est\u00e1vel", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
+          out += _chipTendencia(visB, "vs " + _mesCurto(mNum - 1),
+            _mesCurto(mNum - 1) + ": " + (antesBin ? "Aderente" : "N\u00e3o aderente") +
+            "  \u2192  " + _mesCurto(mNum) + ": " + (agoraBin ? "Aderente" : "N\u00e3o aderente"));
+        }
+      } else {
+        var atualBruto = _valorTendencia(getMonthHistoryRow(osCode, mNum), meta.campo);
+        if (atualBruto === null) return "";
+        var atual = _normTendencia(atualBruto, meta);
+
+        // --- vs mes anterior ---
+        var antBruto = _valorTendencia(getMonthHistoryRow(osCode, mNum - 1), meta.campo);
+        if (antBruto !== null) {
+          var cmp = _compararTendencia(atual, _normTendencia(antBruto, meta), meta);
+          var vis = cmp === 1
+            ? { ico: "\u25b2", txt: "Melhorou", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
+            : (cmp === -1
+              ? { ico: "\u25bc", txt: "Piorou", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
+              : { ico: "\u25ac", txt: "Est\u00e1vel", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
+          out += _chipTendencia(vis, "vs " + _mesCurto(mNum - 1),
+            (meta.jaAcumulado ? "Valor acumulado do ano. " : "") +
+            _mesCurto(mNum - 1) + ": " + _fmtTendencia(antBruto, meta.fmt) +
+            "  \u2192  agora: " + _fmtTendencia(atualBruto, meta.fmt));
+        }
       }
 
       // --- vs o acumulado do ano, VINDO DA MEDIDA ---
@@ -2835,7 +2883,7 @@ function hydrateFromPowerBI() {
             ? { ico: "\u2191", txt: "Melhor que o ano", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
             : (cmpT === -1
               ? { ico: "\u2193", txt: "Pior que o ano", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
-              : { ico: "\u2248", txt: "Igual ao ano", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+              : { ico: "\u2248", txt: "Igual ao ano", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
           // Para SAF e CAF o tooltip traz tambem o total do ano, que vem da medida acumulada.
           var extra = "";
           if (meta.acum) {
@@ -2863,7 +2911,7 @@ function hydrateFromPowerBI() {
             ? { ico: "\u2191", txt: "Melhorou no ano", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
             : (cmpA === -1
               ? { ico: "\u2193", txt: "Piorou no ano", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
-              : { ico: "\u2248", txt: "Igual ao in\u00edcio", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+              : { ico: "\u2248", txt: "Igual ao in\u00edcio", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
           out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
             _chipTendencia(visA, "vs " + _mesCurto(mIni),
               "Acumulado do ano. " + _mesCurto(mIni) + ": " + _fmtTendencia(iniBruto, meta.fmt) +
@@ -2879,7 +2927,7 @@ function hydrateFromPowerBI() {
             ? { ico: "\u2191", txt: "Melhor que o ano", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
             : (cmpM === -1
               ? { ico: "\u2193", txt: "Pior que o ano", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
-              : { ico: "\u2248", txt: "Igual ao ano", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+              : { ico: "\u2248", txt: "Igual ao ano", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
           out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
             _chipTendencia(visM, "vs acum. " + _mesCurto(1) + "-" + _mesCurto(mNum - 1),
               "Acumulado da medida at\u00e9 " + _mesCurto(mNum - 1) + ": " + _fmtTendencia(acumAnt, meta.fmt) +
@@ -2922,7 +2970,7 @@ function hydrateFromPowerBI() {
           ? { ico: "▲", txt: "Melhorou", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
           : (cmp === -1
             ? { ico: "▼", txt: "Piorou", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
-            : { ico: "▬", txt: "Estável", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+            : { ico: "▬", txt: "Estável", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
         out += _chipTendencia(vis, "vs " + (anoAtual - 1),
           (anoAtual - 1) + ": " + anterior.sat + "  →  " + anoAtual + ": " + atual.sat);
       }
@@ -2937,7 +2985,7 @@ function hydrateFromPowerBI() {
           ? { ico: "↑", txt: "Acima da média", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
           : (cmpM === -1
             ? { ico: "↓", txt: "Abaixo da média", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
-            : { ico: "≈", txt: "Na média", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+            : { ico: "≈", txt: "Na média", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
         out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
           _chipTendencia(visM, "vs média " + outrosAnos.length + " ano" + (outrosAnos.length > 1 ? "s" : ""),
             "Média de " + outrosAnos.map(function(r) { return r.ano; }).join(", ") + ": " +
@@ -3407,12 +3455,16 @@ function hydrateFromPowerBI() {
         // O selo com o nome da categoria (ex.: "FINANCEIRO") foi removido daqui -- é redundante
         // agora que o card já fica dentro da caixa grande da categoria, que mostra o nome uma
         // vez só no cabeçalho (e no rodapé) da caixa.
+        // Selo (melhorou/piorou/manteve) sempre numa linha PRÓPRIA, abaixo do nome -- inline ao
+        // lado do nome (como era antes) quebrava a linha em indicadores com nome longo ou 2
+        // selos, ficando feio. Padrão único pra todos os tópicos (18/09/2026).
+        var seloTopicoHTML = (topic.id === 17 ? seloTendenciaSatisfacao() : seloTendencia(activeOS, topic.id, monthNum));
         row.innerHTML = '<div class="kpi-column">' +
           '<div>' +
-            '<div class="topic-header" style="margin-bottom: 6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
+            '<div class="topic-header" style="margin-bottom: 4px;">' +
               '<span class="topic-title" style="font-size:1.15rem; font-weight:800; color:#0f2b5c;">' + rotuloIndicador(topic.id, topic.name) + '</span>' +
-              (topic.id === 17 ? seloTendenciaSatisfacao() : seloTendencia(activeOS, topic.id, monthNum)) +
             '</div>' +
+            (seloTopicoHTML ? '<div style="margin-bottom:8px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">' + seloTopicoHTML + '</div>' : '') +
             '<div class="kpi-lines">' + linesHTML + '</div>' +
             qualBlockHTML +
             extraValueBlockHTML +
@@ -4164,22 +4216,27 @@ function hydrateFromPowerBI() {
 
           // Detalhes dos Valores e Diferenças do Indicador no Mês Selecionado
           var valorDetalheHTML = "";
+          // Selo (melhorou/piorou/manteve) em linha própria, abaixo do nome -- mesmo padrão da
+          // Aba 1, pra nunca disputar espaço com o "Mês: valor" e quebrar a linha (18/09/2026).
+          var seloRowHTML = "";
           if (contract && typeof selMonthNum === "number") {
             var mdUlt = (contract.monthHistory) ? contract.monthHistory[selMonthNum] : null;
             var det = buildTopicDetailLine(isAcompTopic ? t.id : ("t" + t.id), mdUlt, contract, selMonthNum);
             // Mesma funcao da Aba 1: uma implementacao so, entao as duas abas nunca divergem.
             // Nos topicos manuais ela devolve "" sozinha, porque ali nao existe numero apurado.
-            var selo = isAcompTopic ? "" : (t.id === 17
+            var selo = (t.id === 17
               ? (typeof seloTendenciaSatisfacao === "function" ? seloTendenciaSatisfacao() : "")
               : (typeof seloTendencia === "function" ? seloTendencia(contractCode, t.id, selMonthNum) : ""));
-            if (det || selo) {
+            if (det) {
               valorDetalheHTML = '<div style="margin-top:8px; padding:6px 9px; background:#f8fafc;' +
                 ' border:1px solid #e2e8f0; border-radius:6px; font-size:0.80rem; color:#334155;' +
-                ' font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
-                (det ? '<span style="min-width:0;"><span style="color:#0f2b5c; font-weight:800;">' +
-                       (MONTH_SHORT_NAMES[selMonthNum] || "M\u00eas") + ':</span> ' + det + '</span>' : '') +
-                (selo ? '<span style="margin-left:auto;">' + selo + '</span>' : '') +
+                ' font-weight:700;">' +
+                ('<span style="min-width:0;"><span style="color:#0f2b5c; font-weight:800;">' +
+                       (MONTH_SHORT_NAMES[selMonthNum] || "M\u00eas") + ':</span> ' + det + '</span>') +
               '</div>';
+            }
+            if (selo) {
+              seloRowHTML = '<div style="margin-top:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">' + selo + '</div>';
             }
           }
 
@@ -4224,6 +4281,7 @@ function hydrateFromPowerBI() {
                 '<span style="font-size:1.05rem; font-weight:800; color:#1e293b;">' + rotuloIndicador(t.id, t.name) + '</span>' +
                 '<span style="font-size:0.84rem; font-weight:800; color:#94a3b8; white-space:nowrap;">' + t.weight + ' pts</span>' +
               '</div>' +
+              seloRowHTML +
               body +
               valorDetalheHTML +
               pareceresHTML +
