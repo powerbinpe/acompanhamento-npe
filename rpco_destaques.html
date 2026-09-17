@@ -272,6 +272,8 @@
   function n36(x) { if (x === undefined || x === "") return null; var neg = x.charAt(0) === "-"; var v = parseInt(neg ? x.slice(1) : x, 36); return isNaN(v) ? null : (neg ? -v : v); }
   function parPorIndice(nome) { return String(P.get(nome) || "").split("|").filter(Boolean).map(function (p) { var q = p.split(":"); return { f: n36(q[0]) || 0, r: n36(q[1]) || 0 }; }); }
   var AT_NEG = parPorIndice("ATN"), AT_CLS = parPorIndice("ATC");
+  // Modo Locacoes: a medida troca a lista de OS pelos centros de LOCACOES (slicer PARAM_RPCO)
+  var MODO_LOC = P.get("MODO") === "LOC";
   var GER = {}, SUP = {};
   lista("GER").forEach(function (x) { var p = x.split(":"); if (p.length >= 2 && !GER[pad6(p[0])]) GER[pad6(p[0])] = { nome: p[1], sup: pad6(p[2] || "") }; });
   lista("SUP").forEach(function (x) { var i = x.indexOf(":"); if (i > 0) SUP[pad6(x.slice(0, i))] = x.slice(i + 1); });
@@ -288,7 +290,9 @@
       // Executivo do ano (medidas BRUTO do ano), base para definir a meta
       fatAno: n36(f[7]), resAno: n36(f[8]),
       // atual do ano (realizado + projetado) da OS, para o Acompanhamento
-      fatAtual: n36(f[9]) || 0, resAtual: n36(f[10]) || 0
+      fatAtual: n36(f[9]) || 0, resAtual: n36(f[10]) || 0,
+      // no modo Locacoes vem tambem a OS relacionada normal do centro
+      rel: f[11] || ""
     };
   });
   // Regra da CTT: ATIVO so em EXECUCAO/DEMOBILIZACAO/NOVA; ATUAL e ENCERRADO sempre FINALIZADA.
@@ -434,6 +438,12 @@
   // OS: so as que vem da CTT (ENCERRADO + FINALIZADA nao aparece). A lista traz a meta.
   // ===========================================================================
   function linhaOS(cod) { return linhas.filter(function (r) { return r.Nivel === "OS" && r.CodOS === cod; })[0]; }
+  // A meta de cada OS de Locacoes nao e cadastrada: nasce do faturamento atual do ano
+  // multiplicado pela % da meta geral de Locacoes (linha do superintendente de Locacoes).
+  function pctLocacoes() {
+    var t = somar(nivel("SUPERINTENDENTE").filter(function (r) { return r.Negocio === "LOCACOES"; }));
+    return t.f ? t.r / t.f : null;
+  }
   function montarOS() {
     var saida = [];
     Object.keys(OS_CTT).sort().forEach(function (cod) {
@@ -443,6 +453,14 @@
         r.uid = "os-" + cod; r.CodOS = cod; r.Title = ANO + "|OS|" + cod; r._virtual = true;
         snapshot(r);
         linhas.push(r);
+      }
+      if (MODO_LOC) {
+        var pct = pctLocacoes();
+        r._loc = true;
+        r.FatMeta = pct == null ? null : o.fatAtual;
+        r.ResMeta = pct == null ? null : Math.round(o.fatAtual * pct);
+        r.MargemMeta = pct;
+        r._orig.FatMeta = r.FatMeta; r._orig.ResMeta = r.ResMeta; r._orig.MargemMeta = r.MargemMeta;
       }
       saida.push({ tipo: "OS", r: r, ctt: o, ger: o.codGer });
     });
@@ -469,7 +487,7 @@
   // OS retirada da meta do ano pelo proprietario: fica numa lista a parte, com o motivo (obrigatorio)
   var FORA = "FORA DA META";
   function foraDaMeta(x) { return x.r._orig.Situacao === FORA && !(x.r._orig.FatMeta > 0); }
-  function pendentesOS() { return montarOS().filter(function (x) { return !(x.r._orig.FatMeta > 0) && !foraDaMeta(x); }); }
+  function pendentesOS() { return MODO_LOC ? [] : montarOS().filter(function (x) { return !(x.r._orig.FatMeta > 0) && !foraDaMeta(x); }); }
   function foraOSs() { return montarOS().filter(foraDaMeta); }
   function lerMotivo() { var t = document.getElementById("motivoFora"); if (t) motivoRascunho = t.value; }
   async function confirmarFora() {
@@ -722,12 +740,13 @@
     if (erroCarga) return '<div class="aviso erro"><h3>Metas indisponíveis</h3><p>' + esc(erroCarga) + '</p></div><button type="button" class="btn" data-acao="recarregar">Tentar de novo</button>';
     var edita = ehProprietario();
     return '<div id="topoMetas">' + htmlTopo(edita) + "</div>" + '<div id="rapido">' + htmlRapido(edita) + "</div>" + '<div id="barraMetas">' + htmlBarra(edita) + "</div>" +
-      htmlEmpresa(edita) + htmlSupers(edita) + htmlOutrosGerentes(edita) + htmlOS(edita) + htmlObservacoes(edita);
+      (MODO_LOC ? htmlOS(false) : htmlEmpresa(edita) + htmlSupers(edita) + htmlOutrosGerentes(edita) + htmlOS(edita) + htmlObservacoes(edita));
   }
 
   // ---- aviso de OS vigente sem meta: clicar abre o cadastro rapido logo abaixo
   function htmlTopo(edita) {
     var h = "";
+    if (MODO_LOC) h += '<div class="aviso info"><h3>Modo Locações</h3><p>A lista de OS mostra os centros de Locações, com a OS relacionada de cada um. A meta de cada OS é calculada: faturamento atual do ano × ' + (pctLocacoes() == null ? "% da meta geral (entre para ver)" : fmtPct(pctLocacoes())) + ", a % da meta geral de Locações. Nada é gravado neste modo.</p></div>";
     if (!TEM_CTT) h += '<div class="aviso info"><h3>Sem dados da CTT</h3><p>A página foi aberta fora do Power BI: OSs, nomes e avisos dependem da CTT enviada pelo relatório.</p></div>';
     var pend = pendentesOS();
     if (pend.length) {
@@ -1020,9 +1039,9 @@
   }
   function linhaOSHtml(x, edita) {
     var r = x.r, o = x.ctt, hist = textoHistorico(o.cod);
-    var h = "<tr" + atributosLinha(r, "folha") + ' data-os="' + esc(o.cod) + '"><td colspan="2"><div class="os">' + esc(o.desc) + "</div>" + (hist ? '<div class="desc">' + esc(hist) + "</div>" : "") + '<div class="sit">' + chipsItem(x) + "</div>" + (foraDaMeta(x) ? '<div class="desc">Motivo: ' + esc(r._orig.Justificativa) + "</div>" : definida(x) ? "" : '<div class="sugestao">' + htmlReal(o, edita) + "</div>") + "</td>" +
+    var h = "<tr" + atributosLinha(r, "folha") + ' data-os="' + esc(o.cod) + '"><td colspan="2"><div class="os">' + esc(o.desc) + "</div>" + (hist ? '<div class="desc">' + esc(hist) + "</div>" : "") + (o.rel ? '<div class="desc">OS relacionada: ' + esc(o.rel) + "</div>" : "") + '<div class="sit">' + chipsItem(x) + "</div>" + (foraDaMeta(x) ? '<div class="desc">Motivo: ' + esc(r._orig.Justificativa) + "</div>" : definida(x) ? "" : '<div class="sugestao">' + htmlReal(o, edita) + "</div>") + "</td>" +
       "<td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td>" +
-      numerosOS(x, edita && !foraDaMeta(x)) + "<td></td></tr>";
+      numerosOS(x, edita && !foraDaMeta(x) && !MODO_LOC) + "<td></td></tr>";
     // Observacao da CTT fica na propria OS, destacada logo abaixo dela
     if (violacao(o)) h += '<tr class="obs"><td colspan="8">⚠ Observação da CTT: ' + esc(o.desc) + " está com " + esc(violacao(o)) + ". Corrigir o cadastro (ATIVO só em EXECUCAO, DEMOBILIZACAO ou NOVA; ATUAL e ENCERRADO sempre FINALIZADA).</td></tr>";
     return h;
@@ -1035,6 +1054,7 @@
   }
   function chipsItem(x) {
     var r = x.r, o = x.ctt, chips = [];
+    if (MODO_LOC) return '<span class="chip def">META CALCULADA</span>';
     chips.push(definida(x) ? '<span class="chip def">DEFINIDA</span>' : foraDaMeta(x) ? '<span class="chip fora">FORA DA META</span>' : '<span class="chip adef">A DEFINIR</span>');
     if (!definida(x) && !foraDaMeta(x) && !temReal(o)) chips.push('<span class="chip sem">SEM EXECUTIVO NO ANO</span>');
     if (violacao(o)) chips.push('<span class="chip viol">ver observação</span>');
@@ -1110,7 +1130,10 @@
     if (!lista.length) return "";
     var cartoes = lista.map(function (s) {
       var oss = montarOS().filter(function (x) { return x.ctt.codSup === s; });
-      return cartao(nomeSup(s), oss.length + (oss.length === 1 ? " OS" : " OSs"), metaDe("S:" + s), somaAtual(oss));
+      var ehLoc = nivel("SUPERINTENDENTE").some(function (r) { return r.CodSuperintendente === s && r.Negocio === "LOCACOES"; });
+      var iLoc = NEG.indexOf("LOCACOES");
+      var atual = ehLoc && !MODO_LOC && iLoc >= 0 ? atualDeNeg(iLoc) : somaAtual(oss);
+      return cartao(nomeSup(s), ehLoc && !MODO_LOC ? "Locações · total do negócio" : oss.length + (oss.length === 1 ? " OS" : " OSs"), metaDe("S:" + s), atual);
     }).join("");
     return '<h2 class="grupo-titulo">Superintendências · ' + ANO + '</h2><section class="caixa acomp"><div class="cartoes">' + cartoes + "</div></section>";
   }
@@ -1336,6 +1359,7 @@
   // ===========================================================================
   function pendencias() {
     var novas = 0, alteradas = 0, ctt = 0, lista = [];
+    if (MODO_LOC) return { novas: 0, alteradas: 0, ctt: 0, total: 0, lista: [] };
     linhas.forEach(function (r) {
       if (r.Nivel === "OS") return;
       if (r.Nivel === "OBSERVACAO" && !r.id && !r.Justificativa) return;
@@ -1343,7 +1367,7 @@
       else if (linhaAlterada(r)) { alteradas++; lista.push({ r: r }); }
       else if (divergeCTTLinha(r)) { ctt++; lista.push({ r: r }); }
     });
-    montarOS().forEach(function (x) {
+    if (!MODO_LOC) montarOS().forEach(function (x) {
       var r = x.r, mudouValor = ["FatMeta", "ResMeta", "MargemMeta", "EntradaPor", "Situacao", "Justificativa"].some(function (c) { return alterado(r, c); });
       if (!r.id) { if (r.FatMeta != null || r.ResMeta != null || r.Situacao === FORA) { novas++; lista.push(x); } return; }
       if (mudouValor) { alteradas++; lista.push(x); }
