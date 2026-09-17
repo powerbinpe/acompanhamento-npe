@@ -985,7 +985,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-15 16:20";
+    window.NPE_BUILD = "2026-09-18 09:40";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -3695,13 +3695,16 @@ function hydrateFromPowerBI() {
       return "### #" + id + " " + nome + (!mesmo ? " (na tela do app aparece como " + tela + " -- esse n\u00famero \u00e9 s\u00f3 posi\u00e7\u00e3o visual, N\u00c3O use na resposta)" : "");
     }
 
-    // Os 23 INDICADORES que o Preenchimento mede: 1..21 mais Pontualidade (26) e
-    // Preenchimento (27). Renovacao (22) e Observacoes (23) ficam de fora -- sao texto livre,
-    // nao justificativa de indicador. O total continua 23, entao a escala nao muda.
+    // Os 21 INDICADORES que o Preenchimento mede: soh 1..21. Pontualidade (26) e o proprio
+    // Preenchimento (27) ficam de fora -- preencher justificativa NELES nao faz sentido (sao
+    // controles automaticos/diretos do proprio acompanhamento, nao indicadores de performance
+    // da OS), entao nao podem contar como "aderente ou nao" por falta de caixa de texto. Os
+    // dois continuam com peso proprio na Nota Geral (PESO_PRAZO/PESO_PREENCHIMENTO), so nao
+    // entram mais no denominador do Preenchimento. Decisao de 18/09/2026.
     var TOPICOS_PREENCHIMENTO = (function () {
       var a = [];
       for (var i = 1; i <= 21; i++) a.push(i);
-      return a.concat([26, 27]);
+      return a;
     })();
 
     // Topicos que tem caixa de texto na Aba 1, e portanto gravam na ATA.
@@ -5529,8 +5532,8 @@ function hydrateFromPowerBI() {
       renderTab5();
     }
 
-    // Por OS e por mes: quantos dos 23 topicos o gestor preencheu, quantos pareceres a
-    // Performance escreveu e quantos ja foram travados.
+    // Por OS e por mes: quantos dos 21 topicos (indicadores reais, sem Pontualidade/Preenchimento)
+    // o gestor preencheu, quantos pareceres a Performance escreveu e quantos ja foram travados.
     function tab5ResumoPorOS() {
       var blocos = obterMapaDeBlocosOS();
       var mapa = {};
@@ -5541,9 +5544,9 @@ function hydrateFromPowerBI() {
           var os = blocos.alias[rawOs] || rawOs;
           var e = mapa[os] || (mapa[os] = { meses: {}, totalMeses: 0 });
           var mes = e.meses[mm] || (e.meses[mm] = { topicos: 0, master: 0, validados: 0 });
-          // Mesmo conjunto do score: so os 23 indicadores. Antes somava qualquer linha da ATA
-          // com texto do gestor, entao Renovacao e Observacoes inflavam a contagem e a Aba 5
-          // divergia da nota.
+          // Mesmo conjunto do score: so os 21 indicadores reais (1..21). Antes somava qualquer
+          // linha da ATA com texto do gestor, entao Renovacao, Observacoes, Pontualidade e o
+          // proprio Preenchimento inflavam a contagem e a Aba 5 divergia da nota.
           var tidLinha = parseInt(r.topico, 10);
           var contaLinha = TOPICOS_PREENCHIMENTO.indexOf(tidLinha) !== -1;
           if (contaLinha && tab5Preenchido(r.gestor)) mes.topicos++;
@@ -5751,15 +5754,15 @@ function hydrateFromPowerBI() {
         }).join("") + '</div>';
     }
 
-    // Uma celula por mes: verde quando os 23 topicos foram preenchidos, amarelo quando
-    // parcial, cinza quando nao comecou.
+    // Uma celula por mes: verde quando os 21 topicos (indicadores reais) foram preenchidos,
+    // amarelo quando parcial, cinza quando nao comecou.
     function tab5CelulaMes(reg) {
       var t = reg ? reg.topicos : 0;
       var cor, fundo, texto;
-      if (t >= 23)     { cor = "#166534"; fundo = "#dcfce7"; texto = "23"; }
+      if (t >= 21)     { cor = "#166534"; fundo = "#dcfce7"; texto = "21"; }
       else if (t > 0)  { cor = "#92400e"; fundo = "#fef9c3"; texto = String(t); }
       else             { cor = "#cbd5e1"; fundo = "#f8fafc"; texto = "\u2014"; }
-      var titulo = t > 0 ? (t + " de 23 t\u00f3picos" + (reg.validados ? " \u00b7 " + reg.validados + " validado(s)" : "")) : "sem preenchimento";
+      var titulo = t > 0 ? (t + " de 21 t\u00f3picos" + (reg.validados ? " \u00b7 " + reg.validados + " validado(s)" : "")) : "sem preenchimento";
       return '<td title="' + titulo + '" style="padding:6px 4px; text-align:center; min-width:65px; width:65px;">' +
         '<span style="display:inline-block; min-width:44px; padding:5px 0; border-radius:6px; background:' + fundo +
         '; color:' + cor + '; font-size:1.10rem; font-weight:900;">' + texto + '</span></td>';
@@ -6080,10 +6083,10 @@ function hydrateFromPowerBI() {
               media = ossNeg.length ? (soma / ossNeg.length) : 0;
             }
             var cor, fundo, texto;
-            if (media >= 22.5)    { cor = "#166534"; fundo = "#dcfce7"; texto = media.toFixed(0); }
+            if (media >= 20.5)    { cor = "#166534"; fundo = "#dcfce7"; texto = media.toFixed(0); }
             else if (media > 0)   { cor = "#92400e"; fundo = "#fef9c3"; texto = media.toFixed(1); }
             else                  { cor = "#cbd5e1"; fundo = "#f8fafc"; texto = "\u2014"; }
-            return '<td title="m\u00e9dia de ' + media.toFixed(1) + ' de 23 t\u00f3picos por OS" style="padding:4px 2px; text-align:center;">' +
+            return '<td title="m\u00e9dia de ' + media.toFixed(1) + ' de 21 t\u00f3picos por OS" style="padding:4px 2px; text-align:center;">' +
               '<span style="display:inline-block; min-width:32px; padding:4px 0; border-radius:6px; background:' + fundo +
               '; color:' + cor + '; font-size:0.88rem; font-weight:900;">' + texto + '</span></td>';
           }).join("") +
@@ -6598,7 +6601,7 @@ function hydrateFromPowerBI() {
     function getOSCompletionStatus(osCodeRaw, monthNum) {
       var osCode = (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(osCodeRaw) : osCodeRaw;
       var filledCount = 0;
-      var totalTopics = TOPICOS_PREENCHIMENTO.length;   // 23, mas agora sao os 23 INDICADORES
+      var totalTopics = TOPICOS_PREENCHIMENTO.length;   // 21 -- soh os indicadores reais (1..21)
 
       TOPICOS_PREENCHIMENTO.forEach(function(tid) {
         var osRows = (window.ATA_COMENTARIOS_DB && window.ATA_COMENTARIOS_DB[osCode] && window.ATA_COMENTARIOS_DB[osCode][String(tid)]) ? window.ATA_COMENTARIOS_DB[osCode][String(tid)] : [];
@@ -6643,8 +6646,9 @@ function hydrateFromPowerBI() {
       }
       return den > 0 ? (num / den) : null;
     }
-    // Preenchimento: só conta 1 quando os 23 tópicos estão preenchidos (status "OK"); "Parcial"
-    // (e "Pendente") contam 0. Todo mês entra no denominador.
+    // Preenchimento: só conta 1 quando os 21 tópicos (indicadores reais, sem Pontualidade e
+    // sem o próprio Preenchimento) estão preenchidos (status "OK"); "Parcial" (e "Pendente")
+    // contam 0. Todo mês entra no denominador.
     function computePreenchimentoAccumPct(osCode, uptoMonth) {
       var num = 0, den = 0;
       for (var m = 1; m <= uptoMonth; m++) {
@@ -7042,11 +7046,11 @@ function hydrateFromPowerBI() {
       lines.push("PONTUALIDADE (#26) E PREENCHIMENTO (#27) -- LEIA COM ATEN\u00c7\u00c3O");
       lines.push("ENDERE\u00c7O -- ANTES DE TUDO: devolva estes dois textos como \"### #26\" e \"### #27\", exatamente como aparecem nos blocos acima. NUNCA como #22 ou #23. Esses dois n\u00fameros pertencem a OUTROS t\u00f3picos (#22 Renova\u00e7\u00e3o do Contrato e #23 Observa\u00e7\u00f5es Gerais): mandar o texto para l\u00e1 sobrescreve o conte\u00fado deles e deixa a Pontualidade e o Preenchimento em branco. Se o cabe\u00e7alho do bloco citar um n\u00famero \"na tela do app\", ele \u00e9 s\u00f3 posi\u00e7\u00e3o visual -- o endere\u00e7o de grava\u00e7\u00e3o \u00e9 sempre o que vem logo depois de \"### #\".");
       lines.push("Os dois dividem UMA \u00fanica nota de Gest\u00e3o e Acompanhamento, mas medem coisas de natureza oposta e NUNCA devem ser tratados como o mesmo assunto:");
-      lines.push("  - #27 Preenchimento deve SEMPRE fechar 100% (23 de 23 indicadores justificados). Qualquer n\u00famero menor \u00e9 falha de gest\u00e3o, sem atenuante: os campos estavam l\u00e1 para serem preenchidos.");
+      lines.push("  - #27 Preenchimento deve SEMPRE fechar 100% (21 de 21 indicadores REAIS justificados -- #1 a #21; Pontualidade e o proprio Preenchimento NAO entram nessa conta, preencher justificativa neles nao faz sentido). Qualquer n\u00famero menor que 21 \u00e9 falha de gest\u00e3o, sem atenuante: os campos estavam l\u00e1 para serem preenchidos.");
       lines.push("  - #26 Pontualidade VARIA por natureza -- depende da data em que o acompanhamento foi entregue. Aqui cabe analisar o porqu\u00ea do atraso.");
-      lines.push("Escreva um parecer para cada um, com o valor apurado DAQUELE indicador na primeira linha (o de #26 \u00e9 a situa\u00e7\u00e3o de prazo; o de #27 \u00e9 quantos de 23 foram preenchidos). N\u00e3o repita o mesmo texto nos dois.");
+      lines.push("Escreva um parecer para cada um, com o valor apurado DAQUELE indicador na primeira linha (o de #26 \u00e9 a situa\u00e7\u00e3o de prazo; o de #27 \u00e9 quantos de 21 foram preenchidos). N\u00e3o repita o mesmo texto nos dois.");
       lines.push("CASO MAIS GRAVE: fora do prazo E sem justificativa registrada. N\u00e3o entregou e n\u00e3o explicou. Diga isso com todas as letras e cobre as duas coisas -- a entrega e a explica\u00e7\u00e3o -- em vez de diluir numa observa\u00e7\u00e3o gen\u00e9rica.");
-      lines.push("ATEN\u00c7\u00c3O: a falta de justificativa NESTES DOIS campos NUNCA \u00e9 admiss\u00edvel, nem quando a meta foi atendida. Eles pr\u00f3prios entram na contagem dos 23 do Preenchimento -- deix\u00e1-los em branco \u00e9 uma das causas diretas de o Preenchimento n\u00e3o fechar 100%. Jamais escreva que a aus\u00eancia de justificativa \u00e9 aceit\u00e1vel porque o indicador atendeu: ela \u00e9, ela mesma, a falha que derruba o indicador seguinte.");
+      lines.push("ATEN\u00c7\u00c3O: a falta de justificativa nos indicadores #1 a #21 NUNCA \u00e9 admiss\u00edvel, nem quando a meta foi atendida -- cada um deles \u00e9 uma das causas diretas de o Preenchimento n\u00e3o fechar 100%. Jamais escreva que a aus\u00eancia de justificativa \u00e9 aceit\u00e1vel porque o indicador atendeu: ela \u00e9, ela mesma, a falha que derruba o indicador seguinte. #26 e #27 continuam precisando do PR\u00d3PRIO parecer (contam pra Nota Geral deles mesmos), s\u00f3 n\u00e3o contam mais pra conta do Preenchimento.");
       lines.push("");
       lines.push("FORMATO DA RESPOSTA (obrigat\u00f3rio -- o app importa por ele)");
       lines.push("REPETINDO O AVISO DO IN\u00cdCIO: tabela N\u00c3O \u00c9 UM FORMATO V\u00c1LIDO PARA ESTA RESPOSTA -- n\u00e3o existe, n\u00e3o \u00e9 uma op\u00e7\u00e3o entre outras, n\u00e3o pode ser oferecida nem sugerida. Isso vale mesmo que uma tabela pare\u00e7a mais organizada ou mais f\u00e1cil de ler: quem processa esta resposta \u00e9 um parser de texto, que s\u00f3 reconhece o padr\u00e3o \"### #N\" abaixo. NUNCA use tabela (markdown, HTML ou qualquer variante), slide, planilha, bullet points soltos ou qualquer outro formato -- s\u00f3 o texto corrido no padr\u00e3o \"### #N\" abaixo, para os 23 indicadores, sem exce\u00e7\u00e3o. Qualquer outro formato quebra a importa\u00e7\u00e3o e apaga os resumos j\u00e1 existentes. N\u00c3O pergunte se prefiro outro formato (tabela, resumo executivo, slide) nem ofere\u00e7a essa alternativa ao final da resposta: devolva direto os 23 blocos, sem nenhum texto antes ou depois deles.");
@@ -7465,11 +7469,11 @@ function hydrateFromPowerBI() {
       lines.push("PONTUALIDADE (#26) E PREENCHIMENTO (#27) -- LEIA COM ATEN\u00c7\u00c3O");
       lines.push("ENDERE\u00c7O -- ANTES DE TUDO: devolva estes dois textos como \"### #26\" e \"### #27\", exatamente como aparecem nos blocos acima. NUNCA como #22 ou #23. Esses dois n\u00fameros pertencem a OUTROS t\u00f3picos (#22 Renova\u00e7\u00e3o do Contrato e #23 Observa\u00e7\u00f5es Gerais): mandar o texto para l\u00e1 sobrescreve o conte\u00fado deles e deixa a Pontualidade e o Preenchimento em branco. Se o cabe\u00e7alho do bloco citar um n\u00famero \"na tela do app\", ele \u00e9 s\u00f3 posi\u00e7\u00e3o visual -- o endere\u00e7o de grava\u00e7\u00e3o \u00e9 sempre o que vem logo depois de \"### #\".");
       lines.push("Os dois dividem UMA \u00fanica nota de Gest\u00e3o e Acompanhamento, mas medem coisas de natureza oposta e NUNCA devem ser tratados como o mesmo assunto:");
-      lines.push("  - #27 Preenchimento deve SEMPRE fechar 100% (23 de 23 indicadores justificados). Qualquer n\u00famero menor \u00e9 falha de gest\u00e3o, sem atenuante: os campos estavam l\u00e1 para serem preenchidos.");
+      lines.push("  - #27 Preenchimento deve SEMPRE fechar 100% (21 de 21 indicadores REAIS justificados -- #1 a #21; Pontualidade e o proprio Preenchimento NAO entram nessa conta). Qualquer n\u00famero menor que 21 \u00e9 falha de gest\u00e3o, sem atenuante.");
       lines.push("  - #26 Pontualidade VARIA por natureza -- depende da data em que o acompanhamento foi entregue. Aqui cabe analisar o porqu\u00ea do atraso.");
-      lines.push("Escreva um parecer para cada um, com o valor apurado DAQUELE indicador na primeira linha (o de #26 \u00e9 a situa\u00e7\u00e3o de prazo; o de #27 \u00e9 quantos de 23 foram preenchidos). N\u00e3o repita o mesmo texto nos dois.");
+      lines.push("Escreva um parecer para cada um, com o valor apurado DAQUELE indicador na primeira linha (o de #26 \u00e9 a situa\u00e7\u00e3o de prazo; o de #27 \u00e9 quantos de 21 foram preenchidos). N\u00e3o repita o mesmo texto nos dois.");
       lines.push("CASO MAIS GRAVE: fora do prazo E sem justificativa registrada. N\u00e3o entregou e n\u00e3o explicou. Diga isso com todas as letras e cobre as duas coisas -- a entrega e a explica\u00e7\u00e3o -- em vez de diluir numa observa\u00e7\u00e3o gen\u00e9rica.");
-      lines.push("ATEN\u00c7\u00c3O: a falta de justificativa NESTES DOIS campos NUNCA \u00e9 admiss\u00edvel, nem quando a meta foi atendida. Eles pr\u00f3prios entram na contagem dos 23 do Preenchimento -- deix\u00e1-los em branco \u00e9 uma das causas diretas de o Preenchimento n\u00e3o fechar 100%. Jamais escreva que a aus\u00eancia de justificativa \u00e9 aceit\u00e1vel porque o indicador atendeu: ela \u00e9, ela mesma, a falha que derruba o indicador seguinte.");
+      lines.push("ATEN\u00c7\u00c3O: a falta de justificativa nos indicadores #1 a #21 NUNCA \u00e9 admiss\u00edvel, nem quando a meta foi atendida -- cada um deles \u00e9 uma das causas diretas de o Preenchimento n\u00e3o fechar 100%. Jamais escreva que a aus\u00eancia de justificativa \u00e9 aceit\u00e1vel porque o indicador atendeu: ela \u00e9, ela mesma, a falha que derruba o indicador seguinte. #26 e #27 continuam precisando do PR\u00d3PRIO parecer (contam pra Nota Geral deles mesmos), s\u00f3 n\u00e3o contam mais pra conta do Preenchimento.");
       lines.push("A análise tem no máximo 4 linhas, é concreta e não repete o texto do Gestor.");
       lines.push("Não use colchetes em lugar nenhum da resposta -- o app os remove ao gravar.");
       lines.push("");
