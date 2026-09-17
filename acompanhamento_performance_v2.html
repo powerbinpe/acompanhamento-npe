@@ -985,7 +985,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-18 09:40";
+    window.NPE_BUILD = "2026-09-18 10:15";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -2890,6 +2890,63 @@ function hydrateFromPowerBI() {
       return out;
     }
 
+    // Satisfacao do Cliente e ANUAL -- nao muda mes a mes dentro do ano, entao a leitura
+    // generica de seloTendencia() (mes atual vs mes anterior) nunca tem o que comparar e
+    // some sem erro (18/09/2026: era exatamente isso que faltava no topo do card). A
+    // comparacao que faz sentido aqui e contra ANOS: o ano anterior, e a media dos demais
+    // anos ja apurados para esta OS -- mesmos dados de SatHistorico (medida
+    // _mSatisfacaoHistorico), sem inventar nenhum numero que nao veio do modelo.
+    function seloTendenciaSatisfacao() {
+      var params = new URLSearchParams(window.location.search);
+      var anoAtual = parseInt(params.get("SelectedAno"), 10);
+      if (!anoAtual) return "";
+      var raw = params.get("SatHistorico") || "";
+      var rows = raw ? raw.split("~").filter(Boolean).map(function(r) {
+        var p = r.split("^");
+        var ano = parseInt(p[0], 10);
+        var satNum = parseFloat(String(p[1] || "").replace("%", "").replace(",", "."));
+        return (ano && !isNaN(satNum)) ? { ano: ano, sat: p[1], satNum: satNum } : null;
+      }).filter(Boolean) : [];
+      if (rows.length === 0) return "";
+
+      var atual = rows.find(function(r) { return r.ano === anoAtual; });
+      if (!atual) return "";
+
+      var out = "";
+
+      // --- vs ano anterior ---
+      var anterior = rows.find(function(r) { return r.ano === anoAtual - 1; });
+      if (anterior) {
+        var cmp = (Math.abs(atual.satNum - anterior.satNum) < 1e-9) ? 0 : (atual.satNum > anterior.satNum ? 1 : -1);
+        var vis = cmp === 1
+          ? { ico: "▲", txt: "Melhorou", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
+          : (cmp === -1
+            ? { ico: "▼", txt: "Piorou", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
+            : { ico: "▬", txt: "Estável", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+        out += _chipTendencia(vis, "vs " + (anoAtual - 1),
+          (anoAtual - 1) + ": " + anterior.sat + "  →  " + anoAtual + ": " + atual.sat);
+      }
+
+      // --- vs media dos demais anos ja apurados ---
+      var outrosAnos = rows.filter(function(r) { return r.ano !== anoAtual; });
+      if (outrosAnos.length > 0) {
+        var soma = outrosAnos.reduce(function(s, r) { return s + r.satNum; }, 0);
+        var media = soma / outrosAnos.length;
+        var cmpM = (Math.abs(atual.satNum - media) < 1e-9) ? 0 : (atual.satNum > media ? 1 : -1);
+        var visM = cmpM === 1
+          ? { ico: "↑", txt: "Acima da média", fg: "#15803d", bg: "#dcfce7", bd: "#86efac" }
+          : (cmpM === -1
+            ? { ico: "↓", txt: "Abaixo da média", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
+            : { ico: "≈", txt: "Na média", fg: "#475569", bg: "#e2e8f0", bd: "#cbd5e1" });
+        out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
+          _chipTendencia(visM, "vs média " + outrosAnos.length + " ano" + (outrosAnos.length > 1 ? "s" : ""),
+            "Média de " + outrosAnos.map(function(r) { return r.ano; }).join(", ") + ": " +
+            (media * 100).toFixed(2).replace(".", ",") + "%  →  " + anoAtual + ": " + atual.sat);
+      }
+
+      return out;
+    }
+
     function renderRows() {
       if (typeof updateFromURLParams === 'function') updateFromURLParams();
       var container = document.getElementById("topicsContainer");
@@ -3354,7 +3411,7 @@ function hydrateFromPowerBI() {
           '<div>' +
             '<div class="topic-header" style="margin-bottom: 6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
               '<span class="topic-title" style="font-size:1.15rem; font-weight:800; color:#0f2b5c;">' + rotuloIndicador(topic.id, topic.name) + '</span>' +
-              seloTendencia(activeOS, topic.id, monthNum) +
+              (topic.id === 17 ? seloTendenciaSatisfacao() : seloTendencia(activeOS, topic.id, monthNum)) +
             '</div>' +
             '<div class="kpi-lines">' + linesHTML + '</div>' +
             qualBlockHTML +
@@ -4112,8 +4169,9 @@ function hydrateFromPowerBI() {
             var det = buildTopicDetailLine(isAcompTopic ? t.id : ("t" + t.id), mdUlt, contract, selMonthNum);
             // Mesma funcao da Aba 1: uma implementacao so, entao as duas abas nunca divergem.
             // Nos topicos manuais ela devolve "" sozinha, porque ali nao existe numero apurado.
-            var selo = (typeof seloTendencia === "function" && !isAcompTopic)
-              ? seloTendencia(contractCode, t.id, selMonthNum) : "";
+            var selo = isAcompTopic ? "" : (t.id === 17
+              ? (typeof seloTendenciaSatisfacao === "function" ? seloTendenciaSatisfacao() : "")
+              : (typeof seloTendencia === "function" ? seloTendencia(contractCode, t.id, selMonthNum) : ""));
             if (det || selo) {
               valorDetalheHTML = '<div style="margin-top:8px; padding:6px 9px; background:#f8fafc;' +
                 ' border:1px solid #e2e8f0; border-radius:6px; font-size:0.80rem; color:#334155;' +
