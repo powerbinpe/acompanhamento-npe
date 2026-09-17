@@ -166,6 +166,12 @@
   .real { font-size: .78rem; color: var(--muted); font-style: italic; }
   .sug { color: var(--muted); font-style: italic; }
   td input.v::placeholder { color: #94a3b8; font-style: italic; }
+  .aviso.foram { background: #f1f5f9; border: 1px solid #94a3b8; }
+  table.lista-fora td { padding: 6px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  table.lista-fora td.motivo { white-space: pre-wrap; color: var(--muted); width: 55%; }
+  .form-fora { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
+  .form-fora textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 6px; resize: vertical; }
+  .form-fora .dir { display: flex; gap: 8px; }
   .chip.sync { background: #dbeafe; color: #1e40af; }
   .vazio { color: var(--muted); padding: 10px 14px; font-size: .82rem; }
   .x { background: none; border: none; color: #94a3b8; font-weight: 800; cursor: pointer; font-size: 1rem; padding: 0 4px; }
@@ -301,13 +307,14 @@
   var linhas = [];
   var carregando = false, erroCarga = "", filtro = "", msgStatus = "", corStatus = "";
   var confirmando = false, gravando = false, focoAlvo = "", rapidoOS = "";
+  var foraOS = "", motivoRascunho = "";   // OS com o formulario "fora da meta" aberto
   var abertos = {};   // superintendentes com os gerentes abertos
   var abertosG = {}, abertosOS = {};   // gerentes abertos; nos abertos da arvore de OS
   var RESP = [], RESP_OK = false;      // cadastro de Responsaveis (Tipo RESPONSAVEL)
   var seq = 0;
 
   var CAMPOS_TXT = ["Title", "Nivel", "CodOS", "CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "Nome", "Justificativa", "EntradaPor", "Situacao", "Ativo", "Origem"];
-  var CAMPOS_EDIT = ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "FatMeta", "ResMeta", "MargemMeta", "EntradaPor", "Ativo", "Justificativa"];
+  var CAMPOS_EDIT = ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "FatMeta", "ResMeta", "MargemMeta", "EntradaPor", "Ativo", "Justificativa", "Situacao"];
   function normalizar(it) {
     var r = { uid: "r" + (++seq), id: parseInt(it.ID || it.Id || it.id, 10) || 0 };
     CAMPOS_TXT.forEach(function (c) { r[c] = it[c] == null ? "" : String(it[c]); });
@@ -426,7 +433,29 @@
     return '<span class="real">Executivo do ano: ' + fmtVal(o.fatAno) + " · " + fmtVal(o.resAno) + (o.fatAno ? " · " + fmtPct(o.resAno / o.fatAno) : "") + "</span>" +
       (edita ? '<button type="button" class="btn peq sec" data-usar-real="' + esc(o.cod) + '">Usar o Executivo como meta</button>' : "");
   }
-  function pendentesOS() { return montarOS().filter(function (x) { return !(x.r._orig.FatMeta > 0); }); }
+  // OS retirada da meta do ano pelo proprietario: fica numa lista a parte, com o motivo (obrigatorio)
+  var FORA = "FORA DA META";
+  function foraDaMeta(x) { return x.r._orig.Situacao === FORA && !(x.r._orig.FatMeta > 0); }
+  function pendentesOS() { return montarOS().filter(function (x) { return !(x.r._orig.FatMeta > 0) && !foraDaMeta(x); }); }
+  function foraOSs() { return montarOS().filter(foraDaMeta); }
+  function lerMotivo() { var t = document.getElementById("motivoFora"); if (t) motivoRascunho = t.value; }
+  async function confirmarFora() {
+    lerMotivo();
+    var x = montarOS().filter(function (y) { return y.ctt.cod === foraOS; })[0];
+    if (!x) return;
+    var motivo = motivoRascunho.trim();
+    if (!motivo) { msgStatus = "Informe o motivo para deixar a OS fora da meta."; corStatus = "erro"; render(); var t = document.getElementById("motivoFora"); if (t) t.focus(); return; }
+    x.r.Situacao = FORA; x.r.Justificativa = motivo;
+    x.r.FatMeta = null; x.r.ResMeta = null; x.r.MargemMeta = null;
+    var ok = await salvar("Fora da meta de " + ANO + ": " + x.ctt.desc + ".");
+    if (ok) { foraOS = ""; motivoRascunho = ""; rapidoOS = ""; render(); }
+  }
+  async function voltarPendente(cod) {
+    var x = montarOS().filter(function (y) { return y.ctt.cod === cod; })[0];
+    if (!x) return;
+    x.r.Situacao = "RASCUNHO"; x.r.Justificativa = "";
+    await salvar(x.ctt.desc + " voltou para as OSs sem meta.");
+  }
   function divergenciasCTT(x) {
     var o = x.ctt, r = x.r;
     if (!o) return [];
@@ -559,6 +588,7 @@
   // ===========================================================================
   var ABAS = [["metas", "Metas"], ["operacional", "Acompanhamento Operacional"], ["destaques", "Destaques"], ["gerenciais", "Gerenciais"]];
   function render() {
+    lerMotivo();
     fecharCombo();
     document.getElementById("subtitulo").textContent = "RPCO · " + ANO;
     renderSessao();
@@ -673,6 +703,14 @@
           return '<button type="button" ' + (edita ? 'data-rapido="' + esc(c) + '"' : 'data-ir="os:' + esc(c) + '"') + (rapidoOS === c ? ' class="on" aria-expanded="true"' : "") + ">" + esc(x.ctt.desc) + (temReal(x.ctt) ? "" : ' <span class="chip sem">SEM EXECUTIVO NO ANO</span>') + "</button>";
         }).join("") + "</div></div>";
     }
+    var fora = foraOSs();
+    if (fora.length) {
+      h += '<div class="aviso foram"><h3>' + fora.length + (fora.length === 1 ? " OS fora" : " OSs fora") + " da meta de " + ANO + '</h3><table class="lista-fora"><tbody>' +
+        fora.map(function (x) {
+          return "<tr><td><b>" + esc(x.ctt.desc) + '</b></td><td class="motivo">' + esc(x.r._orig.Justificativa) + "</td><td>" +
+            (edita ? '<button type="button" class="btn sec peq" data-voltar="' + esc(x.ctt.cod) + '"' + (gravando ? " disabled" : "") + ">Voltar para sem meta</button>" : "") + "</td></tr>";
+        }).join("") + "</tbody></table></div>";
+    }
     return h;
   }
 
@@ -682,10 +720,16 @@
     if (!x) { rapidoOS = ""; return ""; }
     var o = x.ctt, r = x.r;
     return '<div class="rapido" id="cx-rapido"><div class="rapido-topo"><h4>Meta da OS ' + esc(o.desc) + "</h4>" +
-      '<span class="dir"><button type="button" class="btn ok peq" data-acao="gravarRapido"' + (gravando ? " disabled" : "") + ">" + (gravando ? "Gravando..." : "Gravar meta") + '</button><button type="button" class="btn sec peq" data-acao="fecharRapido">Fechar</button></span></div>' +
+      '<span class="dir"><button type="button" class="btn ok peq" data-acao="gravarRapido"' + (gravando ? " disabled" : "") + ">" + (gravando ? "Gravando..." : "Gravar meta") + "</button>" +
+      '<button type="button" class="btn sec peq" data-acao="abrirFora"' + (gravando || foraOS === o.cod ? " disabled" : "") + ">Deixar fora da meta</button>" +
+      '<button type="button" class="btn sec peq" data-acao="fecharRapido">Fechar</button></span></div>' +
       '<div class="rolagem"><table><thead><tr><th>Gerente</th><th>Superintendente</th><th>Negócio</th><th>Classificação</th><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th></tr></thead><tbody>' +
       "<tr" + atributosLinha(r) + "><td>" + esc(nomeGer(o.codGer)) + "</td><td>" + esc(nomeSup(o.codSup)) + "</td><td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td>" +
-      numerosOS(x, true) + "</tr></tbody></table></div>" + '<div class="rapido-real">' + (temReal(o) ? htmlReal(o, true) : '<span class="chip sem">SEM EXECUTIVO NO ANO</span>') + "</div></div>";
+      numerosOS(x, true) + "</tr></tbody></table></div>" + '<div class="rapido-real">' + (temReal(o) ? htmlReal(o, true) : '<span class="chip sem">SEM EXECUTIVO NO ANO</span>') + "</div>" +
+      (foraOS === o.cod ? '<div class="form-fora"><label for="motivoFora">Motivo para deixar ' + esc(o.desc) + " fora da meta de " + ANO + ' <b>(obrigatório)</b></label>' +
+        '<textarea id="motivoFora" rows="3">' + esc(motivoRascunho) + "</textarea>" +
+        '<span class="dir"><button type="button" class="btn ok peq" data-acao="confirmarFora"' + (gravando ? " disabled" : "") + ">Confirmar fora da meta</button>" +
+        '<button type="button" class="btn sec peq" data-acao="cancelarFora">Cancelar</button></span></div>' : "") + "</div>";
   }
 
   function htmlBarra(edita) {
@@ -941,23 +985,23 @@
   }
   function linhaOSHtml(x, edita) {
     var r = x.r, o = x.ctt, hist = textoHistorico(o.cod);
-    var h = "<tr" + atributosLinha(r, "folha") + ' data-os="' + esc(o.cod) + '"><td colspan="2"><div class="os">' + esc(o.desc) + "</div>" + (hist ? '<div class="desc">' + esc(hist) + "</div>" : "") + '<div class="sit">' + chipsItem(x) + "</div>" + (definida(x) ? "" : '<div class="sugestao">' + htmlReal(o, edita) + "</div>") + "</td>" +
+    var h = "<tr" + atributosLinha(r, "folha") + ' data-os="' + esc(o.cod) + '"><td colspan="2"><div class="os">' + esc(o.desc) + "</div>" + (hist ? '<div class="desc">' + esc(hist) + "</div>" : "") + '<div class="sit">' + chipsItem(x) + "</div>" + (foraDaMeta(x) ? '<div class="desc">Motivo: ' + esc(r._orig.Justificativa) + "</div>" : definida(x) ? "" : '<div class="sugestao">' + htmlReal(o, edita) + "</div>") + "</td>" +
       "<td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td>" +
-      numerosOS(x, edita) + "<td></td></tr>";
+      numerosOS(x, edita && !foraDaMeta(x)) + "<td></td></tr>";
     // Observacao da CTT fica na propria OS, destacada logo abaixo dela
     if (violacao(o)) h += '<tr class="obs"><td colspan="8">⚠ Observação da CTT: ' + esc(o.desc) + " está com " + esc(violacao(o)) + ". Corrigir o cadastro (ATIVO só em EXECUCAO, DEMOBILIZACAO ou NOVA; ATUAL e ENCERRADO sempre FINALIZADA).</td></tr>";
     return h;
   }
   function numerosOS(x, edita) {
-    var r = x.r, o = x.ctt, sug = !definida(x) && temReal(o);
+    var r = x.r, o = x.ctt, sug = !definida(x) && !foraDaMeta(x) && temReal(o);
     return numero(r, "FatMeta", edita, "Faturamento", false, sug ? fmtVal(o.fatAno) : "") +
       numero(r, "ResMeta", edita, "Resultado", r.EntradaPor === "MARGEM", sug ? fmtVal(o.resAno) : "") +
       numero(r, "MargemMeta", edita, "Margem", r.EntradaPor !== "MARGEM", sug && o.fatAno ? fmtPct(o.resAno / o.fatAno) : "");
   }
   function chipsItem(x) {
     var r = x.r, o = x.ctt, chips = [];
-    chips.push(definida(x) ? '<span class="chip def">DEFINIDA</span>' : '<span class="chip adef">A DEFINIR</span>');
-    if (!definida(x) && !temReal(o)) chips.push('<span class="chip sem">SEM EXECUTIVO NO ANO</span>');
+    chips.push(definida(x) ? '<span class="chip def">DEFINIDA</span>' : foraDaMeta(x) ? '<span class="chip fora">FORA DA META</span>' : '<span class="chip adef">A DEFINIR</span>');
+    if (!definida(x) && !foraDaMeta(x) && !temReal(o)) chips.push('<span class="chip sem">SEM EXECUTIVO NO ANO</span>');
     if (violacao(o)) chips.push('<span class="chip viol">ver observação</span>');
     if (r.id && divergenciasCTT(x).length) chips.push('<span class="chip sync" title="A lista guarda outro valor; a CTT manda e a lista é atualizada ao salvar">CTT atualizou ' + esc(divergenciasCTT(x).join(", ")) + "</span>");
     return chips.join("");
@@ -1137,8 +1181,8 @@
       else if (divergeCTTLinha(r)) { ctt++; lista.push({ r: r }); }
     });
     montarOS().forEach(function (x) {
-      var r = x.r, mudouValor = ["FatMeta", "ResMeta", "MargemMeta", "EntradaPor"].some(function (c) { return alterado(r, c); });
-      if (!r.id) { if (r.FatMeta != null || r.ResMeta != null) { novas++; lista.push(x); } return; }
+      var r = x.r, mudouValor = ["FatMeta", "ResMeta", "MargemMeta", "EntradaPor", "Situacao", "Justificativa"].some(function (c) { return alterado(r, c); });
+      if (!r.id) { if (r.FatMeta != null || r.ResMeta != null || r.Situacao === FORA) { novas++; lista.push(x); } return; }
       if (mudouValor) { alteradas++; lista.push(x); }
       else if (divergenciasCTT(x).length) { ctt++; lista.push(x); }
     });
@@ -1154,6 +1198,7 @@
   function validar(lista) {
     for (var i = 0; i < lista.length; i++) {
       var r = lista[i].r;
+      if (r.Nivel === "OS" && r.Situacao === FORA && !String(r.Justificativa || "").trim()) return "Informe o motivo para deixar a OS fora da meta.";
       if (r.Nivel === "OS" || r.Ativo === "Nao") continue;
       if (r.Nivel === "EMPRESA" && grupoEmpresa(r) === "N" && !r.Negocio) return "Linha da Empresa por negócio precisa do negócio.";
       if (r.Nivel === "EMPRESA" && grupoEmpresa(r) === "C" && !r.Classificacao) return "Linha da Empresa por classificação precisa da classificação.";
@@ -1178,7 +1223,7 @@
       campos.Situacao = "RASCUNHO"; campos.Origem = "APP";
     }
     ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "EntradaPor", "Ativo"].forEach(function (c) { campos[c] = r[c] || ""; });
-    if (r.Nivel === "OS") campos.Nome = r.Nome;
+    if (r.Nivel === "OS") { campos.Nome = r.Nome; campos.Situacao = r.Situacao || "RASCUNHO"; campos.Justificativa = r.Situacao === FORA ? (r.Justificativa || "") : ""; }
     else if (r.Nivel === "OBSERVACAO") campos.Justificativa = r.Justificativa || "";
     else ["ClassificacaoAdicional", "Descricao", "Cliente"].forEach(function (c) { campos[c] = r[c] || ""; });
     campos.FatMeta = r.FatMeta; campos.ResMeta = r.ResMeta; campos.MargemMeta = r.MargemMeta;
@@ -1267,6 +1312,7 @@
       return;
     }
     if (t.hasAttribute("data-ir")) { filtro = ""; focoAlvo = t.getAttribute("data-ir"); if (focoAlvo.indexOf("os:") === 0) abrirCaminhoOS(focoAlvo.slice(3)); render(); return; }
+    if (t.hasAttribute("data-voltar")) { voltarPendente(t.getAttribute("data-voltar")); return; }
     if (t.hasAttribute("data-usar-real")) { usarReal(t.getAttribute("data-usar-real")); return; }
     if (t.hasAttribute("data-novo")) { novaLinha(t.getAttribute("data-novo"), t.getAttribute("data-cod") || ""); return; }
     if (t.hasAttribute("data-remover")) { remover(t.getAttribute("data-remover")); return; }
@@ -1277,7 +1323,10 @@
     else if (a === "cancelarSalvar") { confirmando = false; render(); }
     else if (a === "confirmarSalvar") salvar();
     else if (a === "gravarRapido") gravarRapido();
-    else if (a === "fecharRapido") { rapidoOS = ""; render(); }
+    else if (a === "fecharRapido") { rapidoOS = ""; foraOS = ""; motivoRascunho = ""; render(); }
+    else if (a === "abrirFora") { foraOS = rapidoOS; motivoRascunho = ""; render(); var mt = document.getElementById("motivoFora"); if (mt) mt.focus(); }
+    else if (a === "cancelarFora") { foraOS = ""; motivoRascunho = ""; render(); }
+    else if (a === "confirmarFora") confirmarFora();
   });
   document.addEventListener("change", function (ev) {
     if (ev.target.matches("#painel input[data-f], #painel textarea[data-f]")) editar(ev.target);
