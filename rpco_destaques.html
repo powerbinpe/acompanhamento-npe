@@ -162,6 +162,7 @@
   .chip.adef { background: #fef3c7; color: #92400e; border: 1px dashed #d97706; }
   .sugestao, .rapido-real { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
   .rapido-real { padding: 0 12px 12px; }
+  .sugestao:empty { display: none; }
   .real { font-size: .78rem; color: var(--muted); font-style: italic; }
   .sug { color: var(--muted); font-style: italic; }
   td input.v::placeholder { color: #94a3b8; font-style: italic; }
@@ -248,7 +249,7 @@
       negocio: NEG[+f[4]] || "", classificacao: CLS[+f[5]] || "",
       status: STATUS[fl.charAt(0)] || fl.charAt(0),
       estagio: ESTAGIOS.hasOwnProperty(fl.charAt(1)) ? ESTAGIOS[fl.charAt(1)] : fl.charAt(1),
-      // realizado + projetado do ano (medidas BRUTO do ano), base para definir a meta
+      // Executivo do ano (medidas BRUTO do ano), base para definir a meta
       fatAno: f[7] === undefined || f[7] === "" ? null : Number(f[7]),
       resAno: f[8] === undefined || f[8] === "" ? null : Number(f[8])
     };
@@ -407,7 +408,7 @@
     });
     return saida;
   }
-  // Meta DEFINIDA = gravada na lista com faturamento; senao A DEFINIR (o real do ano so e sugestao)
+  // Meta DEFINIDA = gravada na lista com faturamento; senao A DEFINIR (o Executivo do ano so e sugestao)
   function definida(x) { return x.r._orig.FatMeta > 0; }
   function temReal(o) { return !!(o.fatAno || o.resAno); }
   function usarReal(cod) {
@@ -417,13 +418,13 @@
     recalcular(x.r);
     // o campo com o cursor nao e reescrito por atualizarNoLugar
     var ativo = document.activeElement; if (ativo && ativo.matches && ativo.matches("input[data-f]")) ativo.blur();
-    msgStatus = "Real do ano copiado para a meta de " + x.ctt.desc + ". Ajuste se precisar e grave."; corStatus = "";
+    msgStatus = "Executivo do ano copiado para a meta de " + x.ctt.desc + ". Ajuste se precisar e grave."; corStatus = "";
     atualizarNoLugar(x.r);
   }
   function htmlReal(o, edita) {
-    if (!temReal(o)) return '<span class="dica">sem realizado/projetado no ano</span>';
-    return '<span class="real">Real do ano: ' + fmtVal(o.fatAno) + " · " + fmtVal(o.resAno) + (o.fatAno ? " · " + fmtPct(o.resAno / o.fatAno) : "") + "</span>" +
-      (edita ? '<button type="button" class="btn peq sec" data-usar-real="' + esc(o.cod) + '">Usar o real como meta</button>' : "");
+    if (!temReal(o)) return "";
+    return '<span class="real">Executivo do ano: ' + fmtVal(o.fatAno) + " · " + fmtVal(o.resAno) + (o.fatAno ? " · " + fmtPct(o.resAno / o.fatAno) : "") + "</span>" +
+      (edita ? '<button type="button" class="btn peq sec" data-usar-real="' + esc(o.cod) + '">Usar o Executivo como meta</button>' : "");
   }
   function pendentesOS() { return montarOS().filter(function (x) { return !(x.r._orig.FatMeta > 0); }); }
   function divergenciasCTT(x) {
@@ -669,7 +670,7 @@
         "<p>" + (edita ? "Clique na OS para cadastrar a meta aqui mesmo; depois de gravada ela sai desta lista." : "Estão na CTT e ainda não têm faturamento e resultado definidos.") + '</p><div class="codigos">' +
         pend.map(function (x) {
           var c = x.ctt.cod;
-          return '<button type="button" ' + (edita ? 'data-rapido="' + esc(c) + '"' : 'data-ir="os:' + esc(c) + '"') + (rapidoOS === c ? ' class="on" aria-expanded="true"' : "") + ">" + esc(x.ctt.desc) + "</button>";
+          return '<button type="button" ' + (edita ? 'data-rapido="' + esc(c) + '"' : 'data-ir="os:' + esc(c) + '"') + (rapidoOS === c ? ' class="on" aria-expanded="true"' : "") + ">" + esc(x.ctt.desc) + (temReal(x.ctt) ? "" : ' <span class="chip sem">SEM EXECUTIVO NO ANO</span>') + "</button>";
         }).join("") + "</div></div>";
     }
     return h;
@@ -684,7 +685,7 @@
       '<span class="dir"><button type="button" class="btn ok peq" data-acao="gravarRapido"' + (gravando ? " disabled" : "") + ">" + (gravando ? "Gravando..." : "Gravar meta") + '</button><button type="button" class="btn sec peq" data-acao="fecharRapido">Fechar</button></span></div>' +
       '<div class="rolagem"><table><thead><tr><th>Gerente</th><th>Superintendente</th><th>Negócio</th><th>Classificação</th><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th></tr></thead><tbody>' +
       "<tr" + atributosLinha(r) + "><td>" + esc(nomeGer(o.codGer)) + "</td><td>" + esc(nomeSup(o.codSup)) + "</td><td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td>" +
-      numerosOS(x, true) + "</tr></tbody></table></div>" + '<div class="rapido-real">' + htmlReal(o, true) + "</div></div>";
+      numerosOS(x, true) + "</tr></tbody></table></div>" + '<div class="rapido-real">' + (temReal(o) ? htmlReal(o, true) : '<span class="chip sem">SEM EXECUTIVO NO ANO</span>') + "</div></div>";
   }
 
   function htmlBarra(edita) {
@@ -956,6 +957,7 @@
   function chipsItem(x) {
     var r = x.r, o = x.ctt, chips = [];
     chips.push(definida(x) ? '<span class="chip def">DEFINIDA</span>' : '<span class="chip adef">A DEFINIR</span>');
+    if (!definida(x) && !temReal(o)) chips.push('<span class="chip sem">SEM EXECUTIVO NO ANO</span>');
     if (violacao(o)) chips.push('<span class="chip viol">ver observação</span>');
     if (r.id && divergenciasCTT(x).length) chips.push('<span class="chip sync" title="A lista guarda outro valor; a CTT manda e a lista é atualizada ao salvar">CTT atualizou ' + esc(divergenciasCTT(x).join(", ")) + "</span>");
     return chips.join("");
