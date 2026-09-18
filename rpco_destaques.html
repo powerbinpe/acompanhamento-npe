@@ -198,6 +198,15 @@
   table.acomp-arvore td.dif-cel .acima { color: #166534; font-weight: 800; }
   table.acomp-arvore td.dif-cel .abaixo { color: #b91c1c; font-weight: 800; }
   table.acomp-arvore { min-width: 1900px; }
+  table.destaques { min-width: 2300px; }
+  table.destaques th.c, table.destaques td.c { text-align: center; }
+  table.destaques tr.no.nivel1 td { background: var(--bg-soft); font-weight: 800; }
+  table.destaques tr.folha td:first-child { padding-left: 28px; }
+  table.destaques tr.ref td { background: #dbeafe; font-weight: 800; }
+  .ok-mark { color: #166534; font-weight: 900; font-size: 1.05rem; }
+  .nao-mark { color: #b91c1c; font-weight: 900; font-size: 1.05rem; }
+  button.marca { width: 34px; height: 34px; border-radius: 8px; border: 2px solid var(--line); background: #fff; cursor: pointer; font-size: 1rem; font-weight: 900; color: #166534; }
+  button.marca.on { background: #dcfce7; border-color: #16a34a; }
   .chip.sync { background: #dbeafe; color: #1e40af; }
   .vazio { color: var(--muted); padding: 10px 14px; font-size: .82rem; }
   .x { background: none; border: none; color: #94a3b8; font-weight: 800; cursor: pointer; font-size: 1rem; padding: 0 4px; }
@@ -274,6 +283,19 @@
   var AT_NEG = parPorIndice("ATN"), AT_CLS = parPorIndice("ATC");
   // Modo Locacoes: a medida troca a lista de OS pelos centros de LOCACOES (slicer PARAM_RPCO)
   var MODO_LOC = P.get("MODO") === "LOC";
+  // Modo Destaques: a medida manda o grupo (ROTINA/PARADA/DEMAIS), o mes de fechamento e as linhas
+  var MODO_DEST = P.get("MODO") === "DEST";
+  var GRP_DEST = P.get("GRP") || "";
+  var MES_DEST = parseInt(P.get("Mes"), 10) || 0;
+  var DEST = String(P.get("DEST") || "").split(";").filter(Boolean).map(function (l) {
+    var f = l.split(",");
+    return {
+      cod: f[0], desc: decodificar(f[1]), cliente: decodificar(f[2]),
+      fmes: n36(f[3]) || 0, rmes: n36(f[4]) || 0, facu: n36(f[5]) || 0, racu: n36(f[6]) || 0,
+      fano: n36(f[7]) || 0, rano: n36(f[8]) || 0, fcon: n36(f[9]) || 0, rcon: n36(f[10]) || 0,
+      f12: n36(f[11]) || 0, r12: n36(f[12]) || 0, efe: n36(f[13]) || 0
+    };
+  });
   var GER = {}, SUP = {};
   lista("GER").forEach(function (x) { var p = x.split(":"); if (p.length >= 2 && !GER[pad6(p[0])]) GER[pad6(p[0])] = { nome: p[1], sup: pad6(p[2] || "") }; });
   lista("SUP").forEach(function (x) { var i = x.indexOf(":"); if (i > 0) SUP[pad6(x.slice(0, i))] = x.slice(i + 1); });
@@ -350,8 +372,8 @@
   var RESP = [], RESP_OK = false;      // cadastro de Responsaveis (Tipo RESPONSAVEL)
   var seq = 0;
 
-  var CAMPOS_TXT = ["Title", "Nivel", "CodOS", "CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "Nome", "Justificativa", "EntradaPor", "Situacao", "Ativo", "Origem"];
-  var CAMPOS_EDIT = ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "FatMeta", "ResMeta", "MargemMeta", "EntradaPor", "Ativo", "Justificativa", "Situacao"];
+  var CAMPOS_TXT = ["Title", "Nivel", "CodOS", "CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "Nome", "Justificativa", "Ranking", "EntradaPor", "Situacao", "Ativo", "Origem"];
+  var CAMPOS_EDIT = ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "ClassificacaoAdicional", "Descricao", "Cliente", "FatMeta", "ResMeta", "MargemMeta", "EntradaPor", "Ativo", "Justificativa", "Situacao", "Ranking"];
   function normalizar(it) {
     var r = { uid: "r" + (++seq), id: parseInt(it.ID || it.Id || it.id, 10) || 0 };
     CAMPOS_TXT.forEach(function (c) { r[c] = it[c] == null ? "" : String(it[c]); });
@@ -649,6 +671,8 @@
     if (!sessao && abaAtiva === "metas") { painel.innerHTML = htmlLogin(); ligarLogin(); }
     else if (abaAtiva === "operacional") painel.innerHTML = htmlAcompanhamento();
     else if (abaAtiva === "gerenciais") painel.innerHTML = htmlGerenciais();
+    else if (abaAtiva === "destaques") painel.innerHTML = htmlDestaques();
+    else if (abaAtiva === "metas" && MODO_DEST) painel.innerHTML = '<div class="aviso info"><h3>Modo Destaques</h3><p>Volte o segmentador para <b>Normal</b> para cadastrar metas: neste modo a página recebe só os dados dos destaques.</p></div>';
     else if (abaAtiva !== "metas") painel.innerHTML = '<div class="construcao"><h2>' + esc(ABAS.filter(function (a) { return a[0] === abaAtiva; })[0][1]) + "</h2><p>Aba em construção.</p></div>";
     else painel.innerHTML = htmlMetas();
     document.getElementById("diag").textContent = TEM_CTT
@@ -1199,6 +1223,117 @@
       '<th class="n">% meta</th><th class="n">% atual</th></tr></thead><tbody>' + corpo + "</tbody></table></div></section>";
   }
 
+  // ===========================================================================
+  // Destaques (so Master): a medida manda, por OS do grupo escolhido no segmentador, o cliente da
+  // CTT e os numeros do mes de fechamento, do acumulado, do ano, do contrato e dos proximos 12.
+  // A meta vem da lista; o ranking e marcado pelo proprietario no campo Ranking da linha da OS.
+  // ===========================================================================
+  var MESES = ["", "JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+  function rotuloMes() { return (MESES[MES_DEST] || "") + " " + String(ANO).slice(-2); }
+  function linhaRanking(cod) {
+    var r = linhaOS(cod);
+    if (!r) {
+      r = linhaVazia("OS");
+      r.uid = "os-" + cod; r.CodOS = cod; r.Title = ANO + "|OS|" + cod; r._virtual = true;
+      snapshot(r);
+      linhas.push(r);
+    }
+    return r;
+  }
+  function noRanking(cod) { return linhaRanking(cod).Ranking !== "Nao"; }
+  function itensDest() {
+    return DEST.map(function (d) {
+      var m = linhaOS(d.cod) || {};
+      return {
+        d: d, meta: { f: m.FatMeta || 0, r: m.ResMeta || 0, n: m.FatMeta > 0 ? 1 : 0 },
+        ranking: noRanking(d.cod)
+      };
+    });
+  }
+  function somaItens(xs) {
+    var t = { fmes: 0, rmes: 0, facu: 0, racu: 0, fano: 0, rano: 0, fcon: 0, rcon: 0, f12: 0, r12: 0, efe: 0, metaF: 0, metaR: 0 };
+    xs.forEach(function (x) {
+      ["fmes", "rmes", "facu", "racu", "fano", "rano", "fcon", "rcon", "f12", "r12", "efe"].forEach(function (c) { t[c] += x.d[c] || 0; });
+      t.metaF += x.meta.f; t.metaR += x.meta.r;
+    });
+    return t;
+  }
+  function pct(r, f) { return f ? fmtPct(r / f) : "—"; }
+  function sim(ok) { return ok ? '<span class="ok-mark">✔</span>' : '<span class="nao-mark">✘</span>'; }
+  function celulasDest(t, comContrato, comProx) {
+    return '<td class="n">' + fmtVal(t.facu) + '</td><td class="n">' + fmtVal(t.racu) + '</td><td class="n">' + pct(t.racu, t.facu) + "</td>" +
+      '<td class="n">' + fmtVal(t.fano) + '</td><td class="n">' + fmtVal(t.rano) + '</td><td class="n">' + pct(t.rano, t.fano) + "</td>" +
+      (comContrato ? '<td class="n">' + fmtVal(t.fcon) + '</td><td class="n">' + fmtVal(t.rcon) + '</td><td class="n">' + pct(t.rcon, t.fcon) + "</td>" : "") +
+      (comProx ? '<td class="n">' + fmtVal(t.f12) + '</td><td class="n">' + fmtVal(t.r12) + '</td><td class="n">' + pct(t.r12, t.f12) + "</td>" : "") +
+      '<td class="n">' + (t.metaF ? fmtVal(t.metaF) : "—") + '</td><td class="n">' + (t.metaF ? fmtVal(t.metaR) : "—") + '</td><td class="n">' + (t.metaF ? pct(t.metaR, t.metaF) : "—") + "</td>" +
+      '<td class="c">' + (t.metaF ? sim(t.fano >= t.metaF) : "—") + '</td><td class="c">' + (t.metaF ? sim(t.rano >= t.metaR) : "—") + "</td>" +
+      '<td class="n">' + fmtVal(t.efe) + '</td><td class="n">' + fmtVal(t.fmes) + "</td>";
+  }
+  function cabDest(primeira, comContrato, comProx) {
+    return '<tr class="titulos"><th>' + primeira + "</th>" +
+      '<th class="n">FAT ACM ' + rotuloMes() + '</th><th class="n">RES ACM ' + rotuloMes() + '</th><th class="n">% ACM</th>' +
+      '<th class="n">FAT ' + ANO + '</th><th class="n">RES ' + ANO + '</th><th class="n">' + ANO + "%</th>" +
+      (comContrato ? '<th class="n">FAT CONTRATO</th><th class="n">RES CONTRATO</th><th class="n">% CONTRATO</th>' : "") +
+      (comProx ? '<th class="n">FAT PROX 12</th><th class="n">RES PROX 12</th><th class="n">% PROX 12</th>' : "") +
+      '<th class="n">FAT META ' + ANO + '</th><th class="n">RES META ' + ANO + '</th><th class="n">% META</th>' +
+      '<th class="c">ATIN. FAT</th><th class="c">ATIN. RES</th><th class="n">EFETIVO</th><th class="n">ÚLT. FATURAMENTO</th></tr>';
+  }
+  function porCliente(xs) {
+    var m = {};
+    xs.forEach(function (x) { (m[x.d.cliente || "(sem cliente)"] = m[x.d.cliente || "(sem cliente)"] || []).push(x); });
+    return Object.keys(m).sort().map(function (c) { return { cliente: c, itens: m[c], t: somaItens(m[c]) }; });
+  }
+  function tabelaDest(titulo, grupos, comOSs, comContrato, comProx) {
+    if (!grupos.length) return "";
+    var total = somaItens(grupos.reduce(function (a, g) { return a.concat(g.itens); }, []));
+    var nCols = 1 + 6 + (comContrato ? 3 : 0) + (comProx ? 3 : 0) + 3 + 2 + 2;
+    var corpo = grupos.map(function (g) {
+      var h = '<tr class="no nivel1"><td>' + esc(g.cliente) + "</td>" + celulasDest(g.t, comContrato, comProx) + "</tr>";
+      if (comOSs) h += g.itens.map(function (x) {
+        return '<tr class="folha"><td><div class="os">' + esc(x.d.desc) + "</div></td>" + celulasDest(somaItens([x]), comContrato, comProx) + "</tr>";
+      }).join("");
+      return h;
+    }).join("");
+    return '<h2 class="grupo-titulo">' + esc(titulo) + '</h2><section class="caixa"><div class="rolagem"><table class="grade destaques">' +
+      "<thead>" + cabDest(comOSs ? "CLIENTE · OS" : "CLIENTE", comContrato, comProx) + "</thead><tbody>" + corpo +
+      '<tr class="ref"><td>TOTAL GERAL</td>' + celulasDest(total, comContrato, comProx) + "</tr></tbody></table></div></section>";
+  }
+  function htmlListaRanking(xs) {
+    var linhasHtml = xs.slice().sort(function (a, b) { return a.d.cod.localeCompare(b.d.cod); }).map(function (x) {
+      var marcado = x.ranking;
+      return '<tr' + atributosLinha(linhaRanking(x.d.cod)) + '><td class="c">' +
+        '<button type="button" class="marca' + (marcado ? " on" : "") + '" data-ranking="' + esc(x.d.cod) + '" aria-pressed="' + marcado + '" title="' + (marcado ? "Sai do ranking" : "Entra no ranking") + '">' + (marcado ? "✔" : "") + "</button></td>" +
+        "<td>" + esc(x.d.desc) + '</td><td>' + esc(x.d.cliente) + '</td><td class="n">' + fmtVal(x.d.facu) + '</td><td class="n">' + fmtVal(x.d.racu) + '</td><td class="n">' + pct(x.d.racu, x.d.facu) + "</td>" +
+        '<td class="n">' + fmtVal(x.d.fano) + '</td><td class="n">' + fmtVal(x.d.rano) + '</td><td class="n">' + (x.meta.n ? fmtVal(x.meta.f) : "—") + "</td></tr>";
+    }).join("");
+    return '<h2 class="grupo-titulo">Lista geral · todas as OSs com valor no ano</h2><section class="caixa"><div class="rolagem">' +
+      '<table class="grade destaques"><thead><tr class="titulos"><th class="c">RANKING</th><th>OS</th><th>CLIENTE</th>' +
+      '<th class="n">FAT ACM ' + rotuloMes() + '</th><th class="n">RES ACM</th><th class="n">% ACM</th><th class="n">FAT ' + ANO + '</th><th class="n">RES ' + ANO + '</th><th class="n">FAT META</th></tr></thead><tbody>' +
+      linhasHtml + "</tbody></table></div></section>";
+  }
+  function htmlDestaques() {
+    if (!ehMaster()) return '<div class="aviso info"><h3>Destaques</h3><p>Aba restrita aos usuários Master: aqui se edita o ranking. Entre com seu acesso.</p></div>';
+    if (carregando) return '<div class="vazio">Carregando ' + ANO + "...</div>";
+    if (!MODO_DEST) return '<div class="aviso info"><h3>Escolha o grupo no segmentador</h3><p>No segmentador de modo da página, escolha <b>Destaques Rotina</b>, <b>Destaques Parada</b> ou <b>Destaques Demais</b>. Cada grupo vem em uma carga, por causa do limite da URL do visual.</p></div>';
+    var todos = itensDest();
+    var noRank = todos.filter(function (x) { return x.ranking; });
+    var positivos = noRank.filter(function (x) { return x.d.racu >= 0; });
+    var negativos = noRank.filter(function (x) { return x.d.racu < 0; });
+    var ordenar = function (a, b) { return (b.d.facu ? b.d.racu / b.d.facu : 0) - (a.d.facu ? a.d.racu / a.d.facu : 0); };
+    positivos.sort(ordenar); negativos.sort(ordenar);
+    var comOSs = GRP_DEST === "PARADA";
+    var pend = pendencias();
+    var barra = '<div class="barra"><span class="chip def">' + esc(GRP_DEST) + " · fechamento " + rotuloMes() + "</span>" +
+      '<span class="status ' + corStatus + '" role="status">' + esc(msgStatus) + "</span>" +
+      '<div class="dir">' + (pend.total ? '<span class="chip sem">' + pend.total + " alteração(ões) do ranking não gravada(s)</span>" : '<span class="chip def">ranking gravado</span>') +
+      '<button type="button" class="btn ok" data-acao="salvarRanking"' + (pend.total && !gravando ? "" : " disabled") + ">" + (gravando ? "Gravando..." : "Salvar ranking") + "</button></div></div>";
+    return barra +
+      tabelaDest("Destaques positivos · " + GRP_DEST, porCliente(positivos), comOSs, comOSs, false) +
+      tabelaDest("Destaques negativos · " + GRP_DEST, porCliente(negativos), comOSs, comOSs, false) +
+      tabelaDest("Por OS · com os próximos 12 meses", porCliente(noRank), true, true, true) +
+      htmlListaRanking(todos);
+  }
+
   function combo(r, campo, edita, colspan) {
     var ops = opcoesCampo(campo), val = r[campo] || "";
     var o = ops.filter(function (x) { return x[0] === val; })[0];
@@ -1360,7 +1495,10 @@
     var novas = 0, alteradas = 0, ctt = 0, lista = [];
     if (MODO_LOC) return { novas: 0, alteradas: 0, ctt: 0, total: 0, lista: [] };
     linhas.forEach(function (r) {
-      if (r.Nivel === "OS") return;
+      if (r.Nivel === "OS") {
+        if (MODO_DEST && (alterado(r, "Ranking") || (!r.id && r.Ranking))) { if (r.id) { alteradas++; } else { novas++; } lista.push({ r: r }); }
+        return;
+      }
       if (r.Nivel === "OBSERVACAO" && !r.id && !r.Justificativa) return;
       if (!r.id) { novas++; lista.push({ r: r }); }
       else if (linhaAlterada(r)) { alteradas++; lista.push({ r: r }); }
@@ -1409,7 +1547,7 @@
       campos.Situacao = "RASCUNHO"; campos.Origem = "APP";
     }
     ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "EntradaPor", "Ativo"].forEach(function (c) { campos[c] = r[c] || ""; });
-    if (r.Nivel === "OS") { campos.Nome = r.Nome; campos.Situacao = r.Situacao || "RASCUNHO"; campos.Justificativa = r.Situacao === FORA ? (r.Justificativa || "") : ""; }
+    if (r.Nivel === "OS") { campos.Nome = r.Nome; campos.Ranking = r.Ranking || "Sim"; campos.Situacao = r.Situacao || "RASCUNHO"; campos.Justificativa = r.Situacao === FORA ? (r.Justificativa || "") : ""; }
     else if (r.Nivel === "OBSERVACAO") campos.Justificativa = r.Justificativa || "";
     else ["ClassificacaoAdicional", "Descricao", "Cliente"].forEach(function (c) { campos[c] = r[c] || ""; });
     campos.FatMeta = r.FatMeta; campos.ResMeta = r.ResMeta; campos.MargemMeta = r.MargemMeta;
@@ -1510,6 +1648,13 @@
       return;
     }
     if (t.hasAttribute("data-ir")) { filtro = ""; focoAlvo = t.getAttribute("data-ir"); if (focoAlvo.indexOf("os:") === 0) abrirCaminhoOS(focoAlvo.slice(3)); render(); return; }
+    if (t.hasAttribute("data-ranking")) {
+      var rr = linhaRanking(t.getAttribute("data-ranking"));
+      rr.Ranking = rr.Ranking === "Nao" ? "Sim" : "Nao";
+      msgStatus = ""; corStatus = "";
+      render();
+      return;
+    }
     if (t.hasAttribute("data-voltar")) { voltarPendente(t.getAttribute("data-voltar")); return; }
     if (t.hasAttribute("data-usar-real")) { usarReal(t.getAttribute("data-usar-real")); return; }
     if (t.hasAttribute("data-novo")) { novaLinha(t.getAttribute("data-novo"), t.getAttribute("data-cod") || ""); return; }
@@ -1525,6 +1670,7 @@
     else if (a === "abrirFora") { foraOS = rapidoOS; motivoRascunho = ""; render(); var mt = document.getElementById("motivoFora"); if (mt) mt.focus(); }
     else if (a === "cancelarFora") { foraOS = ""; motivoRascunho = ""; render(); }
     else if (a === "confirmarFora") confirmarFora();
+    else if (a === "salvarRanking") salvar("Ranking gravado.");
   });
   document.addEventListener("change", function (ev) {
     if (ev.target.matches("#painel input[data-f], #painel textarea[data-f]")) editar(ev.target);
