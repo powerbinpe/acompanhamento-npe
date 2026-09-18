@@ -2498,7 +2498,7 @@ function hydrateFromPowerBI() {
       if (topic.id === 1) { // Faturamento Ano
         if (!mh || mh.fatAnoExecV === null) return semDados();
         lines = [
-          { label: "Faturamento Executivo Ano", val: fmtMo(mh.fatAnoExecV) },
+          { label: "Faturamento Meta Ano", val: fmtMo(mh.fatAnoExecV) },
           { label: "Faturamento Real Ano", val: mh.fatAnoRealV === null ? "Sem FCST no período" : fmtMo(mh.fatAnoRealV) },
           { label: "Dif. Faturamento Ano (%)", val: mh.fatDifAnoPct === null ? "-" : (mh.fatDifAnoPct >= 0 ? "+" : "") + fmtPct(mh.fatDifAnoPct) }
         ];
@@ -2506,7 +2506,7 @@ function hydrateFromPowerBI() {
         if (!mh || mh.resAnoExecV === null) return semDados();
         var margReal = (mh.fatAnoRealV && mh.resAnoRealV !== null) ? (mh.resAnoRealV / mh.fatAnoRealV) : null;
         lines = [
-          { label: "Resultado Executivo Ano", val: fmtMo(mh.resAnoExecV) },
+          { label: "Resultado Meta Ano", val: fmtMo(mh.resAnoExecV) },
           { label: "Resultado Real Ano", val: mh.resAnoRealV === null ? "Sem FCST no período" : fmtMo(mh.resAnoRealV) },
           { label: "Margem Real Ano (%)", val: margReal === null ? "-" : fmtPct(margReal) },
           { label: "Dif. Resultado Ano (%)", val: mh.resDifAnoPct === null ? "-" : (mh.resDifAnoPct >= 0 ? "+" : "") + fmtPct(mh.resDifAnoPct) }
@@ -4629,7 +4629,7 @@ function hydrateFromPowerBI() {
         // reais em uma recomendação legível, tanto para a própria OS (não repetir) quanto para as
         // demais (evitar cometer o mesmo erro).
         var LICOES_TOPIC_HINTS = {
-          t1: "Revisar premissas de faturamento anual junto ao Executivo/FCST para reduzir o desvio.",
+          t1: "Revisar premissas de faturamento anual frente à meta do ano para reduzir o desvio.",
           t2: "Reavaliar a composição de custos e margem para aproximar o resultado real da meta.",
           t3: "Ajustar a curva de faturamento do mês ao cronograma real de medição do cliente.",
           t4: "Refinar a assertividade das projeções de FCST mês a mês.",
@@ -6554,7 +6554,7 @@ function hydrateFromPowerBI() {
       addBinary("prazo", TOPIC_WEIGHTS.prazo, prazoApplicable, prazoOk);
       addBinary("preenchimento", TOPIC_WEIGHTS.preenchimento, true, comp.status === "OK");
 
-      // --- 1/2. Faturamento Ano / Resultado Ano (FCST Atual vs Executivo, margem de -5%) ---
+      // --- 1/2. Faturamento Ano / Resultado Ano (FCST Atual vs Meta do ano da META_FINANCEIRA, margem de -5%) ---
       // Igual ou acima do Executivo, ou até 5% abaixo, conta como conforme -- só perde ponto se cair
       // mais de 5% abaixo do Executivo. Ficar acima nunca penaliza (sem teto).
       addBinary("t1", TOPIC_WEIGHTS.t1, typeof contract.fatDifAnoPct === "number", contract.fatDifAnoPct >= _tol("TOL_FAT_ANO", -0.05));
