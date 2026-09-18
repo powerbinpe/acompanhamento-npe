@@ -6554,7 +6554,7 @@ function hydrateFromPowerBI() {
       addBinary("prazo", TOPIC_WEIGHTS.prazo, prazoApplicable, prazoOk);
       addBinary("preenchimento", TOPIC_WEIGHTS.preenchimento, true, comp.status === "OK");
 
-      // --- 1/2. Faturamento Ano / Resultado Ano (FCST Atual vs Meta do ano da META_FINANCEIRA, margem de -5%) ---
+      // --- 1/2. Faturamento Ano / Resultado Ano (total bruto do ano vs Meta do ano da META_FINANCEIRA, margem de -5%) ---
       // Igual ou acima do Executivo, ou até 5% abaixo, conta como conforme -- só perde ponto se cair
       // mais de 5% abaixo do Executivo. Ficar acima nunca penaliza (sem teto).
       addBinary("t1", TOPIC_WEIGHTS.t1, typeof contract.fatDifAnoPct === "number", contract.fatDifAnoPct >= _tol("TOL_FAT_ANO", -0.05));
