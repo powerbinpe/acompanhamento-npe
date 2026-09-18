@@ -1363,7 +1363,7 @@ function hydrateFromPowerBI() {
       {
         id: 1, name: "Faturamento Ano",
         lines: [
-          { label: "Faturamento Executivo Ano", val: "-" },
+          { label: "Faturamento Meta Ano", val: "-" },
           { label: "Faturamento FCST Ano", val: "-" },
           { label: "Faturamento Real Ano", val: "-" },
           { label: "Dif. Faturamento Ano", val: "-" },
@@ -1373,11 +1373,11 @@ function hydrateFromPowerBI() {
       {
         id: 2, name: "Resultado Ano",
         lines: [
-          { label: "Resultado Executivo Ano", val: "-" },
+          { label: "Resultado Meta Ano", val: "-" },
           { label: "Resultado FCST Ano", val: "-" },
           { label: "Resultado Real Ano", val: "-" },
           { label: "Dif. Resultado Ano", val: "-" },
-          { label: "Margem Executivo (%)", val: "-" },
+          { label: "Margem Meta (%)", val: "-" },
           { label: "Margem FCST Ano (%)", val: "-" },
           { label: "Margem Real Ano (%)", val: "-" },
           { label: "Dif. Margem Ano (%)", val: "-" }
@@ -4552,16 +4552,16 @@ function hydrateFromPowerBI() {
       var fatIsUp = fatDifRaw.indexOf("-") === -1 && fatDifRaw.indexOf("(") === -1 && fatDifRaw !== "-";
       var fatVal = isMultiOS ? "R$ 740,5 M" : ("R$ " + (currentParams.get("FatRealAno") || "-"));
       var fatSub = isMultiOS ? "+9,08% vs Executivo" :
-        (fatDifRaw === "-" ? "Sem comparativo Executivo" :
-          (fatIsUp ? "▲ " : "▼ ") + "R$ " + fatDifRaw + " (" + fatPctRaw + ") vs Executivo");
+        (fatDifRaw === "-" ? "Sem meta cadastrada" :
+          (fatIsUp ? "▲ " : "▼ ") + "R$ " + fatDifRaw + " (" + fatPctRaw + ") vs Meta");
       var fatSubColor = isMultiOS ? "#15803d" : (fatDifRaw === "-" ? "#64748b" : (fatIsUp ? "#15803d" : "#b91c1c"));
 
       var resDifRaw = currentParams.get("ResDifAno") || "-";
       var resIsUp = resDifRaw.indexOf("-") === -1 && resDifRaw.indexOf("(") === -1 && resDifRaw !== "-";
       var resVal = isMultiOS ? "R$ 39,0 M" : ("R$ " + (currentParams.get("ResRealAno") || "-"));
       var resSub = isMultiOS ? "Margem Real: 5,27%" :
-        (resDifRaw === "-" ? "Sem comparativo Executivo" :
-          (resIsUp ? "▲ " : "▼ ") + "R$ " + resDifRaw + " vs Executivo (Margem " + (currentParams.get("MargReal") || "-") + ")");
+        (resDifRaw === "-" ? "Sem meta cadastrada" :
+          (resIsUp ? "▲ " : "▼ ") + "R$ " + resDifRaw + " vs Meta (Margem " + (currentParams.get("MargReal") || "-") + ")");
       var resSubColor = isMultiOS ? "#15803d" : (resDifRaw === "-" ? "#64748b" : (resIsUp ? "#15803d" : "#b91c1c"));
 
       var efVal = isMultiOS ? "1.842 pax" : (currentParams.get("EfetivoReal") || "194 pax");
