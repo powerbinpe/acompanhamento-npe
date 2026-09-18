@@ -609,11 +609,10 @@
   // Carga
   // ===========================================================================
   async function carregar() {
-    if (!sessao) return;
     carregando = true; erroCarga = ""; render();
     try {
       var pMetas = postar(FLOW.metas, {}).catch(function () { return null; });
-      var res = await postar(FLOW.ler, { login: sessao.login, hash: sessao.hash });
+      var res = await postar(FLOW.ler, sessao ? { login: sessao.login, hash: sessao.hash } : {});
       tratarLeitura(res);
       tratarResp(await pMetas);
     } catch (e) {
@@ -629,7 +628,7 @@
     } else RESP_OK = false;
   }
   function tratarLeitura(res) {
-    if (res.status === 403) { erroCarga = "Acesso restrito a usuários Master. Entre novamente."; sessao = null; gravarSessao(null); }
+    if (res.status === 403 && sessao) { erroCarga = "Acesso restrito a usuários Master. Entre novamente."; sessao = null; gravarSessao(null); }
     else if (res.status !== 200 || !Array.isArray(res.json)) { erroCarga = "Não foi possível ler as metas (HTTP " + res.status + ")."; }
     else aplicarDados(res.json);
   }
@@ -1568,7 +1567,7 @@
   // ===========================================================================
   sessao = lerSessao();
   render();
-  if (sessao) carregar();
+  carregar();
 })();
 </script>
 </body>
