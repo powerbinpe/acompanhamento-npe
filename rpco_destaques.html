@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RPCO · Destaques</title>
+<title>Acompanhamento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -234,7 +234,7 @@
 <body>
 <div class="app">
   <div class="topo">
-    <div class="marca">NPE<span id="subtitulo">RPCO</span></div>
+    <div class="marca">ACOMPANHAMENTO<span id="subtitulo"></span></div>
     <div class="sessao" id="sessao"></div>
   </div>
   <div class="abas" role="tablist" id="abas"></div>
@@ -658,11 +658,11 @@
   // ===========================================================================
   // Renderizacao
   // ===========================================================================
-  var ABAS = [["metas", "Metas"], ["operacional", "Acompanhamento Operacional"], ["destaques", "Destaques"], ["gerenciais", "Gerenciais"]];
+  var ABAS = [["metas", "Metas"], ["operacional", "Acompanhamento Operacional"], ["destaques", "Destaques"]];
   function render() {
     lerMotivo();
     fecharCombo();
-    document.getElementById("subtitulo").textContent = "RPCO · " + ANO;
+    document.getElementById("subtitulo").textContent = "";
     renderSessao();
     document.getElementById("abas").innerHTML = ABAS.map(function (a) {
       return '<button type="button" role="tab" class="aba' + (a[0] === abaAtiva ? " on" : "") + '" aria-selected="' + (a[0] === abaAtiva) + '" data-aba="' + a[0] + '">' + a[1] + "</button>";
@@ -1176,7 +1176,7 @@
   function htmlAcompanhamento() {
     if (carregando) return '<div class="vazio">Carregando ' + ANO + "...</div>";
     if (!TEM_CTT) return '<div class="aviso info"><h3>Sem dados da CTT</h3><p>Abra pela página DESTAQUES do Power BI: o atual do ano vem do modelo.</p></div>';
-    return htmlEmpresaAcomp() + htmlSupersAcomp() + htmlGerentesAcomp();
+    return htmlEmpresaAcomp() + htmlGerenciais();
   }
 
   // ---- Gerenciais: recolhimento Superintendencia > Gerencia > Gestor > OS
@@ -1213,8 +1213,23 @@
         });
       });
     });
+    // Superintendente com meta e sem OS na lista (Locacoes: uma linha so, os centros N ficam no
+    // modo Locacoes do segmentador). O atual vem do negocio; o gerente dele aparece embaixo.
+    var iLoc = NEG.indexOf("LOCACOES");
+    unicos(nivel("SUPERINTENDENTE").map(function (r) { return r.CodSuperintendente; })).filter(function (s) { return !arv[s]; }).sort(porNomeSup).forEach(function (s) {
+      var ehLoc = nivel("SUPERINTENDENTE").some(function (r) { return r.CodSuperintendente === s && r.Negocio === "LOCACOES"; });
+      var atual = ehLoc && !MODO_LOC && iLoc >= 0 ? atualDeNeg(iLoc) : { f: 0, r: 0 };
+      var chS = "AS:" + s, abS = !!abertosOS[chS];
+      corpo += linhaAcomp("no nivel1", seta("data-os-toggle", chS, abS, nomeSup(s)) + '<span class="papel">Superintendente</span> ' + esc(nomeSup(s)) +
+        (ehLoc ? ' <span class="dica">· Locações (total do negócio)</span>' : ""), metaDe("S:" + s), atual);
+      if (!abS) return;
+      var gers = gerentesDoSuper(s);
+      gers.forEach(function (g) {
+        corpo += linhaAcomp("no nivel2", '<span class="papel">Gerente</span> ' + esc(nomeGer(g)), metaDe("G:" + g), gers.length === 1 ? atual : { f: 0, r: 0 });
+      });
+    });
     if (!corpo) return '<div class="vazio">Nenhuma OS recebida da CTT.</div>';
-    return '<h2 class="grupo-titulo">Meta x atual · ' + ANO + '<span class="dir"><button type="button" class="btn abre peq" data-acomp-todos="1">Abrir todos</button><button type="button" class="btn abre peq" data-acomp-todos="0">Fechar todos</button></span></h2>' +
+    return '<h2 class="grupo-titulo">Superintendência · Gerência · Gestor · OS · ' + ANO + '<span class="dir"><button type="button" class="btn abre peq" data-acomp-todos="1">Abrir todos</button><button type="button" class="btn abre peq" data-acomp-todos="0">Fechar todos</button></span></h2>' +
       '<section class="caixa"><div class="rolagem"><table class="grade acomp-arvore">' +
       '<colgroup><col><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-pct"><col class="c-pct"></colgroup>' +
       '<thead><tr class="titulos"><th>Superintendência · Gerência · Gestor · OS</th>' +
@@ -1617,6 +1632,7 @@
     }
     if (t.hasAttribute("data-acomp-todos")) {
       var abrirA = t.getAttribute("data-acomp-todos") === "1", arvA = arvoreOS();
+      nivel("SUPERINTENDENTE").forEach(function (r) { abertosOS["AS:" + r.CodSuperintendente] = abrirA; });
       Object.keys(arvA).forEach(function (sx) {
         abertosOS["AS:" + sx] = abrirA;
         Object.keys(arvA[sx]).forEach(function (g) {
