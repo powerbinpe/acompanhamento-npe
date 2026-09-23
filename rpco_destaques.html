@@ -197,7 +197,8 @@
   .margens .duas { display: flex; flex-direction: column; gap: 6px; font-size: .95rem; white-space: nowrap; }
   table.acomp-arvore td.dif-cel .acima { color: #166534; font-weight: 800; }
   table.acomp-arvore td.dif-cel .abaixo { color: #b91c1c; font-weight: 800; }
-  table.acomp-arvore { min-width: 1900px; }
+  table.acomp-arvore { min-width: 2060px; }
+  table.acomp-arvore tr.total-arvore td { background: #dbeafe; font-weight: 800; }
   table.destaques { min-width: 2300px; }
   table.destaques th.c, table.destaques td.c { text-align: center; }
   table.destaques tr.no.nivel1 td { background: var(--bg-soft); font-weight: 800; }
@@ -216,6 +217,7 @@
   tr.fora-rank td.n.neg { color: #f87171; }
   button.marca.parcial { background: #fef9c3; border-color: #ca8a04; color: #854d0e; }
   .btn.abre.on { background: var(--bg-bar); color: #fff; }
+  .login-botoes { display: flex; gap: 10px; margin-top: 6px; }
   .chip.sync { background: #dbeafe; color: #1e40af; }
   .vazio { color: var(--muted); padding: 10px 14px; font-size: .82rem; }
   .x { background: none; border: none; color: #94a3b8; font-weight: 800; cursor: pointer; font-size: 1rem; padding: 0 4px; }
@@ -380,7 +382,7 @@
   // ===========================================================================
   // Estado
   // ===========================================================================
-  var abaAtiva = "metas";
+  var abaAtiva = "operacional";
   var linhas = [];
   var carregando = false, erroCarga = "", filtro = "", msgStatus = "", corStatus = "";
   var confirmando = false, gravando = false, focoAlvo = "", rapidoOS = "";
@@ -687,11 +689,12 @@
     fecharCombo();
     document.getElementById("subtitulo").textContent = "";
     renderSessao();
-    document.getElementById("abas").innerHTML = ABAS.map(function (a) {
+    if (!sessao && abaAtiva === "metas") abaAtiva = "operacional";
+    document.getElementById("abas").innerHTML = ABAS.filter(function (a) { return sessao || a[0] !== "metas"; }).map(function (a) {
       return '<button type="button" role="tab" class="aba' + (a[0] === abaAtiva ? " on" : "") + '" aria-selected="' + (a[0] === abaAtiva) + '" data-aba="' + a[0] + '">' + a[1] + "</button>";
     }).join("");
     var painel = document.getElementById("painel");
-    if (!sessao && abaAtiva === "metas") { painel.innerHTML = htmlLogin(); ligarLogin(); }
+    if (!sessao && abaAtiva === "login") { painel.innerHTML = htmlLogin(); ligarLogin(); var lu = document.getElementById("lgUsuario"); if (lu) lu.focus(); }
     else if (abaAtiva === "operacional") painel.innerHTML = htmlAcompanhamento();
     else if (abaAtiva === "gerenciais") painel.innerHTML = htmlGerenciais();
     else if (abaAtiva === "destaques") painel.innerHTML = htmlDestaques();
@@ -714,7 +717,7 @@
   }
   function renderSessao() {
     var el = document.getElementById("sessao");
-    if (!sessao) { el.innerHTML = "<span>Acesso restrito ao Setor de Performance</span>"; return; }
+    if (!sessao) { el.innerHTML = abaAtiva === "login" ? "" : '<button type="button" class="btn sec peq" data-acao="abrirLogin">Entrar</button>'; return; }
     el.innerHTML = "<b>" + esc(sessao.nome || sessao.login) + '</b><span class="pill' + (ehProprietario() ? " prop" : "") + '">' + esc(sessao.perfil) + "</span>" +
       '<button type="button" class="btn sec peq" data-acao="sair">Sair</button>';
   }
@@ -722,13 +725,13 @@
   // Sem <form>: o iframe do visual HTML do Power BI e sandbox sem allow-forms e bloqueia o envio.
   function htmlLogin(msg, loginDigitado, etapa) {
     return '<div class="login" id="formLogin">' +
-      "<h2>Metas do ano · só Master</h2>" +
-      "<p>Entre com o mesmo usuário do Acompanhamento Mensal.</p>" +
+      "<h2>Acesso Master</h2>" +
+      "<p>Entre com o mesmo usuário do Acompanhamento Mensal para ver e editar as metas e os destaques.</p>" +
       (erroCarga ? '<div class="aviso erro"><p>' + esc(erroCarga) + "</p></div>" : "") +
       '<div class="aviso erro" id="lgMsg"' + (msg ? "" : " hidden") + "><p>" + esc(msg || "") + "</p></div>" +
       '<label for="lgUsuario">Usuário</label><input id="lgUsuario" type="text" autocomplete="off" value="' + esc(loginDigitado || "") + '">' +
       '<label for="lgSenha">Senha</label><input id="lgSenha" type="password" autocomplete="off">' +
-      '<button type="button" class="btn" id="lgEntrar">Entrar</button></div>';
+      '<div class="login-botoes"><button type="button" class="btn" id="lgEntrar">Entrar</button><button type="button" class="btn sec" data-acao="fecharLogin">Cancelar</button></div></div>';
   }
   function ligarLogin() {
     var btn = document.getElementById("lgEntrar");
@@ -766,6 +769,7 @@
         return;
       }
       sessao = { login: login, nome: res.json.nome || login, perfil: res.json.perfil || "MASTER", hash: hash, ts: Date.now() };
+      if (abaAtiva === "login") abaAtiva = "metas";
       gravarSessao(sessao);
       erroCarga = "";
       carregando = true; render();
@@ -1209,7 +1213,16 @@
     return '<tr class="' + classe + '"><td' + (colspan ? ' colspan="' + colspan + '"' : "") + ">" + rotuloHtml + "</td>" +
       '<td class="n">' + (m.n ? fmtVal(m.f) : "—") + '</td><td class="n">' + fmtVal(a.f) + '</td><td class="n dif-cel">' + (difF == null ? "—" : (difF >= 0 ? '<span class="acima">+' : '<span class="abaixo">-') + fmtVal(Math.abs(difF)) + "</span>") + "</td>" +
       '<td class="n">' + (m.n ? fmtVal(m.r) : "—") + '</td><td class="n">' + fmtVal(a.r) + '</td><td class="n dif-cel">' + (difR == null ? "—" : (difR >= 0 ? '<span class="acima">+' : '<span class="abaixo">-') + fmtVal(Math.abs(difR)) + "</span>") + "</td>" +
-      '<td class="n">' + (m.f ? fmtPct(m.r / m.f) : "—") + '</td><td class="n">' + (a.f ? fmtPct(a.r / a.f) : "—") + "</td></tr>";
+      '<td class="n">' + (m.f ? fmtPct(m.r / m.f) : "—") + '</td><td class="n">' + (a.f ? fmtPct(a.r / a.f) : "—") + "</td>" +
+      '<td class="n dif-cel">' + (m.f && a.f ? difMargem(a.r / a.f - m.r / m.f) : "—") + "</td></tr>";
+  }
+  function difMargem(d) {
+    return (d >= 0 ? '<span class="acima">+' : '<span class="abaixo">-') + fmtPct(Math.abs(d)).replace("%", "") + " p.p.</span>";
+  }
+  function totalArvore() {
+    var m = metaDe("ST"), a = somaAtual(montarOS()), iL = NEG.indexOf("LOCACOES");
+    if (!MODO_LOC && iL >= 0 && nivel("SUPERINTENDENTE").some(function (r) { return r.Negocio === "LOCACOES"; })) { a.f += atualDeNeg(iL).f; a.r += atualDeNeg(iL).r; }
+    return linhaAcomp("ref total-arvore", "<b>TOTAL</b>", m, a);
   }
   function htmlGerenciais() {
     if (carregando) return '<div class="vazio">Carregando ' + ANO + "...</div>";
@@ -1255,11 +1268,11 @@
     if (!corpo) return '<div class="vazio">Nenhuma OS recebida da CTT.</div>';
     return '<h2 class="grupo-titulo">Superintendência · Gerência · Gestor · OS · ' + ANO + '<span class="dir"><button type="button" class="btn abre peq" data-acomp-todos="1">Abrir todos</button><button type="button" class="btn abre peq" data-acomp-todos="0">Fechar todos</button></span></h2>' +
       '<section class="caixa"><div class="rolagem"><table class="grade acomp-arvore">' +
-      '<colgroup><col><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-pct"><col class="c-pct"></colgroup>' +
+      '<colgroup><col><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-pct"><col class="c-pct"><col class="c-pct"></colgroup>' +
       '<thead><tr class="titulos"><th>Superintendência · Gerência · Gestor · OS</th>' +
       '<th class="n">Fat. meta</th><th class="n">Fat. atual</th><th class="n">Dif. fat.</th>' +
       '<th class="n">Res. meta</th><th class="n">Res. atual</th><th class="n">Dif. res.</th>' +
-      '<th class="n">% meta</th><th class="n">% atual</th></tr></thead><tbody>' + corpo + "</tbody></table></div></section>";
+      '<th class="n">% meta</th><th class="n">% atual</th><th class="n">Dif. margem</th></tr></thead><tbody>' + totalArvore() + corpo + "</tbody></table></div></section>";
   }
 
   // ===========================================================================
@@ -1795,7 +1808,9 @@
     if (t.hasAttribute("data-novo")) { novaLinha(t.getAttribute("data-novo"), t.getAttribute("data-cod") || ""); return; }
     if (t.hasAttribute("data-remover")) { remover(t.getAttribute("data-remover")); return; }
     var a = t.getAttribute("data-acao");
-    if (a === "sair") { sessao = null; gravarSessao(null); linhas = []; erroCarga = ""; rapidoOS = ""; render(); }
+    if (a === "sair") { sessao = null; gravarSessao(null); erroCarga = ""; rapidoOS = ""; if (abaAtiva === "metas") abaAtiva = "operacional"; carregar(); }
+    else if (a === "abrirLogin") { abaAtiva = "login"; render(); }
+    else if (a === "fecharLogin") { abaAtiva = "operacional"; render(); }
     else if (a === "recarregar") { msgStatus = ""; carregar(); }
     else if (a === "salvar") { confirmando = true; render(); }
     else if (a === "cancelarSalvar") { confirmando = false; render(); }
