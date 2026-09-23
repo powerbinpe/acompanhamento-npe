@@ -4550,22 +4550,22 @@ function hydrateFromPowerBI() {
       var fatDifRaw = currentParams.get("FatDifAno") || "-";
       var fatPctRaw = currentParams.get("FatPctAno") || "-";
       var fatIsUp = fatDifRaw.indexOf("-") === -1 && fatDifRaw.indexOf("(") === -1 && fatDifRaw !== "-";
-      var fatVal = isMultiOS ? "R$ 740,5 M" : ("R$ " + (currentParams.get("FatRealAno") || "-"));
-      var fatSub = isMultiOS ? "+9,08% vs Executivo" :
+      var fatVal = currentParams.get("FatRealAno") && currentParams.get("FatRealAno") !== "-" ? "R$ " + currentParams.get("FatRealAno") : "-";
+      var fatSub =
         (fatDifRaw === "-" ? "Sem meta cadastrada" :
           (fatIsUp ? "▲ " : "▼ ") + "R$ " + fatDifRaw + " (" + fatPctRaw + ") vs Meta");
-      var fatSubColor = isMultiOS ? "#15803d" : (fatDifRaw === "-" ? "#64748b" : (fatIsUp ? "#15803d" : "#b91c1c"));
+      var fatSubColor = (fatDifRaw === "-" ? "#64748b" : (fatIsUp ? "#15803d" : "#b91c1c"));
 
       var resDifRaw = currentParams.get("ResDifAno") || "-";
       var resIsUp = resDifRaw.indexOf("-") === -1 && resDifRaw.indexOf("(") === -1 && resDifRaw !== "-";
-      var resVal = isMultiOS ? "R$ 39,0 M" : ("R$ " + (currentParams.get("ResRealAno") || "-"));
-      var resSub = isMultiOS ? "Margem Real: 5,27%" :
+      var resVal = currentParams.get("ResRealAno") && currentParams.get("ResRealAno") !== "-" ? "R$ " + currentParams.get("ResRealAno") : "-";
+      var resSub =
         (resDifRaw === "-" ? "Sem meta cadastrada" :
           (resIsUp ? "▲ " : "▼ ") + "R$ " + resDifRaw + " vs Meta (Margem " + (currentParams.get("MargReal") || "-") + ")");
-      var resSubColor = isMultiOS ? "#15803d" : (resDifRaw === "-" ? "#64748b" : (resIsUp ? "#15803d" : "#b91c1c"));
+      var resSubColor = (resDifRaw === "-" ? "#64748b" : (resIsUp ? "#15803d" : "#b91c1c"));
 
-      var efVal = isMultiOS ? "1.842 pax" : (currentParams.get("EfetivoReal") || "194 pax");
-      var efSub = isMultiOS ? "Alocação operacional ativa" : ("Orçado: " + (currentParams.get("EfetivoPR") || "116 pax"));
+      var efVal = currentParams.get("EfetivoReal") || "-";
+      var efSub = "Orçado: " + (currentParams.get("EfetivoPR") || "-");
 
       // Performance Acumulada -- % real apurado mês a mês na Aba 2 (mesma conta do "Média
       // Acumulada" do ranking), não mais um número fixo de exemplo rotulado "Conformidade
