@@ -207,6 +207,15 @@
   .nao-mark { color: #b91c1c; font-weight: 900; font-size: 1.05rem; }
   button.marca { width: 34px; height: 34px; border-radius: 8px; border: 2px solid var(--line); background: #fff; cursor: pointer; font-size: 1rem; font-weight: 900; color: #166534; }
   button.marca.on { background: #dcfce7; border-color: #16a34a; }
+  td.n.neg, .linha-barra b.neg, .duas b.neg { color: #b91c1c; }
+  table.grade.destaques { table-layout: auto; min-width: 0; }
+  table.destaques th, table.destaques td.n, table.destaques td.c { white-space: nowrap; }
+  table.destaques td:nth-child(2) { min-width: 360px; }
+  table.destaques th { font-size: .74rem; }
+  tr.fora-rank td { color: var(--muted); background: #f8fafc; }
+  tr.fora-rank td.n.neg { color: #f87171; }
+  button.marca.parcial { background: #fef9c3; border-color: #ca8a04; color: #854d0e; }
+  .btn.abre.on { background: var(--bg-bar); color: #fff; }
   .chip.sync { background: #dbeafe; color: #1e40af; }
   .vazio { color: var(--muted); padding: 10px 14px; font-size: .82rem; }
   .x { background: none; border: none; color: #94a3b8; font-weight: 800; cursor: pointer; font-size: 1rem; padding: 0 4px; }
@@ -271,6 +280,9 @@
   //   OS  = codigo,OS DESCRICAO RELACIONADA (codificada),gerente,super,negocio(i),classificacao(i),status+estagio
   // ===========================================================================
   var P = new URLSearchParams(location.search);
+  // Dados grandes (destaques) vem depois do "#": o navegador nao manda essa parte ao servidor,
+  // entao nao esbarram no limite de tamanho de URL do GitHub Pages
+  (function () { var h = String(location.hash || "").replace(/^#/, ""); if (h) new URLSearchParams(h).forEach(function (v, k) { P.set(k, v); }); })();
   var ANO = parseInt(P.get("Ano"), 10) || new Date().getFullYear();
   var TEM_CTT = P.has("OS");
   function pad6(c) { c = String(c || "").trim(); return c && /^\d+$/.test(c) ? ("000000" + c).slice(-6) : c; }
@@ -283,19 +295,25 @@
   var AT_NEG = parPorIndice("ATN"), AT_CLS = parPorIndice("ATC");
   // Modo Locacoes: a medida troca a lista de OS pelos centros de LOCACOES (slicer PARAM_RPCO)
   var MODO_LOC = P.get("MODO") === "LOC";
-  // Modo Destaques: a medida manda o grupo (ROTINA/PARADA/DEMAIS), o mes de fechamento e as linhas
+  // Modo Destaques: uma carga so com Rotina, Parada e Oficina por OS e Locacoes agregada
   var MODO_DEST = P.get("MODO") === "DEST";
-  var GRP_DEST = P.get("GRP") || "";
   var MES_DEST = parseInt(P.get("Mes"), 10) || 0;
+  var CLI_DEST = String(P.get("CLI") || "").split("|").map(decodificar);
   var DEST = String(P.get("DEST") || "").split(";").filter(Boolean).map(function (l) {
-    var f = l.split(",");
+    var f = l.split(","), se = f[3] || "";
     return {
-      cod: f[0], desc: decodificar(f[1]), cliente: decodificar(f[2]),
-      fmes: n36(f[3]) || 0, rmes: n36(f[4]) || 0, facu: n36(f[5]) || 0, racu: n36(f[6]) || 0,
-      fano: n36(f[7]) || 0, rano: n36(f[8]) || 0, fcon: n36(f[9]) || 0, rcon: n36(f[10]) || 0,
-      f12: n36(f[11]) || 0, r12: n36(f[12]) || 0, efe: n36(f[13]) || 0
+      cod: f[0], desc: decodificar(f[1]), cliente: CLI_DEST[parseInt(f[2], 10)] || "",
+      neg: se.charAt(0), status: se.charAt(1), estagio: se.charAt(2),
+      fmes: n36(f[4]) || 0, rmes: n36(f[5]) || 0, facu: n36(f[6]) || 0, racu: n36(f[7]) || 0,
+      fano: n36(f[8]) || 0, rano: n36(f[9]) || 0, fcon: n36(f[10]) || 0, rcon: n36(f[11]) || 0,
+      f12: n36(f[12]) || 0, r12: n36(f[13]) || 0, efe: n36(f[14]) || 0
     };
   });
+  var LOC_DEST = (function () {
+    var f = String(P.get("LOC") || "").split(",");
+    return { fmes: n36(f[0]) || 0, rmes: n36(f[1]) || 0, facu: n36(f[2]) || 0, racu: n36(f[3]) || 0,
+      fano: n36(f[4]) || 0, rano: n36(f[5]) || 0, fcon: 0, rcon: 0, f12: n36(f[6]) || 0, r12: n36(f[7]) || 0, efe: n36(f[8]) || 0 };
+  })();
   var GER = {}, SUP = {};
   lista("GER").forEach(function (x) { var p = x.split(":"); if (p.length >= 2 && !GER[pad6(p[0])]) GER[pad6(p[0])] = { nome: p[1], sup: pad6(p[2] || "") }; });
   lista("SUP").forEach(function (x) { var i = x.indexOf(":"); if (i > 0) SUP[pad6(x.slice(0, i))] = x.slice(i + 1); });
@@ -659,6 +677,11 @@
   // Renderizacao
   // ===========================================================================
   var ABAS = [["metas", "Metas"], ["operacional", "Acompanhamento Operacional"], ["destaques", "Destaques"]];
+  function marcarNegativos(raiz) {
+    raiz.querySelectorAll("td.n, .linha-barra b, .duas b").forEach(function (el) {
+      el.classList.toggle("neg", /^\s*[-\u2212(]/.test(el.textContent) && /\d/.test(el.textContent));
+    });
+  }
   function render() {
     lerMotivo();
     fecharCombo();
@@ -675,6 +698,7 @@
     else if (abaAtiva === "metas" && MODO_DEST) painel.innerHTML = '<div class="aviso info"><h3>Modo Destaques</h3><p>Volte o segmentador para <b>Normal</b> para cadastrar metas: neste modo a página recebe só os dados dos destaques.</p></div>';
     else if (abaAtiva !== "metas") painel.innerHTML = '<div class="construcao"><h2>' + esc(ABAS.filter(function (a) { return a[0] === abaAtiva; })[0][1]) + "</h2><p>Aba em construção.</p></div>";
     else painel.innerHTML = htmlMetas();
+    marcarNegativos(painel);
     document.getElementById("diag").textContent = TEM_CTT
       ? "CTT: " + Object.keys(OS_CTT).length + " OS · " + Object.keys(GER).length + " gerentes · " + Object.keys(SUP).length + " superintendentes"
       : "Sem dados da CTT: abra pela página DESTAQUES do Power BI.";
@@ -1239,11 +1263,14 @@
   }
 
   // ===========================================================================
-  // Destaques (so Master): a medida manda, por OS do grupo escolhido no segmentador, o cliente da
-  // CTT e os numeros do mes de fechamento, do acumulado, do ano, do contrato e dos proximos 12.
-  // A meta vem da lista; o ranking e marcado pelo proprietario no campo Ranking da linha da OS.
+  // Destaques (so Master), tudo numa pagina: Rotina (positivos e negativos), Demais operacoes,
+  // Parada e Destaques do mes. A medida manda, por OS, o cliente da CTT, negocio, status/estagio
+  // e os numeros do mes, acumulado, ano, contrato, proximos 12 e efetivo. A meta vem da lista.
+  // Ranking: entra por padrao so OS ATIVO em EXECUCAO/DEMOBILIZACAO/NOVA; as demais (finalizada
+  // etc.) aparecem na lista e podem ser marcadas. A marca fica no campo Ranking da linha da OS.
   // ===========================================================================
   var MESES = ["", "JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+  var abertosD = {}, todosD = {};
   function rotuloMes() { return (MESES[MES_DEST] || "") + " " + String(ANO).slice(-2); }
   function linhaRanking(cod) {
     var r = linhaOS(cod);
@@ -1255,98 +1282,176 @@
     }
     return r;
   }
-  function noRanking(cod) { return linhaRanking(cod).Ranking !== "Nao"; }
-  function itensDest() {
-    return DEST.map(function (d) {
-      var m = linhaOS(d.cod) || {};
-      return {
-        d: d, meta: { f: m.FatMeta || 0, r: m.ResMeta || 0, n: m.FatMeta > 0 ? 1 : 0 },
-        ranking: noRanking(d.cod)
-      };
-    });
+  function elegivelRanking(d) { return d.status === "A" && ["E", "D", "N"].indexOf(d.estagio) >= 0; }
+  function marcadoRanking(d) {
+    var r = linhaOS(d.cod), v = r ? r.Ranking : "";
+    if (v === "Sim") return true;
+    if (v === "Nao") return false;
+    return elegivelRanking(d);
   }
-  function somaItens(xs) {
-    var t = { fmes: 0, rmes: 0, facu: 0, racu: 0, fano: 0, rano: 0, fcon: 0, rcon: 0, f12: 0, r12: 0, efe: 0, metaF: 0, metaR: 0 };
-    xs.forEach(function (x) {
-      ["fmes", "rmes", "facu", "racu", "fano", "rano", "fcon", "rcon", "f12", "r12", "efe"].forEach(function (c) { t[c] += x.d[c] || 0; });
-      t.metaF += x.meta.f; t.metaR += x.meta.r;
-    });
+  function itemD(d) {
+    var m = linhaOS(d.cod) || {};
+    return { d: d, meta: { f: m.FatMeta || 0, r: m.ResMeta || 0 }, marcado: marcadoRanking(d) };
+  }
+  var CAMPOS_D = ["fmes", "rmes", "facu", "racu", "fano", "rano", "fcon", "rcon", "f12", "r12", "efe"];
+  function somaD(xs) {
+    var t = { metaF: 0, metaR: 0 };
+    CAMPOS_D.forEach(function (c) { t[c] = 0; });
+    xs.forEach(function (x) { CAMPOS_D.forEach(function (c) { t[c] += x.d[c] || 0; }); t.metaF += x.meta.f; t.metaR += x.meta.r; });
     return t;
   }
   function pct(r, f) { return f ? fmtPct(r / f) : "—"; }
   function sim(ok) { return ok ? '<span class="ok-mark">✔</span>' : '<span class="nao-mark">✘</span>'; }
-  function celulasDest(t, comContrato, comProx) {
-    return '<td class="n">' + fmtVal(t.facu) + '</td><td class="n">' + fmtVal(t.racu) + '</td><td class="n">' + pct(t.racu, t.facu) + "</td>" +
-      '<td class="n">' + fmtVal(t.fano) + '</td><td class="n">' + fmtVal(t.rano) + '</td><td class="n">' + pct(t.rano, t.fano) + "</td>" +
-      (comContrato ? '<td class="n">' + fmtVal(t.fcon) + '</td><td class="n">' + fmtVal(t.rcon) + '</td><td class="n">' + pct(t.rcon, t.fcon) + "</td>" : "") +
-      (comProx ? '<td class="n">' + fmtVal(t.f12) + '</td><td class="n">' + fmtVal(t.r12) + '</td><td class="n">' + pct(t.r12, t.f12) + "</td>" : "") +
-      '<td class="n">' + (t.metaF ? fmtVal(t.metaF) : "—") + '</td><td class="n">' + (t.metaF ? fmtVal(t.metaR) : "—") + '</td><td class="n">' + (t.metaF ? pct(t.metaR, t.metaF) : "—") + "</td>" +
-      '<td class="c">' + (t.metaF ? sim(t.fano >= t.metaF) : "—") + '</td><td class="c">' + (t.metaF ? sim(t.rano >= t.metaR) : "—") + "</td>" +
-      '<td class="n">' + fmtVal(t.efe) + '</td><td class="n">' + fmtVal(t.fmes) + "</td>";
+
+  // colunas de cada modelo do RPCO
+  var COLS = {
+    rotina: ["acm", "ano", "meta", "p12", "atin", "efe", "ult"],
+    demais: ["acm", "ano", "meta", "p12", "atin", "efe", "ult"],
+    parada: ["acm", "ano", "meta", "cont", "atin", "efe", "ult"],
+    mes: ["mes", "acm", "ano", "p12", "cont"]
+  };
+  function cabCols(cols) {
+    var M = rotuloMes(), h = "";
+    cols.forEach(function (c) {
+      if (c === "mes") h += '<th class="n">FAT ' + M + '</th><th class="n">RES ' + M + '</th><th class="n">% ' + M + "</th>";
+      if (c === "acm") h += '<th class="n">FAT ACM ' + M + '</th><th class="n">RES ACM ' + M + '</th><th class="n">% ACM</th>';
+      if (c === "ano") h += '<th class="n">FAT ' + ANO + '</th><th class="n">RES ' + ANO + '</th><th class="n">' + ANO + "%</th>";
+      if (c === "meta") h += '<th class="n">FAT META ' + ANO + '</th><th class="n">RES META ' + ANO + '</th><th class="n">% META</th>';
+      if (c === "p12") h += '<th class="n">FAT PRÓX 12</th><th class="n">RES PRÓX 12</th><th class="n">% PRÓX 12</th>';
+      if (c === "cont") h += '<th class="n">FAT CONTRATO</th><th class="n">RES CONTRATO</th><th class="n">% CONTRATO</th>';
+      if (c === "atin") h += '<th class="c">ATIN. META FAT ANO</th><th class="c">ATIN. META RES ANO</th>';
+      if (c === "efe") h += '<th class="n">EFETIVO</th>';
+      if (c === "ult") h += '<th class="n">ÚLTIMO FATURAMENTO</th>';
+    });
+    return h;
   }
-  function cabDest(primeira, comContrato, comProx) {
-    return '<tr class="titulos"><th>' + primeira + "</th>" +
-      '<th class="n">FAT ACM ' + rotuloMes() + '</th><th class="n">RES ACM ' + rotuloMes() + '</th><th class="n">% ACM</th>' +
-      '<th class="n">FAT ' + ANO + '</th><th class="n">RES ' + ANO + '</th><th class="n">' + ANO + "%</th>" +
-      (comContrato ? '<th class="n">FAT CONTRATO</th><th class="n">RES CONTRATO</th><th class="n">% CONTRATO</th>' : "") +
-      (comProx ? '<th class="n">FAT PROX 12</th><th class="n">RES PROX 12</th><th class="n">% PROX 12</th>' : "") +
-      '<th class="n">FAT META ' + ANO + '</th><th class="n">RES META ' + ANO + '</th><th class="n">% META</th>' +
-      '<th class="c">ATIN. FAT</th><th class="c">ATIN. RES</th><th class="n">EFETIVO</th><th class="n">ÚLT. FATURAMENTO</th></tr>';
+  function celCols(cols, t) {
+    var h = "", n = function (v) { return '<td class="n">' + fmtVal(v) + "</td>"; }, p = function (r, f) { return '<td class="n">' + pct(r, f) + "</td>"; };
+    cols.forEach(function (c) {
+      if (c === "mes") h += n(t.fmes) + n(t.rmes) + p(t.rmes, t.fmes);
+      if (c === "acm") h += n(t.facu) + n(t.racu) + p(t.racu, t.facu);
+      if (c === "ano") h += n(t.fano) + n(t.rano) + p(t.rano, t.fano);
+      if (c === "meta") h += t.metaF ? n(t.metaF) + n(t.metaR) + p(t.metaR, t.metaF) : '<td class="n">—</td><td class="n">—</td><td class="n">—</td>';
+      if (c === "p12") h += n(t.f12) + n(t.r12) + p(t.r12, t.f12);
+      if (c === "cont") h += n(t.fcon) + n(t.rcon) + p(t.rcon, t.fcon);
+      if (c === "atin") h += '<td class="c">' + (t.metaF ? sim(t.fano >= t.metaF) : "—") + '</td><td class="c">' + (t.metaF ? sim(t.rano >= t.metaR) : "—") + "</td>";
+      if (c === "efe") h += n(t.efe);
+      if (c === "ult") h += n(t.fmes);
+    });
+    return h;
   }
-  function porCliente(xs) {
+  function marcaHtml(estado, attr, valor, titulo) {
+    // estado: "on" (todas marcadas), "parcial", "" (nenhuma)
+    return '<button type="button" class="marca' + (estado ? " " + estado : "") + '" ' + attr + '="' + esc(valor) + '" aria-pressed="' + (estado === "on") + '" title="' + esc(titulo) + '">' +
+      (estado === "on" ? "✔" : estado === "parcial" ? "–" : "") + "</button>";
+  }
+  function porClienteD(xs) {
     var m = {};
     xs.forEach(function (x) { (m[x.d.cliente || "(sem cliente)"] = m[x.d.cliente || "(sem cliente)"] || []).push(x); });
-    return Object.keys(m).sort().map(function (c) { return { cliente: c, itens: m[c], t: somaItens(m[c]) }; });
+    return Object.keys(m).map(function (c) {
+      var marc = m[c].filter(function (x) { return x.marcado; });
+      return { cliente: c, itens: m[c], marcados: marc, t: somaD(marc.length ? marc : m[c]) };
+    });
   }
-  function tabelaDest(titulo, grupos, comOSs, comContrato, comProx) {
-    if (!grupos.length) return "";
-    var total = somaItens(grupos.reduce(function (a, g) { return a.concat(g.itens); }, []));
-    var nCols = 1 + 6 + (comContrato ? 3 : 0) + (comProx ? 3 : 0) + 3 + 2 + 2;
-    var corpo = grupos.map(function (g) {
-      var h = '<tr class="no nivel1"><td>' + esc(g.cliente) + "</td>" + celulasDest(g.t, comContrato, comProx) + "</tr>";
-      if (comOSs) h += g.itens.map(function (x) {
-        return '<tr class="folha"><td><div class="os">' + esc(x.d.desc) + "</div></td>" + celulasDest(somaItens([x]), comContrato, comProx) + "</tr>";
-      }).join("");
+  function secaoD(key, titulo, sub, corpo, comTodos) {
+    var aberto = abertosD["sec:" + key] !== false;
+    return '<h2 class="grupo-titulo">' + seta("data-dsec", key, aberto, titulo) + esc(titulo) + (sub ? ' <span class="dica">' + esc(sub) + "</span>" : "") +
+      '<span class="dir">' + (comTodos ? '<button type="button" class="btn abre peq' + (todosD[key] ? " on" : "") + '" data-dtodos="' + key + '">' + (todosD[key] ? "Só os do ranking" : "Mostrar todos") + "</button>" : "") + "</span></h2>" +
+      (aberto ? '<section class="caixa">' + corpo + "</section>" : "");
+  }
+  // tabela agrupada por cliente, com as OSs de cada cliente ao abrir
+  function tabelaClientes(key, grupos, cols, abrirPadrao, vazio) {
+    var todos = !!todosD[key];
+    var vis = grupos.filter(function (g) { return todos || g.marcados.length; });
+    if (!vis.length) return '<div class="vazio">' + vazio + "</div>";
+    var nCols = 2 + cabCols(cols).split("<th").length - 1;
+    var corpo = vis.map(function (g) {
+      var chC = "cli:" + key + ":" + g.cliente;
+      var aberto = abertosD[chC] === undefined ? abrirPadrao : abertosD[chC];
+      var estado = g.marcados.length === g.itens.length ? "on" : g.marcados.length ? "parcial" : "";
+      var h = '<tr class="no nivel1' + (g.marcados.length ? "" : " fora-rank") + '"><td class="c">' + marcaHtml(estado, "data-rkcli", key + "|" + g.cliente, estado === "on" ? "Tirar o cliente do ranking" : "Pôr o cliente no ranking") + "</td>" +
+        "<td>" + seta("data-dcli", chC, aberto, g.cliente) + esc(g.cliente) + ' <span class="dica">· ' + g.itens.length + (g.itens.length === 1 ? " OS" : " OSs") + "</span></td>" + celCols(cols, g.t) + "</tr>";
+      if (aberto) g.itens.filter(function (x) { return todos || x.marcado; }).sort(function (a, b) { return b.d.racu - a.d.racu; }).forEach(function (x) {
+        h += '<tr class="folha' + (x.marcado ? "" : " fora-rank") + '"><td class="c">' + marcaHtml(x.marcado ? "on" : "", "data-rk", x.d.cod, x.marcado ? "Tirar do ranking" : "Pôr no ranking") + "</td>" +
+          '<td><div class="os">' + esc(x.d.desc) + "</div>" + (elegivelRanking(x.d) ? "" : '<span class="chip fora">' + esc(rotuloEstado(x.d)) + "</span>") + "</td>" + celCols(cols, somaD([x])) + "</tr>";
+      });
       return h;
     }).join("");
-    return '<h2 class="grupo-titulo">' + esc(titulo) + '</h2><section class="caixa"><div class="rolagem"><table class="grade destaques">' +
-      "<thead>" + cabDest(comOSs ? "CLIENTE · OS" : "CLIENTE", comContrato, comProx) + "</thead><tbody>" + corpo +
-      '<tr class="ref"><td>TOTAL GERAL</td>' + celulasDest(total, comContrato, comProx) + "</tr></tbody></table></div></section>";
+    var total = somaD(vis.reduce(function (a, g) { return a.concat(g.marcados); }, []));
+    return '<div class="rolagem"><table class="grade destaques"><thead><tr class="titulos"><th class="c">RANKING</th><th>CLIENTE · OS</th>' + cabCols(cols) + "</tr></thead><tbody>" +
+      corpo + '<tr class="ref"><td></td><td>TOTAL GERAL</td>' + celCols(cols, total) + "</tr></tbody></table></div>";
   }
-  function htmlListaRanking(xs) {
-    var linhasHtml = xs.slice().sort(function (a, b) { return a.d.cod.localeCompare(b.d.cod); }).map(function (x) {
-      var marcado = x.ranking;
-      return '<tr' + atributosLinha(linhaRanking(x.d.cod)) + '><td class="c">' +
-        '<button type="button" class="marca' + (marcado ? " on" : "") + '" data-ranking="' + esc(x.d.cod) + '" aria-pressed="' + marcado + '" title="' + (marcado ? "Sai do ranking" : "Entra no ranking") + '">' + (marcado ? "✔" : "") + "</button></td>" +
-        "<td>" + esc(x.d.desc) + '</td><td>' + esc(x.d.cliente) + '</td><td class="n">' + fmtVal(x.d.facu) + '</td><td class="n">' + fmtVal(x.d.racu) + '</td><td class="n">' + pct(x.d.racu, x.d.facu) + "</td>" +
-        '<td class="n">' + fmtVal(x.d.fano) + '</td><td class="n">' + fmtVal(x.d.rano) + '</td><td class="n">' + (x.meta.n ? fmtVal(x.meta.f) : "—") + "</td></tr>";
+  // tabela por OS (destaques do mes)
+  function tabelaOS(key, xs, cols, vazio) {
+    var todos = !!todosD[key];
+    var vis = xs.filter(function (x) { return todos || x.marcado; });
+    if (!vis.length) return '<div class="vazio">' + vazio + "</div>";
+    var corpo = vis.map(function (x) {
+      return '<tr class="folha' + (x.marcado ? "" : " fora-rank") + '"><td class="c">' + marcaHtml(x.marcado ? "on" : "", "data-rk", x.d.cod, x.marcado ? "Tirar do ranking" : "Pôr no ranking") + "</td>" +
+        '<td><div class="os">' + esc(x.d.desc) + "</div>" + (elegivelRanking(x.d) ? "" : '<span class="chip fora">' + esc(rotuloEstado(x.d)) + "</span>") + "</td>" + celCols(cols, somaD([x])) + "</tr>";
     }).join("");
-    return '<h2 class="grupo-titulo">Lista geral · todas as OSs com valor no ano</h2><section class="caixa"><div class="rolagem">' +
-      '<table class="grade destaques"><thead><tr class="titulos"><th class="c">RANKING</th><th>OS</th><th>CLIENTE</th>' +
-      '<th class="n">FAT ACM ' + rotuloMes() + '</th><th class="n">RES ACM</th><th class="n">% ACM</th><th class="n">FAT ' + ANO + '</th><th class="n">RES ' + ANO + '</th><th class="n">FAT META</th></tr></thead><tbody>' +
-      linhasHtml + "</tbody></table></div></section>";
+    var total = somaD(vis.filter(function (x) { return x.marcado; }));
+    return '<div class="rolagem"><table class="grade destaques"><thead><tr class="titulos"><th class="c">RANKING</th><th>OS</th>' + cabCols(cols) + "</tr></thead><tbody>" +
+      corpo + '<tr class="ref"><td></td><td>TOTAL GERAL</td>' + celCols(cols, total) + "</tr></tbody></table></div>";
+  }
+  function rotuloEstado(d) {
+    var st = { A: "ATIVO", U: "ATUAL", E: "ENCERRADO" }[d.status] || d.status;
+    var es = { E: "EXECUCAO", D: "DEMOBILIZACAO", N: "NOVA", F: "FINALIZADA", X: "SEM ESTAGIO" }[d.estagio] || d.estagio;
+    return st + " · " + es;
+  }
+  // Demais operacoes: Locacoes (total do negocio) e Oficina; meta da Empresa por negocio
+  function metaEmpresaNeg(neg) {
+    var t = somar(nivel("EMPRESA").filter(function (r) { return r.Negocio === neg; }));
+    return { f: t.f, r: t.r };
+  }
+  function htmlDemais() {
+    var cols = COLS.demais;
+    var loc = { d: LOC_DEST, meta: metaEmpresaNeg("LOCACOES") };
+    var tLoc = somaD([loc]);
+    var ofi = DEST.filter(function (d) { return d.neg === "O"; }).map(itemD);
+    var tOfi = somaD(ofi); var mO = metaEmpresaNeg("OFICINA"); tOfi.metaF = mO.f; tOfi.metaR = mO.r;
+    var tot = somaD([loc]); CAMPOS_D.forEach(function (c) { tot[c] += tOfi[c]; }); tot.metaF += tOfi.metaF; tot.metaR += tOfi.metaR;
+    return '<div class="rolagem"><table class="grade destaques"><thead><tr class="titulos"><th>CLIENTE</th>' + cabCols(cols) + "</tr></thead><tbody>" +
+      '<tr class="no nivel1"><td>LOCACOES</td>' + celCols(cols, tLoc) + "</tr>" +
+      '<tr class="no nivel1"><td>OFICINA</td>' + celCols(cols, tOfi) + "</tr>" +
+      '<tr class="ref"><td>TOTAL GERAL</td>' + celCols(cols, tot) + "</tr></tbody></table></div>";
   }
   function htmlDestaques() {
     if (!ehMaster()) return '<div class="aviso info"><h3>Destaques</h3><p>Aba restrita aos usuários Master: aqui se edita o ranking. Entre com seu acesso.</p></div>';
     if (carregando) return '<div class="vazio">Carregando ' + ANO + "...</div>";
-    if (!MODO_DEST) return '<div class="aviso info"><h3>Escolha o grupo no segmentador</h3><p>No segmentador de modo da página, escolha <b>Destaques Rotina</b>, <b>Destaques Parada</b> ou <b>Destaques Demais</b>. Cada grupo vem em uma carga, por causa do limite da URL do visual.</p></div>';
-    var todos = itensDest();
-    var noRank = todos.filter(function (x) { return x.ranking; });
-    var positivos = noRank.filter(function (x) { return x.d.racu >= 0; });
-    var negativos = noRank.filter(function (x) { return x.d.racu < 0; });
-    var ordenar = function (a, b) { return (b.d.facu ? b.d.racu / b.d.facu : 0) - (a.d.facu ? a.d.racu / a.d.facu : 0); };
-    positivos.sort(ordenar); negativos.sort(ordenar);
-    var comOSs = GRP_DEST === "PARADA";
+    if (!MODO_DEST) return '<div class="aviso info"><h3>Escolha "Destaques" no segmentador</h3><p>No segmentador de modo da página, escolha <b>Destaques</b>: os números dos destaques vêm numa carga própria.</p></div>';
+    var itens = DEST.map(itemD);
+    var rot = porClienteD(itens.filter(function (x) { return x.d.neg === "R"; }));
+    var posR = rot.filter(function (g) { return g.t.racu >= 0; }).sort(function (a, b) { return b.t.racu - a.t.racu; });
+    var negR = rot.filter(function (g) { return g.t.racu < 0; }).sort(function (a, b) { return a.t.racu - b.t.racu; });
+    var par = porClienteD(itens.filter(function (x) { return x.d.neg === "P"; })).sort(function (a, b) { return b.t.racu - a.t.racu; });
+    var mesPos = itens.filter(function (x) { return x.d.rmes >= 0; }).sort(function (a, b) { return b.d.rmes - a.d.rmes; });
+    var mesNeg = itens.filter(function (x) { return x.d.rmes < 0; }).sort(function (a, b) { return a.d.rmes - b.d.rmes; });
+    var cliMes = porClienteD(itens);
+    CAMPOS_D.forEach(function () {});
+    var cliMesPos = cliMes.filter(function (g) { return g.t.rmes >= 0; }).sort(function (a, b) { return b.t.rmes - a.t.rmes; });
+    var cliMesNeg = cliMes.filter(function (g) { return g.t.rmes < 0; }).sort(function (a, b) { return a.t.rmes - b.t.rmes; });
     var pend = pendencias();
-    var barra = '<div class="barra"><span class="chip def">' + esc(GRP_DEST) + " · fechamento " + rotuloMes() + "</span>" +
+    var nRank = function (gs) { return gs.filter(function (g) { return g.marcados.length; }).length; };
+    var barra = '<div class="barra"><span class="chip def">Fechamento ' + rotuloMes() + "</span>" +
       '<span class="status ' + corStatus + '" role="status">' + esc(msgStatus) + "</span>" +
-      '<div class="dir">' + (pend.total ? '<span class="chip sem">' + pend.total + " alteração(ões) do ranking não gravada(s)</span>" : '<span class="chip def">ranking gravado</span>') +
+      '<div class="dir">' + (pend.total ? '<span class="chip sem">' + pend.total + (pend.total === 1 ? " marcação não gravada" : " marcações não gravadas") + "</span>" : '<span class="chip def">ranking gravado</span>') +
+      '<button type="button" class="btn abre peq" data-dtudo="1">Abrir todas</button><button type="button" class="btn abre peq" data-dtudo="0">Recolher todas</button>' +
       '<button type="button" class="btn ok" data-acao="salvarRanking"' + (pend.total && !gravando ? "" : " disabled") + ">" + (gravando ? "Gravando..." : "Salvar ranking") + "</button></div></div>";
     return barra +
-      tabelaDest("Destaques positivos · " + GRP_DEST, porCliente(positivos), comOSs, comOSs, false) +
-      tabelaDest("Destaques negativos · " + GRP_DEST, porCliente(negativos), comOSs, comOSs, false) +
-      tabelaDest("Por OS · com os próximos 12 meses", porCliente(noRank), true, true, true) +
-      htmlListaRanking(todos);
+      secaoD("rotpos", "Destaques positivos · operações rotina", nRank(posR) + " no ranking", tabelaClientes("rotpos", posR, COLS.rotina, false, "Nenhum cliente positivo no ranking."), true) +
+      secaoD("rotneg", "Destaques negativos · operações rotina", nRank(negR) + " no ranking", tabelaClientes("rotneg", negR, COLS.rotina, false, "Nenhum cliente negativo no ranking."), true) +
+      secaoD("demais", "Destaques demais operações", "Locações e Oficina", htmlDemais(), false) +
+      secaoD("parada", "Destaques operações parada", nRank(par) + " clientes no ranking", tabelaClientes("parada", par, COLS.parada, true, "Nenhum cliente de parada no ranking."), true) +
+      secaoD("mesospos", "Destaques positivos do mês · por OS", "", tabelaOS("mesospos", mesPos, COLS.mes, "Nenhuma OS positiva no mês."), true) +
+      secaoD("mesosneg", "Destaques negativos do mês · por OS", "", tabelaOS("mesosneg", mesNeg, COLS.mes, "Nenhuma OS negativa no mês."), true) +
+      secaoD("mesclipos", "Destaques positivos do mês · por cliente", "", tabelaClientes("mesclipos", cliMesPos, COLS.mes, false, "Nenhum cliente positivo no mês."), true) +
+      secaoD("mesclineg", "Destaques negativos do mês · por cliente", "", tabelaClientes("mesclineg", cliMesNeg, COLS.mes, false, "Nenhum cliente negativo no mês."), true);
+  }
+  function alternarRanking(cods, marcar) {
+    cods.forEach(function (c) { linhaRanking(c).Ranking = marcar ? "Sim" : "Nao"; });
+    msgStatus = ""; corStatus = "";
+    render();
   }
 
   function combo(r, campo, edita, colspan) {
@@ -1562,7 +1667,7 @@
       campos.Situacao = "RASCUNHO"; campos.Origem = "APP";
     }
     ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "EntradaPor", "Ativo"].forEach(function (c) { campos[c] = r[c] || ""; });
-    if (r.Nivel === "OS") { campos.Nome = r.Nome; campos.Ranking = r.Ranking || "Sim"; campos.Situacao = r.Situacao || "RASCUNHO"; campos.Justificativa = r.Situacao === FORA ? (r.Justificativa || "") : ""; }
+    if (r.Nivel === "OS") { campos.Nome = r.Nome; campos.Ranking = r.Ranking || ""; campos.Situacao = r.Situacao || "RASCUNHO"; campos.Justificativa = r.Situacao === FORA ? (r.Justificativa || "") : ""; }
     else if (r.Nivel === "OBSERVACAO") campos.Justificativa = r.Justificativa || "";
     else ["ClassificacaoAdicional", "Descricao", "Cliente"].forEach(function (c) { campos[c] = r[c] || ""; });
     campos.FatMeta = r.FatMeta; campos.ResMeta = r.ResMeta; campos.MargemMeta = r.MargemMeta;
@@ -1664,10 +1769,24 @@
       return;
     }
     if (t.hasAttribute("data-ir")) { filtro = ""; focoAlvo = t.getAttribute("data-ir"); if (focoAlvo.indexOf("os:") === 0) abrirCaminhoOS(focoAlvo.slice(3)); render(); return; }
-    if (t.hasAttribute("data-ranking")) {
-      var rr = linhaRanking(t.getAttribute("data-ranking"));
-      rr.Ranking = rr.Ranking === "Nao" ? "Sim" : "Nao";
-      msgStatus = ""; corStatus = "";
+    if (t.hasAttribute("data-rk")) {
+      var dk = DEST.filter(function (d) { return d.cod === t.getAttribute("data-rk"); })[0];
+      if (dk) alternarRanking([dk.cod], !marcadoRanking(dk));
+      return;
+    }
+    if (t.hasAttribute("data-rkcli")) {
+      var pc = t.getAttribute("data-rkcli"), bar = pc.indexOf("|"), sec = pc.slice(0, bar), cl = pc.slice(bar + 1);
+      var negSec = sec.indexOf("rot") === 0 ? "R" : sec === "parada" ? "P" : "";
+      var dc = DEST.filter(function (d) { return d.cliente === cl && (!negSec || d.neg === negSec); });
+      alternarRanking(dc.map(function (d) { return d.cod; }), !dc.every(marcadoRanking));
+      return;
+    }
+    if (t.hasAttribute("data-dsec")) { var ks = "sec:" + t.getAttribute("data-dsec"); abertosD[ks] = abertosD[ks] === false; render(); return; }
+    if (t.hasAttribute("data-dcli")) { var kc = t.getAttribute("data-dcli"); abertosD[kc] = !(t.getAttribute("aria-expanded") === "true"); render(); return; }
+    if (t.hasAttribute("data-dtodos")) { var kt = t.getAttribute("data-dtodos"); todosD[kt] = !todosD[kt]; render(); return; }
+    if (t.hasAttribute("data-dtudo")) {
+      var abrirD = t.getAttribute("data-dtudo") === "1";
+      ["rotpos", "rotneg", "demais", "parada", "mesospos", "mesosneg", "mesclipos", "mesclineg"].forEach(function (k) { abertosD["sec:" + k] = abrirD; });
       render();
       return;
     }
