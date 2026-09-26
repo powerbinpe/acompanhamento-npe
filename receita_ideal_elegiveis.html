@@ -5,50 +5,58 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OS Elegíveis · Receita Ideal</title>
 <style>
-  :root { --navy:#14204A; --navy2:#22367A; --blue:#1F6FD1; --teal:#12A594; --red:#E5484D; --orange:#F39C12;
-          --muted:#64748B; --line:#E3E8F2; --bg:#F3F5FA; }
+  :root { --navy:#14204A; --navy2:#22367A; --blue:#1F6FD1; --teal:#12A594; --red:#E5484D; --orange:#F39C12; --purple:#7C5CFC;
+          --muted:#64748B; --line:#E3E8F2; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:'Segoe UI', Arial, sans-serif; background:transparent; color:#0F172A; font-size:13px; }
   .card { background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 4px 14px rgba(20,32,74,.08); }
-  /* login */
   #login { display:flex; align-items:center; justify-content:center; min-height:880px; }
   #login .card { width:420px; padding:28px 30px; }
   #login h1 { font-size:18px; color:var(--navy); letter-spacing:.6px; }
   #login p { color:var(--muted); margin:6px 0 18px; line-height:1.45; }
-  label { display:block; font-size:11px; font-weight:700; letter-spacing:1px; color:var(--muted); margin:10px 0 4px; }
-  input[type=text], input[type=password], input[type=date], select {
-    width:100%; border:1px solid #CBD5E1; border-radius:8px; padding:8px 10px; font:inherit; color:#0F172A; background:#fff; }
-  .btn { border:none; border-radius:8px; padding:9px 16px; font:inherit; font-weight:700; cursor:pointer; }
+  label { display:block; font-size:11px; font-weight:700; letter-spacing:1px; color:var(--muted); margin:10px 0 4px; white-space:nowrap; }
+  input[type=text], input[type=password] { width:100%; border:1px solid #CBD5E1; border-radius:8px; padding:8px 10px; font:inherit; color:#0F172A; background:#fff; }
+  .btn { border:none; border-radius:8px; padding:9px 16px; font:inherit; font-weight:700; cursor:pointer; white-space:nowrap; }
   .btn.pri { background:linear-gradient(135deg, var(--navy2), var(--navy)); color:#fff; }
   .btn.sec { background:#E2E8F0; color:#334155; }
   .btn:disabled { opacity:.6; cursor:default; }
   .msg { margin-top:12px; font-size:12px; min-height:16px; }
-  .msg.erro { color:var(--red); } .msg.ok { color:var(--teal); }
-  /* app */
+  .msg.erro { color:var(--red); }
   #app { display:none; }
   .top { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
   .top .quem { margin-left:auto; color:var(--muted); font-size:12px; }
   .kg { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:12px; }
-  .kb { padding:8px 14px; border-left:5px solid var(--blue); }
-  .kl { font-size:10px; letter-spacing:1px; color:var(--muted); font-weight:700; white-space:nowrap; }
+  .kb { padding:8px 14px; border-left:5px solid var(--blue); min-width:0; }
+  .kl { font-size:10px; letter-spacing:1px; color:var(--muted); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .kv { font-size:22px; font-weight:700; margin-top:2px; white-space:nowrap; }
-  .ks { font-size:10.5px; color:var(--muted); white-space:nowrap; }
+  .ks { font-size:10.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .barra { display:flex; gap:10px; align-items:end; padding:10px 14px; margin-bottom:12px; }
   .barra > div { flex:0 0 auto; }
   .barra .grow { flex:1 1 auto; }
-  .tabela { overflow:auto; max-height:600px; }
+  /* lista suspensa própria: abre logo abaixo do botão (a nativa do navegador abre deslocada dentro do Power BI) */
+  .dd { position:relative; }
+  .dd-btn { min-width:150px; border:1px solid #CBD5E1; border-radius:8px; padding:8px 30px 8px 10px; background:#fff; font:inherit; color:#0F172A;
+            cursor:pointer; text-align:left; white-space:nowrap; position:relative; }
+  .dd-btn:after { content:""; position:absolute; right:11px; top:50%; margin-top:-3px; border:5px solid transparent; border-top-color:#64748B; }
+  .dd-lista { display:none; position:absolute; top:100%; left:0; margin-top:4px; min-width:100%; max-height:280px; overflow:auto; background:#fff;
+              border:1px solid #CBD5E1; border-radius:8px; box-shadow:0 10px 24px rgba(20,32,74,.18); z-index:50; }
+  .dd.aberto .dd-lista { display:block; }
+  .dd-item { padding:7px 12px; cursor:pointer; white-space:nowrap; }
+  .dd-item:hover { background:#EEF3FC; } .dd-item.sel { font-weight:700; color:var(--navy2); }
+  .tabela { overflow:auto; max-height:560px; }
   table { width:100%; border-collapse:collapse; }
   th { position:sticky; top:0; background:var(--navy); color:#fff; font-size:11px; letter-spacing:.6px; text-align:left; padding:8px 10px; white-space:nowrap; z-index:1; }
   td { padding:5px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
   tr:nth-child(even) td { background:#F8FAFE; }
   tr.sujo td { background:#FFF7E6 !important; }
-  td input[type=date] { width:140px; padding:4px 6px; }
-  td input.mot { width:260px; padding:4px 6px; }
+  td input.data { width:104px; padding:4px 6px; }
+  td input.data.invalida { border-color:var(--red); background:#FDECEC; }
+  td input.mot { width:240px; padding:4px 6px; }
+  td input.mot:disabled { background:#F1F5F9; }
   td input[type=checkbox] { width:16px; height:16px; }
-  .t-nao { background:#F1E9FB; color:#6B3FC4; }
   .tag { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
-  .t-part { background:#E6F6F3; color:#0B7D6F; } .t-sem { background:#FDECEC; color:#C0343A; }
-  .t-prog { background:#E8F0FC; color:#1F5FB8; } .t-enc { background:#EEF1F6; color:#475569; }
+  .t-ok { background:#E6F6F3; color:#0B7D6F; } .t-nok { background:#FDECEC; color:#C0343A; } .t-nao { background:#F1E9FB; color:#6B3FC4; }
+  .t-prog { background:#E8F0FC; color:#1F5FB8; } .t-enc { background:#EEF1F6; color:#475569; } .t-sem { background:#FFF4E0; color:#B26A00; }
   .rodape { color:var(--muted); font-size:11.5px; margin-top:10px; line-height:1.5; }
   #toast { position:fixed; right:18px; bottom:18px; background:var(--navy); color:#fff; padding:10px 16px; border-radius:10px; display:none; }
 </style>
@@ -58,7 +66,7 @@
 <div id="login">
   <div class="card">
     <h1>🔒 OS ELEGÍVEIS · ACESSO MASTER</h1>
-    <p>Esta página administra quais OS participam do Receita Ideal e em que período. Entre com o seu usuário Master (o mesmo do Acompanhamento de Performance).</p>
+    <p>Esta página administra quais OS participam do Receita Ideal, em que período, e acompanha a adesão (quem preencheu a planilha de medição). Entre com o seu usuário Master (o mesmo do Acompanhamento de Performance).</p>
     <label for="lg">USUÁRIO</label><input type="text" id="lg" autocomplete="username">
     <label for="sn">SENHA</label><input type="password" id="sn" autocomplete="current-password">
     <div style="display:flex; gap:8px; margin-top:16px;">
@@ -75,16 +83,17 @@
   </div>
   <div class="kg" id="kpis"></div>
   <div class="card barra">
+    <div><label>MÊS DE REFERÊNCIA</label><div class="dd" id="ddMes"></div></div>
     <div class="grow"><label>BUSCAR OS</label><input type="text" id="fBusca" placeholder="código ou descrição" oninput="render()"></div>
-    <div><label>NEGÓCIO</label><select id="fNeg" onchange="render()"></select></div>
-    <div><label>SITUAÇÃO</label><select id="fSit" onchange="render()"></select></div>
+    <div><label>NEGÓCIO</label><div class="dd" id="ddNeg"></div></div>
+    <div><label>SITUAÇÃO NO MÊS</label><div class="dd" id="ddSit"></div></div>
     <div><label>&nbsp;</label><button class="btn sec" onclick="adicionar()">+ OS fora da regra</button></div>
     <div><label>&nbsp;</label><button class="btn pri" id="btnSalvar" onclick="salvar()">💾 Salvar alterações</button></div>
   </div>
   <div class="card tabela">
     <table>
-      <thead><tr><th>OS</th><th>DESCRIÇÃO DA OS</th><th>NEGÓCIO</th><th>ESTÁGIO</th><th>SETOR</th><th>PELA REGRA</th>
-        <th>INÍCIO NO RECEITA IDEAL</th><th>FIM NO RECEITA IDEAL</th><th>ELEGÍVEL</th><th>MOTIVO (SE NÃO ELEGÍVEL)</th><th>SITUAÇÃO</th></tr></thead>
+      <thead><tr><th>OS</th><th>DESCRIÇÃO DA OS</th><th>NEGÓCIO</th><th>ESTÁGIO</th><th>SETOR</th>
+        <th>INÍCIO</th><th>FIM</th><th>ELEGÍVEL</th><th>MOTIVO (SE NÃO ELEGÍVEL)</th><th>ÚLTIMA MEDIÇÃO</th><th id="thSit">SITUAÇÃO NO MÊS</th></tr></thead>
       <tbody id="corpo"></tbody>
     </table>
   </div>
@@ -95,12 +104,13 @@
 <script>
 // Fluxos do Power Automate já usados pelo Acompanhamento de Performance (mesmo login Master e mesma lista PARAM_ELEGIBILIDADE).
 var FLOW_LOGIN_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/bcf1295963df418f91a48dd71ea02e60/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VfbYQC2H12f_6GZCSMmrctJBKF1B8ns4TalVByCO688";
-// o fluxo NPE-Ler-Metas não devolve o tipo RI_OS: a tela usa os dados do painel
 var FLOW_GRAVAR_PARAM_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/017d29a73ac64c64a99d1876e0c75add/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nTziWux6_lh6cIcY7dHHkkWoM6-oOA770twzP0NZicQ";
 var TIPO = "RI_OS";
 var sessao = null;          // só em memória: dentro do Power BI não há armazenamento
-var linhas = [];            // {os, desc, neg, est, set, regra, id, ini, fim, sujo}
+var linhas = [];            // {os, desc, neg, est, set, regra, id, ini, fim, nao, motivo, meses:[aaaamm], sujo}
 var geradoEm = "";
+var filtro = { mes: "", neg: "", sit: "" };
+var MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
 // ---- dados vindos do modelo (fragmento da URL: não vai para servidor nenhum) --------------------
 function lerModelo() {
@@ -114,7 +124,8 @@ function lerModelo() {
     var c = reg.split("~").map(function (x) { try { return decodeURIComponent(x); } catch (e) { return x; } });
     var mot = c[10] || ""; try { mot = decodeURIComponent(mot); } catch (e) {}   // o motivo vem codificado da lista
     out.push({ os: c[0], desc: c[1] || "", neg: c[2] || "", est: c[3] || "", set: c[4] || "", regra: c[5] || "",
-               id: parseInt(c[6], 10) || 0, ini: c[7] || "", fim: c[8] || "", nao: c[9] === "SIM", motivo: mot });
+               id: parseInt(c[6], 10) || 0, ini: c[7] || "", fim: c[8] || "", nao: c[9] === "SIM", motivo: mot,
+               meses: (c[11] || "").split(".").filter(function (m) { return /^\d{6}$/.test(m); }) });
   });
   return out;
 }
@@ -141,90 +152,153 @@ async function entrar() {
     if (perfil !== "MASTER" && perfil !== "PROPRIETARIO") { msg.className = "msg erro"; msg.textContent = "Acesso restrito ao perfil Master."; return; }
     sessao = { login: login, nome: j.nome || login, perfil: perfil };
     document.getElementById("sn").value = "";
-    await abrirApp();
+    abrirApp();
   } catch (e) {
     msg.className = "msg erro"; msg.textContent = "Não foi possível validar o acesso agora.";
   } finally { btn.disabled = false; btn.textContent = "Entrar"; }
 }
 function sair() { sessao = null; linhas = []; document.getElementById("app").style.display = "none"; document.getElementById("login").style.display = "flex"; }
 
-// ---- cadastro ---------------------------------------------------------------------------------
-async function abrirApp() {
-  // datas, IDs e marcação de não elegível vêm do próprio painel (lista PARAM_ELEGIBILIDADE, tipo RI_OS, na última atualização)
+// ---- datas: digitadas como dd/mm/aaaa (sem calendário nativo), guardadas como aaaa-mm-dd -------------
+function isoParaBr(s) { return s ? s.slice(8, 10) + "/" + s.slice(5, 7) + "/" + s.slice(0, 4) : ""; }
+function brParaIso(s) {
+  s = String(s || "").trim();
+  if (!s) return "";
+  var m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  var d = new Date(+m[3], +m[2] - 1, +m[1]);
+  if (d.getFullYear() !== +m[3] || d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[1]) return null;
+  return m[3] + "-" + m[2] + "-" + m[1];
+}
+function mascara(el) {
+  var v = el.value.replace(/\D/g, "").slice(0, 8);
+  el.value = v.length > 4 ? v.slice(0, 2) + "/" + v.slice(2, 4) + "/" + v.slice(4) : v.length > 2 ? v.slice(0, 2) + "/" + v.slice(2) : v;
+}
+function mudarData(i, campo, el) {
+  var iso = brParaIso(el.value);
+  if (iso === null) { el.classList.add("invalida"); toast("Data inválida: use dd/mm/aaaa."); return; }
+  el.classList.remove("invalida");
+  mudar(i, campo, iso);
+}
+
+// ---- mês de referência e situação ---------------------------------------------------------------
+function nomeMes(am) { return am ? MESES[+am.slice(4, 6) - 1] + "/" + am.slice(0, 4) : "—"; }
+function mesAtual() { var d = new Date(); return String(d.getFullYear()) + String(d.getMonth() + 1).padStart(2, "0"); }
+function mesesDisponiveis() {
+  var s = {}, lim = mesAtual();
+  linhas.forEach(function (l) { l.meses.forEach(function (m) { if (m <= lim) s[m] = 1; }); });
+  return Object.keys(s).sort().reverse();
+}
+function situacao(l, am) {
+  if (l.nao) return "NÃO ELEGÍVEL";
+  if (!l.ini) return "SEM INÍCIO";
+  var iniMes = am.slice(0, 4) + "-" + am.slice(4, 6) + "-01";
+  var ult = new Date(+am.slice(0, 4), +am.slice(4, 6), 0).getDate();
+  var fimMes = am.slice(0, 4) + "-" + am.slice(4, 6) + "-" + String(ult).padStart(2, "0");
+  if (l.ini > fimMes) return "PROGRAMADA";
+  if (l.fim && l.fim < iniMes) return "ENCERRADA";
+  return l.meses.indexOf(am) >= 0 ? "PREENCHEU" : "NÃO PREENCHEU";
+}
+var CLASSE = { "PREENCHEU": "t-ok", "NÃO PREENCHEU": "t-nok", "NÃO ELEGÍVEL": "t-nao", "PROGRAMADA": "t-prog", "ENCERRADA": "t-enc", "SEM INÍCIO": "t-sem" };
+
+// ---- lista suspensa própria ------------------------------------------------------------------------
+function montarDD(id, opcoes, valor, aoEscolher) {
+  var box = document.getElementById(id);
+  var atual = opcoes.find(function (o) { return o[0] === valor; }) || opcoes[0];
+  box.innerHTML = "<button type='button' class='dd-btn'>" + esc(atual[1]) + "</button><div class='dd-lista'>" +
+    opcoes.map(function (o) { return "<div class='dd-item" + (o[0] === valor ? " sel" : "") + "' data-v='" + esc(o[0]) + "'>" + esc(o[1]) + "</div>"; }).join("") + "</div>";
+  box.querySelector(".dd-btn").onclick = function (ev) {
+    ev.stopPropagation();
+    var aberto = box.classList.contains("aberto");
+    fecharDDs();
+    if (!aberto) box.classList.add("aberto");
+  };
+  Array.prototype.forEach.call(box.querySelectorAll(".dd-item"), function (it) {
+    it.onclick = function (ev) { ev.stopPropagation(); fecharDDs(); aoEscolher(it.getAttribute("data-v")); };
+  });
+}
+function fecharDDs() { Array.prototype.forEach.call(document.querySelectorAll(".dd.aberto"), function (d) { d.classList.remove("aberto"); }); }
+document.addEventListener("click", fecharDDs);
+
+// ---- tela ------------------------------------------------------------------------------------------
+function abrirApp() {
+  // datas, IDs, não elegível e meses com medição vêm do próprio painel (última atualização)
   linhas = lerModelo().map(function (b) { return Object.assign({}, b, { sujo: false }); });
   linhas.sort(function (a, b) { return a.os < b.os ? -1 : 1; });
+  // abre no último mês fechado (o mês corrente ainda está em preenchimento)
+  var ms = mesesDisponiveis(), atual = mesAtual();
+  filtro.mes = ms.filter(function (m) { return m < atual; })[0] || ms[0] || atual;
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("quem").textContent = "Master: " + sessao.nome;
   montarFiltros(); render();
 }
-function hojeISO() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
-function situacao(l) {
-  var h = hojeISO();
-  if (l.nao) return "NÃO ELEGÍVEL";
-  if (!l.ini) return "SEM DATA DE INÍCIO";
-  if (l.ini > h) return "PROGRAMADA";
-  if (l.fim && l.fim < h) return "ENCERRADA";
-  return "PARTICIPANDO";
-}
-var CLASSE = { "PARTICIPANDO": "t-part", "SEM DATA DE INÍCIO": "t-sem", "PROGRAMADA": "t-prog", "ENCERRADA": "t-enc", "NÃO ELEGÍVEL": "t-nao" };
 function montarFiltros() {
+  var ms = mesesDisponiveis();
+  if (ms.indexOf(filtro.mes) < 0) ms.unshift(filtro.mes);
+  montarDD("ddMes", ms.map(function (m) { return [m, nomeMes(m)]; }), filtro.mes, function (v) { filtro.mes = v; montarFiltros(); render(); });
   var negs = {}; linhas.forEach(function (l) { if (l.neg) negs[l.neg] = 1; });
-  document.getElementById("fNeg").innerHTML = "<option value=''>Todos</option>" + Object.keys(negs).sort().map(function (n) { return "<option>" + esc(n) + "</option>"; }).join("");
-  document.getElementById("fSit").innerHTML = "<option value=''>Todas</option>" + Object.keys(CLASSE).map(function (s) { return "<option>" + s + "</option>"; }).join("");
+  montarDD("ddNeg", [["", "Todos"]].concat(Object.keys(negs).sort().map(function (n) { return [n, n]; })), filtro.neg, function (v) { filtro.neg = v; montarFiltros(); render(); });
+  montarDD("ddSit", [["", "Todas"]].concat(Object.keys(CLASSE).map(function (s) { return [s, s]; })), filtro.sit, function (v) { filtro.sit = v; montarFiltros(); render(); });
 }
 function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 function render() {
   var b = document.getElementById("fBusca").value.toUpperCase().trim();
-  var n = document.getElementById("fNeg").value, s = document.getElementById("fSit").value;
-  var html = [];
+  var am = filtro.mes, html = [];
+  document.getElementById("thSit").textContent = "SITUAÇÃO EM " + nomeMes(am);
   linhas.forEach(function (l, i) {
-    var sit = situacao(l);
+    var sit = situacao(l, am);
     if (b && (l.os + " " + l.desc).toUpperCase().indexOf(b) < 0) return;
-    if (n && l.neg !== n) return;
-    if (s && sit !== s) return;
+    if (filtro.neg && l.neg !== filtro.neg) return;
+    if (filtro.sit && sit !== filtro.sit) return;
+    var ult = l.meses.length ? nomeMes(l.meses[l.meses.length - 1]) : "—";
     html.push("<tr class='" + (l.sujo ? "sujo" : "") + "'><td><b>" + esc(l.os) + "</b></td><td>" + esc(l.desc) + "</td><td>" + esc(l.neg) + "</td><td>" + esc(l.est) +
-      "</td><td>" + esc(l.set) + "</td><td>" + esc(l.regra) + "</td>" +
-      "<td><input type='date' value='" + esc(l.ini) + "' onchange='mudar(" + i + ",\"ini\",this.value)'></td>" +
-      "<td><input type='date' value='" + esc(l.fim) + "' onchange='mudar(" + i + ",\"fim\",this.value)'></td>" +
+      "</td><td>" + esc(l.set) + "</td>" +
+      "<td><input type='text' class='data' maxlength='10' placeholder='dd/mm/aaaa' value='" + isoParaBr(l.ini) + "' oninput='mascara(this)' onchange='mudarData(" + i + ",\"ini\",this)'></td>" +
+      "<td><input type='text' class='data' maxlength='10' placeholder='dd/mm/aaaa' value='" + isoParaBr(l.fim) + "' oninput='mascara(this)' onchange='mudarData(" + i + ",\"fim\",this)'></td>" +
       "<td style='text-align:center'><input type='checkbox' " + (l.nao ? "" : "checked") + " onchange='mudar(" + i + ",\"nao\",!this.checked)'></td>" +
       "<td><input type='text' class='mot' maxlength='120' placeholder='" + (l.nao ? "obrigatório" : "") + "' value='" + esc(l.motivo || "") + "' " + (l.nao ? "" : "disabled") +
       " onchange='mudar(" + i + ",\"motivo\",this.value)'></td>" +
-      "<td><span class='tag " + CLASSE[sit] + "'>" + sit + "</span></td></tr>");
+      "<td>" + ult + "</td><td><span class='tag " + CLASSE[sit] + "'>" + sit + "</span></td></tr>");
   });
   document.getElementById("corpo").innerHTML = html.join("") || "<tr><td colspan='11' style='color:#64748B;padding:16px'>Nenhuma OS no filtro.</td></tr>";
   kpis();
   var sujos = linhas.filter(function (l) { return l.sujo; }).length;
   document.getElementById("btnSalvar").textContent = sujos ? "💾 Salvar alterações (" + sujos + ")" : "💾 Salvar alterações";
-  document.getElementById("rodape").innerHTML = "Lista das OS elegíveis pela regra do Acompanhamento de Performance (negócio, estágio e setores excluídos da lista PARAM_ELEGIBILIDADE) e das OS cadastradas aqui fora da regra. " +
-    "Entram no painel as OS <b>elegíveis</b> com <b>data de início</b>, só nos dias entre o início e o fim. Desmarcar ELEGÍVEL (com motivo) tira a OS de todas as páginas; ela continua visível só aqui. Alterações valem no painel após a próxima atualização do conjunto de dados." +
-    (geradoEm ? " · Lista do painel gerada em " + esc(geradoEm) + "." : "");
+  document.getElementById("rodape").innerHTML =
+    "Lista das OS elegíveis pela regra do Acompanhamento de Performance (negócio, estágio e setores excluídos da lista PARAM_ELEGIBILIDADE) e das OS cadastradas aqui fora da regra. " +
+    "<b>Adesão</b> = OS elegíveis e vigentes no mês que têm linha na planilha de medição naquele mês (coluna MÊS). Desmarcar ELEGÍVEL (com motivo) tira a OS de todas as páginas; ela continua visível só aqui. " +
+    "Alterações valem no painel após a próxima atualização do conjunto de dados." + (geradoEm ? " · Lista do painel gerada em " + esc(geradoEm) + "." : "");
 }
 function kpis() {
-  var c = { tot: linhas.length, regra: 0, part: 0, nao: 0, sem: 0, prog: 0, enc: 0 };
+  var am = filtro.mes, c = { ok: 0, nok: 0, nao: 0 };
   linhas.forEach(function (l) {
-    if (l.regra === "SIM") c.regra++;
-    var s = situacao(l);
-    if (s === "PARTICIPANDO") c.part++; else if (s === "NÃO ELEGÍVEL") c.nao++; else if (s === "SEM DATA DE INÍCIO") c.sem++; else if (s === "PROGRAMADA") c.prog++; else c.enc++;
+    var s = situacao(l, am);
+    if (s === "PREENCHEU") c.ok++; else if (s === "NÃO PREENCHEU") c.nok++; else if (s === "NÃO ELEGÍVEL") c.nao++;
   });
-  var k = [["OS NA LISTA", c.tot, "pela regra: " + c.regra, "#14204A"], ["PARTICIPANDO", c.part, "entram no painel hoje", "#12A594"],
-           ["NÃO ELEGÍVEIS", c.nao, "marcadas pelo Master (com motivo)", "#7C5CFC"], ["SEM INÍCIO", c.sem, "fora do painel até informar", "#E5484D"],
-           ["PROGRAMADAS / ENCERRADAS", c.prog + " / " + c.enc, "início futuro / fim vencido", "#1F6FD1"]];
+  var eleg = c.ok + c.nok, ades = eleg ? Math.round(100 * c.ok / eleg) : 0;
+  var k = [["ELEGÍVEIS EM " + nomeMes(am), eleg, "vigentes no mês · " + linhas.length + " na lista", "#14204A"],
+           ["PREENCHERAM", c.ok, "com linha na planilha de medição", "#12A594"],
+           ["NÃO PREENCHERAM", c.nok, "elegíveis sem medição no mês", "#E5484D"],
+           ["ADESÃO", eleg ? ades + "%" : "—", "preencheram ÷ elegíveis no mês", "#1F6FD1"],
+           ["NÃO ELEGÍVEIS", c.nao, "marcadas pelo Master (com motivo)", "#7C5CFC"]];
   document.getElementById("kpis").innerHTML = k.map(function (x) {
     return "<div class='card kb' style='border-left-color:" + x[3] + "'><div class='kl'>" + x[0] + "</div><div class='kv' style='color:" + x[3] + "'>" + x[1] + "</div><div class='ks'>" + x[2] + "</div></div>";
   }).join("");
 }
 function mudar(i, campo, v) { linhas[i][campo] = v; if (campo === "nao" && !v) linhas[i].motivo = ""; linhas[i].sujo = true; render(); }
 function adicionar() {
-  var os = (prompt("Código da OS (como está na OS relacionada do cadastro, ex.: M00100):") || "").toUpperCase().trim();
+  var os = (prompt("Código da OS Relacionada 2 (ex.: M00100):") || "").toUpperCase().trim();
   if (!os) return;
   if (linhas.some(function (l) { return l.os === os; })) { toast("Essa OS já está na lista."); return; }
-  linhas.push({ os: os, desc: "(nova · aparece com a descrição após a atualização do painel)", neg: "", est: "", set: "", regra: "NÃO", id: 0, ini: "", fim: "", nao: false, motivo: "", sujo: true });
+  linhas.push({ os: os, desc: "(nova · aparece com a descrição após a atualização do painel)", neg: "", est: "", set: "", regra: "NÃO", id: 0,
+                ini: "", fim: "", nao: false, motivo: "", meses: [], sujo: true });
   render();
 }
 async function salvar() {
   var sujos = linhas.filter(function (l) { return l.sujo; });
   if (!sujos.length) { toast("Nenhuma alteração para salvar."); return; }
+  if (document.querySelector("input.data.invalida")) { toast("Corrija as datas em vermelho (dd/mm/aaaa)."); return; }
   var erro = sujos.find(function (l) { return (l.fim && !l.ini) || (l.ini && l.fim && l.fim < l.ini); });
   if (erro) { toast("OS " + erro.os + ": o fim precisa ter início e não pode ser antes dele."); return; }
   var semMotivo = sujos.find(function (l) { return l.nao && String(l.motivo || "").trim().length < 5; });
