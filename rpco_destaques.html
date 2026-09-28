@@ -316,7 +316,8 @@
   // Modo Locacoes: a medida troca a lista de OS pelos centros de LOCACOES (slicer PARAM_RPCO)
   var MODO_LOC = P.get("MODO") === "LOC";
   // Modo Destaques: uma carga so com Rotina, Parada e Oficina por OS e Locacoes agregada
-  var MODO_DEST = P.get("MODO") === "DEST";
+  // Destaques chegam sempre, junto com o resto (medida v13, depois do "#"); sem segmentador
+  var MODO_DEST = !!String(P.get("DEST") || "");
   var MES_DEST = parseInt(P.get("Mes"), 10) || 0;
   var CLI_DEST = String(P.get("CLI") || "").split("|").map(decodificar);
   // GERD = codigo:nome do gerente (GESTOR REGIONAL da CTT); CLSD = classificacao da CTT
@@ -755,7 +756,6 @@
     else if (abaAtiva === "operacional") painel.innerHTML = htmlAcompanhamento();
     else if (abaAtiva === "gerenciais") painel.innerHTML = htmlGerenciais();
     else if (abaAtiva === "destaques") painel.innerHTML = htmlDestaques();
-    else if (abaAtiva === "metas" && MODO_DEST) painel.innerHTML = '<div class="aviso info"><h3>Modo Destaques</h3><p>Volte o segmentador para <b>Normal</b> para cadastrar metas: neste modo a página recebe só os dados dos destaques.</p></div>';
     else if (abaAtiva !== "metas") painel.innerHTML = '<div class="construcao"><h2>' + esc(ABAS.filter(function (a) { return a[0] === abaAtiva; })[0][1]) + "</h2><p>Aba em construção.</p></div>";
     else painel.innerHTML = htmlMetas();
     marcarNegativos(painel);
@@ -1288,7 +1288,20 @@
   function difMargem(d) {
     return (d >= 0 ? '<span class="acima">+' : '<span class="abaixo">-') + fmtPct(Math.abs(d)).replace("%", "") + " p.p.</span>";
   }
+  // Quem nao e Master so ve as OSs do seu filtro: a meta do superintendente e a soma das metas
+  // dos gerentes visiveis (nunca a da superintendencia inteira)
+  function metaSupVisivel(s, arv) {
+    if (ehMaster()) return metaDe("S:" + s);
+    var t = { f: 0, r: 0, n: 0 };
+    Object.keys(arv[s] || {}).forEach(function (g) { var m = metaDe("G:" + g); t.f += m.f; t.r += m.r; t.n += m.n; });
+    return t;
+  }
   function totalArvore() {
+    if (!ehMaster()) {
+      var arvV = arvoreOS(), tm = { f: 0, r: 0, n: 0 };
+      Object.keys(arvV).forEach(function (s) { var m = metaSupVisivel(s, arvV); tm.f += m.f; tm.r += m.r; tm.n += m.n; });
+      return linhaAcomp("ref total-arvore", "<b>TOTAL</b>", tm, somaAtual(montarOS()));
+    }
     var m = metaDe("ST"), a = somaAtual(montarOS()), iL = NEG.indexOf("LOCACOES");
     if (!MODO_LOC && iL >= 0 && nivel("SUPERINTENDENTE").some(function (r) { return r.Negocio === "LOCACOES"; })) { a.f += atualDeNeg(iL).f; a.r += atualDeNeg(iL).r; }
     return linhaAcomp("ref total-arvore", "<b>TOTAL</b>", m, a);
@@ -1300,7 +1313,7 @@
     Object.keys(arv).sort(porNomeSup).forEach(function (s) {
       var chS = "AS:" + s, abS = !!abertosOS[chS];
       var ossS = montarOS().filter(function (x) { return x.ctt.codSup === s; });
-      corpo += linhaAcomp("no nivel1", seta("data-os-toggle", chS, abS, nomeSup(s)) + '<span class="papel">Superintendente</span> ' + esc(nomeSup(s)), metaDe("S:" + s), somaAtual(ossS));
+      corpo += linhaAcomp("no nivel1", seta("data-os-toggle", chS, abS, nomeSup(s)) + '<span class="papel">Superintendente</span> ' + esc(nomeSup(s)), metaSupVisivel(s, arv), somaAtual(ossS));
       if (!abS) return;
       Object.keys(arv[s]).sort(porNomeGer).forEach(function (g) {
         var chG = "AG:" + g, abG = !!abertosOS[chG];
@@ -1322,7 +1335,7 @@
     // Superintendente com meta e sem OS na lista (Locacoes: uma linha so, os centros N ficam no
     // modo Locacoes do segmentador). O atual vem do negocio; o gerente dele aparece embaixo.
     var iLoc = NEG.indexOf("LOCACOES");
-    unicos(nivel("SUPERINTENDENTE").map(function (r) { return r.CodSuperintendente; })).filter(function (s) { return !arv[s]; }).sort(porNomeSup).forEach(function (s) {
+    unicos(nivel("SUPERINTENDENTE").map(function (r) { return r.CodSuperintendente; })).filter(function (s) { return ehMaster() && !arv[s]; }).sort(porNomeSup).forEach(function (s) {
       var ehLoc = nivel("SUPERINTENDENTE").some(function (r) { return r.CodSuperintendente === s && r.Negocio === "LOCACOES"; });
       var atual = ehLoc && !MODO_LOC && iLoc >= 0 ? atualDeNeg(iLoc) : { f: 0, r: 0 };
       var chS = "AS:" + s, abS = !!abertosOS[chS];
@@ -1446,22 +1459,24 @@
   // tabela agrupada por cliente, com as OSs de cada cliente ao abrir
   function tabelaClientes(key, grupos, cols, abrirPadrao, vazio) {
     var todos = !!todosD[key];
-    var vis = grupos.filter(function (g) { return todos || g.marcados.length; });
+    var vis = grupos.filter(function (g) { return todos || g.fixo || g.marcados.length; });
     if (!vis.length) return '<div class="vazio">' + vazio + "</div>";
     var nCols = 2 + cabCols(cols).split("<th").length - 1;
     var corpo = vis.map(function (g) {
+      if (g.fixo) return '<tr class="no nivel1"><td class="c"></td><td>' + esc(g.cliente) + ' <span class="dica">· ' + esc(g.fixo) + "</span></td>" + celCols(cols, g.t) + "</tr>";
       var chC = "cli:" + key + ":" + g.cliente;
       var aberto = abertosD[chC] === undefined ? abrirPadrao : abertosD[chC];
       var estado = g.marcados.length === g.itens.length ? "on" : g.marcados.length ? "parcial" : "";
       var h = '<tr class="no nivel1' + (g.marcados.length ? "" : " fora-rank") + '"><td class="c">' + marcaHtml(estado, "data-rkcli", key + "|" + g.cliente, estado === "on" ? "Tirar o cliente do ranking" : "Pôr o cliente no ranking") + "</td>" +
         "<td>" + seta("data-dcli", chC, aberto, g.cliente) + esc(g.cliente) + ' <span class="dica">· ' + g.itens.length + (g.itens.length === 1 ? " OS" : " OSs") + "</span></td>" + celCols(cols, g.t) + "</tr>";
-      if (aberto) g.itens.filter(function (x) { return todos || x.marcado; }).sort(function (a, b) { return b.d.racu - a.d.racu; }).forEach(function (x) {
+      if (aberto) g.itens.filter(function (x) { return todos || x.marcado; }).sort(function (a, b) { return b.d.facu - a.d.facu; }).forEach(function (x) {
         h += '<tr class="folha' + (x.marcado ? "" : " fora-rank") + '"><td class="c">' + marcaHtml(x.marcado ? "on" : "", "data-rk", x.d.cod, x.marcado ? "Tirar do ranking" : "Pôr no ranking") + "</td>" +
           '<td><div class="os">' + esc(x.d.desc) + "</div>" + (elegivelRanking(x.d) ? "" : '<span class="chip fora">' + esc(rotuloEstado(x.d)) + "</span>") + "</td>" + celCols(cols, somaD([x])) + "</tr>";
       });
       return h;
     }).join("");
-    var total = somaD(vis.reduce(function (a, g) { return a.concat(g.marcados); }, []));
+    var total = somaD(vis.reduce(function (a, g) { return g.fixo ? a : a.concat(g.marcados); }, []));
+    vis.forEach(function (g) { if (g.fixo) { CAMPOS_D.forEach(function (c) { total[c] += g.t[c] || 0; }); total.metaF += g.t.metaF || 0; total.metaR += g.t.metaR || 0; } });
     return '<div class="rolagem"><table class="grade destaques"><thead><tr class="titulos"><th class="c">RANKING</th><th>CLIENTE · OS</th>' + cabCols(cols) + "</tr></thead><tbody>" +
       corpo + '<tr class="ref"><td></td><td>TOTAL GERAL</td>' + celCols(cols, total) + "</tr></tbody></table></div>";
   }
@@ -1503,12 +1518,13 @@
   function htmlDestaques() {
     if (!ehMaster()) return '<div class="aviso info"><h3>Destaques</h3><p>Aba restrita aos usuários Master: aqui se edita o ranking. Entre com seu acesso.</p></div>';
     if (carregando) return '<div class="vazio">Carregando ' + ANO + "...</div>";
-    if (!MODO_DEST) return '<div class="aviso info"><h3>Escolha "Destaques" no segmentador</h3><p>No segmentador de modo da página, escolha <b>Destaques</b>: os números dos destaques vêm numa carga própria.</p></div>';
+    if (!MODO_DEST) return '<div class="aviso info"><h3>Destaques sem dados</h3><p>Os números dos destaques não chegaram do modelo. Abra pela página DESTAQUES do Power BI com a medida atualizada.</p></div>';
     var itens = DEST.map(itemD);
-    var rot = porClienteD(itens.filter(function (x) { return x.d.neg === "R"; }));
-    var posR = rot.filter(function (g) { return g.t.racu >= 0; }).sort(function (a, b) { return b.t.racu - a.t.racu; });
-    var negR = rot.filter(function (g) { return g.t.racu < 0; }).sort(function (a, b) { return a.t.racu - b.t.racu; });
-    var par = porClienteD(itens.filter(function (x) { return x.d.neg === "P"; })).sort(function (a, b) { return b.t.racu - a.t.racu; });
+    var porFat = function (a, b) { return b.t.facu - a.t.facu; };
+    var tLoc = somaD([{ d: LOC_DEST, meta: metaEmpresaNeg("LOCACOES") }]);
+    var rotina = porClienteD(itens.filter(function (x) { return x.d.neg === "R" || x.d.neg === "O"; }))
+      .concat([{ cliente: "LOCACOES", fixo: "total do negócio", itens: [], marcados: [], t: tLoc }]).sort(porFat);
+    var par = porClienteD(itens.filter(function (x) { return x.d.neg === "P"; })).sort(porFat);
     var mesPos = itens.filter(function (x) { return x.d.rmes >= 0; }).sort(function (a, b) { return b.d.rmes - a.d.rmes; });
     var mesNeg = itens.filter(function (x) { return x.d.rmes < 0; }).sort(function (a, b) { return a.d.rmes - b.d.rmes; });
     var cliMes = porClienteD(itens);
@@ -1523,10 +1539,8 @@
       '<button type="button" class="btn abre peq" data-dtudo="1">Abrir todas</button><button type="button" class="btn abre peq" data-dtudo="0">Recolher todas</button>' +
       '<button type="button" class="btn ok" data-acao="salvarRanking"' + (pend.total && !gravando ? "" : " disabled") + ">" + (gravando ? "Gravando..." : "Salvar ranking") + "</button></div></div>";
     return barra +
-      secaoD("rotpos", "Destaques positivos · operações rotina", nRank(posR) + " no ranking", tabelaClientes("rotpos", posR, COLS.rotina, false, "Nenhum cliente positivo no ranking."), true) +
-      secaoD("rotneg", "Destaques negativos · operações rotina", nRank(negR) + " no ranking", tabelaClientes("rotneg", negR, COLS.rotina, false, "Nenhum cliente negativo no ranking."), true) +
-      secaoD("demais", "Destaques demais operações", "Locações e Oficina", htmlDemais(), false) +
-      secaoD("parada", "Destaques operações parada", nRank(par) + " clientes no ranking", tabelaClientes("parada", par, COLS.parada, true, "Nenhum cliente de parada no ranking."), true) +
+      secaoD("rotina", "Rotina, Locações e Oficina · por cliente", "pelo maior faturamento acumulado · " + nRank(rotina) + " clientes no ranking", tabelaClientes("rotina", rotina, COLS.rotina, false, "Nenhum cliente no ranking."), true) +
+      secaoD("parada", "Paradas · por cliente", "pelo maior faturamento acumulado · " + nRank(par) + " clientes no ranking", tabelaClientes("parada", par, COLS.parada, false, "Nenhum cliente de parada no ranking."), true) +
       secaoD("mesospos", "Destaques positivos do mês · por OS", "", tabelaOS("mesospos", mesPos, COLS.mes, "Nenhuma OS positiva no mês."), true) +
       secaoD("mesosneg", "Destaques negativos do mês · por OS", "", tabelaOS("mesosneg", mesNeg, COLS.mes, "Nenhuma OS negativa no mês."), true) +
       secaoD("mesclipos", "Destaques positivos do mês · por cliente", "", tabelaClientes("mesclipos", cliMesPos, COLS.mes, false, "Nenhum cliente positivo no mês."), true) +
@@ -1929,8 +1943,8 @@
     }
     if (t.hasAttribute("data-rkcli")) {
       var pc = t.getAttribute("data-rkcli"), bar = pc.indexOf("|"), sec = pc.slice(0, bar), cl = pc.slice(bar + 1);
-      var negSec = sec.indexOf("rot") === 0 ? "R" : sec === "parada" ? "P" : "";
-      var dc = DEST.filter(function (d) { return d.cliente === cl && (!negSec || d.neg === negSec); });
+      var negSec = sec === "rotina" ? "RO" : sec === "parada" ? "P" : "";
+      var dc = DEST.filter(function (d) { return d.cliente === cl && (!negSec || negSec.indexOf(d.neg) >= 0); });
       alternarRanking(dc.map(function (d) { return d.cod; }), !dc.every(marcadoRanking));
       return;
     }
@@ -1940,7 +1954,7 @@
     if (t.hasAttribute("data-dtodos")) { var kt = t.getAttribute("data-dtodos"); todosD[kt] = !todosD[kt]; render(); return; }
     if (t.hasAttribute("data-dtudo")) {
       var abrirD = t.getAttribute("data-dtudo") === "1";
-      ["rotpos", "rotneg", "demais", "parada", "mesospos", "mesosneg", "mesclipos", "mesclineg", "gerenciais"].forEach(function (k) { abertosD["sec:" + k] = abrirD; });
+      ["rotina", "parada", "mesospos", "mesosneg", "mesclipos", "mesclineg", "gerenciais"].forEach(function (k) { abertosD["sec:" + k] = abrirD; });
       render();
       return;
     }
