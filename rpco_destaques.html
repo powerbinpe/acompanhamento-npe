@@ -231,6 +231,8 @@
   .btn.abre.on { background: var(--bg-bar); color: #fff; }
   .login-botoes { display: flex; gap: 10px; margin-top: 6px; }
   .aviso-sessao { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; border-radius: 6px; padding: 2px 8px; font-weight: 600; }
+  .barra.gerentes { flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  table.ranking-ger td div.os { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 460px; }
   .chip.sync { background: #dbeafe; color: #1e40af; }
   .vazio { color: var(--muted); padding: 10px 14px; font-size: .82rem; }
   .x { background: none; border: none; color: #94a3b8; font-weight: 800; cursor: pointer; font-size: 1rem; padding: 0 4px; }
@@ -317,6 +319,9 @@
   var MODO_DEST = P.get("MODO") === "DEST";
   var MES_DEST = parseInt(P.get("Mes"), 10) || 0;
   var CLI_DEST = String(P.get("CLI") || "").split("|").map(decodificar);
+  // GERD = codigo:nome do gerente (GESTOR REGIONAL da CTT); CLSD = classificacao da CTT
+  var GER_DEST = String(P.get("GERD") || "").split("|").filter(Boolean).map(function (x) { var i = x.indexOf(":"); return { cod: x.slice(0, i), nome: decodificar(x.slice(i + 1)) }; });
+  var CLS_DEST = String(P.get("CLSD") || "").split("|").map(decodificar);
   var DEST = String(P.get("DEST") || "").split(";").filter(Boolean).map(function (l) {
     var f = l.split(","), se = f[3] || "";
     return {
@@ -324,7 +329,8 @@
       neg: se.charAt(0), status: se.charAt(1), estagio: se.charAt(2),
       fmes: n36(f[4]) || 0, rmes: n36(f[5]) || 0, facu: n36(f[6]) || 0, racu: n36(f[7]) || 0,
       fano: n36(f[8]) || 0, rano: n36(f[9]) || 0, fcon: n36(f[10]) || 0, rcon: n36(f[11]) || 0,
-      f12: n36(f[12]) || 0, r12: n36(f[13]) || 0, efe: n36(f[14]) || 0
+      f12: n36(f[12]) || 0, r12: n36(f[13]) || 0, efe: n36(f[14]) || 0,
+      ger: GER_DEST[parseInt(f[15], 10)] || null, cls: CLS_DEST[parseInt(f[16], 10)] || ""
     };
   });
   var LOC_DEST = (function () {
@@ -740,7 +746,8 @@
     document.getElementById("subtitulo").textContent = "";
     renderSessao();
     if (!sessao && abaAtiva === "metas") abaAtiva = "operacional";
-    document.getElementById("abas").innerHTML = ABAS.filter(function (a) { return sessao || a[0] !== "metas"; }).map(function (a) {
+    if (!sessao && abaAtiva === "destaques") abaAtiva = "operacional";
+    document.getElementById("abas").innerHTML = ABAS.filter(function (a) { return sessao || (a[0] !== "metas" && a[0] !== "destaques"); }).map(function (a) {
       return '<button type="button" role="tab" class="aba' + (a[0] === abaAtiva ? " on" : "") + '" aria-selected="' + (a[0] === abaAtiva) + '" data-aba="' + a[0] + '">' + a[1] + "</button>";
     }).join("");
     var painel = document.getElementById("painel");
@@ -1523,7 +1530,76 @@
       secaoD("mesospos", "Destaques positivos do mês · por OS", "", tabelaOS("mesospos", mesPos, COLS.mes, "Nenhuma OS positiva no mês."), true) +
       secaoD("mesosneg", "Destaques negativos do mês · por OS", "", tabelaOS("mesosneg", mesNeg, COLS.mes, "Nenhuma OS negativa no mês."), true) +
       secaoD("mesclipos", "Destaques positivos do mês · por cliente", "", tabelaClientes("mesclipos", cliMesPos, COLS.mes, false, "Nenhum cliente positivo no mês."), true) +
-      secaoD("mesclineg", "Destaques negativos do mês · por cliente", "", tabelaClientes("mesclineg", cliMesNeg, COLS.mes, false, "Nenhum cliente negativo no mês."), true);
+      secaoD("mesclineg", "Destaques negativos do mês · por cliente", "", tabelaClientes("mesclineg", cliMesNeg, COLS.mes, false, "Nenhum cliente negativo no mês."), true) +
+      secaoD("gerenciais", "Gerenciais", "por gerente · classificação pelo acumulado", htmlGerenciaisD(itens), false);
+  }
+  var gerSel = "";
+  var COLS_GER = ["acm", "ano", "p12"];
+  function tabelaGer(xs, vazio) {
+    if (!xs.length) return '<div class="vazio">' + vazio + "</div>";
+    var corpo = xs.map(function (x) {
+      return '<tr class="folha"><td><div class="os">' + esc(x.d.desc) + "</div>" + (elegivelRanking(x.d) ? "" : '<span class="chip fora">' + esc(rotuloEstado(x.d)) + "</span>") + "</td>" + celCols(COLS_GER, somaD([x])) + "</tr>";
+    }).join("");
+    return '<div class="rolagem"><table class="grade destaques"><thead><tr class="titulos"><th>OS</th>' + cabCols(COLS_GER) + "</tr></thead><tbody>" +
+      corpo + '<tr class="ref"><td>TOTAL GERAL</td>' + celCols(COLS_GER, somaD(xs)) + "</tr></tbody></table></div>";
+  }
+  // ranking lado a lado: resultado do mes, acumulado e ano, com a OS de cada posicao
+  function rankingGer(xs, positivo) {
+    var campos = [["rmes", "Resultado " + rotuloMes()], ["racu", "Resultado acumulado"], ["rano", "Resultado " + ANO]];
+    var listas = campos.map(function (c) {
+      return xs.filter(function (x) { return positivo ? x.d[c[0]] > 0 : x.d[c[0]] < 0; })
+        .sort(function (a, b) { return positivo ? b.d[c[0]] - a.d[c[0]] : a.d[c[0]] - b.d[c[0]]; }).slice(0, 5);
+    });
+    var n = Math.max(listas[0].length, listas[1].length, listas[2].length);
+    if (!n) return '<div class="vazio">Nenhuma OS ' + (positivo ? "positiva" : "negativa") + ".</div>";
+    var h = '<div class="rolagem"><table class="grade destaques ranking-ger"><thead><tr class="titulos"><th class="c">#</th>' +
+      campos.map(function (c) { return '<th class="n">' + esc(c[1]) + "</th><th>OS</th>"; }).join("") + "</tr></thead><tbody>";
+    for (var i = 0; i < n; i++) {
+      h += '<tr class="folha"><td class="c">' + (i + 1) + "</td>" + campos.map(function (c, k) {
+        var x = listas[k][i];
+        return x ? '<td class="n">' + fmtVal(x.d[c[0]]) + '</td><td><div class="os" title="' + esc(x.d.desc) + '">' + esc(x.d.desc) + "</div></td>" : "<td></td><td></td>";
+      }).join("") + "</tr>";
+    }
+    return h + "</tbody></table></div>";
+  }
+  // classificacao: meta do ano (budget, cadastrada por OS) x atual do ano
+  function classificacaoGer(xs) {
+    var cls = unicos(xs.map(function (x) { return x.d.cls || "(sem classificação)"; })).sort();
+    if (!cls.length) return "";
+    var tot = { mf: 0, mr: 0, af: 0, ar: 0 };
+    var linhasC = cls.map(function (c) {
+      var t = { mf: 0, mr: 0, af: 0, ar: 0 };
+      xs.filter(function (x) { return (x.d.cls || "(sem classificação)") === c; }).forEach(function (x) { t.mf += x.meta.f; t.mr += x.meta.r; t.af += x.d.fano; t.ar += x.d.rano; });
+      tot.mf += t.mf; tot.mr += t.mr; tot.af += t.af; tot.ar += t.ar;
+      return { c: c, t: t };
+    });
+    var linha = function (rot, t, cls) {
+      return '<tr class="' + cls + '"><td>' + rot + '</td><td class="n">' + (t.mf ? fmtVal(t.mf) : "—") + '</td><td class="n">' + (t.mf ? fmtVal(t.mr) : "—") + '</td><td class="n">' + pct(t.mr, t.mf) + "</td>" +
+        '<td class="n">' + fmtVal(t.af) + '</td><td class="n">' + fmtVal(t.ar) + '</td><td class="n">' + pct(t.ar, t.af) + "</td></tr>";
+    };
+    return '<div class="rolagem"><table class="grade destaques"><thead><tr class="titulos"><th>CLASSIFICAÇÃO</th><th class="n">FAT META ' + ANO + '</th><th class="n">RES META ' + ANO + '</th><th class="n">% META</th>' +
+      '<th class="n">FAT ATUAL ' + ANO + '</th><th class="n">RES ATUAL ' + ANO + '</th><th class="n">% ATUAL</th></tr></thead><tbody>' +
+      linhasC.map(function (l) { return linha(esc(l.c), l.t, "folha"); }).join("") + linha("TOTAL GERAL", tot, "ref") + "</tbody></table></div>";
+  }
+  function htmlGerenciaisD(itens) {
+    var gers = {};
+    itens.forEach(function (x) { if (x.d.ger) gers[x.d.ger.cod + "|" + x.d.ger.nome] = x.d.ger; });
+    var lista = Object.keys(gers).map(function (k) { return gers[k]; }).sort(function (a, b) { return a.nome.localeCompare(b.nome); });
+    if (!lista.length) return '<div class="vazio">Nenhum gerente nos destaques.</div>';
+    if (!lista.some(function (g) { return g.cod + "|" + g.nome === gerSel; })) gerSel = lista[0].cod + "|" + lista[0].nome;
+    var escolha = '<div class="barra gerentes">' + lista.map(function (g) {
+      var k = g.cod + "|" + g.nome;
+      return '<button type="button" class="btn abre peq' + (k === gerSel ? " on" : "") + '" data-dger="' + esc(k) + '">' + esc(g.nome) + "</button>";
+    }).join("") + "</div>";
+    var doGer = itens.filter(function (x) { return x.d.ger && x.d.ger.cod + "|" + x.d.ger.nome === gerSel; });
+    var pos = doGer.filter(function (x) { return x.d.racu >= 0; }).sort(function (a, b) { return b.d.racu - a.d.racu; });
+    var neg = doGer.filter(function (x) { return x.d.racu < 0; }).sort(function (a, b) { return a.d.racu - b.d.racu; });
+    return escolha +
+      '<h4 class="sub">Destaques positivos · ' + esc(gerSel.split("|")[1]) + "</h4>" + tabelaGer(pos, "Nenhuma OS com acumulado positivo.") +
+      '<h4 class="sub">Destaques negativos</h4>' + tabelaGer(neg, "Nenhuma OS com acumulado negativo.") +
+      '<h4 class="sub">Ranking de resultado · positivos</h4>' + rankingGer(doGer, true) +
+      '<h4 class="sub">Ranking de resultado · negativos</h4>' + rankingGer(doGer, false) +
+      '<h4 class="sub">Classificação · meta x atual do ano</h4>' + classificacaoGer(doGer);
   }
   function alternarRanking(cods, marcar) {
     cods.forEach(function (c) { linhaRanking(c).Ranking = marcar ? "Sim" : "Nao"; });
@@ -1858,12 +1934,13 @@
       alternarRanking(dc.map(function (d) { return d.cod; }), !dc.every(marcadoRanking));
       return;
     }
+    if (t.hasAttribute("data-dger")) { gerSel = t.getAttribute("data-dger"); render(); return; }
     if (t.hasAttribute("data-dsec")) { var ks = "sec:" + t.getAttribute("data-dsec"); abertosD[ks] = abertosD[ks] === false; render(); return; }
     if (t.hasAttribute("data-dcli")) { var kc = t.getAttribute("data-dcli"); abertosD[kc] = !(t.getAttribute("aria-expanded") === "true"); render(); return; }
     if (t.hasAttribute("data-dtodos")) { var kt = t.getAttribute("data-dtodos"); todosD[kt] = !todosD[kt]; render(); return; }
     if (t.hasAttribute("data-dtudo")) {
       var abrirD = t.getAttribute("data-dtudo") === "1";
-      ["rotpos", "rotneg", "demais", "parada", "mesospos", "mesosneg", "mesclipos", "mesclineg"].forEach(function (k) { abertosD["sec:" + k] = abrirD; });
+      ["rotpos", "rotneg", "demais", "parada", "mesospos", "mesosneg", "mesclipos", "mesclineg", "gerenciais"].forEach(function (k) { abertosD["sec:" + k] = abrirD; });
       render();
       return;
     }
