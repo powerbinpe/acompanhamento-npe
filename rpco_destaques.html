@@ -219,6 +219,7 @@
   button.marca.parcial { background: #fef9c3; border-color: #ca8a04; color: #854d0e; }
   .btn.abre.on { background: var(--bg-bar); color: #fff; }
   .login-botoes { display: flex; gap: 10px; margin-top: 6px; }
+  .aviso-sessao { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; border-radius: 6px; padding: 2px 8px; font-weight: 600; }
   .chip.sync { background: #dbeafe; color: #1e40af; }
   .vazio { color: var(--muted); padding: 10px 14px; font-size: .82rem; }
   .x { background: none; border: none; color: #94a3b8; font-weight: 800; cursor: pointer; font-size: 1rem; padding: 0 4px; }
@@ -267,6 +268,9 @@
     login:  "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/bcf1295963df418f91a48dd71ea02e60/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VfbYQC2H12f_6GZCSMmrctJBKF1B8ns4TalVByCO688",
     ler:    "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/20/workflows/a343fee6cc6345d681e0dd483dbb9d05/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=3nqkHSexMoJM-hcvhonWaF5vzaYENBy8ONwHhwyNEww",
     gravar: "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/f42b6d3d1a8f45588136d0ce70d2d2ab/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=npaAIzRXLDdrejvhShfxykRxpHqrX2iiPHH373XtEo8",
+    // Sessao do Master guardada no SharePoint (PARAM_ACESSO.SessaoValidadeRPCO), escopo "RPCO"
+    sessaoLer:    "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/30/workflows/0551891bfd8140c8a17d3f50f04446e1/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=d1SRWrrSksFSEUpoOem7_LkRF9uurbbjsssvwcmBHxQ",
+    sessaoGravar: "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/07/workflows/a342f1d52e7a482dbb8f4b9115888ecc/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=LTzAo5-ULbo7-g4-aP0vO7EQaqEq0SyOMTBfwUFoVBQ",
     // NPE-Ler-Metas (publico): traz o cadastro de Responsaveis do Acompanhamento de Performance
     metas:  "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/eee057e0905d4712aa0317bb0acd74c3/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xDFTcuw4PksmljQDhYgPLtMDZtUeOWxXHojiUPzGCR0"
   };
@@ -347,8 +351,10 @@
   }
 
   // ===========================================================================
-  // Sessao: dentro do visual do Power BI so o window.name atravessa a recarga do iframe.
-  // Guarda o hash (nunca a senha) para ler/gravar sem pedir login a cada filtro; expira em 8 h.
+  // Sessao: o Power BI recria o visual a cada troca de filtro e apaga ate o window.name, entao a
+  // sessao vale no SharePoint (NPE-Ler/Gravar-Sessao, escopo RPCO, 4 h com Renovar/Encerrar).
+  // So e retomada sem senha quando a medida manda SP=1: ninguem filtrado pelo portal (masters do
+  // BiExplorer e Diretoria). O window.name ainda guarda o hash enquanto a moldura sobreviver.
   // ===========================================================================
   var PREFIXO = "NPERPCO1:";
   var sessao = null;
@@ -362,6 +368,38 @@
     return null;
   }
   function gravarSessao(s) { try { window.name = s ? PREFIXO + JSON.stringify(s) : ""; } catch (e) {} }
+  var SEM_FILTRO_PORTAL = P.get("SP") === "1";
+  var AVISO_MIN = 15;
+  function validadeMs() { return sessao && sessao.validade ? Date.parse(sessao.validade) : 0; }
+  function horaSessao() { var v = validadeMs(); return v ? new Date(v).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""; }
+  function minutosRestantes() { var v = validadeMs(); return v ? Math.floor((v - Date.now()) / 60000) : 9999; }
+  async function retomarSessao() {
+    if (sessao || !SEM_FILTRO_PORTAL || /^__URL_/.test(FLOW.sessaoLer)) return;
+    try {
+      var r = await postar(FLOW.sessaoLer, { escopo: "RPCO" });
+      if (r.status === 200 && r.json && r.json.aberta === true && Date.parse(r.json.validade) > Date.now()) {
+        sessao = { login: r.json.login, nome: r.json.nome || r.json.login, perfil: r.json.perfil || "MASTER", hash: "", validade: r.json.validade, ts: Date.now() };
+        gravarSessao(sessao);
+      }
+    } catch (e) {}
+  }
+  async function acaoSessao(acao) {
+    if (!sessao || /^__URL_/.test(FLOW.sessaoGravar)) return false;
+    try {
+      var r = await postar(FLOW.sessaoGravar, { login: sessao.login, hash: sessao.hash || "", acao: acao, escopo: "RPCO" });
+      if (r.status === 200 && r.json && r.json.ok === true) {
+        if (acao !== "encerrar") { sessao.validade = r.json.validade; gravarSessao(sessao); }
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+  // Confere a cada 30 s: mostra o aviso perto do fim e derruba a sessao vencida
+  setInterval(function () {
+    if (!sessao || !sessao.validade) return;
+    if (validadeMs() <= Date.now()) { sessao = null; gravarSessao(null); if (abaAtiva === "metas") abaAtiva = "operacional"; carregar(); return; }
+    renderSessao();
+  }, 30000);
   function ehProprietario() { return !!sessao && sessao.perfil === "PROPRIETARIO"; }
   // Master = quem entrou pela PARAM_ACESSO; so ele ve o consolidado da empresa
   function ehMaster() { return !!sessao; }
@@ -671,7 +709,7 @@
     } else RESP_OK = false;
   }
   function tratarLeitura(res) {
-    if (res.status === 403 && sessao) { erroCarga = "Acesso restrito a usuários Master. Entre novamente."; sessao = null; gravarSessao(null); }
+    if (res.status === 403 && sessao) { erroCarga = "Sua sessão terminou. Entre novamente."; sessao = null; gravarSessao(null); }
     else if (res.status !== 200 || !Array.isArray(res.json)) { erroCarga = "Não foi possível ler as metas (HTTP " + res.status + ")."; }
     else aplicarDados(res.json);
   }
@@ -719,8 +757,10 @@
   function renderSessao() {
     var el = document.getElementById("sessao");
     if (!sessao) { el.innerHTML = abaAtiva === "login" ? "" : '<button type="button" class="btn sec peq" data-acao="abrirLogin">Entrar</button>'; return; }
-    el.innerHTML = "<b>" + esc(sessao.nome || sessao.login) + '</b><span class="pill' + (ehProprietario() ? " prop" : "") + '">' + esc(sessao.perfil) + "</span>" +
-      '<button type="button" class="btn sec peq" data-acao="sair">Sair</button>';
+    var falta = minutosRestantes(), hora = horaSessao();
+    el.innerHTML = "<span>Sessão aberta por <b>" + esc(sessao.nome || sessao.login) + "</b>" + (hora ? " até " + hora : "") + '</span><span class="pill' + (ehProprietario() ? " prop" : "") + '">' + esc(sessao.perfil) + "</span>" +
+      (hora && falta <= AVISO_MIN ? '<span class="aviso-sessao">Sua sessão será encerrada às ' + hora + '</span><button type="button" class="btn peq" data-acao="renovarSessao">Renovar</button>' : "") +
+      '<button type="button" class="btn sec peq" data-acao="sair">Encerrar</button>';
   }
 
   // Sem <form>: o iframe do visual HTML do Power BI e sandbox sem allow-forms e bloqueia o envio.
@@ -770,6 +810,7 @@
         return;
       }
       sessao = { login: login, nome: res.json.nome || login, perfil: res.json.perfil || "MASTER", hash: hash, ts: Date.now() };
+      await acaoSessao("abrir");
       if (abaAtiva === "login") abaAtiva = "metas";
       gravarSessao(sessao);
       erroCarga = "";
@@ -1815,7 +1856,8 @@
     if (t.hasAttribute("data-novo")) { novaLinha(t.getAttribute("data-novo"), t.getAttribute("data-cod") || ""); return; }
     if (t.hasAttribute("data-remover")) { remover(t.getAttribute("data-remover")); return; }
     var a = t.getAttribute("data-acao");
-    if (a === "sair") { sessao = null; gravarSessao(null); erroCarga = ""; rapidoOS = ""; if (abaAtiva === "metas") abaAtiva = "operacional"; carregar(); }
+    if (a === "sair") { acaoSessao("encerrar"); sessao = null; gravarSessao(null); erroCarga = ""; rapidoOS = ""; if (abaAtiva === "metas") abaAtiva = "operacional"; carregar(); }
+    else if (a === "renovarSessao") { acaoSessao("renovar").then(function (ok) { if (!ok) msgStatus = "Não foi possível renovar a sessão. Entre novamente."; render(); }); }
     else if (a === "abrirLogin") { abaAtiva = "login"; render(); }
     else if (a === "fecharLogin") { abaAtiva = "operacional"; render(); }
     else if (a === "recarregar") { msgStatus = ""; carregar(); }
@@ -1870,7 +1912,7 @@
   // ===========================================================================
   sessao = lerSessao();
   render();
-  carregar();
+  retomarSessao().then(function () { render(); carregar(); });
 })();
 </script>
 </body>
