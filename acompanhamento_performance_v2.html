@@ -3888,6 +3888,24 @@ function hydrateFromPowerBI() {
     })();
 
     // Topicos que tem caixa de texto na Aba 1, e portanto gravam na ATA.
+    // Linhas da caixa que precisam ter valor para o indicador ser avaliado no texto:
+    // os dois lados da comparacao (meta x real, orcado x realizado, taxa x referencia).
+    var COMPARACAO_CAIXA = {
+      1: ["Faturamento Meta Ano", "Faturamento Real Ano"],
+      2: ["Resultado Meta Ano", "Resultado Real Ano"],
+      3: ["Faturamento FCST Proj.", "Faturamento Real Mês"],
+      4: ["Resultado FCST Proj.", "Resultado Real Mês"],
+      6: ["% Perda de Receita (Mês)"],
+      8: ["Indenização Mês"],
+      9: ["Efetivo Orçado (PR)", "Efetivo Realizado"],
+      10: ["HHT Orçado (PR)", "HHT Realizado"],
+      11: ["Taxa Absenteísmo Mês (%)", "Referência"],
+      12: ["Taxa TurnOver Mês (%)", "Referência"],
+      15: ["Ocorrências SAF"],
+      16: ["Ocorrências CAF"],
+      17: ["Satisfação do Cliente", "Referência"],
+      20: ["BP Aprovadas no Mês"]
+    };
     var TOPICOS_COM_CAIXA = (function () {
       var a = [];
       for (var i = 1; i <= 23; i++) a.push(i);
@@ -7562,13 +7580,19 @@ function hydrateFromPowerBI() {
         // de Faturamento Ano estava em branco e o parecer saia com R$ 16.942.359 que ninguem via.
         var linhasCaixa = (topicObj.lines && !topicObj.onlyComments &&
           !(topicObj.lines.length === 1 && topicObj.lines[0].label === "Tipo de Controle")) ? topicObj.lines : null;
+        // So se avalia com os DOIS lados da comparacao na caixa: com um so, compara-se com o que?
+        var faltando = [];
         if (linhasCaixa) {
-          var comValor = linhasCaixa.filter(function(l) { var v = String(l.val || "").trim(); return v !== "" && v !== "-"; });
-          detalhe = comValor.length
-            ? linhasCaixa.map(function(l) { var v = String(l.val || "").trim(); return l.label + ": " + (v || "-"); }).join(" | ")
-            : "caixa sem valores neste mês (nada a citar)";
+          var valorDe = function(rotulo) {
+            var l = linhasCaixa.find(function(x) { return x.label === rotulo; });
+            return l ? String(l.val || "").trim() : "";
+          };
+          faltando = (COMPARACAO_CAIXA[tid] || []).filter(function(r) { var v = valorDe(r); return v === "" || v === "-"; });
+          detalhe = faltando.length
+            ? "sem comparação neste mês — a caixa não tem " + faltando.join(" nem ")
+            : linhasCaixa.map(function(l) { var v = String(l.val || "").trim(); return l.label + ": " + (v || "-"); }).join(" | ");
         }
-        var caixaVazia = !!(linhasCaixa && detalhe.indexOf("caixa sem valores") === 0);
+        var caixaVazia = faltando.length > 0;
 
         var gEl = document.getElementById("gestor_" + tid);
         var gVal = gEl ? gEl.value : safeGetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, "");
@@ -7582,7 +7606,7 @@ function hydrateFromPowerBI() {
         var tpMes = (sc && sc.topics) ? sc.topics[scoreIdDet || ("t" + tid)] : null;
         // Caixa em branco: nada a julgar no texto, senao a IA cobra um desvio que a tela nao mostra.
         if (tpMes && caixaVazia) {
-          lines.push("Situação no mês: não avaliado (caixa sem valores)");
+          lines.push("Situação no mês: não avaliado (falta valor na caixa para comparar)");
         } else if (tpMes) {
           lines.push("Situa\u00e7\u00e3o no m\u00eas: " + (!tpMes.applicable
             ? "n\u00e3o avaliado (N/A ou sem apura\u00e7\u00e3o)"
@@ -7590,7 +7614,7 @@ function hydrateFromPowerBI() {
         }
 
         // A leitura de tendencia: contra o mes anterior e contra o ano.
-        var tend = (typeof textoTendencia === "function") ? textoTendencia(activeOS, tid, monthNum) : "";
+        var tend = (!caixaVazia && typeof textoTendencia === "function") ? textoTendencia(activeOS, tid, monthNum) : "";
         if (tend) lines.push("Tend\u00eancia: " + tend);
 
         // O parecer da Performance NAO entra aqui: e justamente ele que esta sendo
