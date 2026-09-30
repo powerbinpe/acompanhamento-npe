@@ -3426,8 +3426,19 @@ function hydrateFromPowerBI() {
         var qualBlockHTML = "";
         if (qualKey && !isMultiOS) {
           var curQualVal = getQualitativeEval(activeOS, monthNum, qualKey);
+          // Indicador automatico: o "Pendente" guardado significa "vale o calculo do painel", e o
+          // botao mostra o resultado apurado (Aderente / Nao aderente / sem apuracao no mes).
+          var ehAuto = aderenciaAutomatica(topic.id);
+          var rotuloPend = "🟡 Pendente";
+          if (ehAuto && curQualVal !== "PENDENTE") rotuloPend = "⚙️ Automático";
+          else if (ehAuto) {
+            var cAuto = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOS; });
+            var tAuto = cAuto ? (calculateOSScore(cAuto, monthNum).topics || {})["t" + topic.id] : null;
+            rotuloPend = !tAuto || !tAuto.applicable ? "⚙️ Automático: sem apuração"
+              : (tAuto.earned >= tAuto.max - 0.001 ? "⚙️ Automático: 🟢 Aderente" : "⚙️ Automático: 🔴 Não aderente");
+          }
           var qualOptions = [
-            { val: "PENDENTE", label: "🟡 Pendente", bg: "#fef9c3", border: "#d97706", fg: "#92400e" },
+            { val: "PENDENTE", label: rotuloPend, bg: ehAuto ? "#dbeafe" : "#fef9c3", border: ehAuto ? "#2563eb" : "#d97706", fg: ehAuto ? "#1e3a8a" : "#92400e" },
             { val: "NA", label: "⚪ N/A", bg: "#e2e8f0", border: "#64748b", fg: "#334155" },
             { val: "NAO_ADERENTE", label: "🔴 Não Aderente", bg: "#fee2e2", border: "#ef4444", fg: "#b91c1c" },
             { val: "ADERENTE", label: "🟢 Aderente", bg: "#dcfce7", border: "#16a34a", fg: "#15803d" }
@@ -3445,7 +3456,9 @@ function hydrateFromPowerBI() {
                 : '✅ Aderência (Máster) — sobrepõe o cálculo automático') +
             '</div>' +
             (QUALITATIVE_TOPIC_IDS.indexOf("t" + topic.id) !== -1 ? '' :
-              '<div style="font-size:0.72rem; color:#64748b; margin-bottom:6px;">Em <b>Pendente</b> vale o cálculo automático. Marque <b>Aderente</b> para reverter uma nota negativa quando a justificativa for aceita ou o desvio tiver origem em outro setor.</div>') +
+              (ehAuto
+                ? '<div style="font-size:0.72rem; color:#64748b; margin-bottom:6px;">Apurado <b>automaticamente</b> pelo painel. Marque <b>Aderente</b> ou <b>Não Aderente</b> só para sobrepor o cálculo (justificativa aceita, desvio de outro setor); clique no <b>Automático</b> para voltar ao cálculo.</div>'
+                : '<div style="font-size:0.72rem; color:#64748b; margin-bottom:6px;"><b>Validação manual</b>: o valor está na caixa, mas o indicador fica <b>Pendente</b> até o Máster avaliar pelo comentário do Gestor. Enquanto pendente, não entra na nota.</div>')) +
             '<div style="display:flex; gap:5px; flex-wrap:wrap;">' + qualButtonsHTML + '</div>' +
           '</div>';
           // "Aderência Acum. Ano" só faz sentido nos 7 tópicos puramente qualitativos, onde
@@ -4920,6 +4933,45 @@ function hydrateFromPowerBI() {
     TOPICOS_NUMERICOS_COM_ADERENCIA.forEach(function(id) {
       if (!TOPIC_ID_TO_QUAL_KEY[id]) TOPIC_ID_TO_QUAL_KEY[id] = "t" + id;
     });
+
+    // Validacao MANUAL (30/09/2026): SAF, CAF e Satisfacao do Cliente tem o valor apurado no
+    // painel, mas a aderencia depende do comentario do Gestor (as acoes tomadas). Ficam Pendente
+    // ate o Master avaliar e, enquanto Pendente, nao entram na nota -- como os 7 qualitativos.
+    // Os demais numericos sao AUTOMATICOS: Pendente = vale o calculo do painel.
+    var TOPICOS_ADERENCIA_MANUAL = [15, 16, 17];
+    function aderenciaAutomatica(topicId) {
+      return TOPICOS_NUMERICOS_COM_ADERENCIA.indexOf(topicId) !== -1 && TOPICOS_ADERENCIA_MANUAL.indexOf(topicId) === -1;
+    }
+
+    // Mes ABERTO: a Data Limite do mes foi informada no #22 (Pontualidade). A partir dai o mes e
+    // apurado pelos valores do painel, com ou sem comentario. As datas de TODOS os meses vem numa
+    // lista propria (DATA_LIMITE_MESES), sem mexer no calculo da Pontualidade, que continua
+    // olhando so o mes selecionado.
+    window.DATA_LIMITE_MESES = window.DATA_LIMITE_MESES || {};
+    function mesAbertoPeloPrazo(monthNum) {
+      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+      return !!(window.DATA_LIMITE_MESES[monthNum + "_" + ano] || getPrazoLimite(monthNum, ano));
+    }
+    async function carregarDataLimiteDosMeses() {
+      var params = new URLSearchParams(window.location.search);
+      var ate = getMonthNumberFromParams(params);
+      var ano = parseInt(params.get("SelectedAno"), 10);
+      var url = window.FLOW_LER_PRAZO_URL;
+      if (!ate || !ano || !url) return;
+      var meses = [];
+      for (var m = 1; m <= ate; m++) meses.push(m);
+      var mudou = false;
+      await Promise.all(meses.map(async function (m) {
+        try {
+          var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mes: m, ano: ano }) });
+          if (!r.ok) return;
+          var dt = await r.json();
+          var v = (dt && dt.dataLimite) || "";
+          if (window.DATA_LIMITE_MESES[m + "_" + ano] !== v) { window.DATA_LIMITE_MESES[m + "_" + ano] = v; mudou = true; }
+        } catch (e) {}
+      }));
+      if (mudou) { window._scoreCache = {}; if (typeof refreshAllScoreViews === "function") refreshAllScoreViews(true); }
+    }
 
     // Enquanto o Máster não avaliar explicitamente, o indicador fica "PENDENTE" (fora do score,
     // igual a N/A) -- nunca conta como conforme por padrão. Só passa a valer ponto quando alguém
@@ -6567,7 +6619,9 @@ function hydrateFromPowerBI() {
       // caixa for preenchida -- mesmo um só "pendente de realização" -- o mês inteiro volta a
       // ser apurado normalmente. temComentarioMes === undefined (dado de antes desse campo
       // existir) NÃO bloqueia -- só bloqueia quando o valor vier explicitamente false.
-      if (contract.temComentarioMes === false) {
+      // Mes sem comentario so fica de fora se ainda NAO estiver aberto (sem Data Limite no #22).
+      // Mes aberto e apurado pelos valores do painel, com ou sem comentario (30/09/2026).
+      if (contract.temComentarioMes === false && !mesAbertoPeloPrazo(monthNum)) {
         // topics precisa ter a MESMA forma que o cálculo normal produz -- cada um dos 23
         // tópicos com {earned:0, max:0, applicable:false} -- e não um objeto vazio. Código
         // que lê sc.topics.prazo.earned direto (sem checar se a chave existe, ex.:
@@ -6708,13 +6762,15 @@ function hydrateFromPowerBI() {
       addQual("he", "t13", TOPIC_WEIGHTS.t13);
       addQual("ferias", "t14", TOPIC_WEIGHTS.t14);
 
-      // --- 15/16. SAF / CAF (zero ocorrências = OK, senão 0 -- binário) ---
-      addBinary("t15", TOPIC_WEIGHTS.t15, true, (contract.safCount || 0) === 0);
-      addBinary("t16", TOPIC_WEIGHTS.t16, true, (contract.cafCount || 0) === 0);
+      // --- 15/16. SAF / CAF: validacao MANUAL (30/09/2026). O numero de ocorrencias continua na
+      // caixa, mas o ponto so entra quando o Master avaliar pelo comentario do Gestor.
+      addQual(TOPIC_ID_TO_QUAL_KEY[15], "t15", TOPIC_WEIGHTS.t15);
+      addQual(TOPIC_ID_TO_QUAL_KEY[16], "t16", TOPIC_WEIGHTS.t16);
 
       // --- 17. Satisfação do Cliente (apuração anual; sem pesquisa no ano = N/A) ---
-      var satApplicable = (typeof contract.satVal === "number" && typeof contract.satMeta === "number");
-      addBinary("t17", TOPIC_WEIGHTS.t17, satApplicable, satApplicable && contract.satVal >= contract.satMeta);
+      // Validacao MANUAL (30/09/2026): o resultado da pesquisa aparece na caixa; o ponto depende
+      // da avaliacao do Master sobre as acoes descritas no comentario.
+      addQual(TOPIC_ID_TO_QUAL_KEY[17], "t17", TOPIC_WEIGHTS.t17);
 
       addQual("ltcat_lipae", "t18", TOPIC_WEIGHTS.t18);
       addQual("pbi_pbd", "t19", TOPIC_WEIGHTS.t19);
@@ -9808,6 +9864,7 @@ function hydrateFromPowerBI() {
         window._historicoPromessa = carregarHistoricoCompleto();
       }
       if (typeof carregarPrazoLimite === "function") carregarPrazoLimite();
+      if (typeof carregarDataLimiteDosMeses === "function") carregarDataLimiteDosMeses();
       if (typeof carregarMetasDoFluxo === "function") carregarMetasDoFluxo();
       if (typeof updateFromURLParams === "function") updateFromURLParams();
 
