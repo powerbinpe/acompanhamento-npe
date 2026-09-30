@@ -1395,9 +1395,9 @@
   // Destaques (so Master), tudo numa pagina: Rotina (positivos e negativos), Demais operacoes,
   // Parada e Destaques do mes. A medida manda, por OS, o cliente da CTT, negocio, status/estagio
   // e os numeros do mes, acumulado, ano, contrato, proximos 12 e efetivo. A meta vem da lista.
-  // Ranking: entra por padrao OS ATIVO em EXECUCAO/DEMOBILIZACAO/NOVA e toda OS ATUAL (inclusive
-  // FINALIZADA: trabalhou no ano e terminou, ex. parada M05701, 30/09/2026); as demais (ENCERRADO
-  // etc.) aparecem na lista e podem ser marcadas. A marca fica no campo Ranking da linha da OS.
+  // Ranking: a medida ja manda so as OSs elegiveis (CTT, regra de 30/09/2026): Status ATIVO ou ATUAL,
+  // qualquer estagio, Setor da lista operacional (e, temporariamente, OS ENCERRADA). Todas entram
+  // marcadas por padrao; tirar e a mao. A marca fica no campo Ranking da linha da OS.
   // ===========================================================================
   var MESES = ["", "JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
   var abertosD = {}, todosD = {};
@@ -1412,7 +1412,7 @@
     }
     return r;
   }
-  function elegivelRanking(d) { return d.status === "U" || (d.status === "A" && ["E", "D", "N"].indexOf(d.estagio) >= 0); }
+  function elegivelRanking(d) { return d.status === "A" || d.status === "U"; }
   function marcadoRanking(d) {
     var r = linhaOS(d.cod), v = r ? r.Ranking : "";
     if (v === "Sim") return true;
