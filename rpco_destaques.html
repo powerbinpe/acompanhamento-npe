@@ -279,6 +279,9 @@
   .destaques-tela .grupo-titulo .dir { flex-shrink: 0; }
   .destaques-tela table.destaques .dica { font-size: .85em; }
   .destaques-tela table.destaques th.rk { white-space: normal; }
+  .legenda-atin { font-size: .62rem; color: var(--muted); margin: -8px 0 10px; }
+  .legenda-atin b { color: var(--text); letter-spacing: .04em; }
+  .legenda-atin span { font-size: 1em; margin: 0 2px; }
   .painel-colunas { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: -8px 0 14px; background: #fff; display: flex; flex-direction: column; gap: 8px; }
   .painel-colunas .lista-colunas { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px 12px; font-size: .78rem; }
   .painel-colunas label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
@@ -1696,7 +1699,10 @@
       '<button type="button" class="btn abre peq' + (painelColunas ? " on" : "") + '" data-acao="colunas">Colunas</button>' +
       '<button type="button" class="btn abre peq" data-dtudo="1">Abrir todas</button><button type="button" class="btn abre peq" data-dtudo="0">Recolher todas</button>' +
       '<button type="button" class="btn ok" data-acao="salvarRanking"' + (pend.total && !gravando ? "" : " disabled") + ">" + (gravando ? "Gravando..." : "Salvar ranking") + "</button></div></div>" +
-      htmlPainelColunas();
+      htmlPainelColunas() +
+      // Legenda do atingimento (regra do RPCO): o real do ano contra a meta do ano
+      '<div class="legenda-atin"><b>ATIN. META FAT/RES ANO</b> · real do ano (' + ANO + ', realizado + projetado) sobre a meta do ano: ' +
+      '<span class="ok-mark">✔</span> atingiu 96% ou mais da meta · <span class="alerta-mark">⚠</span> entre 90% e 96% · <span class="nao-mark">✘</span> abaixo de 90% · em branco: sem meta cadastrada</div>';
     return '<div class="destaques-tela">' + barra +
       secaoD("rotpos", "Rotina · destaques positivos", sub(rotPos), tabelaClientes("rotpos", rotPos, COLS.rotina, false, "Nenhum cliente de rotina com acumulado positivo.", true), true, restaurar("rotpos")) +
       secaoD("rotneg", "Rotina · destaques negativos", sub(rotNeg), tabelaClientes("rotneg", rotNeg, COLS.rotina, false, "Nenhum cliente de rotina com acumulado negativo.", true), true, restaurar("rotneg")) +
