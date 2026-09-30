@@ -2065,8 +2065,12 @@ function hydrateFromPowerBI() {
         console.warn("Prazo limite: falha ao consultar o fluxo --", err);
       }
     }
+    // Cada mes usa a PROPRIA Data Limite: o mes selecionado vem do PRAZO_LIMITE_CACHE e os demais da
+    // lista de todos os meses (DATA_LIMITE_MESES). Antes so o selecionado tinha data e, com setembro
+    // na tela, agosto virava "Sem Periodo Definido" e contava a favor (30/09/2026).
     function getPrazoLimite(mes, ano) {
-      return (window.PRAZO_LIMITE_CACHE && window.PRAZO_LIMITE_CACHE[mes + "_" + ano]) || "";
+      return (window.PRAZO_LIMITE_CACHE && window.PRAZO_LIMITE_CACHE[mes + "_" + ano]) ||
+             (window.DATA_LIMITE_MESES && window.DATA_LIMITE_MESES[mes + "_" + ano]) || "";
     }
 
     function rebuildAtaHistory() {
@@ -4944,9 +4948,8 @@ function hydrateFromPowerBI() {
     }
 
     // Mes ABERTO: a Data Limite do mes foi informada no #22 (Pontualidade). A partir dai o mes e
-    // apurado pelos valores do painel, com ou sem comentario. As datas de TODOS os meses vem numa
-    // lista propria (DATA_LIMITE_MESES), sem mexer no calculo da Pontualidade, que continua
-    // olhando so o mes selecionado.
+    // apurado pelos valores do painel, com ou sem comentario. As datas de TODOS os meses vem na
+    // lista DATA_LIMITE_MESES, que o getPrazoLimite tambem usa (Pontualidade de cada mes).
     window.DATA_LIMITE_MESES = window.DATA_LIMITE_MESES || {};
     var COMPETENCIA_INICIO_PRAZO = 202608;   // primeira competencia com o fluxo da Data Limite
     function mesAbertoPeloPrazo(monthNum) {
