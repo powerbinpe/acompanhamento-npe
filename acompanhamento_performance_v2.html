@@ -6627,10 +6627,11 @@ function hydrateFromPowerBI() {
       // informada no #22: a Controladoria confirma o fechamento (folha e impostos, ~dia 15), a data
       // e divulgada e so entao os numeros estao firmes. Aberto = apurado pelos valores do painel,
       // com ou sem comentario; sem Data Limite = fora, mesmo com comentario (30/09/2026).
-      // Antes de agosto (sem o fluxo) vale a regra antiga do comentario.
+      // Antes de agosto (sem o fluxo) os meses ja estao FECHADOS: contam como apurados, com ou sem
+      // comentario (30/09/2026). A regra antiga do comentario deixou de valer.
       var anoApur = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10) || 0;
       var noFluxoDoPrazo = (anoApur * 100 + monthNum) >= COMPETENCIA_INICIO_PRAZO;
-      if (noFluxoDoPrazo ? !mesAbertoPeloPrazo(monthNum) : contract.temComentarioMes === false) {
+      if (noFluxoDoPrazo && !mesAbertoPeloPrazo(monthNum)) {
         // topics precisa ter a MESMA forma que o cálculo normal produz -- cada um dos 23
         // tópicos com {earned:0, max:0, applicable:false} -- e não um objeto vazio. Código
         // que lê sc.topics.prazo.earned direto (sem checar se a chave existe, ex.:
