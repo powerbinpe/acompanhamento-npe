@@ -4956,6 +4956,13 @@ function hydrateFromPowerBI() {
       var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
       return !!(window.DATA_LIMITE_MESES[monthNum + "_" + ano] || getPrazoLimite(monthNum, ano));
     }
+    // Primeiro mes com algum comentario do Gestor (13 = nunca preencheu): inicio da apuracao da OS.
+    function primeiroMesPreenchido(osCode) {
+      for (var m = 1; m <= 12; m++) {
+        if (getOSCompletionStatus(osCode, m).filledCount > 0) return m;
+      }
+      return 13;
+    }
     async function carregarDataLimiteDosMeses() {
       var params = new URLSearchParams(window.location.search);
       var ate = getMonthNumberFromParams(params);
@@ -6628,10 +6635,12 @@ function hydrateFromPowerBI() {
       // e divulgada e so entao os numeros estao firmes. Aberto = apurado pelos valores do painel,
       // com ou sem comentario; sem Data Limite = fora, mesmo com comentario (30/09/2026).
       // Antes de agosto (sem o fluxo) os meses ja estao FECHADOS: contam como apurados, com ou sem
-      // comentario (30/09/2026). A regra antiga do comentario deixou de valer.
+      // comentario, mas so a partir do PRIMEIRO mes preenchido da OS -- a mesma regra do "Gravar
+      // Notas do Ano" e da Aba 5. Antes disso a OS nao tinha entrado no processo (30/09/2026).
       var anoApur = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10) || 0;
       var noFluxoDoPrazo = (anoApur * 100 + monthNum) >= COMPETENCIA_INICIO_PRAZO;
-      if (noFluxoDoPrazo && !mesAbertoPeloPrazo(monthNum)) {
+      var foraDaApuracao = noFluxoDoPrazo ? !mesAbertoPeloPrazo(monthNum) : monthNum < primeiroMesPreenchido(contract.code);
+      if (foraDaApuracao) {
         // topics precisa ter a MESMA forma que o cálculo normal produz -- cada um dos 23
         // tópicos com {earned:0, max:0, applicable:false} -- e não um objeto vazio. Código
         // que lê sc.topics.prazo.earned direto (sem checar se a chave existe, ex.:
