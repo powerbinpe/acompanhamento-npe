@@ -3255,7 +3255,8 @@ function hydrateFromPowerBI() {
         var savedStatus = safeGetStorage("status_" + activeOS + "_m" + monthNum + "_" + topic.id, defaultStatusForMonth);
         var valStatus = isMultiOS ? "Pendente" : savedStatus;
         
-        var gestorIsLocked = isMultiOS || (valStatus === "Validado" && !window.isMaster);
+        var gestorForaDoInicio = !isMultiOS && !window.isMaster && mesFechadoAntesDoInicio(activeOS, monthNum);
+        var gestorIsLocked = isMultiOS || (valStatus === "Validado" && !window.isMaster) || gestorForaDoInicio;
 
         // KPI Box Color Rules
         var linesHTML = '';
@@ -3284,7 +3285,8 @@ function hydrateFromPowerBI() {
 
         var gestorStatusPill = isMultiOS ? 
           '<span class="status-pill status-reaberto" style="font-size: 0.84rem;">🌐 Multi-OS Consolidado</span>' : 
-          (valStatus === "Validado" ? '<span class="status-pill status-validado" style="font-size: 0.84rem;">🔒 Validado & Travado</span>' : '<span class="status-pill status-pendente" style="font-size: 0.84rem;">⏳ Pendente de Validação</span>');
+          (gestorForaDoInicio ? '<span class="status-pill status-validado" style="font-size: 0.84rem;">🔒 Mês fechado — sem apuração para esta OS</span>' :
+          (valStatus === "Validado" ? '<span class="status-pill status-validado" style="font-size: 0.84rem;">🔒 Validado & Travado</span>' : '<span class="status-pill status-pendente" style="font-size: 0.84rem;">⏳ Pendente de Validação</span>'));
 
         var masterControlsHTML = "";
         if (window.isMaster) {
@@ -4962,6 +4964,14 @@ function hydrateFromPowerBI() {
         if (getOSCompletionStatus(osCode, m).filledCount > 0) return m;
       }
       return 13;
+    }
+    // Trava do Gestor (01/10/2026): nos meses FECHADOS (antes de agosto/2026) o Gestor so grava a
+    // partir do mes de inicio da OS. Um comentario retroativo num mes anterior puxaria o inicio
+    // para tras e tornaria apurados meses em que a OS nao estava no processo. O Master nao tem trava.
+    function mesFechadoAntesDoInicio(osCode, monthNum) {
+      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10) || 0;
+      if (!osCode || !monthNum || (ano * 100 + monthNum) >= COMPETENCIA_INICIO_PRAZO) return false;
+      return monthNum < primeiroMesPreenchido(osCode);
     }
     async function carregarDataLimiteDosMeses() {
       var params = new URLSearchParams(window.location.search);
@@ -7087,6 +7097,7 @@ function hydrateFromPowerBI() {
       var activeOS = extractPrimaryOSCode(rawOS);
       var monthNum = getMonthNumberFromParams(currentParams);
 
+      if (tipo === "GESTOR" && !window.isMaster && mesFechadoAntesDoInicio(activeOS, monthNum)) return;
       var prefix = tipo === "GESTOR" ? "g_" : "m_";
       safeSetStorage(prefix + activeOS + "_m" + monthNum + "_" + topicId, value);
     }
@@ -8434,6 +8445,12 @@ function hydrateFromPowerBI() {
         return;
       }
       var userEmail = currentParams.get("UserEmail") || (window.isMaster ? "robson.araujo@npe.com.br" : "gestor.os@npe.com.br");
+
+      if (!window.isMaster && mesFechadoAntesDoInicio(activeOS, monthNum)) {
+        if (saveBtn) { saveBtn.innerHTML = "💾 Salvar Comentários"; saveBtn.style.opacity = "1"; }
+        showToast("🔒 Mês fechado antes do início desta OS: sem apuração, nada foi gravado. Fale com o Setor de Performance se precisar registrar algo.");
+        return;
+      }
 
       window.ATA_COMENTARIOS_DB[activeOS] = window.ATA_COMENTARIOS_DB[activeOS] || {};
       var payloadItems = [];
