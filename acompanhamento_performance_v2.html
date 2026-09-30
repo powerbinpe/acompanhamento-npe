@@ -2267,17 +2267,23 @@ function hydrateFromPowerBI() {
         linhas.join('<br>') + '</div>';
     }
 
-    // % de pontos de cada categoria -- a mesma base do rodape das barras (pontos ponderados
-    // sobre o maximo aplicavel), nao o % de itens que bateram meta. E este que compoe a nota,
-    // entao e este que vale ser gravado.
+    // % de pontos de cada categoria: pontos ganhos sobre o peso SO dos indicadores que valem no
+    // mes (Pendente e N/A ficam fora, como na nota do mes). Antes dividia pelo peso fixo da
+    // categoria (Financeiro = 48): com indicadores em N/A a categoria caia ate 0% (Critico).
+    // Categoria sem nenhum indicador valendo fica sem nota (null), nao zero.
     function percentuaisPorCategoria(curScore) {
-      function p(val, max) { return max > 0 ? parseFloat(((val / max) * 100).toFixed(1)) : 0; }
+      var tp = curScore.topics || {};
+      function p(ids) {
+        var ganho = 0, max = 0;
+        ids.forEach(function(id) { var x = tp[id]; if (x && x.applicable) { ganho += x.earned; max += x.max; } });
+        return max > 0 ? parseFloat(((ganho / max) * 100).toFixed(1)) : null;
+      }
       return {
-        fin: p(curScore.finPts, 48),
-        gov: p(curScore.govPts, 9),
-        acomp: p(curScore.acompPts, 25),
-        pes: p(curScore.pesPts, 26),
-        ssma: p(curScore.ssmaPts, 25)
+        fin: p(["t1", "t2", "t3", "t4", "t6", "t8", "t7"]),
+        gov: p(["t5", "t21", "t19"]),
+        acomp: p(["prazo", "preenchimento"]),
+        pes: p(["t9", "t10", "t11", "t12", "t13", "t14"]),
+        ssma: p(["t15", "t16", "t17", "t20", "t18"])
       };
     }
 
