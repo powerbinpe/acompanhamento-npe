@@ -1500,10 +1500,18 @@
     el.textContent = css ? css + "{display:none}" : "";
     try { localStorage.setItem("rpco_cols_ocultas", JSON.stringify(COLS_OCULTAS)); } catch (e) {}
   }
+  // Niveis dos quadros: Cliente (com as OSs ao abrir) e OS. Sem Cliente, o quadro lista as OSs;
+  // sem OS, so os clientes. Um dos dois sempre fica.
+  var NIVEIS = { cli: true, os: true };
+  try { var nvSalvo = JSON.parse(localStorage.getItem("rpco_niveis") || "null"); if (nvSalvo && (nvSalvo.cli || nvSalvo.os)) NIVEIS = { cli: !!nvSalvo.cli, os: !!nvSalvo.os }; } catch (e) {}
+  function salvarNiveis() { try { localStorage.setItem("rpco_niveis", JSON.stringify(NIVEIS)); } catch (e) {} }
+  function modoQuadro() { return NIVEIS.cli ? "C" : "O"; }
   function htmlPainelColunas() {
     if (!painelColunas) return "";
-    return '<div class="painel-colunas"><b>Colunas do relatório</b> <span class="dica">Cliente sempre aparece. Esconder não muda ordem, ranking nem totais.</span>' +
-      '<div class="lista-colunas">' + todasAsColunas().map(function (c) {
+    return '<div class="painel-colunas"><b>Colunas do relatório</b> <span class="dica">Esconder não muda ordem, ranking nem totais. Sem Cliente, os quadros listam as OSs; sem OS, só os clientes.</span>' +
+      '<div class="lista-colunas">' +
+      '<label><input type="checkbox" data-nivel="cli"' + (NIVEIS.cli ? " checked" : "") + '> <b>CLIENTE</b></label>' +
+      '<label><input type="checkbox" data-nivel="os"' + (NIVEIS.os ? " checked" : "") + '> <b>OS</b></label>' + todasAsColunas().map(function (c) {
         return '<label><input type="checkbox" data-colk="' + c.k + '"' + (COLS_OCULTAS[c.k] ? "" : " checked") + "> " + esc(c.lab) + "</label>";
       }).join("") + "</div>" +
       '<div class="dir"><button type="button" class="btn abre peq" data-colstodas="1">Mostrar todas</button><button type="button" class="btn abre peq" data-acao="fecharColunas">Fechar</button></div></div>';
@@ -1590,48 +1598,50 @@
     });
   }
 
-  // ---- ordem dos quadros: pelo maior faturamento acumulado; a mao, pelo campo de posicao.
-  // A posicao fica gravada (OrdemRanking) nas linhas das OSs do cliente; a de Locacoes, na
-  // linha da Empresa do negocio LOCACOES. Grava junto com o ranking.
-  function linhaEmpresaLoc() {
-    return nivel("EMPRESA").filter(function (r) { return r.Negocio === "LOCACOES" && grupoEmpresa(r) === "N"; })[0] || null;
+  // ---- ordem dos quadros: pelo maior faturamento (acumulado; no mes, o do mes) ou pela posicao
+  // digitada. A ordem de cada quadro fica numa linha propria da META_FINANCEIRA (Nivel
+  // ORDEM_DESTAQUES, JSON no campo Justificativa), uma lista por quadro e por nivel (cliente/OS),
+  // porque a mesma OS aparece em mais de um quadro. Grava junto com o ranking.
+  var NIVEL_ORDEM = "ORDEM_DESTAQUES";
+  function linhaOrdem(criar) {
+    var r = linhas.filter(function (x) { return x.Nivel === NIVEL_ORDEM; })[0] || null;
+    if (!r && criar) { r = linhaVazia(NIVEL_ORDEM); r.EntradaPor = ""; linhas.push(r); }
+    return r;
   }
-  function ordemGrupo(g) {
-    if (g.fixo) { var e = linhaEmpresaLoc(); return e ? e.OrdemRanking : null; }
-    var vs = g.itens.map(function (x) { var r = linhaOS(x.d.cod); return r ? r.OrdemRanking : null; }).filter(function (v) { return v != null; });
-    return vs.length ? Math.min.apply(null, vs) : null;
+  function mapaOrdem() {
+    var r = linhaOrdem(false);
+    if (!r || !r.Justificativa) return {};
+    try { return JSON.parse(r.Justificativa) || {}; } catch (e) { return {}; }
   }
-  function ordenarGrupos(gs) {
-    var porFat = gs.slice().sort(function (a, b) { return b.t.facu - a.t.facu; });
-    if (!gs.some(function (g) { return ordemGrupo(g) != null; })) return porFat;
-    return porFat.map(function (g, i) { return { g: g, o: ordemGrupo(g), i: i }; })
-      .sort(function (a, b) { return (a.o == null ? 1e9 + a.i : a.o) - (b.o == null ? 1e9 + b.i : b.o) || a.i - b.i; })
-      .map(function (x) { return x.g; });
+  function gravarOrdemQuadro(chave, lista) {
+    var o = mapaOrdem();
+    if (lista) o[chave] = lista; else delete o[chave];
+    var r = linhaOrdem(!!lista || !!linhaOrdem(false));
+    if (r) r.Justificativa = Object.keys(o).length ? JSON.stringify(o) : "";
   }
-  function gravarOrdem(gs) {
-    gs.forEach(function (g, i) {
-      if (g.fixo) { var e = linhaEmpresaLoc(); if (e) e.OrdemRanking = i + 1; return; }
-      g.itens.forEach(function (x) { linhaRanking(x.d.cod).OrdemRanking = i + 1; });
-    });
+  function chaveOrdem(key) { return key + "|" + modoQuadro(); }
+  function aplicarOrdem(key, lista, cmp) {
+    var base = lista.slice().sort(cmp);
+    var gravada = mapaOrdem()[chaveOrdem(key)];
+    if (!gravada) return base;
+    var pos = {};
+    gravada.forEach(function (k, i) { pos[k] = i; });
+    return base.map(function (x, i) { return { x: x, i: i }; })
+      .sort(function (a, b) { return (a.x.k in pos ? pos[a.x.k] : 1e6 + a.i) - (b.x.k in pos ? pos[b.x.k] : 1e6 + b.i); })
+      .map(function (y) { return y.x; });
   }
-  var GRUPOS_QUADRO = {};   // quadro -> grupos na ordem mostrada (para mover e restaurar)
-  function moverGrupo(key, cliente, pos) {
-    var gs = (GRUPOS_QUADRO[key] || []).slice();
-    var i = gs.map(function (g) { return g.cliente; }).indexOf(cliente);
+  var GRUPOS_QUADRO = {};   // quadro -> linhas na ordem mostrada
+  function moverGrupo(key, k, pos) {
+    var ks = (GRUPOS_QUADRO[key] || []).map(function (x) { return x.k; });
+    var i = ks.indexOf(k);
     if (i < 0 || !(pos >= 1)) return;
-    var g = gs.splice(i, 1)[0];
-    gs.splice(Math.min(pos, gs.length + 1) - 1, 0, g);
-    gravarOrdem(gs);
+    ks.splice(i, 1);
+    ks.splice(Math.min(pos, ks.length + 1) - 1, 0, k);
+    gravarOrdemQuadro(chaveOrdem(key), ks);
     msgStatus = ""; corStatus = "";
     render();
   }
-  function restaurarOrdem(key) {
-    (GRUPOS_QUADRO[key] || []).forEach(function (g) {
-      if (g.fixo) { var e = linhaEmpresaLoc(); if (e) e.OrdemRanking = null; return; }
-      g.itens.forEach(function (x) { var r = linhaOS(x.d.cod); if (r) r.OrdemRanking = null; });
-    });
-    render();
-  }
+  function restaurarOrdem(key) { gravarOrdemQuadro(chaveOrdem(key), null); render(); }
 
   function secaoD(key, titulo, sub, corpo, comTodos, extra) {
     var aberto = abertosD["sec:" + key] !== false;
@@ -1641,42 +1651,49 @@
       '<button type="button" class="btn abre peq" data-dexcel="' + key + '" data-titulo="' + esc(titulo) + '">Excel</button>' + "</span></h2>" +
       (aberto ? '<section class="caixa" data-sec="' + key + '">' + corpo + "</section>" : "");
   }
-  // tabela agrupada por cliente, com as OSs de cada cliente ao abrir; a 1a coluna traz a posicao
-  function tabelaClientes(key, grupos, cols, abrirPadrao, vazio, ordenavel) {
-    var todos = !!todosD[key];
-    var vis = grupos.filter(function (g) { return todos || g.fixo || g.marcados.length; });
-    if (ordenavel) GRUPOS_QUADRO[key] = vis;
-    if (!vis.length) return '<div class="vazio">' + vazio + "</div>";
-    var corpo = vis.map(function (g, i) {
-      var posHtml = ordenavel ? '<input type="number" class="pos" min="1" max="' + vis.length + '" value="' + (i + 1) + '" data-ord="' + esc(key + "|" + g.cliente) + '" aria-label="Posição de ' + esc(g.cliente) + '" title="Mude o número para mudar a ordem">' : "";
-      if (g.fixo) return '<tr class="no nivel1"><td class="c rk">' + posHtml + '</td><td class="cli" title="' + esc(g.cliente) + '">' + esc(g.cliente) + ' <span class="dica">· ' + esc(g.fixo) + "</span></td>" + celCols(cols, g.t) + "</tr>";
-      var chC = "cli:" + key + ":" + g.cliente;
-      var aberto = abertosD[chC] === undefined ? abrirPadrao : abertosD[chC];
+  // Quadro de destaques: por cliente (OSs ao abrir) ou so por OS, conforme os niveis escolhidos.
+  // o.sinal filtra positivos/negativos pelo total da linha; o.campo e o faturamento da ordem padrao.
+  function tabelaQuadro(key, itens, cols, o) {
+    var todos = !!todosD[key], modo = modoQuadro(), campo = o.campo || "facu";
+    var ls;
+    if (modo === "C") {
+      ls = porClienteD(itens).map(function (g) { g.k = g.cliente; return g; })
+        .filter(function (g) { return (todos || g.marcados.length) && (!o.sinal || o.sinal(g.t)); });
+    } else {
+      ls = itens.map(function (x) { return { k: x.d.cod, x: x, t: somaD([x]) }; })
+        .filter(function (l) { return (todos || l.x.marcado) && (!o.sinal || o.sinal(l.t)); });
+    }
+    (o.fixos || []).forEach(function (f) { ls.push({ k: f.cliente, fixo: f.fixo, cliente: f.cliente, t: f.t }); });
+    ls = aplicarOrdem(key, ls, function (a, b) { return (b.t[campo] || 0) - (a.t[campo] || 0); });
+    GRUPOS_QUADRO[key] = ls;
+    if (!ls.length) return '<div class="vazio">' + o.vazio + "</div>";
+    var n = ls.length;
+    var posHtml = function (l, i) {
+      return '<input type="number" class="pos" min="1" max="' + n + '" value="' + (i + 1) + '" data-ord="' + esc(key + "|" + l.k) + '" aria-label="Posição de ' + esc(l.k) + '" title="Mude o número para mudar a ordem">';
+    };
+    var linhaOSq = function (x, cls, pos) {
+      return '<tr class="' + cls + (x.marcado ? "" : " fora-rank") + '"><td class="c rk">' + (pos || "") + marcaHtml(x.marcado ? "on" : "", "data-rk", x.d.cod, x.marcado ? "Tirar do ranking" : "Pôr no ranking") + "</td>" +
+        '<td class="cli" title="' + esc(x.d.desc) + '"><span class="os">' + esc(x.d.desc) + "</span>" + (elegivelRanking(x.d) ? "" : ' <span class="chip fora">' + esc(rotuloEstado(x.d)) + "</span>") + "</td>" + celCols(cols, somaD([x])) + "</tr>";
+    };
+    var corpo = ls.map(function (l, i) {
+      if (l.fixo) return '<tr class="no nivel1"><td class="c rk">' + posHtml(l, i) + '</td><td class="cli" title="' + esc(l.cliente) + '">' + esc(l.cliente) + ' <span class="dica">· ' + esc(l.fixo) + "</span></td>" + celCols(cols, l.t) + "</tr>";
+      if (modo === "O") return linhaOSq(l.x, "no nivel1", posHtml(l, i));
+      var g = l, chC = "cli:" + key + ":" + g.cliente;
+      var aberto = NIVEIS.os && (abertosD[chC] === undefined ? false : abertosD[chC]);
       var estado = g.marcados.length === g.itens.length ? "on" : g.marcados.length ? "parcial" : "";
-      var h = '<tr class="no nivel1' + (g.marcados.length ? "" : " fora-rank") + '"><td class="c rk">' + posHtml + marcaHtml(estado, "data-rkcli", key + "|" + g.cliente, estado === "on" ? "Tirar o cliente do ranking" : "Pôr o cliente no ranking") + "</td>" +
-        '<td class="cli" title="' + esc(g.cliente) + '">' + seta("data-dcli", chC, aberto, g.cliente) + esc(g.cliente) + ' <span class="dica">· ' + g.itens.length + (g.itens.length === 1 ? " OS" : " OSs") + "</span></td>" + celCols(cols, g.t) + "</tr>";
-      if (aberto) g.itens.filter(function (x) { return todos || x.marcado; }).sort(function (a, b) { return b.d.facu - a.d.facu; }).forEach(function (x) {
-        h += '<tr class="folha' + (x.marcado ? "" : " fora-rank") + '"><td class="c rk">' + marcaHtml(x.marcado ? "on" : "", "data-rk", x.d.cod, x.marcado ? "Tirar do ranking" : "Pôr no ranking") + "</td>" +
-          '<td class="cli" title="' + esc(x.d.desc) + '"><span class="os">' + esc(x.d.desc) + "</span>" + (elegivelRanking(x.d) ? "" : ' <span class="chip fora">' + esc(rotuloEstado(x.d)) + "</span>") + "</td>" + celCols(cols, somaD([x])) + "</tr>";
-      });
+      var h = '<tr class="no nivel1' + (g.marcados.length ? "" : " fora-rank") + '"><td class="c rk">' + posHtml(l, i) + marcaHtml(estado, "data-rkcli", key + "|" + g.cliente, estado === "on" ? "Tirar o cliente do ranking" : "Pôr o cliente no ranking") + "</td>" +
+        '<td class="cli" title="' + esc(g.cliente) + '">' + (NIVEIS.os ? seta("data-dcli", chC, aberto, g.cliente) : "") + esc(g.cliente) + ' <span class="dica">· ' + g.itens.length + (g.itens.length === 1 ? " OS" : " OSs") + "</span></td>" + celCols(cols, g.t) + "</tr>";
+      if (aberto) g.itens.filter(function (x) { return todos || x.marcado; }).sort(function (a, b) { return (b.d[campo] || 0) - (a.d[campo] || 0); })
+        .forEach(function (x) { h += linhaOSq(x, "folha", ""); });
       return h;
     }).join("");
-    var total = somaD(vis.reduce(function (a, g) { return g.fixo ? a : a.concat(g.marcados); }, []));
-    vis.forEach(function (g) { if (g.fixo) { CAMPOS_D.forEach(function (c) { total[c] += g.t[c] || 0; }); total.metaF += g.t.metaF || 0; total.metaR += g.t.metaR || 0; } });
-    return '<div class="rolagem"><table class="grade destaques"><thead><tr class="titulos"><th class="c rk">' + (ordenavel ? "POSIÇÃO · RANKING" : "RANKING") + '</th><th class="cli">CLIENTE · OS</th>' + cabCols(cols) + "</tr></thead><tbody>" +
-      corpo + '<tr class="ref"><td class="rk"></td><td class="cli">TOTAL GERAL</td>' + celCols(cols, total) + "</tr></tbody></table></div>";
-  }
-  // tabela por OS (destaques do mes)
-  function tabelaOS(key, xs, cols, vazio) {
-    var todos = !!todosD[key];
-    var vis = xs.filter(function (x) { return todos || x.marcado; });
-    if (!vis.length) return '<div class="vazio">' + vazio + "</div>";
-    var corpo = vis.map(function (x) {
-      return '<tr class="folha' + (x.marcado ? "" : " fora-rank") + '"><td class="c rk">' + marcaHtml(x.marcado ? "on" : "", "data-rk", x.d.cod, x.marcado ? "Tirar do ranking" : "Pôr no ranking") + "</td>" +
-        '<td class="cli" title="' + esc(x.d.desc) + '"><span class="os">' + esc(x.d.desc) + "</span>" + (elegivelRanking(x.d) ? "" : ' <span class="chip fora">' + esc(rotuloEstado(x.d)) + "</span>") + "</td>" + celCols(cols, somaD([x])) + "</tr>";
-    }).join("");
-    var total = somaD(vis.filter(function (x) { return x.marcado; }));
-    return '<div class="rolagem"><table class="grade destaques"><thead><tr class="titulos"><th class="c rk">RANKING</th><th class="cli">OS</th>' + cabCols(cols) + "</tr></thead><tbody>" +
+    var marcadosTot = modo === "C"
+      ? ls.reduce(function (a, l) { return l.fixo ? a : a.concat(l.marcados); }, [])
+      : ls.filter(function (l) { return !l.fixo && l.x.marcado; }).map(function (l) { return l.x; });
+    var total = somaD(marcadosTot);
+    ls.forEach(function (l) { if (l.fixo) { CAMPOS_D.forEach(function (c) { total[c] += l.t[c] || 0; }); total.metaF += l.t.metaF || 0; total.metaR += l.t.metaR || 0; } });
+    var rotNome = modo === "C" ? (NIVEIS.os ? "CLIENTE · OS" : "CLIENTE") : "OS";
+    return '<div class="rolagem"><table class="grade destaques"><thead><tr class="titulos"><th class="c rk">POSIÇÃO · RANKING</th><th class="cli">' + rotNome + "</th>" + cabCols(cols) + "</tr></thead><tbody>" +
       corpo + '<tr class="ref"><td class="rk"></td><td class="cli">TOTAL GERAL</td>' + celCols(cols, total) + "</tr></tbody></table></div>";
   }
   function rotuloEstado(d) {
@@ -1688,7 +1705,7 @@
     var t = somar(nivel("EMPRESA").filter(function (r) { return r.Negocio === neg; }));
     return { f: t.f, r: t.r };
   }
-  var SECOES_D = ["rotpos", "rotneg", "locofi", "parada", "mesospos", "mesosneg", "mesclipos", "mesclineg", "gerenciais"];
+  var SECOES_D = ["rotpos", "rotneg", "locofi", "parada", "mespos", "mesneg", "gerenciais"];
   // A pagina tem largura fixa (a do visual): em vez de rolar para o lado, a fonte da tabela
   // diminui ate todo numero caber na coluna. Cliente/OS nunca quebra: corta com reticencias.
   var FONTE_D_MAX = 15, FONTE_D_MIN = 9;
@@ -1710,22 +1727,17 @@
     if (!MODO_DEST) return '<div class="aviso info"><h3>Destaques sem dados</h3><p>Os números dos destaques não chegaram do modelo. Abra pela página DESTAQUES do Power BI com a medida atualizada.</p></div>';
     var itens = DEST.map(itemD);
     var tLoc = somaD([{ d: LOC_DEST, meta: metaEmpresaNeg("LOCACOES") }]);
-    // Rotina em dois quadros (positivos e negativos pelo resultado acumulado do cliente)
-    var rot = porClienteD(itens.filter(function (x) { return x.d.neg === "R"; }));
-    var rotPos = ordenarGrupos(rot.filter(function (g) { return g.t.racu >= 0; }));
-    var rotNeg = ordenarGrupos(rot.filter(function (g) { return g.t.racu < 0; }));
-    var locOfi = ordenarGrupos(porClienteD(itens.filter(function (x) { return x.d.neg === "O"; }))
-      .concat([{ cliente: "LOCACOES", fixo: "total do negócio", itens: [], marcados: [], t: tLoc }]));
-    var par = ordenarGrupos(porClienteD(itens.filter(function (x) { return x.d.neg === "P"; })));
-    var mesPos = itens.filter(function (x) { return x.d.rmes >= 0; }).sort(function (a, b) { return b.d.rmes - a.d.rmes; });
-    var mesNeg = itens.filter(function (x) { return x.d.rmes < 0; }).sort(function (a, b) { return a.d.rmes - b.d.rmes; });
-    var cliMes = porClienteD(itens);
-    var cliMesPos = cliMes.filter(function (g) { return g.t.rmes >= 0; }).sort(function (a, b) { return b.t.rmes - a.t.rmes; });
-    var cliMesNeg = cliMes.filter(function (g) { return g.t.rmes < 0; }).sort(function (a, b) { return a.t.rmes - b.t.rmes; });
+    var doNeg = function (ng) { return itens.filter(function (x) { return x.d.neg === ng; }); };
     var pend = pendenciasRanking();
-    var nRank = function (gs) { return gs.filter(function (g) { return g.marcados.length; }).length; };
-    var restaurar = function (key) { return '<button type="button" class="btn abre peq" data-dreset="' + key + '" title="Volta a ordem pelo maior faturamento acumulado">Ordem por faturamento</button>'; };
-    var sub = function (gs) { return "ordem pelo maior faturamento acumulado · " + nRank(gs) + " clientes no ranking"; };
+    var restaurar = function (key) { return '<button type="button" class="btn abre peq" data-dreset="' + key + '" title="Volta a ordem pelo maior faturamento">Ordem por faturamento</button>'; };
+    // cada quadro: monta a tabela primeiro (ela guarda as linhas) e depois o subtitulo com a contagem
+    var quadro = function (key, titulo, itensQ, cols, o, subOrdem) {
+      var corpo = tabelaQuadro(key, itensQ, cols, o);
+      var n = (GRUPOS_QUADRO[key] || []).filter(function (l) { return !l.fixo; }).length;
+      var sub = "ordem pelo maior " + subOrdem + " · " + n + (modoQuadro() === "C" ? " clientes" : " OSs") + " no ranking";
+      return secaoD(key, titulo, sub, corpo, true, restaurar(key));
+    };
+    var pos = function (c) { return function (t) { return t[c] >= 0; }; }, neg = function (c) { return function (t) { return t[c] < 0; }; };
     var barra = '<div class="barra"><span class="chip def">Fechamento ' + rotuloMes() + "</span>" +
       '<span class="status ' + corStatus + '" role="status">' + esc(msgStatus) + "</span>" +
       '<div class="dir">' + (pend.total ? '<span class="chip sem">' + pend.total + (pend.total === 1 ? " alteração não gravada" : " alterações não gravadas") + "</span>" : '<span class="chip def">ranking gravado</span>') +
@@ -1737,14 +1749,12 @@
       '<div class="legenda-atin"><b>ATIN. META FAT/RES ANO</b> · real do ano (' + ANO + ', realizado + projetado) sobre a meta do ano: ' +
       '<span class="ok-mark">✔</span> atingiu 96% ou mais da meta · <span class="alerta-mark">⚠</span> entre 90% e 96% · <span class="nao-mark">✘</span> abaixo de 90% · em branco: sem meta cadastrada</div>';
     return '<div class="destaques-tela">' + barra +
-      secaoD("rotpos", "Rotina · destaques positivos", sub(rotPos), tabelaClientes("rotpos", rotPos, COLS.rotina, false, "Nenhum cliente de rotina com acumulado positivo.", true), true, restaurar("rotpos")) +
-      secaoD("rotneg", "Rotina · destaques negativos", sub(rotNeg), tabelaClientes("rotneg", rotNeg, COLS.rotina, false, "Nenhum cliente de rotina com acumulado negativo.", true), true, restaurar("rotneg")) +
-      secaoD("locofi", "Locações e Oficina", sub(locOfi), tabelaClientes("locofi", locOfi, COLS.demais, false, "Nenhum cliente de oficina no ranking.", true), true, restaurar("locofi")) +
-      secaoD("parada", "Paradas", sub(par), tabelaClientes("parada", par, COLS.parada, false, "Nenhum cliente de parada no ranking.", true), true, restaurar("parada")) +
-      secaoD("mesospos", "Destaques positivos do mês · por OS", "", tabelaOS("mesospos", mesPos, COLS.mes, "Nenhuma OS positiva no mês."), true) +
-      secaoD("mesosneg", "Destaques negativos do mês · por OS", "", tabelaOS("mesosneg", mesNeg, COLS.mes, "Nenhuma OS negativa no mês."), true) +
-      secaoD("mesclipos", "Destaques positivos do mês · por cliente", "", tabelaClientes("mesclipos", cliMesPos, COLS.mes, false, "Nenhum cliente positivo no mês."), true) +
-      secaoD("mesclineg", "Destaques negativos do mês · por cliente", "", tabelaClientes("mesclineg", cliMesNeg, COLS.mes, false, "Nenhum cliente negativo no mês."), true) +
+      quadro("rotpos", "Rotina · destaques positivos", doNeg("R"), COLS.rotina, { sinal: pos("racu"), campo: "facu", vazio: "Nenhum destaque positivo de rotina." }, "faturamento acumulado") +
+      quadro("rotneg", "Rotina · destaques negativos", doNeg("R"), COLS.rotina, { sinal: neg("racu"), campo: "facu", vazio: "Nenhum destaque negativo de rotina." }, "faturamento acumulado") +
+      quadro("locofi", "Locações e Oficina", doNeg("O"), COLS.demais, { campo: "facu", fixos: [{ cliente: "LOCACOES", fixo: "total do negócio", t: tLoc }], vazio: "Nenhum destaque de oficina." }, "faturamento acumulado") +
+      quadro("parada", "Paradas", doNeg("P"), COLS.parada, { campo: "facu", vazio: "Nenhum destaque de parada." }, "faturamento acumulado") +
+      quadro("mespos", "Destaques positivos do mês", itens, COLS.mes, { sinal: pos("rmes"), campo: "fmes", vazio: "Nenhum destaque positivo no mês." }, "faturamento do mês") +
+      quadro("mesneg", "Destaques negativos do mês", itens, COLS.mes, { sinal: neg("rmes"), campo: "fmes", vazio: "Nenhum destaque negativo no mês." }, "faturamento do mês") +
       secaoD("gerenciais", "Gerenciais", "por gerente · classificação pelo acumulado", htmlGerenciaisD(itens), false) + "</div>";
   }
   var gerSel = "";
@@ -1988,7 +1998,7 @@
         if (MODO_DEST && (alterado(r, "Ranking") || alterado(r, "OrdemRanking") || (!r.id && (r.Ranking || r.OrdemRanking != null)))) { if (r.id) { alteradas++; } else { novas++; } lista.push({ r: r }); }
         return;
       }
-      if (r.Nivel === "OBSERVACAO" && !r.id && !r.Justificativa) return;
+      if ((r.Nivel === "OBSERVACAO" || r.Nivel === "ORDEM_DESTAQUES") && !r.id && !r.Justificativa) return;
       if (!r.id) { novas++; lista.push({ r: r }); }
       else if (linhaAlterada(r)) { alteradas++; lista.push({ r: r }); }
       else if (divergeCTTLinha(r)) { ctt++; lista.push({ r: r }); }
@@ -2037,7 +2047,7 @@
     }
     ["CodGerente", "Gerente", "CodSuperintendente", "Superintendente", "Negocio", "Classificacao", "EntradaPor", "Ativo"].forEach(function (c) { campos[c] = r[c] || ""; });
     if (r.Nivel === "OS") { campos.Nome = r.Nome; campos.Ranking = r.Ranking || ""; campos.Situacao = r.Situacao || "RASCUNHO"; campos.Justificativa = r.Situacao === FORA ? (r.Justificativa || "") : ""; }
-    else if (r.Nivel === "OBSERVACAO") campos.Justificativa = r.Justificativa || "";
+    else if (r.Nivel === "OBSERVACAO" || r.Nivel === "ORDEM_DESTAQUES") campos.Justificativa = r.Justificativa || "";
     else ["ClassificacaoAdicional", "Descricao", "Cliente"].forEach(function (c) { campos[c] = r[c] || ""; });
     campos.FatMeta = r.FatMeta; campos.ResMeta = r.ResMeta; campos.MargemMeta = r.MargemMeta;
     // posicao manual nos quadros de destaques (so vai quando existe ou mudou)
@@ -2053,8 +2063,8 @@
     pendencias().lista.forEach(function (x) {
       var r = x.r;
       var ehRank = r.Nivel === "OS"
-        ? (alterado(r, "Ranking") || alterado(r, "OrdemRanking") || (!r.id && (r.Ranking || r.OrdemRanking != null)))
-        : (r.Nivel === "EMPRESA" && alterado(r, "OrdemRanking"));
+        ? (alterado(r, "Ranking") || (!r.id && r.Ranking))
+        : (r.Nivel === "ORDEM_DESTAQUES" && (alterado(r, "Justificativa") || (!r.id && r.Justificativa)));
       if (ehRank && !vistos[r.uid]) { vistos[r.uid] = 1; lista.push({ r: r }); }
     });
     return { total: lista.length, lista: lista };
@@ -2160,7 +2170,7 @@
     }
     if (t.hasAttribute("data-rkcli")) {
       var pc = t.getAttribute("data-rkcli"), bar = pc.indexOf("|"), sec = pc.slice(0, bar), cl = pc.slice(bar + 1);
-      var negSec = (sec === "rotpos" || sec === "rotneg") ? "R" : sec === "locofi" ? "O" : sec === "parada" ? "P" : "";
+      var negSec = (sec === "rotpos" || sec === "rotneg") ? "R" : sec === "locofi" ? "O" : sec === "parada" ? "P" : "";   // mes: todas
       var dc = DEST.filter(function (d) { return d.cliente === cl && (!negSec || negSec.indexOf(d.neg) >= 0); });
       alternarRanking(dc.map(function (d) { return d.cod; }), !dc.every(marcadoRanking));
       return;
@@ -2203,6 +2213,12 @@
   });
   document.addEventListener("change", function (ev) {
     if (ev.target.matches("#painel input[data-f], #painel textarea[data-f]")) editar(ev.target);
+    if (ev.target.matches("#painel input[data-nivel]")) {
+      var kn = ev.target.getAttribute("data-nivel");
+      NIVEIS[kn] = ev.target.checked;
+      if (!NIVEIS.cli && !NIVEIS.os) NIVEIS[kn === "cli" ? "os" : "cli"] = true;
+      salvarNiveis(); render(); return;
+    }
     if (ev.target.matches("#painel input[data-colk]")) { COLS_OCULTAS[ev.target.getAttribute("data-colk")] = !ev.target.checked; aplicarColunasOcultas(); }
     if (ev.target.matches("#painel input[data-ord]")) {
       var ko = ev.target.getAttribute("data-ord"), bo = ko.indexOf("|");
