@@ -279,6 +279,10 @@
   .destaques-tela .grupo-titulo .dir { flex-shrink: 0; }
   .destaques-tela table.destaques .dica { font-size: .85em; }
   .destaques-tela table.destaques th.rk { white-space: normal; }
+  .copia-excel { border: 1px solid #93c5fd; background: var(--accent-soft); border-radius: 10px; padding: 8px 12px; margin: -6px 0 12px; display: flex; flex-direction: column; gap: 6px; }
+  .copia-excel .topo-copia { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: .7rem; }
+  .copia-excel .topo-copia .btn { margin-left: auto; }
+  .copia-excel textarea { width: 100%; font: 12px/1.3 Consolas, monospace; white-space: pre; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
   .legenda-atin { font-size: .62rem; color: var(--muted); margin: -8px 0 10px; }
   .legenda-atin b { color: var(--text); letter-spacing: .04em; }
   .legenda-atin span { font-size: 1em; margin: 0 2px; }
@@ -1505,6 +1509,7 @@
   }
 
   // ---- exportar o quadro para o Excel (arquivo .xls) e copiar para colar ----
+  var copiaExcel = null;   // { titulo, tsv } da ultima exportacao, para a caixa de copia manual
   function exportarQuadro(key, titulo) {
     var sec = document.querySelector('section.caixa[data-sec="' + key + '"]');
     var tab = sec && sec.querySelector("table");
@@ -1515,32 +1520,59 @@
       c.querySelectorAll("button.seta, button.marca").forEach(function (b) { b.remove(); });
       var inp = td.querySelector("input.pos");
       c.querySelectorAll("input").forEach(function (i) { i.remove(); });
-      var t = (inp ? inp.value + " " : "") + c.textContent;
-      return t.replace(/\s+/g, " ").trim();
+      return ((inp ? inp.value + " " : "") + c.textContent).replace(/\s+/g, " ").trim();
     };
-    var linhasX = [], tsv = [];
+    // numeros sem separador de milhar e % com virgula: o Excel em portugues le como numero
+    var valorExcel = function (td) {
+      var v = td.getAttribute("data-v"), tp = td.getAttribute("data-t");
+      if (v == null) return textoCel(td);
+      var n = Number(v);
+      return tp === "p" ? (n * 100).toFixed(2).replace(".", ",") + "%" : String(Math.round(n));
+    };
+    var linhasH = [], tsv = [];
     tab.querySelectorAll("tr").forEach(function (tr) {
       var cels = Array.prototype.filter.call(tr.children, visivel);
       if (!cels.length) return;
-      linhasX.push("<tr>" + cels.map(function (td) {
+      linhasH.push("<tr>" + cels.map(function (td) {
         var tag = td.tagName === "TH" ? "th" : "td", v = td.getAttribute("data-v"), tp = td.getAttribute("data-t");
         if (v != null && tag === "td") return "<td style=\"mso-number-format:'" + (tp === "p" ? "0.00%" : "#,##0") + "'\">" + v + "</td>";
         return "<" + tag + ">" + esc(textoCel(td)) + "</" + tag + ">";
       }).join("") + "</tr>");
-      tsv.push(cels.map(textoCel).join("\t"));
+      tsv.push(cels.map(valorExcel).join("\t"));
     });
-    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><h3>' +
-      esc(titulo) + " · " + esc(rotuloMes()) + '</h3><table border="1">' + linhasX.join("") + "</table></body></html>";
+    var tabelaHtml = '<table border="1">' + linhasH.join("") + "</table>";
+    var texto = tsv.join("\r\n");
+    // copia dentro do proprio clique (o visual do Power BI bloqueia o clipboard assincrono)
+    var copiou = false;
+    var aoCopiar = function (e) {
+      try { e.clipboardData.setData("text/plain", texto); e.clipboardData.setData("text/html", tabelaHtml); e.preventDefault(); copiou = true; } catch (er) {}
+    };
+    document.addEventListener("copy", aoCopiar);
+    try { document.execCommand("copy"); } catch (er) {}
+    document.removeEventListener("copy", aoCopiar);
+    if (!copiou) { try { if (navigator.clipboard) navigator.clipboard.writeText(texto); } catch (er) {} }
+    // o arquivo: onde o navegador deixar baixar, baixa; no visual do Power BI costuma ser bloqueado
     try {
+      var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><h3>' +
+        esc(titulo) + " · " + esc(rotuloMes()) + "</h3>" + tabelaHtml + "</body></html>";
       var a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob(["﻿" + html], { type: "application/vnd.ms-excel" }));
+      a.href = URL.createObjectURL(new Blob(["\ufeff" + html], { type: "application/vnd.ms-excel" }));
       a.download = "Destaques - " + titulo.replace(/[\\/:*?"<>|·]/g, "-") + " - " + rotuloMes() + ".xls";
       document.body.appendChild(a); a.click(); a.remove();
-    } catch (e) {}
-    try { if (navigator.clipboard) navigator.clipboard.writeText(tsv.join("\n")); } catch (e) {}
-    msgStatus = "Exportado: " + titulo + ". Se o download não começar, a tabela já está copiada: cole no Excel (Ctrl+V).";
-    corStatus = "ok";
+    } catch (er) {}
+    copiaExcel = { titulo: titulo, tsv: texto };
+    msgStatus = copiou ? "Copiado: " + titulo + ". Cole no Excel (Ctrl+V)." : "";
+    corStatus = copiou ? "ok" : "";
     render();
+    var ta = document.getElementById("copiaExcel");
+    if (ta) { ta.focus(); ta.select(); }
+  }
+  function htmlCopiaExcel() {
+    if (!copiaExcel) return "";
+    return '<div class="copia-excel"><div class="topo-copia"><b>' + esc(copiaExcel.titulo) + "</b>" +
+      '<span class="dica">Se o Ctrl+V no Excel não trouxer a tabela: clique no quadro abaixo, Ctrl+A, Ctrl+C e cole no Excel.</span>' +
+      '<button type="button" class="btn abre peq" data-acao="fecharCopia">Fechar</button></div>' +
+      '<textarea id="copiaExcel" readonly rows="6" spellcheck="false">' + esc(copiaExcel.tsv) + "</textarea></div>";
   }
 
   function marcaHtml(estado, attr, valor, titulo) {
@@ -1689,7 +1721,7 @@
     var cliMes = porClienteD(itens);
     var cliMesPos = cliMes.filter(function (g) { return g.t.rmes >= 0; }).sort(function (a, b) { return b.t.rmes - a.t.rmes; });
     var cliMesNeg = cliMes.filter(function (g) { return g.t.rmes < 0; }).sort(function (a, b) { return a.t.rmes - b.t.rmes; });
-    var pend = pendencias();
+    var pend = pendenciasRanking();
     var nRank = function (gs) { return gs.filter(function (g) { return g.marcados.length; }).length; };
     var restaurar = function (key) { return '<button type="button" class="btn abre peq" data-dreset="' + key + '" title="Volta a ordem pelo maior faturamento acumulado">Ordem por faturamento</button>'; };
     var sub = function (gs) { return "ordem pelo maior faturamento acumulado · " + nRank(gs) + " clientes no ranking"; };
@@ -1699,7 +1731,7 @@
       '<button type="button" class="btn abre peq' + (painelColunas ? " on" : "") + '" data-acao="colunas">Colunas</button>' +
       '<button type="button" class="btn abre peq" data-dtudo="1">Abrir todas</button><button type="button" class="btn abre peq" data-dtudo="0">Recolher todas</button>' +
       '<button type="button" class="btn ok" data-acao="salvarRanking"' + (pend.total && !gravando ? "" : " disabled") + ">" + (gravando ? "Gravando..." : "Salvar ranking") + "</button></div></div>" +
-      htmlPainelColunas() +
+      htmlPainelColunas() + htmlCopiaExcel() +
       // Legenda do atingimento (regra do RPCO): o real do ano contra a meta do ano
       '<div class="legenda-atin"><b>ATIN. META FAT/RES ANO</b> · real do ano (' + ANO + ', realizado + projetado) sobre a meta do ano: ' +
       '<span class="ok-mark">✔</span> atingiu 96% ou mais da meta · <span class="alerta-mark">⚠</span> entre 90% e 96% · <span class="nao-mark">✘</span> abaixo de 90% · em branco: sem meta cadastrada</div>';
@@ -2013,8 +2045,21 @@
     return { id: r.id, campos: campos };
   }
   // Grava tudo o que esta pendente (inclusive a OS do cadastro rapido) e recarrega da lista
-  async function salvar(mensagemOk) {
-    var p = pendencias();
+  // Destaques contam e gravam SO ranking e posicao: as sincronizacoes com a CTT da aba Metas
+  // (gerente/superintendente divergente) ficam para la, nunca vao junto no "Salvar ranking".
+  function pendenciasRanking() {
+    var vistos = {}, lista = [];
+    pendencias().lista.forEach(function (x) {
+      var r = x.r;
+      var ehRank = r.Nivel === "OS"
+        ? (alterado(r, "Ranking") || alterado(r, "OrdemRanking") || (!r.id && (r.Ranking || r.OrdemRanking != null)))
+        : (r.Nivel === "EMPRESA" && alterado(r, "OrdemRanking"));
+      if (ehRank && !vistos[r.uid]) { vistos[r.uid] = 1; lista.push({ r: r }); }
+    });
+    return { total: lista.length, lista: lista };
+  }
+  async function salvar(mensagemOk, soRanking) {
+    var p = soRanking ? pendenciasRanking() : pendencias();
     var erro = validar(p.lista);
     confirmando = false;
     if (erro) { msgStatus = erro; corStatus = "erro"; render(); return false; }
@@ -2150,9 +2195,10 @@
     else if (a === "abrirFora") { foraOS = rapidoOS; motivoRascunho = ""; render(); var mt = document.getElementById("motivoFora"); if (mt) mt.focus(); }
     else if (a === "cancelarFora") { foraOS = ""; motivoRascunho = ""; render(); }
     else if (a === "confirmarFora") confirmarFora();
-    else if (a === "salvarRanking") salvar("Ranking gravado.");
+    else if (a === "salvarRanking") salvar("Ranking gravado.", true);
     else if (a === "colunas") { painelColunas = !painelColunas; render(); }
     else if (a === "fecharColunas") { painelColunas = false; render(); }
+    else if (a === "fecharCopia") { copiaExcel = null; render(); }
   });
   document.addEventListener("change", function (ev) {
     if (ev.target.matches("#painel input[data-f], #painel textarea[data-f]")) editar(ev.target);
