@@ -4948,6 +4948,7 @@ function hydrateFromPowerBI() {
     // lista propria (DATA_LIMITE_MESES), sem mexer no calculo da Pontualidade, que continua
     // olhando so o mes selecionado.
     window.DATA_LIMITE_MESES = window.DATA_LIMITE_MESES || {};
+    var COMPETENCIA_INICIO_PRAZO = 202608;   // primeira competencia com o fluxo da Data Limite
     function mesAbertoPeloPrazo(monthNum) {
       var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
       return !!(window.DATA_LIMITE_MESES[monthNum + "_" + ano] || getPrazoLimite(monthNum, ano));
@@ -6619,9 +6620,14 @@ function hydrateFromPowerBI() {
       // caixa for preenchida -- mesmo um só "pendente de realização" -- o mês inteiro volta a
       // ser apurado normalmente. temComentarioMes === undefined (dado de antes desse campo
       // existir) NÃO bloqueia -- só bloqueia quando o valor vier explicitamente false.
-      // Mes sem comentario so fica de fora se ainda NAO estiver aberto (sem Data Limite no #22).
-      // Mes aberto e apurado pelos valores do painel, com ou sem comentario (30/09/2026).
-      if (contract.temComentarioMes === false && !mesAbertoPeloPrazo(monthNum)) {
+      // A partir da competencia de agosto/2026 o mes so abre para apuracao quando a Data Limite e
+      // informada no #22: a Controladoria confirma o fechamento (folha e impostos, ~dia 15), a data
+      // e divulgada e so entao os numeros estao firmes. Aberto = apurado pelos valores do painel,
+      // com ou sem comentario; sem Data Limite = fora, mesmo com comentario (30/09/2026).
+      // Antes de agosto (sem o fluxo) vale a regra antiga do comentario.
+      var anoApur = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10) || 0;
+      var noFluxoDoPrazo = (anoApur * 100 + monthNum) >= COMPETENCIA_INICIO_PRAZO;
+      if (noFluxoDoPrazo ? !mesAbertoPeloPrazo(monthNum) : contract.temComentarioMes === false) {
         // topics precisa ter a MESMA forma que o cálculo normal produz -- cada um dos 23
         // tópicos com {earned:0, max:0, applicable:false} -- e não um objeto vazio. Código
         // que lê sc.topics.prazo.earned direto (sem checar se a chave existe, ex.:
