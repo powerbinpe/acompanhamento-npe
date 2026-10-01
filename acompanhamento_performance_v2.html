@@ -2237,8 +2237,8 @@ function hydrateFromPowerBI() {
     // container simples -- o card em si é idêntico nos três lugares.
     // Badge de nota na cor da faixa, com o Indicador Oficial
     function buildNotaBadgeHTML(rotulo, valor) {
-      var v = (typeof valor === "number" && !isNaN(valor)) ? valor : 0;
-      var tier = scoreTier(v);
+      var temNota = (typeof valor === "number" && !isNaN(valor));
+      var tier = temNota ? scoreTier(valor) : tierSemApuracao();
       var cp = corPastilha(tier);
       return '<div style="display:inline-flex; align-items:center; gap:6px; background:' + cp.fundo + '; border:1.5px solid ' + cp.borda + '; padding:6px 12px; border-radius:8px; font-size:0.88rem; font-weight:900; color:' + cp.texto + ';" title="Classifica\u00e7\u00e3o: ' + tier.label + ' \u2014 ' + tier.desc + '">' +
         '<span>' + rotulo + ':</span> <span>' + tier.icon + ' ' + tier.label + '</span>' +
@@ -2317,7 +2317,7 @@ function hydrateFromPowerBI() {
             buildIdentificacaoOSHTML(contract) +
             buildHistoricoResponsavelHTML(contract) +
             '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">' +
-              buildNotaBadgeHTML('Nota do M\u00eas', curScore.monthScore) +
+              buildNotaBadgeHTML('Nota do M\u00eas', curScore.hasEvaluableData ? curScore.monthScore : null) +
               buildNotaBadgeHTML('M\u00e9dia Acumulada', avgAccum) +
             '</div>' +
           '</div>' +
@@ -2381,7 +2381,8 @@ function hydrateFromPowerBI() {
         var scM = calculateOSScore(contract, m);
         if (scM.hasEvaluableData) { evaluatedMonthsCount++; totalScoreSum += scM.monthScore; }
       }
-      var avgAccum = parseFloat((evaluatedMonthsCount > 0 ? (totalScoreSum / evaluatedMonthsCount) : curScore.monthScore).toFixed(1));
+      // Nenhum mes apurado ate aqui = sem media (null), nao zero -- zero aparecia como Critico.
+      var avgAccum = evaluatedMonthsCount > 0 ? parseFloat((totalScoreSum / evaluatedMonthsCount).toFixed(1)) : null;
       el.innerHTML = buildOSScorecardCardHTML(contract, curScore, avgAccum);
     }
 
@@ -3755,6 +3756,25 @@ function hydrateFromPowerBI() {
                borda: tier.chipBg ? tier.chipBg : tier.border };
     }
 
+    // Mes (ou categoria) SEM nenhum indicador apurado: nao e nota zero. Antes caia no
+    // scoreTier(0) e aparecia como Critico -- M01012 em janeiro, mes fora da apuracao,
+    // mostrava as cinco categorias e a nota em vermelho (01/10/2026).
+    function tierSemApuracao() {
+      return {
+        key: "SEM_APURACAO",
+        label: "Sem apuração",
+        shortLabel: "Sem apuração",
+        statusVisual: "⚪ Sem apuração",
+        icon: "⚪",
+        main: "#64748b",
+        dark: "#334155",
+        bg: "#e2e8f0",
+        border: "#cbd5e1",
+        text: "#ffffff",
+        desc: "Nenhum indicador apurado neste período."
+      };
+    }
+
     function faixaTexto(chave) {
       var ref = _metaReferencia(), mg = _metaGeral(), at = _metaAtencao();
       function n(v) { return String(Math.round(v * 10) / 10).replace(".", ","); }
@@ -3834,9 +3854,9 @@ function hydrateFromPowerBI() {
     }
 
     function buildScoreGaugeSVG(value, max, size) {
-      var safeVal = (typeof value === "number" && !isNaN(value)) ? value : 0;
-      var pct = max > 0 ? (safeVal / max) * 100 : 0;
-      var tier = scoreTier(pct);
+      var temNota = (typeof value === "number" && !isNaN(value));
+      var pct = (temNota && max > 0) ? (value / max) * 100 : 0;
+      var tier = temNota ? scoreTier(pct) : tierSemApuracao();
       return '<div style="background:rgba(255,255,255,0.08); border:2px solid ' + tier.main + '; border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:150px; box-sizing:border-box; box-shadow:0 4px 16px rgba(0,0,0,0.25); text-align:center;">' +
         '<span style="font-size:2.2rem; line-height:1; margin-bottom:5px;">' + tier.icon + '</span>' +
         '<div style="font-size:1.05rem; font-weight:900; color:' + tier.bg + '; line-height:1.2; margin-bottom:5px;">' + tier.label + '</div>' +
@@ -3850,7 +3870,7 @@ function hydrateFromPowerBI() {
         var itemTotal = (typeof c.itemsTotal === 'number') ? c.itemsTotal : 0;
         var itemPositive = (typeof c.itemsPositive === 'number') ? c.itemsPositive : 0;
         var itemPct = itemTotal > 0 ? (itemPositive / itemTotal) * 100 : 0;
-        var tier = scoreTier(itemPct);
+        var tier = itemTotal > 0 ? scoreTier(itemPct) : tierSemApuracao();
         var catColor = c.color || '#94a3b8';
         return '<div style="display:flex; flex-direction:column; min-width:0;">' +
           '<div style="flex:1; background:' + catColor + '; border-radius:12px; padding:10px 12px 12px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; gap:10px; min-width:0;">' +
