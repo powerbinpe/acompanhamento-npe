@@ -656,7 +656,15 @@ function hydrateOSScoreDataFromPowerBI(params) {
       // 35 = flag "tem comentário no mês selecionado" (mesmo uso do monthHistory, mas aqui
       // cobre TODAS as OSs do catálogo, não só a selecionada -- usado como respaldo quando
       // não há monthHistory disponível para a OS (ex.: matriz/Aba 4 olhando outra OS).
-      temComentarioMes: f[35] === "1"
+      temComentarioMes: f[35] === "1",
+      // 36..40 (04/10/2026), tambem no FIM: Tp Contrato da CTT (LD/CD) e as contagens de Boas
+      // Praticas que nao dependem do mes -- o evento inteiro (CD) e o 2o semestre do ano anterior
+      // (LD, que fecha em janeiro). undefined = medida antiga, sem esses campos.
+      tpContrato: f[36] !== undefined ? String(f[36]).trim().toUpperCase() : undefined,
+      bpAprovEvento: parseInt(f[37], 10) || 0,
+      bpReconEvento: parseInt(f[38], 10) || 0,
+      bpAprovS2Ant: parseInt(f[39], 10) || 0,
+      bpReconS2Ant: parseInt(f[40], 10) || 0
     });
   }
   if (liveCatalog.length === 0) return;
@@ -1806,6 +1814,11 @@ function hydrateFromPowerBI() {
       topicsData[19].lines[1].val = `${bpRecMes} ${parseInt(bpRecMes) === 1 ? 'iniciativa' : 'iniciativas'}`;
       topicsData[19].lines[2].val = `${bpAprovAcum} ${parseInt(bpAprovAcum) === 1 ? 'iniciativa' : 'iniciativas'}`;
       topicsData[19].lines[3].val = `${bpRecAcum} ${parseInt(bpRecAcum) === 1 ? 'iniciativa' : 'iniciativas'}`;
+      // Nome do periodo pelo Tp Contrato (04/10/2026): LD = Semestre, CD = Evento.
+      var perLinhaBP = (String(params.get("MetaBP") || "").split(";")[2] || "").trim().toUpperCase();
+      var nomePerBP = perLinhaBP === "E" ? "Evento" : (perLinhaBP === "S" ? "Semestre" : "Período");
+      topicsData[19].lines[2].label = "BP Aprovadas Acum. " + nomePerBP;
+      topicsData[19].lines[3].label = "BP Reconhec. Acum. " + nomePerBP;
     }
 
 
@@ -2686,12 +2699,14 @@ function hydrateFromPowerBI() {
         var mhPrev = getMonthHistoryRow(osCode, mNum - 1);
         var bpA = Math.max(0, (mh.bpAprovAcum || 0) - (mhPrev ? (mhPrev.bpAprovAcum || 0) : 0));
         var bpR = Math.max(0, (mh.bpReconAcum || 0) - (mhPrev ? (mhPrev.bpReconAcum || 0) : 0));
-        var aprovS1 = mh.bpAprovS1 || 0;
-        var reconS1 = mh.bpReconS1 || 0;
+        var cBPh = ACTIVE_CONTRACTS_CATALOG.find(function(x) { return extractPrimaryOSCode(x.code) === extractPrimaryOSCode(osCode); }) || {};
+        var perBPh = _bpPerio(cBPh);
+        var acBPh = perBPh === "E" ? _bpEventoAte(cBPh, mNum) : _bpSemestreAte(cBPh, mNum);
         lines = [
           { label: "BP Aprovadas no Mês", val: bpA + (bpA === 1 ? " iniciativa" : " iniciativas") },
           { label: "BP Reconhecidas no Mês", val: bpR + (bpR === 1 ? " iniciativa" : " iniciativas") },
-          { label: "Acumulado Semestre 1", val: aprovS1 + " Aprov / " + reconS1 + " Recon", color: (aprovS1 >= _bpAprov() && reconS1 >= _bpRecon()) ? "#15803d" : "#b45309" }
+          { label: perBPh === "E" ? "Acumulado do Evento" : (mNum <= 6 ? "Acumulado Semestre 1" : "Acumulado Semestre 2"),
+            val: acBPh.aprov + " Aprov / " + acBPh.recon + " Recon", color: _bpAtinge(acBPh) ? "#15803d" : "#b45309" }
         ];
       } else if (topic.id === 22) {
         lines = [{ label: "Tipo de Controle", val: "Acompanhamento Contratual / Renovação" }];
@@ -3361,71 +3376,48 @@ function hydrateFromPowerBI() {
             '</div>';
         }
 
-        // Boas Práticas (#20): status ACUMULADO da meta no período de apuração.
+        // Boas Praticas (#20): status de cada periodo (04/10/2026). LD = Semestre 1 e Semestre 2, cada
+        // um "Em andamento" ate o mes de fechamento (julho / janeiro seguinte); CD = Evento, "Em
+        // andamento" ate atingir a meta. Sem Tp Contrato = aviso, sem apuracao.
         if (topic.id === 20 && !isMultiOS) {
           var contratoBP = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOS; }) || {};
-          var ehParada = (_bpPerio(contratoBP) === "E");
-          if (ehParada) {
-            var aprovParada = contratoBP.bpAprovAcum || 0;
-            var reconParada = contratoBP.bpReconAcum || 0;
-            var metaBatidaP = (aprovParada >= _bpAprov() && reconParada >= _bpRecon());
-            var periodoFechadoP = (contratoBP.estagio === "FINALIZADA");
-            var corP = metaBatidaP ? "#15803d" : (periodoFechadoP ? "#b91c1c" : "#b45309");
-            var bgP = metaBatidaP ? "#dcfce7" : (periodoFechadoP ? "#fee2e2" : "#fef9c3");
-            var bdP = metaBatidaP ? "#86efac" : (periodoFechadoP ? "#fca5a5" : "#fde68a");
-            var txtP = metaBatidaP ? "🟢 Meta atingida" : (periodoFechadoP ? "🔴 Meta não atingida no período" : "🟡 Em andamento");
-            extraValueBlockHTML += '<div style="margin-top:12px; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1.5px solid #cbd5e1; border-left:4px solid ' + corP + ';">' +
+          var perBP = _bpPerio(contratoBP);
+          var blocoBP = function(titulo, x, estado, primeiro) {
+            var cor = estado === "OK" ? "#15803d" : (estado === "NAO" ? "#b91c1c" : "#b45309");
+            var bg = estado === "OK" ? "#dcfce7" : (estado === "NAO" ? "#fee2e2" : "#fef9c3");
+            var bd = estado === "OK" ? "#86efac" : (estado === "NAO" ? "#fca5a5" : "#fde68a");
+            var txt = estado === "OK" ? "🟢 Meta atingida" : (estado === "NAO" ? "🔴 Meta não atingida no período" : "🟡 Em andamento");
+            return '<div style="margin-top:' + (primeiro ? 12 : 8) + 'px; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1.5px solid #cbd5e1; border-left:4px solid ' + cor + ';">' +
               '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">' +
-                '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">Meta acumulada • Evento (fechamento da OS)</span>' +
-                '<span style="background:' + bgP + '; color:' + corP + '; border:1.5px solid ' + bdP + '; padding:4px 12px; border-radius:6px; font-weight:800; font-size:0.90rem;">' + txtP + '</span>' +
+                '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">' + titulo + '</span>' +
+                '<span style="background:' + bg + '; color:' + cor + '; border:1.5px solid ' + bd + '; padding:4px 12px; border-radius:6px; font-weight:800; font-size:0.90rem;">' + txt + '</span>' +
               '</div>' +
               '<div style="margin-top:7px; font-size:0.88rem; color:#334155; font-weight:700;">' +
-                'Aprovadas: <span style="color:' + (aprovParada >= _bpAprov() ? '#15803d' : '#b45309') + ';">' + aprovParada + ' / ' + _bpAprov() + '</span>' +
-                ' &nbsp;•&nbsp; Reconhecidas pelo cliente: <span style="color:' + (reconParada >= _bpRecon() ? '#15803d' : '#b45309') + ';">' + reconParada + ' / ' + _bpRecon() + '</span>' +
+                'Aprovadas: <span style="color:' + (x.aprov >= _bpAprov() ? '#15803d' : '#b45309') + ';">' + x.aprov + ' / ' + _bpAprov() + '</span>' +
+                ' &nbsp;•&nbsp; Reconhecidas pelo cliente: <span style="color:' + (x.recon >= _bpRecon() ? '#15803d' : '#b45309') + ';">' + x.recon + ' / ' + _bpRecon() + '</span>' +
               '</div>' +
             '</div>';
-          } else {
-            // Rotina / Oficina: Semestre 1 e Semestre 2
-            var aprovS1 = contratoBP.bpAprovS1 || 0;
-            var reconS1 = contratoBP.bpReconS1 || 0;
-            var metaBatidaS1 = (aprovS1 >= _bpAprov() && reconS1 >= _bpRecon());
-            var corS1 = metaBatidaS1 ? "#15803d" : (monthNum >= 6 ? "#b91c1c" : "#b45309");
-            var bgS1 = metaBatidaS1 ? "#dcfce7" : (monthNum >= 6 ? "#fee2e2" : "#fef9c3");
-            var bdS1 = metaBatidaS1 ? "#86efac" : (monthNum >= 6 ? "#fca5a5" : "#fde68a");
-            var txtS1 = metaBatidaS1 ? "🟢 Meta atingida" : (monthNum >= 6 ? "🔴 Meta não atingida no período" : "🟡 Em andamento");
-
-            // Semestre 1 Box
-            extraValueBlockHTML += '<div style="margin-top:12px; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1.5px solid #cbd5e1; border-left:4px solid ' + corS1 + ';">' +
-              '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">' +
-                '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">Meta acumulada • Semestre 1 (Jan–Jun)</span>' +
-                '<span style="background:' + bgS1 + '; color:' + corS1 + '; border:1.5px solid ' + bdS1 + '; padding:4px 12px; border-radius:6px; font-weight:800; font-size:0.90rem;">' + txtS1 + '</span>' +
-              '</div>' +
-              '<div style="margin-top:7px; font-size:0.88rem; color:#334155; font-weight:700;">' +
-                'Aprovadas: <span style="color:' + (aprovS1 >= _bpAprov() ? '#15803d' : '#b45309') + ';">' + aprovS1 + ' / ' + _bpAprov() + '</span>' +
-                ' &nbsp;•&nbsp; Reconhecidas pelo cliente: <span style="color:' + (reconS1 >= _bpRecon() ? '#15803d' : '#b45309') + ';">' + reconS1 + ' / ' + _bpRecon() + '</span>' +
-              '</div>' +
-            '</div>';
-
-            // Semestre 2 Box (quando mês >= 7)
-            if (monthNum >= 7) {
-              var aprovS2 = contratoBP.bpAprovS2 || 0;
-              var reconS2 = contratoBP.bpReconS2 || 0;
-              var metaBatidaS2 = (aprovS2 >= _bpAprov() && reconS2 >= _bpRecon());
-              var corS2 = metaBatidaS2 ? "#15803d" : (monthNum >= 12 ? "#b91c1c" : "#b45309");
-              var bgS2 = metaBatidaS2 ? "#dcfce7" : (monthNum >= 12 ? "#fee2e2" : "#fef9c3");
-              var bdS2 = metaBatidaS2 ? "#86efac" : (monthNum >= 12 ? "#fca5a5" : "#fde68a");
-              var txtS2 = metaBatidaS2 ? "🟢 Meta atingida" : (monthNum >= 12 ? "🔴 Meta não atingida no período" : "🟡 Em andamento");
-              extraValueBlockHTML += '<div style="margin-top:8px; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1.5px solid #cbd5e1; border-left:4px solid ' + corS2 + ';">' +
-                '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">' +
-                  '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">Meta acumulada • Semestre 2 (Jul–Dez)</span>' +
-                  '<span style="background:' + bgS2 + '; color:' + corS2 + '; border:1.5px solid ' + bdS2 + '; padding:4px 12px; border-radius:6px; font-weight:800; font-size:0.90rem;">' + txtS2 + '</span>' +
-                '</div>' +
-                '<div style="margin-top:7px; font-size:0.88rem; color:#334155; font-weight:700;">' +
-                  'Aprovadas: <span style="color:' + (aprovS2 >= _bpAprov() ? '#15803d' : '#b45309') + ';">' + aprovS2 + ' / ' + _bpAprov() + '</span>' +
-                  ' &nbsp;•&nbsp; Reconhecidas pelo cliente: <span style="color:' + (reconS2 >= _bpRecon() ? '#15803d' : '#b45309') + ';">' + reconS2 + ' / ' + _bpRecon() + '</span>' +
-                '</div>' +
-              '</div>';
+          };
+          if (perBP === "E") {
+            var evBP = _bpEventoAte(contratoBP, monthNum);
+            extraValueBlockHTML += blocoBP("Meta acumulada • Evento (contrato CD)", evBP, _bpAtinge(evBP) ? "OK" : "AND", true);
+          } else if (perBP === "S") {
+            var anoBP = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10) || "";
+            if (monthNum === 1) {
+              var s2Ant = { aprov: contratoBP.bpAprovS2Ant || 0, recon: contratoBP.bpReconS2Ant || 0 };
+              extraValueBlockHTML += blocoBP("Meta acumulada • Semestre 2 de " + (anoBP ? anoBP - 1 : "ano anterior") + " (Jul–Dez) • fechado em janeiro", s2Ant, _bpAtinge(s2Ant) ? "OK" : "NAO", true);
             }
+            var s1BP = monthNum >= 7 ? { aprov: contratoBP.bpAprovS1 || 0, recon: contratoBP.bpReconS1 || 0 } : _bpSemestreAte(contratoBP, monthNum);
+            extraValueBlockHTML += blocoBP("Meta acumulada • Semestre 1 (Jan–Jun) • fecha em julho", s1BP,
+              _bpAtinge(s1BP) ? "OK" : (monthNum >= 7 ? "NAO" : "AND"), monthNum !== 1);
+            if (monthNum >= 7) {
+              var s2BP = _bpSemestreAte(contratoBP, monthNum);
+              extraValueBlockHTML += blocoBP("Meta acumulada • Semestre 2 (Jul–Dez) • fecha em janeiro", s2BP, _bpAtinge(s2BP) ? "OK" : "AND", false);
+            }
+          } else {
+            extraValueBlockHTML += '<div style="margin-top:12px; background:#fff7ed; padding:10px 14px; border-radius:8px; border:1.5px solid #fdba74; border-left:4px solid #c2410c; font-size:0.88rem; color:#7c2d12; font-weight:700;">' +
+              '⚠️ Tp Contrato sem cadastro na CTT para esta OS. Defina <b>LD</b> (apuração por semestre) ou <b>CD</b> (apuração por evento) para que as Boas Práticas sejam apuradas.' +
+            '</div>';
           }
         }
 
@@ -4186,9 +4178,12 @@ function hydrateFromPowerBI() {
           var mAp = (typeof _bpAprov === "function") ? _bpAprov() : 3;
           var mRe = (typeof _bpRecon === "function") ? _bpRecon() : 1;
           var alvo = " (meta " + mAp + " aprov. + " + mRe + " reconh.";
-          if ((typeof _bpPerio === "function" ? _bpPerio(contract) : "S") === "E") {
-            return (monthData.bpAprovAcum || 0) + " aprov. · " + (monthData.bpReconAcum || 0) +
-                   " reconh. no evento" + alvo + " por evento)";
+          var perIA = (typeof _bpPerio === "function") ? _bpPerio(contract) : "S";
+          if (perIA === "X") return "Tp Contrato sem cadastro na CTT -- Boas Pr\u00e1ticas n\u00e3o apuradas" + alvo + ")";
+          if (perIA === "E") {
+            var evIA = _bpEventoAte(contract, m);
+            return evIA.aprov + " aprov. · " + evIA.recon + " reconh. no evento" + alvo + " por evento) -- " +
+                   (_bpAtinge(evIA) ? "atingiu" : "em andamento");
           }
           alvo += " por semestre)";
           var a1 = monthData.bpAprovS1 || 0, r1 = monthData.bpReconS1 || 0;
@@ -5199,7 +5194,33 @@ function hydrateFromPowerBI() {
     }
     function _bpAprov() { return (META.bp && META.bp.aprov != null) ? META.bp.aprov : 3; }
     function _bpRecon() { return (META.bp && META.bp.recon != null) ? META.bp.recon : 1; }
-    function _bpPerio(c) { return (META.bp && META.bp.perio) ? META.bp.perio : ((c && c.negocio === "PARADA") ? "E" : "S"); }
+    // Boas Praticas (04/10/2026): o periodo e decidido SO pelo Tp Contrato da CTT -- LD = semestre
+    // ("S"), CD = evento ("E"). Sem Tp Contrato = "X": nao apura e o card pede o cadastro. O Negocio
+    // nao decide mais (havia 9 OSs LD de Parada e 11 CD de Rotina apuradas pelo periodo errado).
+    function _bpPerio(c) {
+      if (c && typeof c.tpContrato === "string") return c.tpContrato === "LD" ? "S" : (c.tpContrato === "CD" ? "E" : "X");
+      var p = META.bp && META.bp.perio;
+      return (p === "S" || p === "E" || p === "X") ? p : "X";
+    }
+    function _bpAtinge(x) { return !!x && x.aprov >= _bpAprov() && x.recon >= _bpRecon(); }
+    // CD: BPs do evento ate o fim do mes m (atravessa o ano). c = contrato do CATALOGO (bpAprovAcum
+    // = ano inteiro); o que veio antes do ano = evento - ano. m = 0 -> so o que veio antes do ano.
+    function _bpEventoAte(c, m) {
+      var anoA = c.bpAprovAcum || 0, anoR = c.bpReconAcum || 0;
+      var antesA = Math.max(0, (c.bpAprovEvento || 0) - anoA), antesR = Math.max(0, (c.bpReconEvento || 0) - anoR);
+      if (m <= 0) return { aprov: antesA, recon: antesR };
+      var mh = c.monthHistory && c.monthHistory[m];
+      return { aprov: antesA + (mh ? (mh.bpAprovAcum || 0) : anoA), recon: antesR + (mh ? (mh.bpReconAcum || 0) : anoR) };
+    }
+    // LD: o que o semestre do mes m ja tem ate m (S1 = jan..m; S2 = jul..m).
+    function _bpSemestreAte(c, m) {
+      var mh = c.monthHistory && c.monthHistory[m];
+      if (!mh) return m <= 6 ? { aprov: c.bpAprovS1 || 0, recon: c.bpReconS1 || 0 } : { aprov: c.bpAprovS2 || 0, recon: c.bpReconS2 || 0 };
+      if (m <= 6) return { aprov: mh.bpAprovAcum || 0, recon: mh.bpReconAcum || 0 };
+      var h6 = c.monthHistory[6];
+      var s1A = h6 ? (h6.bpAprovAcum || 0) : (c.bpAprovS1 || 0), s1R = h6 ? (h6.bpReconAcum || 0) : (c.bpReconS1 || 0);
+      return { aprov: Math.max(0, (mh.bpAprovAcum || 0) - s1A), recon: Math.max(0, (mh.bpReconAcum || 0) - s1R) };
+    }
 
     // Peso de cada tópico "verdict" (indicador numérico real) e qualitativo, e a que bucket de exibição
     // (finPts/govPts/pesPts/ssmaPts) cada um pertence na tabela da Aba 2.
@@ -6824,19 +6845,26 @@ function hydrateFromPowerBI() {
       addQual("ltcat_lipae", "t18", TOPIC_WEIGHTS.t18);
       addQual("pbi_pbd", "t19", TOPIC_WEIGHTS.t19);
 
-      // --- 20. Boas Práticas: meta é 3 aprovadas + 1 reconhecida pelo cliente.
-      // Rotina/Oficina: apurado por SEMESTRE calendário (só nos meses 6 e 12, fechamento do S1/S2).
-      // Parada: apurado por EVENTO -- só quando a OS fecha (Estágio = FINALIZADA).
-      var bpApplicable, bpMet;
-      if (_bpPerio(contract) === "E") {
-        bpApplicable = (contract.estagio === "FINALIZADA");
-        bpMet = (contract.bpAprovAcum || 0) >= _bpAprov() && (contract.bpReconAcum || 0) >= _bpRecon();
-      } else {
-        bpApplicable = (monthNum === 6 || monthNum === 12);
-        if (monthNum === 6) {
+      // --- 20. Boas Praticas (04/10/2026): meta = 3 aprovadas + 1 reconhecida (META_BOAS_PRATICAS).
+      // LD (semestre): o S1 (jan-jun) fecha no fechamento de JULHO e entra na nota de julho -- o mes a
+      // mais da tempo de lancar o que atrasou; o S2 (jul-dez) fecha em JANEIRO do ano seguinte e entra
+      // na nota de janeiro. Nos demais meses o #20 fica fora da nota.
+      // CD (evento): todas as BPs da OS no evento, atravessando o ano. "Em andamento" (fora da nota)
+      // ate atingir; entra uma unica vez, como atingida, no mes em que a meta foi batida. Depois de
+      // FINALIZADA a OS sai do acompanhamento, entao nao ha "nao atingiu" do evento.
+      // Sem Tp Contrato na CTT: nao apura (o card avisa).
+      var bpApplicable = false, bpMet = false, bpPer = _bpPerio(contractRaw);
+      if (bpPer === "S") {
+        if (monthNum === 7) {
+          bpApplicable = true;
           bpMet = (contract.bpAprovS1 || 0) >= _bpAprov() && (contract.bpReconS1 || 0) >= _bpRecon();
-        } else if (monthNum === 12) {
-          bpMet = (contract.bpAprovS2 || 0) >= _bpAprov() && (contract.bpReconS2 || 0) >= _bpRecon();
+        } else if (monthNum === 1) {
+          bpApplicable = true;
+          bpMet = (contractRaw.bpAprovS2Ant || 0) >= _bpAprov() && (contractRaw.bpReconS2Ant || 0) >= _bpRecon();
+        }
+      } else if (bpPer === "E") {
+        if (_bpAtinge(_bpEventoAte(contractRaw, monthNum)) && !_bpAtinge(_bpEventoAte(contractRaw, monthNum - 1))) {
+          bpApplicable = true; bpMet = true;
         }
       }
       addBinary("t20", TOPIC_WEIGHTS.t20, bpApplicable, bpMet);
