@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-07 20:35";
+    window.NPE_BUILD = "2026-10-07 20:45";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url"];
@@ -7969,6 +7969,8 @@ function hydrateFromPowerBI() {
 
       await rodar("mini");
       var falhas = reprovados();
+      // Guarda por que o mini foi reprovado: sem isto, "10 refeitos" nao diz o que deu errado.
+      var primeiraRodada = falhas.map(function(tid) { return { tid: tid, motivos: (motivos[tid] || []).slice() }; });
       if (falhas.length) {
         refeitos = falhas.length;
         await rodar("gpt41", falhas);
@@ -7978,7 +7980,7 @@ function hydrateFromPowerBI() {
       tids.forEach(function(tid) {
         if (analises[tid]) textos[tid] = montarParecerCompleto(tid, analises[tid], base);
       });
-      return { textos: textos, revisar: falhas.map(function(tid) { return { tid: tid, motivos: motivos[tid] }; }), chamadas: chamadas, refeitos: refeitos };
+      return { textos: textos, revisar: falhas.map(function(tid) { return { tid: tid, motivos: motivos[tid] }; }), chamadas: chamadas, refeitos: refeitos, primeiraRodada: primeiraRodada };
     }
 
     // Botao "Gerar com IA" da Aba 1: gera os pareceres da OS/mes selecionados e preenche as caixas.
@@ -8078,11 +8080,12 @@ function hydrateFromPowerBI() {
       var ap = aplicarTextosNasCaixas(activeOS, monthNum, res.textos);
 
       passo("síntese do mês");
-      var chamadas = res.chamadas, sinteseRefeita = false, motivosSintese = [], sinteseGerada = false;
+      var chamadas = res.chamadas, sinteseRefeita = false, motivosSintese = [], sinteseGerada = false, motivosSinteseMini = [];
       var sint = construirPromptSintese(activeOS, monthNum, monthName);
       if (sint.comParecer) {
         var texto = await chamarGerarTexto("mini", sint.texto); chamadas++;
         motivosSintese = conferirSintese(texto, sint.comParecer);
+        motivosSinteseMini = motivosSintese.slice();
         if (motivosSintese.length) {
           texto = await chamarGerarTexto("gpt41", sint.texto); chamadas++;
           sinteseRefeita = true;
@@ -8105,8 +8108,8 @@ function hydrateFromPowerBI() {
         os: activeOS, mes: monthNum,
         preenchidos: ap.preenchidos, validados: ap.validados,
         refeitos: res.refeitos, chamadas: chamadas,
-        revisar: res.revisar,
-        sintese: { gerada: sinteseGerada, refeita: sinteseRefeita, motivos: motivosSintese },
+        revisar: res.revisar, primeiraRodada: res.primeiraRodada || [],
+        sintese: { gerada: sinteseGerada, refeita: sinteseRefeita, motivos: motivosSintese, motivosMini: motivosSinteseMini },
         gravado: gravado
       };
     }

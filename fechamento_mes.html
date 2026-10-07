@@ -255,6 +255,8 @@
       var falhouGravar = gravar && r.gravado === false;
       marcar(i, falhouGravar ? "erro" : (precisaRevisar ? "revisar" : "ok"), textoResultado(r));
       log("OS " + o.code + ": " + textoResultado(r));
+      if (r.primeiraRodada && r.primeiraRodada.length) log("   mini reprovado em: " + r.primeiraRodada.map(function (x) { return "#" + x.tid + " (" + x.motivos.join(", ") + ")"; }).join("; "));
+      if (r.sintese.motivosMini && r.sintese.motivosMini.length) log("   síntese no mini reprovada: " + r.sintese.motivosMini.join("; "));
     } catch (e) {
       marcar(i, "erro", String(e && e.message ? e.message : e));
       log("OS " + o.code + ": ERRO - " + (e && e.message ? e.message : e));
