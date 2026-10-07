@@ -93,7 +93,7 @@
     { k: "npe_flow_gerar_texto_gpt41_url",  rotulo: "NPE-Gerar-Texto-GPT41 (GPT-4.1)", obrigatoria: false }
   ];
   var el = function (id) { return document.getElementById(id); };
-  var estado = { lista: [], rodando: false, parar: false, resultados: {} };
+  var estado = { lista: [], rodando: false, parar: false, resultados: {}, persistir: true };
 
   function lerK(k) { try { return window.localStorage.getItem(k) || ""; } catch (e) { return ""; } }
   function gravarK(k, v) { try { window.localStorage.setItem(k, v); return true; } catch (e) { return false; } }
@@ -189,7 +189,8 @@
     var e1 = el("est_" + i), e2 = el("res_" + i);
     if (e1) { e1.textContent = est; e1.className = "est-" + est; }
     if (e2) e2.textContent = texto || "";
-    if (est !== "rodando") gravarProgresso();
+    // Resultado de "so testar" aparece na tela mas nao vira progresso: senao a rodada real pularia essas OSs.
+    if (est !== "rodando" && estado.persistir) gravarProgresso();
     atualizarResumo();
   }
 
@@ -268,6 +269,8 @@
     if (estado.rodando) return;
     var ano = parseInt(el("ano").value, 10), mes = parseInt(el("mes").value, 10);
     var gravar = !el("soTestar").checked, refazer = el("refazer").checked;
+    // Rodada real parte so do que foi gravado de verdade antes (nunca de resultado de teste).
+    if (gravar) { estado.resultados = lerProgresso(); desenharLista(); }
     var fila = [];
     estado.lista.forEach(function (o, i) {
       var r = estado.resultados[o.code];
@@ -277,7 +280,7 @@
     if (lerK("npe_flow_gerar_texto_mini_url").indexOf("https://") !== 0) return log("Configure a URL do fluxo NPE-Gerar-Texto-Mini antes de começar.");
     if (gravar && !window.confirm("Gravar na ATA os pareceres e a síntese de " + fila.length + " OS(s) de " + mes + "/" + ano +
         "?\n\nO texto de cada indicador não validado será SUBSTITUÍDO. Mês fechado não deve ser processado.")) return;
-    estado.rodando = true; estado.parar = false;
+    estado.rodando = true; estado.parar = false; estado.persistir = gravar;
     el("btnIniciar").disabled = true; el("btnParar").disabled = false; el("btnCarregar").disabled = true;
     log((gravar ? "GRAVANDO" : "TESTE (sem gravar)") + " - " + fila.length + " OS(s) na fila.");
     for (var k = 0; k < fila.length; k++) {
