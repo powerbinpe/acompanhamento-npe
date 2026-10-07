@@ -199,14 +199,19 @@
     el("btnCarregar").disabled = true;
     try {
       log("Buscando as OSs elegíveis de " + mes + "/" + ano + "...");
+      // Com todas as OSs a URL passa de 16 mil caracteres (o GitHub Pages recusa), entao nao abrimos o app:
+      // lemos so o OSScoreData (um registro por OS, separado por ~; campos separados por ^).
       var url = await lerUrlOS("", ano, mes);
-      var q = await abrirNoQuadro(url);
-      var cat = q.win.ACTIVE_CONTRACTS_CATALOG || [];
-      estado.lista = cat.map(function (c) {
-        var code = q.win.extractPrimaryOSCode ? q.win.extractPrimaryOSCode(c.code) : String(c.code || "").split("|")[0];
-        return { code: code, nome: c.name || code, marcada: true };
+      var bruto = "";
+      try { bruto = new URL(url).searchParams.get("OSScoreData") || ""; } catch (e) {}
+      estado.lista = [];
+      bruto.split("~").forEach(function (reg) {
+        var f = reg.split("^");
+        if (f.length < 13 || !f[0]) return;
+        var codigo = f[0].split("|")[0];
+        estado.lista.push({ code: codigo, nome: f[0].split("|").join(" + ") + " - " + (f[1] || codigo), marcada: true });
       });
-      fecharQuadro(q);
+      if (!estado.lista.length) throw new Error("O modelo não devolveu nenhuma OS elegível para " + mes + "/" + ano + ".");
       estado.resultados = lerProgresso();
       el("secLista").style.display = "block";
       desenharLista();
