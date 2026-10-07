@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fechamento do Mês - Acompanhamento NPE</title>
+<style>
+  :root { --azul:#0f2b5c; --roxo:#5b21b6; --borda:#cbd5e1; --fundo:#f1f5f9; --ok:#15803d; --erro:#b91c1c; --aviso:#b45309; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Segoe UI", Arial, sans-serif; background:var(--fundo); color:#1e293b; }
+  header { background:linear-gradient(135deg,var(--azul),var(--roxo)); color:#fff; padding:16px 24px; }
+  header h1 { margin:0; font-size:1.25rem; }
+  header p { margin:4px 0 0; font-size:.88rem; opacity:.9; }
+  main { max-width:1100px; margin:0 auto; padding:18px 16px 60px; }
+  section { background:#fff; border:1px solid var(--borda); border-radius:10px; padding:16px 18px; margin-bottom:16px; }
+  h2 { margin:0 0 10px; font-size:1.02rem; color:var(--azul); }
+  label { font-weight:600; font-size:.88rem; display:block; margin-bottom:3px; }
+  input[type=text], input[type=password], input[type=number], select { width:100%; padding:8px 10px; border:1.5px solid #94a3b8; border-radius:8px; font-size:.92rem; }
+  .linha { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+  .linha > div { flex:1 1 180px; }
+  button { border:none; border-radius:8px; padding:9px 16px; font-weight:700; font-size:.9rem; cursor:pointer; color:#fff; background:linear-gradient(135deg,#16a34a,#15803d); }
+  button.sec { background:#e2e8f0; color:#334155; }
+  button.perigo { background:linear-gradient(135deg,#dc2626,#b91c1c); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  table { width:100%; border-collapse:collapse; font-size:.86rem; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #e2e8f0; vertical-align:top; }
+  th { background:#f8fafc; position:sticky; top:0; }
+  .est-pendente { color:#64748b; } .est-rodando { color:var(--roxo); font-weight:700; }
+  .est-ok { color:var(--ok); font-weight:700; } .est-revisar { color:var(--aviso); font-weight:700; } .est-erro { color:var(--erro); font-weight:700; }
+  .nota { font-size:.84rem; color:#475569; margin:6px 0 0; }
+  #log { background:#0f172a; color:#e2e8f0; font-family:Consolas,monospace; font-size:.8rem; padding:10px 12px; border-radius:8px; height:200px; overflow:auto; white-space:pre-wrap; }
+  .cfg { margin-bottom:8px; } .cfg .st { font-size:.8rem; margin-left:6px; }
+  .tabela { max-height:460px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Fechamento do Mês</h1>
+  <p>Gera, confere e grava os pareceres e a síntese de todas as OSs elegíveis do mês, uma a uma. Mantenha esta aba aberta até terminar.</p>
+</header>
+<main>
+
+<section>
+  <h2>1. Fluxos configurados neste navegador</h2>
+  <div id="cfgLista"></div>
+  <p class="nota">As URLs ficam só neste navegador (não vão para o código). Campo em branco mantém a URL atual.</p>
+  <button id="btnSalvarCfg" class="sec" type="button">Salvar URLs</button>
+</section>
+
+<section>
+  <h2>2. Mês e OSs</h2>
+  <div class="linha">
+    <div><label for="ano">Ano</label><input id="ano" type="number" min="2024" max="2100"></div>
+    <div><label for="mes">Mês</label>
+      <select id="mes">
+        <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+        <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+        <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+        <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+      </select></div>
+    <div style="flex:0 0 auto"><button id="btnCarregar" type="button">Carregar OSs elegíveis</button></div>
+  </div>
+  <p class="nota">Não use em mês já fechado: o texto de cada indicador NÃO validado é substituído. Indicadores validados nunca são alterados.</p>
+</section>
+
+<section id="secLista" style="display:none">
+  <h2>3. Processamento</h2>
+  <div class="linha" style="margin-bottom:10px">
+    <div style="flex:0 0 auto"><label style="display:inline"><input id="soTestar" type="checkbox" checked> Só testar (não grava na ATA)</label></div>
+    <div style="flex:0 0 auto"><label style="display:inline"><input id="refazer" type="checkbox"> Refazer as já concluídas</label></div>
+    <div style="flex:1 1 auto"></div>
+    <div style="flex:0 0 auto"><button id="btnTodas" class="sec" type="button">Marcar/desmarcar todas</button></div>
+    <div style="flex:0 0 auto"><button id="btnIniciar" type="button">Processar selecionadas</button></div>
+    <div style="flex:0 0 auto"><button id="btnParar" class="perigo" type="button" disabled>Parar</button></div>
+  </div>
+  <div id="resumo" class="nota"></div>
+  <div class="tabela"><table><thead><tr><th></th><th>OS</th><th>Contrato</th><th>Estado</th><th>Resultado</th></tr></thead><tbody id="corpo"></tbody></table></div>
+</section>
+
+<section>
+  <h2>Registro</h2>
+  <div id="log"></div>
+</section>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var CHAVES = [
+    { k: "npe_flow_ler_url_app_url",        rotulo: "NPE-Ler-Url-App (dados de cada OS)", obrigatoria: true },
+    { k: "npe_flow_gerar_texto_mini_url",   rotulo: "NPE-Gerar-Texto-Mini (GPT-4.1 mini)", obrigatoria: true },
+    { k: "npe_flow_gerar_texto_gpt41_url",  rotulo: "NPE-Gerar-Texto-GPT41 (GPT-4.1)", obrigatoria: false }
+  ];
+  var el = function (id) { return document.getElementById(id); };
+  var estado = { lista: [], rodando: false, parar: false, resultados: {} };
+
+  function lerK(k) { try { return window.localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function gravarK(k, v) { try { window.localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+  function esc(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function log(t) {
+    var d = el("log"), h = new Date().toLocaleTimeString("pt-BR");
+    d.textContent += "[" + h + "] " + t + "\n"; d.scrollTop = d.scrollHeight;
+  }
+  function espera(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  // ---------- configuracao ----------
+  function desenharCfg() {
+    el("cfgLista").innerHTML = CHAVES.map(function (c, i) {
+      var ok = lerK(c.k).indexOf("https://") === 0;
+      return '<div class="cfg"><label>' + esc(c.rotulo) + '<span class="st" style="color:' + (ok ? "var(--ok)" : "var(--erro)") + '">' +
+        (ok ? "configurado" : (c.obrigatoria ? "NÃO configurado" : "não configurado (opcional)")) + '</span></label>' +
+        '<input type="password" autocomplete="off" data-i="' + i + '" placeholder="' + (ok ? "Em branco mantém a URL atual" : "Cole a URL HTTP POST do gatilho") + '"></div>';
+    }).join("");
+  }
+  el("btnSalvarCfg").addEventListener("click", function () {
+    var salvos = 0, ruins = 0;
+    Array.prototype.forEach.call(document.querySelectorAll("#cfgLista input"), function (inp) {
+      var v = String(inp.value || "").trim();
+      if (!v) return;
+      if (v.indexOf("https://") !== 0) { ruins++; return; }
+      if (gravarK(CHAVES[parseInt(inp.getAttribute("data-i"), 10)].k, v)) salvos++;
+    });
+    desenharCfg();
+    log(salvos ? salvos + " URL(s) guardada(s) neste navegador." : "Nenhuma URL nova.");
+    if (ruins) log("Atenção: " + ruins + " URL(s) ignorada(s) por não começar com https://.");
+  });
+
+  // ---------- chamadas aos fluxos ----------
+  async function lerUrlOS(os, ano, mes) {
+    var url = lerK("npe_flow_ler_url_app_url");
+    if (url.indexOf("https://") !== 0) throw new Error("A URL do fluxo NPE-Ler-Url-App não está configurada.");
+    if (os && !/^[A-Za-z0-9|]{3,24}$/.test(os)) throw new Error("Código de OS inválido: " + os);
+    var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ os: os || "", ano: ano, mes: mes }) });
+    if (!r.ok) throw new Error("O fluxo NPE-Ler-Url-App respondeu " + r.status + ".");
+    var j = await r.json();
+    var linha = j && j.firstTableRows && j.firstTableRows[0];
+    var valor = linha ? linha[Object.keys(linha)[0]] : "";
+    var m = String(valor || "").match(/src="([^"]+)"/);
+    if (!m) throw new Error("O modelo não devolveu os dados da OS " + (os || "(todas)") + ".");
+    return m[1].replace(/&amp;/g, "&");
+  }
+
+  // Abre o app (mesmo endereco do relatorio) numa moldura fora da tela e espera ficar pronto.
+  function abrirNoQuadro(url) {
+    return new Promise(function (resolve, reject) {
+      var f = document.createElement("iframe");
+      f.style.cssText = "position:fixed; left:-12000px; top:0; width:1400px; height:1000px; border:0;";
+      f.src = url;
+      document.body.appendChild(f);
+      var t0 = Date.now();
+      (function poll() {
+        var w = null;
+        try { w = f.contentWindow; } catch (e) {}
+        var pronto = false;
+        try {
+          pronto = !!(w && typeof w.processarOSAtual === "function" && w.document &&
+                      w.document.getElementById("master_1") && w.ACTIVE_CONTRACTS_CATALOG && w.ACTIVE_CONTRACTS_CATALOG.length);
+        } catch (e) {}
+        if (pronto) return resolve({ frame: f, win: w });
+        if (Date.now() - t0 > 90000) { try { document.body.removeChild(f); } catch (e) {} return reject(new Error("O app não ficou pronto em 90 s.")); }
+        setTimeout(poll, 500);
+      })();
+    });
+  }
+  function fecharQuadro(q) { try { document.body.removeChild(q.frame); } catch (e) {} }
+
+  // ---------- lista de OSs ----------
+  function chaveProgresso() { return "npe_fechamento_" + el("ano").value + "_" + el("mes").value; }
+  function lerProgresso() { try { return JSON.parse(lerK(chaveProgresso()) || "{}") || {}; } catch (e) { return {}; } }
+  function gravarProgresso() { gravarK(chaveProgresso(), JSON.stringify(estado.resultados)); }
+
+  function desenharLista() {
+    el("corpo").innerHTML = estado.lista.map(function (o, i) {
+      var r = estado.resultados[o.code] || { estado: "pendente", texto: "" };
+      return '<tr><td><input type="checkbox" data-i="' + i + '"' + (o.marcada ? " checked" : "") + '></td><td>' + esc(o.code) + '</td><td>' + esc(o.nome) +
+        '</td><td class="est-' + r.estado + '" id="est_' + i + '">' + r.estado + '</td><td id="res_' + i + '">' + esc(r.texto) + '</td></tr>';
+    }).join("");
+    atualizarResumo();
+  }
+  function atualizarResumo() {
+    var c = { pendente: 0, ok: 0, revisar: 0, erro: 0 };
+    estado.lista.forEach(function (o) { var r = estado.resultados[o.code]; c[(r && r.estado) || "pendente"] = (c[(r && r.estado) || "pendente"] || 0) + 1; });
+    el("resumo").textContent = estado.lista.length + " OS(s) | prontas: " + c.ok + " | para revisar: " + c.revisar + " | com erro: " + c.erro + " | pendentes: " + c.pendente;
+  }
+  function marcar(i, est, texto) {
+    var o = estado.lista[i];
+    estado.resultados[o.code] = { estado: est, texto: texto || "", ts: new Date().toISOString() };
+    var e1 = el("est_" + i), e2 = el("res_" + i);
+    if (e1) { e1.textContent = est; e1.className = "est-" + est; }
+    if (e2) e2.textContent = texto || "";
+    if (est !== "rodando") gravarProgresso();
+    atualizarResumo();
+  }
+
+  el("btnCarregar").addEventListener("click", async function () {
+    var ano = parseInt(el("ano").value, 10), mes = parseInt(el("mes").value, 10);
+    if (!ano || !mes) return log("Informe ano e mês.");
+    el("btnCarregar").disabled = true;
+    try {
+      log("Buscando as OSs elegíveis de " + mes + "/" + ano + "...");
+      var url = await lerUrlOS("", ano, mes);
+      var q = await abrirNoQuadro(url);
+      var cat = q.win.ACTIVE_CONTRACTS_CATALOG || [];
+      estado.lista = cat.map(function (c) {
+        var code = q.win.extractPrimaryOSCode ? q.win.extractPrimaryOSCode(c.code) : String(c.code || "").split("|")[0];
+        return { code: code, nome: c.name || code, marcada: true };
+      });
+      fecharQuadro(q);
+      estado.resultados = lerProgresso();
+      el("secLista").style.display = "block";
+      desenharLista();
+      log(estado.lista.length + " OS(s) elegíveis encontradas.");
+    } catch (e) { log("ERRO: " + (e && e.message ? e.message : e)); }
+    el("btnCarregar").disabled = false;
+  });
+
+  el("corpo").addEventListener("change", function (ev) {
+    var i = ev.target.getAttribute && ev.target.getAttribute("data-i");
+    if (i != null) estado.lista[parseInt(i, 10)].marcada = ev.target.checked;
+  });
+  el("btnTodas").addEventListener("click", function () {
+    var todas = estado.lista.every(function (o) { return o.marcada; });
+    estado.lista.forEach(function (o) { o.marcada = !todas; });
+    desenharLista();
+  });
+
+  // ---------- processamento ----------
+  function textoResultado(r) {
+    var partes = [r.preenchidos + " parecer(es) escritos"];
+    if (r.validados.length) partes.push(r.validados.length + " validados mantidos");
+    if (r.refeitos) partes.push(r.refeitos + " refeito(s) no GPT-4.1");
+    partes.push("síntese " + (r.sintese.gerada ? (r.sintese.refeita ? "ok (refeita)" : "ok") : "não gerada"));
+    if (r.revisar.length) partes.push("REVISAR " + r.revisar.map(function (x) { return "#" + x.tid; }).join(", "));
+    if (r.sintese.motivos.length) partes.push("síntese: " + r.sintese.motivos.join("; "));
+    partes.push(r.gravado === null ? "não gravou (teste)" : (r.gravado ? "gravado na ATA" : "ATA NÃO CONFIRMOU"));
+    return partes.join(" | ");
+  }
+
+  async function processarUma(i, ano, mes, gravar) {
+    var o = estado.lista[i];
+    marcar(i, "rodando", "abrindo os dados da OS...");
+    var q = null;
+    try {
+      var url = await lerUrlOS(o.code, ano, mes);
+      q = await abrirNoQuadro(url);
+      var r = await q.win.processarOSAtual({ gravar: gravar, onStatus: function (t) { var e2 = el("res_" + i); if (e2) e2.textContent = t + "..."; } });
+      var precisaRevisar = r.revisar.length > 0 || r.sintese.motivos.length > 0 || !r.sintese.gerada;
+      var falhouGravar = gravar && r.gravado === false;
+      marcar(i, falhouGravar ? "erro" : (precisaRevisar ? "revisar" : "ok"), textoResultado(r));
+      log("OS " + o.code + ": " + textoResultado(r));
+    } catch (e) {
+      marcar(i, "erro", String(e && e.message ? e.message : e));
+      log("OS " + o.code + ": ERRO - " + (e && e.message ? e.message : e));
+    }
+    if (q) fecharQuadro(q);
+  }
+
+  el("btnIniciar").addEventListener("click", async function () {
+    if (estado.rodando) return;
+    var ano = parseInt(el("ano").value, 10), mes = parseInt(el("mes").value, 10);
+    var gravar = !el("soTestar").checked, refazer = el("refazer").checked;
+    var fila = [];
+    estado.lista.forEach(function (o, i) {
+      var r = estado.resultados[o.code];
+      if (o.marcada && (refazer || !r || r.estado === "pendente" || r.estado === "erro" || r.estado === "rodando")) fila.push(i);
+    });
+    if (!fila.length) return log("Nenhuma OS para processar (marque as OSs ou use 'Refazer as já concluídas').");
+    if (lerK("npe_flow_gerar_texto_mini_url").indexOf("https://") !== 0) return log("Configure a URL do fluxo NPE-Gerar-Texto-Mini antes de começar.");
+    if (gravar && !window.confirm("Gravar na ATA os pareceres e a síntese de " + fila.length + " OS(s) de " + mes + "/" + ano +
+        "?\n\nO texto de cada indicador não validado será SUBSTITUÍDO. Mês fechado não deve ser processado.")) return;
+    estado.rodando = true; estado.parar = false;
+    el("btnIniciar").disabled = true; el("btnParar").disabled = false; el("btnCarregar").disabled = true;
+    log((gravar ? "GRAVANDO" : "TESTE (sem gravar)") + " - " + fila.length + " OS(s) na fila.");
+    for (var k = 0; k < fila.length; k++) {
+      if (estado.parar) { log("Parado pelo usuário."); break; }
+      await processarUma(fila[k], ano, mes, gravar);
+      await espera(800);
+    }
+    estado.rodando = false;
+    el("btnIniciar").disabled = false; el("btnParar").disabled = true; el("btnCarregar").disabled = false;
+    log("Fim da fila.");
+  });
+  el("btnParar").addEventListener("click", function () { estado.parar = true; log("Parando depois da OS em andamento..."); });
+
+  window.addEventListener("beforeunload", function (ev) { if (estado.rodando) { ev.preventDefault(); ev.returnValue = ""; } });
+
+  // ---------- inicio ----------
+  var hoje = new Date();
+  el("ano").value = hoje.getFullYear();
+  el("mes").value = String(hoje.getMonth() + 1);
+  desenharCfg();
+})();
+</script>
+</body>
+</html>

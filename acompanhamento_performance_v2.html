@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-07 20:26";
+    window.NPE_BUILD = "2026-10-07 20:31";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url"];
@@ -8040,7 +8040,7 @@ function hydrateFromPowerBI() {
     }
 
     // Confere a Sintese do mes: devolve a lista de motivos (vazia = pode usar).
-    function conferirSintese(texto) {
+    function conferirSintese(texto, totalIndicadores) {
       var t = String(texto || "").trim();
       var motivos = [];
       if (t.length < 80) motivos.push("vazia ou curta demais");
@@ -8048,6 +8048,8 @@ function hydrateFromPowerBI() {
       if (/[\[\]]/.test(t)) motivos.push("tem colchetes");
       if (/^\s*#{1,6}\s/m.test(t) || /^\s*\|.*\|\s*$/m.test(t)) motivos.push("formato fora do padrão (cabeçalho/tabela)");
       if (!/[0-9]/.test(t)) motivos.push("sem nenhum número");
+      var mDemais = /demais\s+(\d+)\s+indicadores/i.exec(t);
+      if (mDemais && totalIndicadores && parseInt(mDemais[1], 10) > totalIndicadores) motivos.push("cita mais indicadores do que existem");
       return motivos;
     }
 
@@ -8078,11 +8080,11 @@ function hydrateFromPowerBI() {
       var sint = construirPromptSintese(activeOS, monthNum, monthName);
       if (sint.comParecer) {
         var texto = await chamarGerarTexto("mini", sint.texto); chamadas++;
-        motivosSintese = conferirSintese(texto);
+        motivosSintese = conferirSintese(texto, sint.comParecer);
         if (motivosSintese.length) {
           texto = await chamarGerarTexto("gpt41", sint.texto); chamadas++;
           sinteseRefeita = true;
-          motivosSintese = conferirSintese(texto);
+          motivosSintese = conferirSintese(texto, sint.comParecer);
         }
         var fEl = document.getElementById("finalPerformanceComment");
         if (fEl && String(texto || "").trim()) {
