@@ -995,7 +995,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-09-18 11:40";
+    window.NPE_BUILD = "2026-10-07 17:10";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -8774,6 +8774,35 @@ function hydrateFromPowerBI() {
       return Object.keys(s).map(Number).filter(function(a) { return !!a; }).sort();
     }
 
+    // O NPE-Ler-Metas usa "Contagem Superior" fixa em cada Obter itens e devolve 200 OK mesmo
+    // cortando a lista (07/10/2026: PARAM_ELEGIBILIDADE tinha 1.315 itens e o app recebia 500,
+    // sem erro nenhum). Lista que volta com exatamente um teto conhecido é tratada como
+    // possivelmente cortada. Tetos: desempenho 5000, boaspraticas 500, parametros 500 (o 5000
+    // vale para depois que o fluxo for ajustado).
+    var METAS_TETOS_FLUXO = { desempenho: [5000], boaspraticas: [500], parametros: [500, 5000] };
+    function metasListasCortadas() {
+      return Object.keys(METAS_TETOS_FLUXO).filter(function(k) {
+        var n = (window.METAS_DB[k] || []).length;
+        return METAS_TETOS_FLUXO[k].indexOf(n) !== -1;
+      });
+    }
+    function avisarMetasCortadas() {
+      var cortadas = metasListasCortadas();
+      var el = document.getElementById("metasCortadasBanner");
+      if (!cortadas.length) { if (el) el.style.display = "none"; return; }
+      console.warn("Metas: lista(s) com exatamente o teto do fluxo, possivelmente cortada(s):", cortadas.join(", "));
+      if (!window.isMaster) return;
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "metasCortadasBanner";
+        el.style.cssText = "background:#fef3c7; color:#92400e; border:2px solid #f59e0b; border-radius:8px; margin:8px 12px; padding:10px 14px; font-size:0.9rem; font-weight:700;";
+        document.body.insertBefore(el, document.body.firstChild.nextSibling || null);
+      }
+      el.style.display = "block";
+      el.textContent = "⚠️ O fluxo NPE-Ler-Metas devolveu exatamente o limite de itens em: " + cortadas.join(", ") +
+        ". A lista no SharePoint pode ter mais itens do que o app está vendo (parâmetros, responsáveis e grupos recentes podem faltar, e salvar pode duplicar). Aumente a \"Contagem Superior\" da ação correspondente no fluxo.";
+    }
+
     async function carregarMetasDoFluxo() {
       var url = window.FLOW_LER_METAS_URL;
       if (!url) return;
@@ -8785,6 +8814,7 @@ function hydrateFromPowerBI() {
         window.METAS_DB.boaspraticas = Array.isArray(data.boaspraticas) ? data.boaspraticas : [];
         window.METAS_DB.parametros   = Array.isArray(data.parametros)   ? data.parametros   : [];
         window.METAS_DB.carregado = true;
+        avisarMetasCortadas();
         aplicarMetasNoCalculo();
         var activeTab = safeGetStorage('pbi_active_tab', 'tabMensal');
         if (activeTab === 'tabMensal' && typeof renderRows === 'function') renderRows();
