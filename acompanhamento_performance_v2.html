@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-07 19:46";
+    window.NPE_BUILD = "2026-10-07 19:57";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url"];
@@ -7765,6 +7765,11 @@ function hydrateFromPowerBI() {
       var linhas = corpo.split(quebra);
       if (linhas.length && reLinhaValores.test(linhas[0])) linhas.shift();
       corpo = linhas.join(quebra).trim();
+      var det = String(it.detalhe || "").trim();
+      if (det && corpo.toLowerCase().indexOf(det.toLowerCase()) === 0) {
+        corpo = corpo.slice(det.length).replace(/^[\s.,;:\-]+/, "");
+        if (corpo) corpo = corpo.charAt(0).toUpperCase() + corpo.slice(1);
+      }
       return primeiraLinhaParecer(it) + (corpo ? quebra + corpo : "");
     }
 
@@ -7912,7 +7917,7 @@ function hydrateFromPowerBI() {
       var linhasT = t.split(String.fromCharCode(10)).filter(function(x) { return x.trim(); });
       if (linhasT.length > 7) motivos.push("longo demais");
       if (!it || it.livre) return motivos;
-      if (/melhor|pior|recupera|queda/i.test(t) && !/[0-9]/.test(t)) motivos.push("afirma melhora/piora sem número");
+      if (/\b(melhorou|piorou|melhora|piora|queda)\b|\brecuper/i.test(t) && !/[0-9]/.test(t)) motivos.push("afirma melhora/piora sem número");
       var det = String(it.detalhe || "");
       if (/Aderente/.test(det) && /pendente|ainda n[ãa]o avaliad/i.test(t)) motivos.push("diz que a apuração está pendente, mas já foi marcada");
       if (/casos|ocorr/i.test(det) && /n[ãa]o (foi )?apurad|sem apuração/i.test(t)) motivos.push("nega um valor que existe");
