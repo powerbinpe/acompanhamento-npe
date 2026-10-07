@@ -245,6 +245,10 @@
         📋 1 &middot; Gerar Pareceres
       </button>
 
+      <button type="button" id="btnGerarPareceresIA" data-action="gerarPareceresComIA" title="Gera os pareceres desta OS e mês com a IA corporativa (AI Builder) e preenche as caixas. Nada é gravado na ATA até você clicar em Salvar Comentários." style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:9px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; align-items:center; gap:6px;">
+        &#129302; Gerar com IA
+      </button>
+
       <button type="button" id="btnImportarPareceres" data-action="abrirImportaLote" data-arg="PARECER" title="Passo 2: cole aqui a resposta da IA e o app distribui cada parecer na caixa do seu indicador." style="display:none; background:linear-gradient(135deg,#059669,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
         &#128229; 2 &middot; Importar Pareceres
       </button>
@@ -995,7 +999,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-07 18:25";
+    window.NPE_BUILD = "2026-10-07 19:55";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1385,7 +1389,7 @@ function hydrateFromPowerBI() {
     // Botoes que so o Setor de Performance usa. Exportar pareceres alimenta a analise da
     // Performance, entao acompanha o Cadastro de Metas: sem sessao, nem aparecem.
     var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas", "btnCopyMonthPareceres", "btnCopyPareceresPerf",
-                                    "btnImportarPareceres", "btnImportarResumos",
+                                    "btnImportarPareceres", "btnGerarPareceresIA", "btnImportarResumos",
                                     "btnCopyAllForAI", "btnCopyLicoes", "btnGravarNotasAno",
                                     "btnCongelarSnapshot", "btnArmarRegravacao"];
     function aplicarVisibilidadeMaster(liberado) {
@@ -2166,6 +2170,8 @@ function hydrateFromPowerBI() {
       if (btnCopyMonthPareceresEl) btnCopyMonthPareceresEl.style.display = (tabId === 'tabMensal') ? "inline-flex" : "none";
       var btnCopyPareceresPerfEl = document.getElementById("btnCopyPareceresPerf");
       if (btnCopyPareceresPerfEl) btnCopyPareceresPerfEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
+      var btnGerarIAEl = document.getElementById("btnGerarPareceresIA");
+      if (btnGerarIAEl) btnGerarIAEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
       var btnImportarEl = document.getElementById("btnImportarPareceres");
       if (btnImportarEl) btnImportarEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
 
@@ -7074,6 +7080,8 @@ function hydrateFromPowerBI() {
         congelarSnapshot();
       } else if (acao === "gravarNotasDoAno") {
         gravarNotasDoAno();
+      } else if (acao === "gerarPareceresComIA") {
+        gerarPareceresComIA();
       } else if (acao === "openCopyMonthPareceresModal") {
         openCopyMonthPareceresModal();
       } else if (acao === "openCopyPareceresPerfModal") {
@@ -7751,34 +7759,14 @@ function hydrateFromPowerBI() {
       return primeiraLinhaParecer(it) + (corpo ? quebra + corpo : "");
     }
 
-    async function openCopyMonthPareceresModal() {
-      if (!window.isMaster) {
-        showToast("⚠️ Apenas usuários Máster podem exportar os pareceres.");
-        return;
-      }
-      var currentParams = new URLSearchParams(window.location.search);
-      var rawOS = currentParams.get("SelectedOS") || "";
-      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
-      var activeOS = extractPrimaryOSCode(rawOS);
-      if (isMultiOS || !activeOS) {
-        showToast("⚠️ Selecione uma OS específica no Power BI para exportar os pareceres.");
-        return;
-      }
-      var monthNum = getMonthNumberFromParams(currentParams);
-      var monthName = currentParams.get("SelectedMes") || "";
-
-      // Sem esperar a ATA, as caixas do Gestor ainda estao vazias e o texto sai dizendo
-      // "(sem justificativa)" em indicador que TEM justificativa gravada -- a IA entao
-      // escreve cobranca por cima de texto que existe.
-      if (!window.HISTORICO_PRONTO) {
-        showToast("\u23f3 Lendo as justificativas do Gestor...");
-        try { await historicoCarregado(); } catch (e) {}
-      }
-
+    // Monta o prompt dos pareceres de UMA OS/mes. soTids (opcional) limita os indicadores -- usado para refazer so os blocos
+    // que a conferencia reprovou. Devolve o texto e a base (valor/situacao/tendencia) que o codigo usa na primeira linha.
+    function construirPromptPareceres(activeOS, monthNum, monthName, soTids) {
       // Valor, situacao e tendencia de cada indicador vem de coletarBaseParecer(), a mesma
       // base que o importador usa para escrever a primeira linha do parecer.
       var base = coletarBaseParecer(activeOS, monthNum);
       var contract = base.contract, monthData = base.monthData, sc = base.sc;
+      var itensSel = soTids ? base.itens.filter(function(i) { return soTids.indexOf(i.tid) !== -1; }) : base.itens;
 
       var lines = [];
       lines.push("PARECERES DO SETOR DE PERFORMANCE -- OS " + activeOS + " -- " + (monthName || ("Mês " + monthNum)) + "/2026");
@@ -7793,7 +7781,7 @@ function hydrateFromPowerBI() {
                  " \u2014 use SOMENTE os valores deste texto. Se voc\u00ea tem outra apura\u00e7\u00e3o na mem\u00f3ria desta conversa, IGNORE-A: ela \u00e9 de outra OS ou de outro m\u00eas.");
       lines.push("");
 
-      base.itens.forEach(function(it) {
+      itensSel.forEach(function(it) {
         lines.push(it.cabecalho);
         if (it.detalhe) lines.push("Valor apurado: " + it.detalhe);
         if (it.situacao) lines.push("Situação no mês: " + it.situacao);
@@ -7886,11 +7874,11 @@ function hydrateFromPowerBI() {
       lines.push("Exatamente assim, para TODOS os indicadores da lista acima, sem pular nenhum:");
       // Esqueleto completo: um cabecalho por topico. Sem ele o modelo barato respondeu so 11 dos 25 blocos
       // (07/10/2026) -- pulava os que "nao tinham o que analisar". O codigo lista todos.
-      base.itens.forEach(function(it) {
+      itensSel.forEach(function(it) {
         lines.push("  ### #" + it.tid);
         lines.push("  <análise e recomendação, até 4 linhas>");
       });
-      lines.push("A resposta tem de ter exatamente " + base.itens.length + " blocos, um para cada \"### #N\" acima, na mesma ordem. Nunca omita um bloco: se não há o que analisar, escreva em uma linha que não há e por quê.");
+      lines.push("A resposta tem de ter exatamente " + itensSel.length + " blocos, um para cada \"### #N\" acima, na mesma ordem. Nunca omita um bloco: se não há o que analisar, escreva em uma linha que não há e por quê.");
       lines.push("");
       lines.push('NÃO use rótulos na resposta -- nada de "Apurado:" nem "Parecer:". O campo de destino JÁ se chama Parecer do Setor de Performance, e escrever "Parecer:" dentro dele é repetir o nome da caixa. NÃO escreva a linha de valores (valor apurado | Mês | Tendência): o aplicativo a escreve sozinho antes da sua análise.');
       lines.push("Não numere parágrafos dentro do parecer e não escreva nada antes do primeiro \"### #\".");
@@ -7898,9 +7886,162 @@ function hydrateFromPowerBI() {
 
       function sep2() { var s = ""; for (var i = 0; i < 50; i++) s += "-"; return s; }
 
+      return { texto: lines.join(String.fromCharCode(10)), base: base };
+    }
+
+
+    // ---- conferencia dos pareceres gerados pela IA ------------------------------------
+    // Devolve a lista de motivos pelos quais a ANALISE (sem a primeira linha, que e do codigo)
+    // deve ser refeita. Lista vazia = aprovado. So checa o que da para checar com certeza.
+    function conferirParecer(it, analise) {
+      var motivos = [];
+      var t = String(analise || "").trim();
+      if (t.length < 25) { motivos.push("vazio ou curto demais"); return motivos; }
+      if (/[\[\]]/.test(t)) motivos.push("tem colchetes");
+      if (/^(Apurado|Parecer)\s*:/mi.test(t)) motivos.push("tem rótulo proibido");
+      if (/^\s*#{1,6}\s/m.test(t) || /^\s*\|.*\|\s*$/m.test(t)) motivos.push("formato fora do padrão (cabeçalho/tabela)");
+      var linhasT = t.split(String.fromCharCode(10)).filter(function(x) { return x.trim(); });
+      if (linhasT.length > 7) motivos.push("longo demais");
+      if (!it || it.livre) return motivos;
+      if (/melhor|pior|recupera|queda/i.test(t) && !/[0-9]/.test(t)) motivos.push("afirma melhora/piora sem número");
+      var det = String(it.detalhe || "");
+      if (/Aderente/.test(det) && /pendente|ainda n[ãa]o avaliad/i.test(t)) motivos.push("diz que a apuração está pendente, mas já foi marcada");
+      if (/casos|ocorr/i.test(det) && /n[ãa]o (foi )?apurad|sem apuração/i.test(t)) motivos.push("nega um valor que existe");
+      if (it.gestor === "(sem justificativa)" && !/justificativ/i.test(t)) motivos.push("não cobra a justificativa ausente");
+      return motivos;
+    }
+
+    // Chama o fluxo NPE-Gerar-Texto-<modelo> (AI Builder). A URL de cada fluxo NAO vai no codigo
+    // (repositorio publico): fica guardada no navegador do Master.
+    async function chamarGerarTexto(modelo, prompt) {
+      var chave = (modelo === "gpt41") ? "npe_flow_gerar_texto_gpt41_url" : "npe_flow_gerar_texto_mini_url";
+      var url = safeGetStorage(chave, "");
+      if (String(url).indexOf("http") !== 0) throw new Error("A URL do fluxo de IA (" + modelo + ") ainda não foi configurada neste navegador.");
+      var resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instrucao: prompt }) });
+      if (!resp.ok) throw new Error("O fluxo de IA respondeu " + resp.status + ".");
+      var j = await resp.json();
+      if (!j || typeof j.texto !== "string" || !j.texto.trim()) throw new Error("O fluxo de IA devolveu texto vazio.");
+      return j.texto;
+    }
+
+    // Gera, confere e (se preciso) refaz os pareceres de UMA OS/mes. Nao grava nada: devolve os
+    // textos prontos (primeira linha do codigo + analise) e a lista do que precisa de revisao.
+    async function gerarPareceresOS(activeOS, monthNum, monthName) {
+      var r = construirPromptPareceres(activeOS, monthNum, monthName);
+      var base = r.base;
+      var tids = base.itens.map(function(i) { return i.tid; });
+      var analises = {}, motivos = {};
+      var chamadas = 0, refeitos = 0;
+
+      async function rodar(modelo, soTids) {
+        var prompt = soTids ? construirPromptPareceres(activeOS, monthNum, monthName, soTids).texto : r.texto;
+        var texto = await chamarGerarTexto(modelo, prompt);
+        chamadas++;
+        var achados = separarPorIndicador(texto);
+        Object.keys(achados).forEach(function(k) {
+          var tid = parseInt(k, 10);
+          if (!soTids || soTids.indexOf(tid) !== -1) analises[tid] = achados[k];
+        });
+      }
+      function reprovados() {
+        return tids.filter(function(tid) {
+          var m = analises[tid] ? conferirParecer(base.porTid[tid], analises[tid]) : ["bloco ausente na resposta"];
+          motivos[tid] = m;
+          return m.length > 0;
+        });
+      }
+
+      await rodar("mini");
+      var falhas = reprovados();
+      if (falhas.length) {
+        refeitos = falhas.length;
+        await rodar("gpt41", falhas);
+        falhas = reprovados();
+      }
+      var textos = {};
+      tids.forEach(function(tid) {
+        if (analises[tid]) textos[tid] = montarParecerCompleto(tid, analises[tid], base);
+      });
+      return { textos: textos, revisar: falhas.map(function(tid) { return { tid: tid, motivos: motivos[tid] }; }), chamadas: chamadas, refeitos: refeitos };
+    }
+
+    // Botao "Gerar com IA" da Aba 1: gera os pareceres da OS/mes selecionados e preenche as caixas.
+    // Nada vai para a ATA aqui -- o Salvar Comentarios continua sendo o passo que grava.
+    async function gerarPareceresComIA() {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster podem gerar pareceres."); return; }
+      var pp = new URLSearchParams(window.location.search);
+      var rawOS = pp.get("SelectedOS") || "";
+      var activeOS = extractPrimaryOSCode(rawOS);
+      if (!activeOS || rawOS === "TODAS_OS" || rawOS === "TODAS") { showToast("\u26a0\ufe0f Selecione uma OS específica no Power BI."); return; }
+      var monthNum = getMonthNumberFromParams(pp);
+      var monthName = pp.get("SelectedMes") || "";
+      if (!window.HISTORICO_PRONTO) {
+        showToast("\u23f3 Lendo as justificativas do Gestor...");
+        try { await historicoCarregado(); } catch (e) {}
+      }
+      var segue = await confirmarNaPagina(
+        "\ud83e\udd16 Gerar pareceres com IA",
+        "OS <b>" + activeOS + "</b> \u2022 <b>" + (monthName || monthNum) + "</b>.\n\n" +
+        "O texto atual das caixas do <b>Parecer da Performance</b> será <b>substituído</b> (exceto indicadores já validados). " +
+        "Nada é gravado na ATA até você clicar em Salvar Comentários.",
+        "Gerar");
+      if (!segue) return;
+      showToast("\u23f3 Gerando os pareceres com IA... (alguns segundos)");
+      try {
+        var res = await gerarPareceresOS(activeOS, monthNum, monthName);
+        var preenchidos = 0, validados = [];
+        Object.keys(res.textos).forEach(function(k) {
+          var tid = parseInt(k, 10);
+          var st = safeGetStorage("status_" + activeOS + "_m" + monthNum + "_" + tid, "");
+          if (st === "Validado" || st === "Homologado") { validados.push("#" + tid); return; }
+          var el = document.getElementById("master_" + tid);
+          if (!el) return;
+          el.value = res.textos[k];
+          if (typeof handleCommentInput === "function") handleCommentInput(tid, "MASTER", el.value);
+          preenchidos++;
+        });
+        var msg = "\u2705 " + preenchidos + " parecer(es) preenchido(s)";
+        if (res.refeitos) msg += " \u2022 " + res.refeitos + " refeito(s) no modelo avançado";
+        if (validados.length) msg += " \u2022 validados, não alterados: " + validados.join(", ");
+        if (res.revisar.length) msg += " \u2022 REVISAR: " + res.revisar.map(function(x) { return "#" + x.tid; }).join(", ");
+        msg += ". Clique em Salvar Comentários para gravar.";
+        showToast(msg);
+        try { console.log("Gerar com IA -- revisar:", JSON.stringify(res.revisar)); } catch (e2) {}
+      } catch (err) {
+        showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao gerar os pareceres."));
+      }
+    }
+    window.gerarPareceresComIA = gerarPareceresComIA;
+
+
+    async function openCopyMonthPareceresModal() {
+      if (!window.isMaster) {
+        showToast("⚠️ Apenas usuários Máster podem exportar os pareceres.");
+        return;
+      }
+      var currentParams = new URLSearchParams(window.location.search);
+      var rawOS = currentParams.get("SelectedOS") || "";
+      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
+      var activeOS = extractPrimaryOSCode(rawOS);
+      if (isMultiOS || !activeOS) {
+        showToast("⚠️ Selecione uma OS específica no Power BI para exportar os pareceres.");
+        return;
+      }
+      var monthNum = getMonthNumberFromParams(currentParams);
+      var monthName = currentParams.get("SelectedMes") || "";
+
+      // Sem esperar a ATA, as caixas do Gestor ainda estao vazias e o texto sai dizendo
+      // "(sem justificativa)" em indicador que TEM justificativa gravada -- a IA entao
+      // escreve cobranca por cima de texto que existe.
+      if (!window.HISTORICO_PRONTO) {
+        showToast("\u23f3 Lendo as justificativas do Gestor...");
+        try { await historicoCarregado(); } catch (e) {}
+      }
+
+      var r = construirPromptPareceres(activeOS, monthNum, monthName);
       mostrarCaixaCopia("OS " + activeOS + " • " + (monthName || monthNum) +
         "/2026 • Indicadores e justificativas do Gestor. O resultado volta no Parecer de cada indicador.",
-        lines.join("\n"));
+        r.texto);
     }
 
 
