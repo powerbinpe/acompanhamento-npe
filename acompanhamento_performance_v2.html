@@ -995,7 +995,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-07 18:10";
+    window.NPE_BUILD = "2026-10-07 18:25";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -7884,10 +7884,13 @@ function hydrateFromPowerBI() {
       lines.push("FORMATO DA RESPOSTA (obrigatório -- o app importa por ele)");
       lines.push("NUNCA use tabela (nem em markdown, nem em HTML), slide, planilha, bullet points soltos ou qualquer outro formato -- só o texto corrido no padrão \"### #N\" abaixo, para todos os indicadores, sem exceção. Quem lê sua resposta é o app, não uma pessoa, e ele só sabe importar esse padrão -- qualquer outro formato quebra a importação e apaga os pareceres já existentes. NÃO pergunte se prefiro outro formato nem ofereça essa alternativa: devolva direto os blocos, sem nenhum texto antes ou depois deles.");
       lines.push("Exatamente assim, para TODOS os indicadores da lista acima, sem pular nenhum:");
-      lines.push("  ### #1");
-      lines.push("  <análise e recomendação, até 4 linhas>");
-      lines.push("  ### #2");
-      lines.push("  <análise>");
+      // Esqueleto completo: um cabecalho por topico. Sem ele o modelo barato respondeu so 11 dos 25 blocos
+      // (07/10/2026) -- pulava os que "nao tinham o que analisar". O codigo lista todos.
+      base.itens.forEach(function(it) {
+        lines.push("  ### #" + it.tid);
+        lines.push("  <análise e recomendação, até 4 linhas>");
+      });
+      lines.push("A resposta tem de ter exatamente " + base.itens.length + " blocos, um para cada \"### #N\" acima, na mesma ordem. Nunca omita um bloco: se não há o que analisar, escreva em uma linha que não há e por quê.");
       lines.push("");
       lines.push('NÃO use rótulos na resposta -- nada de "Apurado:" nem "Parecer:". O campo de destino JÁ se chama Parecer do Setor de Performance, e escrever "Parecer:" dentro dele é repetir o nome da caixa. NÃO escreva a linha de valores (valor apurado | Mês | Tendência): o aplicativo a escreve sozinho antes da sua análise.');
       lines.push("Não numere parágrafos dentro do parecer e não escreva nada antes do primeiro \"### #\".");
