@@ -57,6 +57,14 @@
   .tag { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
   .t-ok { background:#E6F6F3; color:#0B7D6F; } .t-nok { background:#FDECEC; color:#C0343A; } .t-nao { background:#F1E9FB; color:#6B3FC4; }
   .t-prog { background:#E8F0FC; color:#1F5FB8; } .t-enc { background:#EEF1F6; color:#475569; } .t-sem { background:#FFF4E0; color:#B26A00; }
+  .visao { display:flex; gap:0; }
+  .visao .btn { border-radius:0; background:#E2E8F0; color:#334155; }
+  .visao .btn:first-child { border-radius:8px 0 0 8px; } .visao .btn:last-child { border-radius:0 8px 8px 0; }
+  .visao .btn.ativo { background:linear-gradient(135deg, var(--navy2), var(--navy)); color:#fff; }
+  tr.grp td { cursor:pointer; font-weight:700; color:var(--navy); border-bottom:1px solid #D5DEF0; }
+  tr.g1 td { background:#E4EBF8 !important; } tr.g2 td { background:#EEF3FC !important; } tr.g3 td { background:#F6F8FD !important; }
+  .seta { display:inline-block; width:14px; color:var(--muted); }
+  .tot { font-weight:600; color:#334155; }
   .rodape { color:var(--muted); font-size:11.5px; margin-top:10px; line-height:1.5; }
   #toast { position:fixed; right:18px; bottom:18px; background:var(--navy); color:#fff; padding:10px 16px; border-radius:10px; display:none; }
 </style>
@@ -78,17 +86,22 @@
 
 <div id="app">
   <div class="top">
+    <div class="visao"><button class="btn" id="vTot" onclick="mudarVisao('TOTAL')">VISÃO TOTAL</button><button class="btn" id="vOs" onclick="mudarVisao('OS')">SOMENTE POR OS</button></div>
     <div class="quem" id="quem"></div>
+    <div class="quem" id="fonte" style="font-weight:600"></div>
+    <button class="btn sec" onclick="adicionar()">+ OS fora da regra</button>
+    <button class="btn pri" id="btnSalvar" onclick="salvar()">💾 Salvar alterações</button>
     <button class="btn sec" onclick="sair()">Sair</button>
   </div>
   <div class="kg" id="kpis"></div>
   <div class="card barra">
     <div><label>MÊS DE REFERÊNCIA</label><div class="dd" id="ddMes"></div></div>
+    <div><label>SUPERINTENDENTE</label><div class="dd" id="ddSup"></div></div>
+    <div><label>GESTOR REGIONAL</label><div class="dd" id="ddGr"></div></div>
+    <div><label>GESTOR DA OS</label><div class="dd" id="ddGos"></div></div>
     <div class="grow"><label>BUSCAR OS</label><input type="text" id="fBusca" placeholder="código ou descrição" oninput="render()"></div>
     <div><label>NEGÓCIO</label><div class="dd" id="ddNeg"></div></div>
     <div><label>SITUAÇÃO NO MÊS</label><div class="dd" id="ddSit"></div></div>
-    <div><label>&nbsp;</label><button class="btn sec" onclick="adicionar()">+ OS fora da regra</button></div>
-    <div><label>&nbsp;</label><button class="btn pri" id="btnSalvar" onclick="salvar()">💾 Salvar alterações</button></div>
   </div>
   <div class="card tabela">
     <table>
@@ -106,10 +119,12 @@
 var FLOW_LOGIN_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/bcf1295963df418f91a48dd71ea02e60/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VfbYQC2H12f_6GZCSMmrctJBKF1B8ns4TalVByCO688";
 var FLOW_GRAVAR_PARAM_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/017d29a73ac64c64a99d1876e0c75add/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nTziWux6_lh6cIcY7dHHkkWoM6-oOA770twzP0NZicQ";
 var TIPO = "RI_OS";
+var FLOW_LER_ELEG_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/d5195fb490bf4777ac9b410d1e1f7696/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=9lDluCfyjQooPJ1lQ8dyEkhOwIbmkPOm2Uz2pNu4taU";   // NPE-Ler-Elegibilidade: lista PARAM_ELEGIBILIDADE, só RI_OS, ao vivo
 var sessao = null;          // só em memória: dentro do Power BI não há armazenamento
 var linhas = [];            // {os, desc, neg, est, set, regra, id, ini, fim, nao, motivo, meses:[aaaamm], sujo}
 var geradoEm = "";
-var filtro = { mes: "", neg: "", sit: "" };
+var filtro = { mes: "", neg: "", sit: "", sup: "", gr: "", gos: "", visao: "TOTAL" };
+var fechados = {};   // grupos recolhidos na visão total
 var MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
 // ---- dados vindos do modelo (fragmento da URL: não vai para servidor nenhum) --------------------
@@ -125,7 +140,8 @@ function lerModelo() {
     var mot = c[10] || ""; try { mot = decodeURIComponent(mot); } catch (e) {}   // o motivo vem codificado da lista
     out.push({ os: c[0], desc: c[1] || "", neg: c[2] || "", est: c[3] || "", set: c[4] || "", regra: c[5] || "",
                id: parseInt(c[6], 10) || 0, ini: c[7] || "", fim: c[8] || "", nao: c[9] === "SIM", motivo: mot,
-               meses: (c[11] || "").split(".").filter(function (m) { return /^\d{6}$/.test(m); }) });
+               meses: (c[11] || "").split(".").filter(function (m) { return /^\d{6}$/.test(m); }),
+               sup: c[12] || "", gr: c[13] || "", gos: c[14] || "" });
   });
   return out;
 }
@@ -220,6 +236,50 @@ function montarDD(id, opcoes, valor, aoEscolher) {
 function fecharDDs() { Array.prototype.forEach.call(document.querySelectorAll(".dd.aberto"), function (d) { d.classList.remove("aberto"); }); }
 document.addEventListener("click", fecharDDs);
 
+// ---- lista ao vivo: o que está gravado AGORA na PARAM_ELEGIBILIDADE (vale o registro mais recente de cada OS, como no modelo) ----
+var fonte = { aoVivo: false, quando: "" };
+async function sincronizarLista() {
+  try {
+    var r = await fetch(FLOW_LER_ELEG_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    if (!r.ok) throw new Error(r.status);
+    var j = await r.json();
+    var ult = {};
+    (Array.isArray(j.parametros) ? j.parametros : []).forEach(function (p) {
+      if (String(p.tipo || "") !== TIPO) return;
+      var c = String(p.valor || "").split("|"), os = (c[0] || "").toUpperCase().trim(), id = parseInt(p.id, 10) || 0;
+      if (!os) return;
+      if (!ult[os] || id > ult[os].id) ult[os] = { id: id, c: c };
+    });
+    Object.keys(ult).forEach(function (os) {
+      var u = ult[os], c = u.c, mot = c[4] || "";
+      try { mot = decodeURIComponent(mot); } catch (e) {}
+      var reg = { id: u.id, ini: c[1] || "", fim: c[2] || "", nao: c[3] === "NAO", motivo: c[3] === "NAO" ? mot : "" };
+      var l = linhas.find(function (x) { return x.os === os; });
+      if (!l) {
+        linhas.push(Object.assign({ os: os, desc: "(nova · a descrição aparece após a atualização do painel)", neg: "", est: "", set: "",
+                                    regra: "NÃO", meses: [], sup: "", gr: "", gos: "", sujo: false }, reg));
+      } else if (!l.sujo) {
+        Object.assign(l, reg);
+      } else {
+        l.id = reg.id;   // alteração ainda não salva: mantém o que foi digitado, só aprende o ID para não duplicar
+      }
+    });
+    linhas.sort(function (a, b) { return a.os < b.os ? -1 : 1; });
+    fonte = { aoVivo: true, quando: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) };
+  } catch (e) {
+    fonte = { aoVivo: false, quando: "" };
+  }
+  mostrarFonte();
+}
+function mostrarFonte() {
+  var el = document.getElementById("fonte");
+  if (!el) return;
+  el.textContent = fonte.aoVivo ? "● lista ao vivo · " + fonte.quando : "● dados da última atualização do painel";
+  el.style.color = fonte.aoVivo ? "#16A34A" : "#E5484D";
+  el.title = fonte.aoVivo ? "Mostrando o que está gravado agora na lista do SharePoint."
+                          : "Não foi possível ler a lista agora; mostrando o que o painel carregou na última atualização.";
+}
+
 // ---- tela ------------------------------------------------------------------------------------------
 function abrirApp() {
   // datas, IDs, não elegível e meses com medição vêm do próprio painel (última atualização)
@@ -231,53 +291,105 @@ function abrirApp() {
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("quem").textContent = "Master: " + sessao.nome;
-  montarFiltros(); render();
+  montarFiltros(); render(); mostrarFonte();
+  sincronizarLista().then(function () { montarFiltros(); render(); });
 }
 function montarFiltros() {
   var ms = mesesDisponiveis();
   if (ms.indexOf(filtro.mes) < 0) ms.unshift(filtro.mes);
   montarDD("ddMes", ms.map(function (m) { return [m, nomeMes(m)]; }), filtro.mes, function (v) { filtro.mes = v; montarFiltros(); render(); });
+  function opcoes(campo, cond) { var s = {}; linhas.forEach(function (l) { if (cond(l) && l[campo]) s[l[campo]] = 1; }); return [["", "Todos"]].concat(Object.keys(s).sort().map(function (v) { return [v, v]; })); }
+  montarDD("ddSup", opcoes("sup", function () { return true; }), filtro.sup, function (v) { filtro.sup = v; filtro.gr = ""; filtro.gos = ""; montarFiltros(); render(); });
+  montarDD("ddGr", opcoes("gr", function (l) { return !filtro.sup || l.sup === filtro.sup; }), filtro.gr, function (v) { filtro.gr = v; filtro.gos = ""; montarFiltros(); render(); });
+  montarDD("ddGos", opcoes("gos", function (l) { return (!filtro.sup || l.sup === filtro.sup) && (!filtro.gr || l.gr === filtro.gr); }), filtro.gos,
+           function (v) { filtro.gos = v; montarFiltros(); render(); });
   var negs = {}; linhas.forEach(function (l) { if (l.neg) negs[l.neg] = 1; });
   montarDD("ddNeg", [["", "Todos"]].concat(Object.keys(negs).sort().map(function (n) { return [n, n]; })), filtro.neg, function (v) { filtro.neg = v; montarFiltros(); render(); });
   montarDD("ddSit", [["", "Todas"]].concat(Object.keys(CLASSE).map(function (s) { return [s, s]; })), filtro.sit, function (v) { filtro.sit = v; montarFiltros(); render(); });
 }
 function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
-function render() {
-  var b = document.getElementById("fBusca").value.toUpperCase().trim();
-  var am = filtro.mes, html = [];
-  document.getElementById("thSit").textContent = "SITUAÇÃO EM " + nomeMes(am);
-  linhas.forEach(function (l, i) {
-    var sit = situacao(l, am);
-    if (b && (l.os + " " + l.desc).toUpperCase().indexOf(b) < 0) return;
-    if (filtro.neg && l.neg !== filtro.neg) return;
-    if (filtro.sit && sit !== filtro.sit) return;
-    var ult = l.meses.length ? nomeMes(l.meses[l.meses.length - 1]) : "—";
-    html.push("<tr class='" + (l.sujo ? "sujo" : "") + "'><td><b>" + esc(l.os) + "</b></td><td>" + esc(l.desc) + "</td><td>" + esc(l.neg) + "</td><td>" + esc(l.est) +
-      "</td><td>" + esc(l.set) + "</td>" +
-      "<td><input type='text' class='data' maxlength='10' placeholder='dd/mm/aaaa' value='" + isoParaBr(l.ini) + "' oninput='mascara(this)' onchange='mudarData(" + i + ",\"ini\",this)'></td>" +
-      "<td><input type='text' class='data' maxlength='10' placeholder='dd/mm/aaaa' value='" + isoParaBr(l.fim) + "' oninput='mascara(this)' onchange='mudarData(" + i + ",\"fim\",this)'></td>" +
-      "<td style='text-align:center'><input type='checkbox' " + (l.nao ? "" : "checked") + " onchange='mudar(" + i + ",\"nao\",!this.checked)'></td>" +
-      "<td><input type='text' class='mot' maxlength='120' placeholder='" + (l.nao ? "obrigatório" : "") + "' value='" + esc(l.motivo || "") + "' " + (l.nao ? "" : "disabled") +
-      " onchange='mudar(" + i + ",\"motivo\",this.value)'></td>" +
-      "<td>" + ult + "</td><td><span class='tag " + CLASSE[sit] + "'>" + sit + "</span></td></tr>");
+function visiveis() {
+  var b = document.getElementById("fBusca").value.toUpperCase().trim(), am = filtro.mes;
+  return linhas.map(function (l, i) { return { l: l, i: i, sit: situacao(l, am) }; }).filter(function (x) {
+    var l = x.l;
+    if (filtro.sup && l.sup !== filtro.sup) return false;
+    if (filtro.gr && l.gr !== filtro.gr) return false;
+    if (filtro.gos && l.gos !== filtro.gos) return false;
+    if (b && (l.os + " " + l.desc).toUpperCase().indexOf(b) < 0) return false;
+    if (filtro.neg && l.neg !== filtro.neg) return false;
+    if (filtro.sit && x.sit !== filtro.sit) return false;
+    return true;
   });
+}
+function totais(itens) {
+  var c = { os: itens.length, ok: 0, nok: 0, nao: 0 };
+  itens.forEach(function (x) { if (x.sit === "PREENCHEU") c.ok++; else if (x.sit === "NÃO PREENCHEU") c.nok++; else if (x.sit === "NÃO ELEGÍVEL") c.nao++; });
+  c.eleg = c.ok + c.nok; c.ades = c.eleg ? Math.round(100 * c.ok / c.eleg) + "%" : "—";
+  return c;
+}
+function linhaOS(x) {
+  var l = x.l, i = x.i, sit = x.sit;
+  var ult = l.meses.length ? nomeMes(l.meses[l.meses.length - 1]) : "—";
+  return "<tr class='" + (l.sujo ? "sujo" : "") + "'><td><b>" + esc(l.os) + "</b></td><td>" + esc(l.desc) + "</td><td>" + esc(l.neg) + "</td><td>" + esc(l.est) +
+    "</td><td>" + esc(l.set) + "</td>" +
+    "<td><input type='text' class='data' maxlength='10' placeholder='dd/mm/aaaa' value='" + isoParaBr(l.ini) + "' oninput='mascara(this)' onchange='mudarData(" + i + ",\"ini\",this)'></td>" +
+    "<td><input type='text' class='data' maxlength='10' placeholder='dd/mm/aaaa' value='" + isoParaBr(l.fim) + "' oninput='mascara(this)' onchange='mudarData(" + i + ",\"fim\",this)'></td>" +
+    "<td style='text-align:center'><input type='checkbox' " + (l.nao ? "" : "checked") + " onchange='mudar(" + i + ",\"nao\",!this.checked)'></td>" +
+    "<td><input type='text' class='mot' maxlength='120' placeholder='" + (l.nao ? "obrigatório" : "") + "' value='" + esc(l.motivo || "") + "' " + (l.nao ? "" : "disabled") +
+    " onchange='mudar(" + i + ",\"motivo\",this.value)'></td>" +
+    "<td>" + ult + "</td><td><span class='tag " + CLASSE[sit] + "'>" + sit + "</span></td></tr>";
+}
+function linhaGrupo(nivel, chave, rotulo, nome, itens) {
+  var c = totais(itens), aberto = !fechados[chave];
+  return "<tr class='grp g" + nivel + "' onclick='alternar(" + JSON.stringify(chave).replace(/'/g, "&#39;") + ")'><td colspan='11' style='padding-left:" + (10 + (nivel - 1) * 22) + "px'>" +
+    "<span class='seta'>" + (aberto ? "▾" : "▸") + "</span>" + rotulo + ": " + esc(nome || "(sem cadastro)") +
+    " <span class='tot'>· " + c.os + " OS · elegíveis " + c.eleg + " · preencheram " + c.ok + " · não preencheram " + c.nok + " · adesão " + c.ades +
+    (c.nao ? " · não elegíveis " + c.nao : "") + "</span></td></tr>";
+}
+function alternar(chave) { fechados[chave] = !fechados[chave]; render(); }
+function mudarVisao(v) { filtro.visao = v; render(); }
+function agrupa(itens, campo) {
+  var g = {}, ordem = [];
+  itens.forEach(function (x) { var k = x.l[campo] || ""; if (!g[k]) { g[k] = []; ordem.push(k); } g[k].push(x); });
+  return ordem.sort().map(function (k) { return [k, g[k]]; });
+}
+function render() {
+  var am = filtro.mes, html = [], itens = visiveis();
+  document.getElementById("thSit").textContent = "SITUAÇÃO EM " + nomeMes(am);
+  document.getElementById("vTot").className = "btn" + (filtro.visao === "TOTAL" ? " ativo" : "");
+  document.getElementById("vOs").className = "btn" + (filtro.visao === "OS" ? " ativo" : "");
+  if (filtro.visao === "TOTAL") {
+    agrupa(itens, "sup").forEach(function (a) {
+      var k1 = "S|" + a[0]; html.push(linhaGrupo(1, k1, "SUPERINTENDENTE", a[0], a[1])); if (fechados[k1]) return;
+      agrupa(a[1], "gr").forEach(function (b) {
+        var k2 = k1 + "|G|" + b[0]; html.push(linhaGrupo(2, k2, "GESTOR REGIONAL", b[0], b[1])); if (fechados[k2]) return;
+        agrupa(b[1], "gos").forEach(function (c) {
+          var k3 = k2 + "|O|" + c[0]; html.push(linhaGrupo(3, k3, "GESTOR DA OS", c[0], c[1])); if (fechados[k3]) return;
+          c[1].forEach(function (x) { html.push(linhaOS(x)); });
+        });
+      });
+    });
+  } else {
+    itens.forEach(function (x) { html.push(linhaOS(x)); });
+  }
   document.getElementById("corpo").innerHTML = html.join("") || "<tr><td colspan='11' style='color:#64748B;padding:16px'>Nenhuma OS no filtro.</td></tr>";
-  kpis();
+  kpis(itens);
   var sujos = linhas.filter(function (l) { return l.sujo; }).length;
   document.getElementById("btnSalvar").textContent = sujos ? "💾 Salvar alterações (" + sujos + ")" : "💾 Salvar alterações";
   document.getElementById("rodape").innerHTML =
     "Lista das OS elegíveis pela regra do Acompanhamento de Performance (negócio, estágio e setores excluídos da lista PARAM_ELEGIBILIDADE) e das OS cadastradas aqui fora da regra. " +
-    "<b>Adesão</b> = OS elegíveis e vigentes no mês que têm linha na planilha de medição naquele mês (coluna MÊS). Desmarcar ELEGÍVEL (com motivo) tira a OS de todas as páginas; ela continua visível só aqui. " +
-    "Alterações valem no painel após a próxima atualização do conjunto de dados." + (geradoEm ? " · Lista do painel gerada em " + esc(geradoEm) + "." : "");
+    "<b>Adesão</b> = OS elegíveis e vigentes no mês que têm linha na planilha de medição naquele mês (coluna MÊS). Na <b>visão total</b>, cada linha de Superintendente, Gestor Regional e Gestor da OS traz o total das OS abaixo dela (clique para recolher). " +
+    "Desmarcar ELEGÍVEL (com motivo) tira a OS de todas as páginas; ela continua visível só aqui. Alterações valem no painel após a próxima atualização do conjunto de dados." +
+    (geradoEm ? " · Lista do painel gerada em " + esc(geradoEm) + "." : "");
 }
-function kpis() {
+function kpis(itens) {
   var am = filtro.mes, c = { ok: 0, nok: 0, nao: 0 };
-  linhas.forEach(function (l) {
-    var s = situacao(l, am);
+  itens.forEach(function (x) {
+    var s = x.sit;
     if (s === "PREENCHEU") c.ok++; else if (s === "NÃO PREENCHEU") c.nok++; else if (s === "NÃO ELEGÍVEL") c.nao++;
   });
   var eleg = c.ok + c.nok, ades = eleg ? Math.round(100 * c.ok / eleg) : 0;
-  var k = [["ELEGÍVEIS EM " + nomeMes(am), eleg, "vigentes no mês · " + linhas.length + " na lista", "#14204A"],
+  var k = [["ELEGÍVEIS EM " + nomeMes(am), eleg, "vigentes no mês · " + itens.length + " no filtro", "#14204A"],
            ["PREENCHERAM", c.ok, "com linha na planilha de medição", "#12A594"],
            ["NÃO PREENCHERAM", c.nok, "elegíveis sem medição no mês", "#E5484D"],
            ["ADESÃO", eleg ? ades + "%" : "—", "preencheram ÷ elegíveis no mês", "#1F6FD1"],
@@ -317,7 +429,8 @@ async function salvar() {
       body: JSON.stringify({ usuario: sessao.login, parametros: pars }) });
     if (!r.ok) throw new Error(r.status);
     linhas.forEach(function (l) { l.sujo = false; });
-    toast("✅ Gravado (" + sujos.length + " OS). Vale no painel após a próxima atualização.");
+    await sincronizarLista();
+    toast("✅ Gravado (" + sujos.length + " OS)" + (fonte.aoVivo ? " e confirmado na lista." : ".") + " As demais páginas mudam após a próxima atualização do painel.");
   } catch (e) {
     toast("❌ Falha ao gravar. Nada foi perdido — tente novamente.");
   } finally { btn.disabled = false; render(); }
