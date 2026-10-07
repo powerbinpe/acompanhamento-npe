@@ -995,7 +995,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-07 17:10";
+    window.NPE_BUILD = "2026-10-07 18:10";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -4119,9 +4119,12 @@ function hydrateFromPowerBI() {
       // Indicador qualitativo: o que se apura nele e a marcacao do Master, e ela vinha
       // vazia para a IA porque caia no default do switch. Sem isto, exigir numeros na
       // instrucao nao adianta -- o bloco nao tinha o que citar.
+      // A aderencia fica gravada pela chave de TOPIC_ID_TO_QUAL_KEY (ex.: notificacao_sla), nao
+      // por "t5": lendo por "t5" a aderencia marcada saia sempre "ainda nao avaliada", mesmo com
+      // o score ja contando ponto (visto no teste de 07/10/2026).
       if (typeof QUALITATIVE_TOPIC_IDS !== "undefined" && QUALITATIVE_TOPIC_IDS.indexOf(topicId) !== -1) {
         var evQ = (typeof getQualitativeEval === "function")
-          ? getQualitativeEval(contract.code, m, topicId) : "PENDENTE";
+          ? getQualitativeEval(contract.code, m, (TOPIC_ID_TO_QUAL_KEY[parseInt(String(topicId).slice(1), 10)] || topicId)) : "PENDENTE";
         if (evQ === "ADERENTE") return "Apura\u00e7\u00e3o qualitativa: Aderente";
         if (evQ === "NAO_ADERENTE") return "Apura\u00e7\u00e3o qualitativa: N\u00e3o aderente";
         if (evQ === "NA") return "Apura\u00e7\u00e3o qualitativa: N/A (n\u00e3o se aplica no m\u00eas)";
@@ -7662,6 +7665,92 @@ function hydrateFromPowerBI() {
     // Aba 1 -- copia só os 23 pareceres do Setor de Performance (Máster) do MÊS ATUAL, para
     // colar numa IA externa e gerar a Síntese e Recomendações (tópico #24). Não tenta colar
     // de volta automaticamente -- o usuário mesmo cola o resultado no campo de Síntese.
+
+    // ---- primeira linha do parecer: escrita pelo CODIGO, nao pelo modelo ----------------
+    // No teste do AI Builder (07/10/2026) o modelo barato errava justamente o que e copia:
+    // trocava a apuracao qualitativa pendente por "nao apurado", sumia com o "0 casos" de
+    // SAF/CAF e escrevia ATENDEU onde a situacao era "nao avaliado". Valor, situacao e
+    // tendencia ja existem no app: o codigo copia, o modelo escreve so a analise.
+    function coletarBaseParecer(activeOS, monthNum) {
+      var contract = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOS; });
+      var monthData = contract && contract.monthHistory ? contract.monthHistory[monthNum] : null;
+      var sc = contract ? calculateOSScore(contract, monthNum) : null;
+      var itens = [], porTid = {};
+
+      TOPICOS_COM_CAIXA.forEach(function(tid) {
+        var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
+        var tMap = TOPIC_INDICATOR_MAP.find(function(t) { return t.id === tid; });
+        // 26 e 27 nao existem no TOPIC_INDICATOR_MAP -- ali se chamam "prazo" e "preenchimento".
+        var scoreIdDet = (tid === 26) ? "prazo" : (tid === 27) ? "preenchimento" : (tMap ? tMap.scoreId : "");
+        var detalhe = (scoreIdDet && contract) ? buildTopicDetailLine(scoreIdDet, monthData, contract, monthNum) : "";
+        // O texto cita o que a CAIXA do indicador mostra na tela, linha por linha.
+        var linhasCaixa = (topicObj.lines && !topicObj.onlyComments &&
+          !(topicObj.lines.length === 1 && topicObj.lines[0].label === "Tipo de Controle")) ? topicObj.lines : null;
+        // So se avalia com os DOIS lados da comparacao na caixa.
+        var faltando = [];
+        if (linhasCaixa) {
+          var valorDe = function(rotulo) {
+            var l = linhasCaixa.find(function(x) { return x.label === rotulo; });
+            return l ? String(l.val || "").trim() : "";
+          };
+          faltando = (COMPARACAO_CAIXA[tid] || []).filter(function(r) { var v = valorDe(r); return v === "" || v === "-"; });
+          detalhe = faltando.length
+            ? "sem comparação neste mês — a caixa não tem " + faltando.join(" nem ")
+            : linhasCaixa.map(function(l) { var v = String(l.val || "").trim(); return l.label + ": " + (v || "-"); }).join(" | ");
+        }
+        var caixaVazia = faltando.length > 0;
+
+        var gEl = document.getElementById("gestor_" + tid);
+        var gVal = gEl ? gEl.value : safeGetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, "");
+
+        // Situacao do mes pela regra do proprio score -- a mesma que da o ponto.
+        var tpMes = (sc && sc.topics) ? sc.topics[scoreIdDet || ("t" + tid)] : null;
+        var situacao = "", mes = "";
+        if (tpMes && caixaVazia) {
+          situacao = "não avaliado (falta valor na caixa para comparar)"; mes = "não avaliado";
+        } else if (tpMes) {
+          if (!tpMes.applicable) { situacao = "não avaliado (N/A ou sem apuração)"; mes = "não avaliado"; }
+          else if (tpMes.earned >= tpMes.max - 0.01) { situacao = "ATENDEU a meta"; mes = "ATENDEU"; }
+          else { situacao = "NÃO atendeu a meta"; mes = "NÃO ATENDEU"; }
+        }
+        var tend = (!caixaVazia && typeof textoTendencia === "function") ? textoTendencia(activeOS, tid, monthNum) : "";
+
+        var it = {
+          tid: tid,
+          cabecalho: cabecalhoExport(tid, topicObj.name),
+          detalhe: detalhe, situacao: situacao, mes: mes, tendencia: tend,
+          gestor: (gVal && gVal.trim()) ? gVal.trim() : "(sem justificativa)",
+          livre: TOPICOS_SEM_NUMERO.indexOf(tid) !== -1
+        };
+        itens.push(it);
+        porTid[tid] = it;
+      });
+      return { contract: contract, monthData: monthData, sc: sc, itens: itens, porTid: porTid };
+    }
+
+    // "<valor apurado> | Mês: <situacao> | Tendência: <tendencia>" -- sem o campo que nao existe.
+    function primeiraLinhaParecer(it) {
+      var partes = [it.detalhe ? it.detalhe : "não apurado neste mês"];
+      if (it.mes) partes.push("Mês: " + it.mes);
+      if (it.tendencia) partes.push("Tendência: " + it.tendencia);
+      return partes.join(" | ");
+    }
+
+    // Texto final da caixa: primeira linha do codigo + analise do modelo. Topico de texto livre
+    // nao tem valor a apurar e fica so com o texto. Se o modelo ainda devolveu uma linha de
+    // valores (prompt antigo, ou outra IA colada a mao), ela e descartada: a do codigo manda.
+    function montarParecerCompleto(tid, textoModelo, base) {
+      var quebra = String.fromCharCode(10);
+      var corpo = String(textoModelo || "").trim();
+      var it = base && base.porTid ? base.porTid[tid] : null;
+      if (!it || it.livre) return corpo;
+      var reLinhaValores = new RegExp("[|] *M[e" + String.fromCharCode(234) + "]s *:", "i");
+      var linhas = corpo.split(quebra);
+      if (linhas.length && reLinhaValores.test(linhas[0])) linhas.shift();
+      corpo = linhas.join(quebra).trim();
+      return primeiraLinhaParecer(it) + (corpo ? quebra + corpo : "");
+    }
+
     async function openCopyMonthPareceresModal() {
       if (!window.isMaster) {
         showToast("⚠️ Apenas usuários Máster podem exportar os pareceres.");
@@ -7686,11 +7775,10 @@ function hydrateFromPowerBI() {
         try { await historicoCarregado(); } catch (e) {}
       }
 
-      // Pelo codigo PRIMARIO -- ver buildFullYearExportText. Aqui a falha era silenciosa: o
-      // texto saia completo, so que sem nenhum "Valor apurado".
-      var contract = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOS; });
-      var monthData = contract && contract.monthHistory ? contract.monthHistory[monthNum] : null;
-      var sc = contract ? calculateOSScore(contract, monthNum) : null;
+      // Valor, situacao e tendencia de cada indicador vem de coletarBaseParecer(), a mesma
+      // base que o importador usa para escrever a primeira linha do parecer.
+      var base = coletarBaseParecer(activeOS, monthNum);
+      var contract = base.contract, monthData = base.monthData, sc = base.sc;
 
       var lines = [];
       lines.push("PARECERES DO SETOR DE PERFORMANCE -- OS " + activeOS + " -- " + (monthName || ("Mês " + monthNum)) + "/2026");
@@ -7705,62 +7793,12 @@ function hydrateFromPowerBI() {
                  " \u2014 use SOMENTE os valores deste texto. Se voc\u00ea tem outra apura\u00e7\u00e3o na mem\u00f3ria desta conversa, IGNORE-A: ela \u00e9 de outra OS ou de outro m\u00eas.");
       lines.push("");
 
-      TOPICOS_COM_CAIXA.forEach(function(tid) {
-        var topicObj = topicsData.find(function(t) { return t.id === tid; }) || { name: "Tópico #" + tid };
-        var tMap = TOPIC_INDICATOR_MAP.find(function(t) { return t.id === tid; });
-        // 26 e 27 nao existem no TOPIC_INDICATOR_MAP -- ali eles se chamam "prazo" e
-        // "preenchimento". Sem esta traducao os dois saiam sem valor apurado e sem situacao,
-        // e a IA escrevia o parecer deles no escuro.
-        var scoreIdDet = (tid === 26) ? "prazo" : (tid === 27) ? "preenchimento" : (tMap ? tMap.scoreId : "");
-        // monthData nao entra na condicao: prazo, preenchimento, satisfacao e os qualitativos
-        // se apuram sem historico mensal.
-        var detalhe = (scoreIdDet && contract) ? buildTopicDetailLine(scoreIdDet, monthData, contract, monthNum) : "";
-        // O texto cita o que a CAIXA do indicador mostra na tela, linha por linha. Antes o
-        // valor vinha do historico mensal (_mOSMonthHistory), outra medida: em janeiro a caixa
-        // de Faturamento Ano estava em branco e o parecer saia com R$ 16.942.359 que ninguem via.
-        var linhasCaixa = (topicObj.lines && !topicObj.onlyComments &&
-          !(topicObj.lines.length === 1 && topicObj.lines[0].label === "Tipo de Controle")) ? topicObj.lines : null;
-        // So se avalia com os DOIS lados da comparacao na caixa: com um so, compara-se com o que?
-        var faltando = [];
-        if (linhasCaixa) {
-          var valorDe = function(rotulo) {
-            var l = linhasCaixa.find(function(x) { return x.label === rotulo; });
-            return l ? String(l.val || "").trim() : "";
-          };
-          faltando = (COMPARACAO_CAIXA[tid] || []).filter(function(r) { var v = valorDe(r); return v === "" || v === "-"; });
-          detalhe = faltando.length
-            ? "sem comparação neste mês — a caixa não tem " + faltando.join(" nem ")
-            : linhasCaixa.map(function(l) { var v = String(l.val || "").trim(); return l.label + ": " + (v || "-"); }).join(" | ");
-        }
-        var caixaVazia = faltando.length > 0;
-
-        var gEl = document.getElementById("gestor_" + tid);
-        var gVal = gEl ? gEl.value : safeGetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, "");
-        var mEl = document.getElementById("master_" + tid);
-        var mVal = mEl ? mEl.value : safeGetStorage("m_" + activeOS + "_m" + monthNum + "_" + tid, "");
-
-        lines.push(cabecalhoExport(tid, topicObj.name));
-        if (detalhe) lines.push("Valor apurado: " + detalhe);
-
-        // Situacao do mes pela regra do proprio score -- e a mesma que da o ponto.
-        var tpMes = (sc && sc.topics) ? sc.topics[scoreIdDet || ("t" + tid)] : null;
-        // Caixa em branco: nada a julgar no texto, senao a IA cobra um desvio que a tela nao mostra.
-        if (tpMes && caixaVazia) {
-          lines.push("Situação no mês: não avaliado (falta valor na caixa para comparar)");
-        } else if (tpMes) {
-          lines.push("Situa\u00e7\u00e3o no m\u00eas: " + (!tpMes.applicable
-            ? "n\u00e3o avaliado (N/A ou sem apura\u00e7\u00e3o)"
-            : (tpMes.earned >= tpMes.max - 0.01 ? "ATENDEU a meta" : "N\u00c3O atendeu a meta")));
-        }
-
-        // A leitura de tendencia: contra o mes anterior e contra o ano.
-        var tend = (!caixaVazia && typeof textoTendencia === "function") ? textoTendencia(activeOS, tid, monthNum) : "";
-        if (tend) lines.push("Tend\u00eancia: " + tend);
-
-        // O parecer da Performance NAO entra aqui: e justamente ele que esta sendo
-        // produzido. Mandar junto faria a IA reescrever o que ja existe em vez de olhar o
-        // que o Gestor disse.
-        lines.push("Gestor: " + (gVal && gVal.trim() ? gVal.trim() : "(sem justificativa)"));
+      base.itens.forEach(function(it) {
+        lines.push(it.cabecalho);
+        if (it.detalhe) lines.push("Valor apurado: " + it.detalhe);
+        if (it.situacao) lines.push("Situação no mês: " + it.situacao);
+        if (it.tendencia) lines.push("Tendência: " + it.tendencia);
+        lines.push("Gestor: " + it.gestor);
         lines.push("");
       });
 
@@ -7796,11 +7834,11 @@ function hydrateFromPowerBI() {
       lines.push("O ESTÁGIO EXPLICA O PERÍODO EM QUE VIGOROU, NUNCA OS MESES ANTERIORES. Encerramento em maio não justifica resultado ruim de janeiro a abril, quando a operação estava plena. Ao avaliar acumulado ou semestre, separe o que aconteceu ANTES da virada -- ali a régua é a do estágio antigo, e a cobrança continua de pé.");
       lines.push("A ÚNICA exceção é a VIRADA DE ESTÁGIO: se as justificativas indicarem que foi NESTE mês que a OS entrou em desmobilização, teve o contrato encerrado ou iniciou operação, registre a data com todas as letras. É marco do contrato, explica viradas de indicador e é o que o resumo do ano precisa ter.");
       lines.push("");
-      lines.push("REGRA 1 -- OS NÚMEROS SÃO OBRIGATÓRIOS E VÊM PRIMEIRO.");
+      lines.push('REGRA 1 -- O APP ESCREVE A PRIMEIRA LINHA; VOCÊ ESCREVE A ANÁLISE.');
       lines.push("Este parecer é a ÚNICA fonte do resumo anual deste indicador: o número que não estiver escrito aqui está perdido.");
-      lines.push("Por isso a PRIMEIRA linha de cada parecer É O VALOR: copie, LITERALMENTE, o \"Valor apurado\" que veio no bloco daquele indicador, seguido da situação no mês e da tendência. Comece direto pelo número, SEM rótulo antes.");
-      lines.push("Não arredonde, não converta e não troque esses números por palavras (\"abaixo da meta\", \"houve recuperação\") -- as palavras vêm depois, na análise.");
-      lines.push("Se o bloco não trouxe \"Valor apurado\", escreva apenas \"não apurado neste mês\" nessa primeira linha -- EXCETO nos tópicos marcados como TEXTO LIVRE no cabeçalho, que não têm valor a apurar por natureza: neles a linha de valores simplesmente NÃO EXISTE, comece direto pela análise.");
+      lines.push('A primeira linha de cada parecer (valor apurado, situação no mês e tendência) é escrita pelo próprio aplicativo, copiada do bloco: NÃO a escreva. Comece sua resposta, logo abaixo de cada "### #N", direto pela ANÁLISE.');
+      lines.push('Na análise, cite os números que sustentam o que você disser, sem arredondar nem converter, e não os troque por palavras ("abaixo da meta", "houve recuperação") sem o valor ao lado.');
+      lines.push('Se o bloco não trouxe valor apurado, ou o tópico é de TEXTO LIVRE, a primeira linha já é tratada pelo aplicativo: você escreve só a análise (nos de TEXTO LIVRE, comente o conteúdo que o Gestor escreveu).');
       lines.push("");
       lines.push("NÃO AFIRME MELHORA NEM PIORA SEM O VALOR QUE PROVA.");
       lines.push("Dizer \"melhorou\", \"piorou\", \"houve recuperação\" ou \"representou piora\" só é permitido acompanhado dos números que sustentam a frase: de quanto para quanto, ou o valor contra a meta. \"Piorou vs Jun\" sozinho não é parecer, é repetição do rótulo.");
@@ -7837,7 +7875,7 @@ function hydrateFromPowerBI() {
       lines.push("Os dois dividem UMA \u00fanica nota de Gest\u00e3o e Acompanhamento, mas medem coisas de natureza oposta e NUNCA devem ser tratados como o mesmo assunto:");
       lines.push("  - #27 Preenchimento deve SEMPRE fechar 100% (21 de 21 indicadores REAIS justificados -- #1 a #21; Pontualidade e o proprio Preenchimento NAO entram nessa conta). Qualquer n\u00famero menor que 21 \u00e9 falha de gest\u00e3o, sem atenuante.");
       lines.push("  - #26 Pontualidade VARIA por natureza -- depende da data em que o acompanhamento foi entregue. Aqui cabe analisar o porqu\u00ea do atraso.");
-      lines.push("Escreva um parecer para cada um, com o valor apurado DAQUELE indicador na primeira linha (o de #26 \u00e9 a situa\u00e7\u00e3o de prazo; o de #27 \u00e9 quantos de 21 foram preenchidos). N\u00e3o repita o mesmo texto nos dois.");
+      lines.push('Escreva a análise de cada um (o valor apurado do #26 é a situação de prazo; o do #27 é quantos de 21 foram preenchidos -- o aplicativo já os escreve na primeira linha). Não repita o mesmo texto nos dois.');
       lines.push("CASO MAIS GRAVE: fora do prazo E sem justificativa registrada. N\u00e3o entregou e n\u00e3o explicou. Diga isso com todas as letras e cobre as duas coisas -- a entrega e a explica\u00e7\u00e3o -- em vez de diluir numa observa\u00e7\u00e3o gen\u00e9rica.");
       lines.push("ATEN\u00c7\u00c3O: a falta de justificativa nos indicadores #1 a #21 NUNCA \u00e9 admiss\u00edvel, nem quando a meta foi atendida -- cada um deles \u00e9 uma das causas diretas de o Preenchimento n\u00e3o fechar 100%. Jamais escreva que a aus\u00eancia de justificativa \u00e9 aceit\u00e1vel porque o indicador atendeu: ela \u00e9, ela mesma, a falha que derruba o indicador seguinte. #26 e #27 continuam precisando do PR\u00d3PRIO parecer (contam pra Nota Geral deles mesmos), s\u00f3 n\u00e3o contam mais pra conta do Preenchimento.");
       lines.push("A análise tem no máximo 4 linhas, é concreta e não repete o texto do Gestor.");
@@ -7847,14 +7885,11 @@ function hydrateFromPowerBI() {
       lines.push("NUNCA use tabela (nem em markdown, nem em HTML), slide, planilha, bullet points soltos ou qualquer outro formato -- só o texto corrido no padrão \"### #N\" abaixo, para todos os indicadores, sem exceção. Quem lê sua resposta é o app, não uma pessoa, e ele só sabe importar esse padrão -- qualquer outro formato quebra a importação e apaga os pareceres já existentes. NÃO pergunte se prefiro outro formato nem ofereça essa alternativa: devolva direto os blocos, sem nenhum texto antes ou depois deles.");
       lines.push("Exatamente assim, para TODOS os indicadores da lista acima, sem pular nenhum:");
       lines.push("  ### #1");
-      lines.push("  <valor apurado copiado do bloco> | Mês: <ATENDEU / NÃO ATENDEU / não avaliado> | Tendência: <copie a tendência do bloco>");
       lines.push("  <análise e recomendação, até 4 linhas>");
       lines.push("  ### #2");
-      lines.push("  <valores> | Mês: ... | Tendência: ...");
       lines.push("  <análise>");
       lines.push("");
-      lines.push("NÃO use rótulos na resposta -- nada de \"Apurado:\" nem \"Parecer:\". O campo de destino JÁ se chama Parecer do Setor de Performance, e escrever \"Parecer:\" dentro dele é repetir o nome da caixa; \"Apurado: Apuração qualitativa...\" repete duas vezes na mesma linha. A ORDEM basta: primeira linha os valores, da segunda em diante a análise.");
-      lines.push("CAMPO QUE NÃO EXISTE NO BLOCO NÃO APARECE NA RESPOSTA: se o bloco não trouxe linha de Tendência, encerre em \"Mês: ...\" e não escreva \"Tendência: sem tendência informada\" nem equivalente. Anunciar a ausência é pior do que omiti-la, e vale para qualquer campo.");
+      lines.push('NÃO use rótulos na resposta -- nada de "Apurado:" nem "Parecer:". O campo de destino JÁ se chama Parecer do Setor de Performance, e escrever "Parecer:" dentro dele é repetir o nome da caixa. NÃO escreva a linha de valores (valor apurado | Mês | Tendência): o aplicativo a escreve sozinho antes da sua análise.');
       lines.push("Não numere parágrafos dentro do parecer e não escreva nada antes do primeiro \"### #\".");
       lines.push("Depois é só colar a resposta inteira no botão \"Importar Pareceres\" do app.");
 
@@ -7945,9 +7980,18 @@ function hydrateFromPowerBI() {
         "Importar");
       if (!segue) return;
 
+      // Pareceres: a primeira linha (valor | Mes | Tendencia) e escrita pelo codigo, nunca pelo
+      // modelo. Se o texto colado ainda trouxer uma linha de valores (prompt antigo), ela e trocada.
+      var baseImport = null;
+      if (alvo !== "RESUMO") {
+        try {
+          var ppImp = new URLSearchParams(window.location.search);
+          baseImport = coletarBaseParecer(extractPrimaryOSCode(ppImp.get("SelectedOS") || ""), getMonthNumberFromParams(ppImp));
+        } catch (eImp) { baseImport = null; }
+      }
       existem.forEach(function(n) {
         var el = document.getElementById(prefixo + n);
-        el.value = achados[String(n)];
+        el.value = (alvo === "RESUMO") ? achados[String(n)] : montarParecerCompleto(n, achados[String(n)], baseImport);
         // Sem isto o texto fica so na tela e o Salvar nao o enxerga.
         if (alvo === "RESUMO") {
           if (typeof saveResumoAnualInline === "function") saveResumoAnualInline(n);
