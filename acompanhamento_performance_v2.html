@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-07 20:45";
+    window.NPE_BUILD = "2026-10-07 20:51";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url"];
@@ -7923,7 +7923,7 @@ function hydrateFromPowerBI() {
       var det = String(it.detalhe || "");
       if (/Aderente/.test(det) && /pendente|ainda n[ãa]o avaliad/i.test(t)) motivos.push("diz que a apuração está pendente, mas já foi marcada");
       if (/casos|ocorr/i.test(det) && /n[ãa]o (foi )?apurad|sem apuração/i.test(t)) motivos.push("nega um valor que existe");
-      if (it.gestor === "(sem justificativa)" && !/justificativ/i.test(t)) motivos.push("não cobra a justificativa ausente");
+      if (it.gestor === "(sem justificativa)" && !/justificativ|coment[áa]rio|explica|n[ãa]o (registr|inform|apresent|descrev)/i.test(t)) motivos.push("não cobra a justificativa ausente");
       return motivos;
     }
 
@@ -8438,7 +8438,7 @@ function hydrateFromPowerBI() {
       lines.push("SEGUNDO MOTIVO DE ENTRADA: o parecer do indicador aponta falha na justificativa do Gestor. Se o parecer diz que o Gestor não justificou, justificou de forma que não condiz com o número, ou não descreveu a ação que produziu o resultado -- esse indicador ENTRA na síntese mesmo com o número sob controle. Número bom com justificativa fraca é ponto de governança, e a síntese é onde isso aparece nomeado, não só na linha geral dos \"sob controle\".");
       lines.push("Para cada destaque -- por desvio ou por falha de justificativa -- uma frase: o indicador, o número (de quanto para quanto, ou o valor contra a meta) e o encaminhamento. Agrupe numa frase só os que têm a MESMA causa (ex.: distrato afeta faturamento, resultado e efetivo ao mesmo tempo; ou: três indicadores sob controle sem o Gestor descrever a ação que sustentou o resultado).");
       lines.push("");
-      lines.push("OS INDICADORES SOB CONTROLE NÃO ENTRAM UM A UM. Os que estão dentro ou perto da meta, estáveis, sem desvio relevante -- viram UMA linha geral no fim: \"os demais N indicadores seguem dentro da faixa esperada\". Nunca um parágrafo cada.");
+      lines.push("OS INDICADORES SOB CONTROLE NÃO ENTRAM UM A UM. Os que estão dentro ou perto da meta, estáveis, sem desvio relevante -- viram UMA linha geral no fim: \"os demais indicadores seguem dentro da faixa esperada\" -- SEM dizer quantos são (você não tem como contar com segurança quais ficaram de fora). Nunca um parágrafo cada.");
       lines.push("A nota por categoria no cabeçalho de cada grupo diz por ONDE começar a olhar (a categoria com a pior nota concentra os desvios), não obriga a citar um indicador de cada categoria.");
       lines.push("");
       lines.push("TAMANHO: isso deve caber em meia página. Se passou disso, você está recapitulando indicador sob controle -- corte.");
