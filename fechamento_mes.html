@@ -243,6 +243,7 @@
     var q = null;
     try {
       var url = await lerUrlOS(o.code, ano, mes);
+      if (!gravar) url += (url.indexOf("?") === -1 ? "?" : "&") + "NPE_DRY=1";
       q = await abrirNoQuadro(url);
       var r = await q.win.processarOSAtual({ gravar: gravar, onStatus: function (t) { var e2 = el("res_" + i); if (e2) e2.textContent = t + "..."; } });
       var precisaRevisar = r.revisar.length > 0 || r.sintese.motivos.length > 0 || !r.sintese.gerada;
