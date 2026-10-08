@@ -44,7 +44,8 @@
   <h2>1. Fluxos configurados neste navegador</h2>
   <div id="cfgLista"></div>
   <p class="nota">As URLs ficam só neste navegador (não vão para o código). Campo em branco mantém a URL atual.</p>
-  <button id="btnSalvarCfg" class="sec" type="button">Salvar URLs</button>
+  <button id="btnSalvarCfg" class="sec" type="button">Salvar</button>
+  <button id="btnTestarGemini" class="sec" type="button">Testar o Gemini</button>
 </section>
 
 <section>
@@ -96,7 +97,10 @@
   var CHAVES = [
     { k: "npe_flow_ler_url_app_url",        rotulo: "NPE-Ler-Url-App (dados de cada OS)", obrigatoria: true },
     { k: "npe_flow_gerar_texto_mini_url",   rotulo: "NPE-Gerar-Texto-Mini (GPT-4.1 mini)", obrigatoria: true },
-    { k: "npe_flow_gerar_texto_gpt41_url",  rotulo: "NPE-Gerar-Texto-GPT41 (GPT-4.1)", obrigatoria: false }
+    { k: "npe_flow_gerar_texto_gpt41_url",  rotulo: "NPE-Gerar-Texto-GPT41 (GPT-4.1)", obrigatoria: false },
+    { k: "npe_gemini_api_key", rotulo: "Chave da API do Gemini (se preenchida, substitui os dois fluxos de IA)", obrigatoria: false, gemini: true },
+    { k: "npe_gemini_modelo_rapido", rotulo: "Gemini - modelo rápido (padrão gemini-2.5-flash)", obrigatoria: false, modelo: true },
+    { k: "npe_gemini_modelo_forte", rotulo: "Gemini - modelo forte (padrão gemini-2.5-pro)", obrigatoria: false, modelo: true }
   ];
   var el = function (id) { return document.getElementById(id); };
   var estado = { lista: [], rodando: false, parar: false, resultados: {}, persistir: true };
@@ -113,10 +117,10 @@
   // ---------- configuracao ----------
   function desenharCfg() {
     el("cfgLista").innerHTML = CHAVES.map(function (c, i) {
-      var ok = lerK(c.k).indexOf("https://") === 0;
+      var ok = c.gemini ? lerK(c.k).length >= 20 : (c.modelo ? lerK(c.k).length > 0 : lerK(c.k).indexOf("https://") === 0);
       return '<div class="cfg"><label>' + esc(c.rotulo) + '<span class="st" style="color:' + (ok ? "var(--ok)" : "var(--erro)") + '">' +
         (ok ? "configurado" : (c.obrigatoria ? "NÃO configurado" : "não configurado (opcional)")) + '</span></label>' +
-        '<input type="password" autocomplete="off" data-i="' + i + '" placeholder="' + (ok ? "Em branco mantém a URL atual" : "Cole a URL HTTP POST do gatilho") + '"></div>';
+        '<input type="' + (c.modelo ? "text" : "password") + '" autocomplete="off" data-i="' + i + '" placeholder="' + (ok ? "Em branco mantém o valor atual" : (c.gemini ? "Cole a chave da API do Google AI Studio" : (c.modelo ? "Opcional: nome do modelo" : "Cole a URL HTTP POST do gatilho"))) + '"></div>';
     }).join("");
   }
   el("btnSalvarCfg").addEventListener("click", function () {
@@ -124,12 +128,33 @@
     Array.prototype.forEach.call(document.querySelectorAll("#cfgLista input"), function (inp) {
       var v = String(inp.value || "").trim();
       if (!v) return;
-      if (v.indexOf("https://") !== 0) { ruins++; return; }
-      if (gravarK(CHAVES[parseInt(inp.getAttribute("data-i"), 10)].k, v)) salvos++;
+      var cfg = CHAVES[parseInt(inp.getAttribute("data-i"), 10)];
+      if (cfg.gemini ? v.length < 20 : (cfg.modelo ? !/^[A-Za-z0-9._-]{3,60}$/.test(v) : v.indexOf("https://") !== 0)) { ruins++; return; }
+      if (gravarK(cfg.k, v)) salvos++;
     });
     desenharCfg();
-    log(salvos ? salvos + " URL(s) guardada(s) neste navegador." : "Nenhuma URL nova.");
-    if (ruins) log("Atenção: " + ruins + " URL(s) ignorada(s) por não começar com https://.");
+    log(salvos ? salvos + " valor(es) guardado(s) neste navegador." : "Nada novo para guardar.");
+    if (ruins) log("Atenção: " + ruins + " valor(es) ignorado(s) por não parecer(em) válido(s).");
+  });
+
+  // ---------- teste do Gemini ----------
+  el("btnTestarGemini").addEventListener("click", async function () {
+    var chave = lerK("npe_gemini_api_key");
+    if (chave.length < 20) return log("Cole a chave do Gemini e clique em Salvar antes de testar.");
+    var modelos = [lerK("npe_gemini_modelo_rapido") || "gemini-2.5-flash", lerK("npe_gemini_modelo_forte") || "gemini-2.5-pro"];
+    for (var i = 0; i < modelos.length; i++) {
+      var t0 = Date.now();
+      try {
+        var r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(modelos[i]) + ":generateContent", {
+          method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
+          body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Responda em uma única frase curta, em português: o Gemini está funcionando." }] }], generationConfig: { maxOutputTokens: 256 } })
+        });
+        var j = await r.json().catch(function () { return {}; });
+        if (!r.ok) { log("Gemini " + modelos[i] + ": HTTP " + r.status + " - " + ((j.error && j.error.message) || "sem detalhe")); continue; }
+        var txt = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).map(function (p) { return p.text || ""; }).join("").trim();
+        log("Gemini " + modelos[i] + ": ok em " + Math.round((Date.now() - t0) / 100) / 10 + " s - " + (txt || "(sem texto)"));
+      } catch (e) { log("Gemini " + modelos[i] + ": falhou - " + (e && e.message ? e.message : e)); }
+    }
   });
 
   // ---------- chamadas aos fluxos ----------
@@ -324,8 +349,9 @@
     });
     if (!fila.length) return log("Nenhuma OS para processar (marque as OSs ou use 'Refazer as já concluídas').");
     var etapaSel = el("etapa").value;
-    if (etapaSel === "aba3" && lerK("npe_flow_gerar_texto_gpt41_url").indexOf("https://") !== 0) return log("Configure a URL do fluxo NPE-Gerar-Texto-GPT41 antes de começar.");
-    if (etapaSel === "aba1" && lerK("npe_flow_gerar_texto_mini_url").indexOf("https://") !== 0) return log("Configure a URL do fluxo NPE-Gerar-Texto-Mini antes de começar.");
+    var temGemini = lerK("npe_gemini_api_key").length >= 20;
+    if (etapaSel === "aba3" && !temGemini && lerK("npe_flow_gerar_texto_gpt41_url").indexOf("https://") !== 0) return log("Configure a chave do Gemini ou a URL do fluxo NPE-Gerar-Texto-GPT41 antes de começar.");
+    if (etapaSel === "aba1" && !temGemini && lerK("npe_flow_gerar_texto_mini_url").indexOf("https://") !== 0) return log("Configure a chave do Gemini ou a URL do fluxo NPE-Gerar-Texto-Mini antes de começar.");
     var oque = etapaSel === "aba5" ? "as notas (Aba 5) de janeiro até o último mês fechado, substituindo as já gravadas"
              : etapaSel === "aba3" ? "o resumo anual (Aba 3) de janeiro até o último mês fechado, substituindo o que já estava gravado em cada indicador gerado"
              : "os pareceres e a síntese do mês na ATA (o texto de cada indicador NÃO validado será SUBSTITUÍDO; mês fechado não deve ser processado)";

@@ -1003,10 +1003,11 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-08 07:35";
+    window.NPE_BUILD = "2026-10-08 09:19";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
-                               "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url"];
+                               "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
+                               "npe_gemini_api_key"];
     var PREFIXO_MOLDURA = "NPE1:";
 
     function lerEstadoMoldura() {
@@ -7955,7 +7956,50 @@ function hydrateFromPowerBI() {
 
     // Chama o fluxo NPE-Gerar-Texto-<modelo> (AI Builder). A URL de cada fluxo NAO vai no codigo
     // (repositorio publico): fica guardada no navegador do Master.
+    // Gemini (API do Google, chave do proprio Master): usado quando existe npe_gemini_api_key neste navegador.
+    // "mini" = modelo rapido, "gpt41" = modelo forte (os nomes dos papeis vem dos fluxos antigos). Os nomes dos
+    // modelos ficam em npe_gemini_modelo_rapido / npe_gemini_modelo_forte para trocar sem republicar.
+    async function chamarGemini(modelo, prompt, chaveApi) {
+      var nomeModelo = (modelo === "gpt41")
+        ? safeGetStorage("npe_gemini_modelo_forte", "gemini-2.5-pro")
+        : safeGetStorage("npe_gemini_modelo_rapido", "gemini-2.5-flash");
+      var url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(nomeModelo) + ":generateContent";
+      var ultimoErro = "";
+      for (var tent = 0; tent < 4; tent++) {
+        if (tent > 0) await new Promise(function(r) { setTimeout(r, 4000 * tent); });
+        var resp;
+        try {
+          resp = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-goog-api-key": chaveApi },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.3, maxOutputTokens: 32768 }
+            })
+          });
+        } catch (e) { ultimoErro = "sem conexao com o Gemini"; continue; }
+        if (resp.status === 429 || resp.status >= 500) { ultimoErro = "Gemini respondeu " + resp.status + " (limite ou instabilidade)"; continue; }
+        if (!resp.ok) {
+          var detalhe = "";
+          try { var je = await resp.json(); detalhe = (je && je.error && je.error.message) ? je.error.message : ""; } catch (e2) {}
+          throw new Error("Gemini respondeu " + resp.status + " (" + nomeModelo + ")" + (detalhe ? ": " + detalhe : "") + ".");
+        }
+        var j = await resp.json();
+        var cand = j && j.candidates && j.candidates[0];
+        var partes = cand && cand.content && cand.content.parts ? cand.content.parts : [];
+        var texto = partes.map(function(p) { return p.text || ""; }).join("").trim();
+        if (!texto) {
+          var motivo = (j && j.promptFeedback && j.promptFeedback.blockReason) || (cand && cand.finishReason) || "sem texto";
+          throw new Error("O Gemini devolveu texto vazio (" + motivo + ").");
+        }
+        return texto;
+      }
+      throw new Error(ultimoErro || "O Gemini nao respondeu.");
+    }
+
     async function chamarGerarTexto(modelo, prompt) {
+      var chaveGemini = String(safeGetStorage("npe_gemini_api_key", "") || "").trim();
+      if (chaveGemini.length >= 20) return chamarGemini(modelo, prompt, chaveGemini);
       var chave = (modelo === "gpt41") ? "npe_flow_gerar_texto_gpt41_url" : "npe_flow_gerar_texto_mini_url";
       var url = safeGetStorage(chave, "");
       if (String(url).indexOf("http") !== 0) throw new Error("A URL do fluxo de IA (" + modelo + ") ainda não foi configurada neste navegador.");
@@ -8304,18 +8348,20 @@ function hydrateFromPowerBI() {
         var campos = [
           { chave: "npe_flow_gerar_texto_mini_url", rotulo: "Fluxo NPE-Gerar-Texto-Mini (GPT-4.1 mini)" },
           { chave: "npe_flow_gerar_texto_gpt41_url", rotulo: "Fluxo NPE-Gerar-Texto-GPT41 (GPT-4.1)" },
-          { chave: "npe_flow_ler_url_app_url", rotulo: "Fluxo NPE-Ler-Url-App (dados de cada OS, para o fechamento do mês)" }
+          { chave: "npe_flow_ler_url_app_url", rotulo: "Fluxo NPE-Ler-Url-App (dados de cada OS, para o fechamento do mês)" },
+          { chave: "npe_gemini_api_key", rotulo: "Chave da API do Gemini (usada no lugar dos fluxos de IA, se preenchida)", gemini: true }
         ];
         var fundo = document.createElement("div");
         fundo.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh;" +
           "background:rgba(11,26,58,0.90); z-index:999999999; display:flex;" +
           "justify-content:center; align-items:flex-start; padding:28px 20px; overflow-y:auto;";
         var linhas = campos.map(function(c, i) {
-          var ok = String(safeGetStorage(c.chave, "")).indexOf("http") === 0;
+          var vAtual = String(safeGetStorage(c.chave, "") || "");
+          var ok = c.gemini ? vAtual.length >= 20 : vAtual.indexOf("http") === 0;
           return '<div style="margin-bottom:14px;">' +
             '<div style="font-weight:800; color:#0f2b5c; margin-bottom:4px;">' + c.rotulo + ' &mdash; ' +
               (ok ? '<span style="color:#15803d;">configurado</span>' : '<span style="color:#b91c1c;">não configurado</span>') + '</div>' +
-            '<input type="password" autocomplete="off" data-i="' + i + '" placeholder="' + (ok ? 'Em branco mantém a URL atual' : 'Cole aqui a URL HTTP POST do gatilho') + '" ' +
+            '<input type="password" autocomplete="off" data-i="' + i + '" placeholder="' + (ok ? 'Em branco mantém o valor atual' : (c.gemini ? 'Cole aqui a chave da API do Google AI Studio' : 'Cole aqui a URL HTTP POST do gatilho')) + '" ' +
               'style="width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid #94a3b8; border-radius:8px; font-size:0.9rem;">' +
             '</div>';
         }).join("");
@@ -8339,11 +8385,12 @@ function hydrateFromPowerBI() {
             Array.prototype.forEach.call(fundo.querySelectorAll("input[data-i]"), function(inp) {
               var v = String(inp.value || "").trim();
               if (!v) return;
-              if (v.indexOf("https://") !== 0) { invalidos++; return; }
-              safeSetStorage(campos[parseInt(inp.getAttribute("data-i"), 10)].chave, v);
+              var campoSel = campos[parseInt(inp.getAttribute("data-i"), 10)];
+              if (campoSel.gemini ? v.length < 20 : v.indexOf("https://") !== 0) { invalidos++; return; }
+              safeSetStorage(campoSel.chave, v);
               salvos++;
             });
-            if (invalidos) { showToast("\u26a0\ufe0f Uma URL não começa com https:// e foi ignorada."); }
+            if (invalidos) { showToast("\u26a0\ufe0f Um valor não parece válido (URL sem https:// ou chave curta) e foi ignorado."); }
             else if (salvos) { showToast("\u2705 " + salvos + " URL(s) guardada(s) neste navegador."); }
             fechar(salvos > 0);
           } else if (b) fechar(false);
