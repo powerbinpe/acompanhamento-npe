@@ -62,6 +62,32 @@
   td.n { font-variant-numeric: tabular-nums; }
   .rolagem { overflow-x: auto; }
   .diag { margin-top: 12px; font-size: .7rem; color: #94a3b8; }
+  .abas { display: flex; gap: 6px; margin: 14px 0 0; flex-wrap: wrap; }
+  .aba { background: transparent; color: #cbd5e1; border: 1px solid #1e3a70; border-bottom: none; border-radius: 10px 10px 0 0; padding: 10px 18px; font-weight: 700; cursor: pointer; }
+  .aba.on { background: var(--bg-card); color: var(--text); border-color: var(--bg-card); }
+  .abas + .painel { margin-top: 0; border-radius: 0 12px 12px 12px; }
+  .barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .barra .status { font-size: .82rem; font-weight: 700; color: var(--muted); }
+  .barra .status.ok { color: var(--ok); }
+  .barra .status.erro { color: var(--danger); }
+  .barra .dir { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .dica { color: var(--muted); font-size: .8rem; }
+  .grupo-titulo { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 24px 0 8px; font-weight: 800; }
+  .grupo-titulo:first-of-type { margin-top: 4px; }
+  table.edit { width: 100%; }
+  table.edit td { vertical-align: middle; }
+  table.edit tr.sub td { background: var(--bg-soft); font-weight: 800; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  input.v, input.t { width: 100%; padding: 6px 9px; border: 1.5px solid var(--line); border-radius: 6px; font-variant-numeric: tabular-nums; }
+  input.v { text-align: right; max-width: 140px; }
+  input.alterado { border-color: #f59e0b; background: #fffbeb; }
+  .regra { font-size: .74rem; color: var(--muted); font-family: Consolas, 'Courier New', monospace; white-space: nowrap; }
+  .cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 16px; }
+  .cartao { border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: #f8fafc; }
+  .cartao h3 { font-size: 1.05rem; margin-bottom: 10px; }
+  .cartao .linha { display: grid; grid-template-columns: 1fr 160px; gap: 10px; align-items: center; margin-bottom: 8px; font-size: .86rem; }
+  .cartao .res { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); display: flex; gap: 18px; flex-wrap: wrap; font-size: .9rem; }
+  .cartao .res b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+  .cartao .obs { margin-top: 10px; font-size: .74rem; color: var(--muted); }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -71,6 +97,7 @@
     <div class="marca">MERITOCRACIA<span id="subtitulo"></span></div>
     <div class="sessao" id="sessao"></div>
   </div>
+  <div class="abas" role="tablist" id="abas"></div>
   <div class="painel" id="painel"></div>
   <div class="diag" id="diag"></div>
 </div>
@@ -226,37 +253,249 @@
   function renderEntrando() { painel.innerHTML = '<div class="login"><h2>Conferindo o acesso…</h2></div>'; }
   function renderCarregando() { renderSessao(); painel.innerHTML = '<div class="login"><h2>Carregando a lista da Meritocracia…</h2></div>'; }
 
-  // Por enquanto (passo 2c) a tela so prova a conexao: quantas linhas a lista tem por tipo.
-  function renderConexao(erro) {
-    if (erro) {
-      painel.innerHTML = '<div class="aviso erro"><h3>Não foi possível ler a lista</h3><p>' + esc(erro) + '</p></div>' +
-        '<button type="button" class="btn" id="btnRecarregar">Tentar de novo</button>';
-      document.getElementById("btnRecarregar").onclick = carregar;
+  // ===========================================================================
+  // Numeros: a tela mostra e aceita o formato brasileiro (1.234,56 e 15%)
+  // ===========================================================================
+  function fmtNum(v, casas) {
+    if (v === null || v === undefined || v === "" || isNaN(v)) return "";
+    return Number(v).toLocaleString("pt-BR", { minimumFractionDigits: casas || 0, maximumFractionDigits: casas || 0 });
+  }
+  function fmtPct(v, casas) {
+    if (v === null || v === undefined || v === "" || isNaN(v)) return "";
+    return (Number(v) * 100).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: casas === undefined ? 2 : casas }) + "%";
+  }
+  // "15%" -> 0,15 | "1.234,5" -> 1234,5 | "0,15" -> 0,15 | "" -> null | invalido -> NaN
+  function lerNumero(txt, ehPct) {
+    var s = String(txt == null ? "" : txt).trim();
+    if (!s) return null;
+    var temPct = /%$/.test(s);
+    s = s.replace(/%$/, "").replace(/\s/g, "");
+    if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", ".");
+    var n = Number(s);
+    if (isNaN(n)) return NaN;
+    return (ehPct || temPct) ? n / 100 : n;
+  }
+
+  // ===========================================================================
+  // Linhas da lista MERITOCRACIA do ano da pagina
+  // ===========================================================================
+  var ORDEM_FUNCOES = ["CEO", "VP", "DIRETORES", "SUPERINTENDENTES OPERACIONAIS", "SUPERINTENDENTES APOIOS",
+    "SUPERINTENDENTES COMERCIAIS", "GERENTES OPERACIONAIS", "GERENTES COMERCIAIS", "GERENTES APOIOS",
+    "COORDENADORES OPERACIONAIS", "COORDENADORES APOIOS"];
+  function ativa(d) { return String(d.Ativo || "Sim").toLowerCase() !== "nao"; }
+  function linhasDoTipo(tipo) {
+    return (dados || []).filter(function (d) { return d.Tipo === tipo && String(d.Ano) === String(ANO) && ativa(d); });
+  }
+  function ordemFuncao(f) { var i = ORDEM_FUNCOES.indexOf(f); return i < 0 ? 99 : i; }
+  function json(txt) { try { return txt ? JSON.parse(txt) : {}; } catch (e) { return {}; } }
+
+  // Regra da deducao em texto legivel, a partir do JSON gravado em Escalas
+  var CAMPOS_PCT = { SATISFACAO_MENOR_OS: 1, SATISFACAO_MEDIA: 1, PESSOAS_ENGAJ_CLIMA: 1, PESSOAS_DESEMPENHO: 1, ASSERTIVIDADE: 1 };
+  function textoRegra(e) {
+    if (!e || !e.campo) return "";
+    if (e.regra) return e.campo + ": " + e.regra;
+    var f = CAMPOS_PCT[e.campo] ? function (x) { return fmtPct(x); } : function (x) { return Number(x).toLocaleString("pt-BR", { maximumFractionDigits: 4 }); };
+    var p = [];
+    if (e.igual !== undefined) p.push("= " + f(e.igual));
+    if (e.min !== undefined) p.push("≥ " + f(e.min));
+    if (e.min_excl !== undefined) p.push("> " + f(e.min_excl));
+    if (e.max !== undefined) p.push("≤ " + f(e.max));
+    if (e.max_excl !== undefined) p.push("< " + f(e.max_excl));
+    return e.campo + " " + p.join(" e ") + (e.soma ? " (cada OS soma)" : "");
+  }
+
+  // Escala das coletivas (Escalas.faixas): abaixo de 80% = 0; em 80% = base; cada ponto acima soma; teto 100%
+  function pctColetiva(atingimento, faixas) {
+    if (atingimento === null || isNaN(atingimento)) return null;
+    var base = 0, porPonto = 0, corte = 0.8;
+    (faixas || []).forEach(function (f) {
+      if (f.ate_excl !== undefined) corte = f.ate_excl;
+      if (f.em !== undefined && Math.abs(f.em - corte) < 1e-9) base = f.pct;
+      if (f.acima_80_por_ponto !== undefined) porPonto = f.acima_80_por_ponto;
+    });
+    if (atingimento < corte) return 0;
+    return Math.min(1, base + (atingimento - corte) * 100 * porPonto);
+  }
+
+  // ===========================================================================
+  // Abas
+  // ===========================================================================
+  var ABAS = [
+    { id: "deducoes", nome: "Deduções" },
+    { id: "coletivas", nome: "Coletivas" },
+    { id: "metricas", nome: "Métricas" }
+  ];
+  var abaAtiva = "deducoes";
+  var statusMsg = { txt: "", cls: "" };
+
+  function renderAbas() {
+    var el = document.getElementById("abas");
+    if (!sessao || !dados) { el.innerHTML = ""; return; }
+    el.innerHTML = ABAS.map(function (a) {
+      return '<button type="button" role="tab" class="aba' + (a.id === abaAtiva ? " on" : "") + '" data-aba="' + a.id + '" aria-selected="' + (a.id === abaAtiva) + '">' + esc(a.nome) + '</button>';
+    }).join("");
+    el.querySelectorAll("[data-aba]").forEach(function (b) {
+      b.onclick = function () {
+        if (temAlteracoes() && !window.confirm("Há alterações não salvas nesta aba. Sair sem salvar?")) return;
+        abaAtiva = b.getAttribute("data-aba"); statusMsg = { txt: "", cls: "" }; render();
+      };
+    });
+  }
+
+  // Campo editavel: data-id (ID SharePoint), data-campo (coluna), data-fmt (pct | num | txt), data-orig
+  function campo(d, nome, fmt, extra) {
+    var v = d[nome];
+    var mostra = fmt === "pct" ? fmtPct(v, 4)
+      : fmt === "num" ? (v === null || v === undefined || v === "" ? "" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 6 }))
+      : (v == null ? "" : String(v));
+    return '<input class="' + (fmt === "txt" ? "t" : "v") + '" data-id="' + d.ID + '" data-campo="' + nome + '" data-fmt="' + fmt +
+      '" data-orig="' + esc(mostra) + '" value="' + esc(mostra) + '" aria-label="' + esc(extra || nome) + '">';
+  }
+  function camposEditados() {
+    return Array.prototype.slice.call(painel.querySelectorAll("input[data-campo]")).filter(function (i) { return i.value !== i.getAttribute("data-orig"); });
+  }
+  function temAlteracoes() { return camposEditados().length > 0; }
+
+  function barraSalvar(dica) {
+    return '<div class="barra"><span class="dica">' + dica + '</span><span class="status ' + statusMsg.cls + '" id="status">' + esc(statusMsg.txt) + '</span>' +
+      '<div class="dir"><button type="button" class="btn sec" id="btnDescartar">Descartar</button><button type="button" class="btn" id="btnSalvar">Salvar alterações</button></div></div>';
+  }
+  function ligarEdicao() {
+    painel.querySelectorAll("input[data-campo]").forEach(function (i) {
+      i.oninput = function () { i.classList.toggle("alterado", i.value !== i.getAttribute("data-orig")); atualizarDerivados(); };
+    });
+    var bs = document.getElementById("btnSalvar"), bd = document.getElementById("btnDescartar");
+    if (bs) bs.onclick = salvar;
+    if (bd) bd.onclick = function () { statusMsg = { txt: "", cls: "" }; render(); };
+  }
+
+  async function salvar() {
+    var mud = camposEditados();
+    if (!mud.length) { statusMsg = { txt: "Nada para salvar.", cls: "" }; document.getElementById("status").textContent = statusMsg.txt; return; }
+    var porId = {}, invalidos = [];
+    mud.forEach(function (i) {
+      var fmt = i.getAttribute("data-fmt"), v;
+      if (fmt === "txt") v = i.value.trim();
+      else { v = lerNumero(i.value, fmt === "pct"); if (v !== null && isNaN(v)) { invalidos.push(i); return; } }
+      var id = i.getAttribute("data-id");
+      (porId[id] = porId[id] || {})[i.getAttribute("data-campo")] = v;
+    });
+    if (invalidos.length) {
+      invalidos.forEach(function (i) { i.focus(); });
+      statusMsg = { txt: invalidos.length + " valor(es) inválido(s). Use números como 15% ou 1.234,56.", cls: "erro" };
+      document.getElementById("status").textContent = statusMsg.txt; document.getElementById("status").className = "status erro";
       return;
     }
-    var porTipo = {};
-    dados.forEach(function (d) {
-      var tipo = d.Tipo || "(sem tipo)";
-      var ano = d.Ano == null ? "" : String(d.Ano);
-      var k = tipo + "|" + ano;
-      if (!porTipo[k]) porTipo[k] = { tipo: tipo, ano: ano, ativos: 0, inativos: 0 };
-      if (String(d.Ativo || "").toLowerCase() === "nao") porTipo[k].inativos++; else porTipo[k].ativos++;
+    var agora = new Date().toISOString();
+    var itens = Object.keys(porId).map(function (id) {
+      var c = porId[id]; c.AtualizadoPor = sessao.login; c.AtualizadoEm = agora;
+      return { id: parseInt(id, 10), campos: c };
     });
-    var linhas = Object.keys(porTipo).sort().map(function (k) {
-      var t = porTipo[k];
-      return '<tr><td>' + esc(t.tipo) + '</td><td>' + esc(t.ano) + '</td><td class="n">' + t.ativos + '</td><td class="n">' + t.inativos + '</td></tr>';
-    }).join("");
-    painel.innerHTML =
-      '<div class="aviso info"><h3>Conectado à lista MERITOCRACIA</h3><p>' + dados.length + ' linhas lidas com o seu acesso de Proprietário.</p></div>' +
-      '<div class="rolagem"><table><thead><tr><th>Tipo</th><th>Ano</th><th class="n">Ativas</th><th class="n">Desativadas</th></tr></thead><tbody>' + linhas + '</tbody></table></div>';
+    document.getElementById("btnSalvar").disabled = true;
+    document.getElementById("status").textContent = "Salvando " + itens.length + " linha(s)…";
+    var r = await gravar(itens);
+    if (!r.ok) {
+      if (r.erro === "sessao") return;
+      statusMsg = { txt: r.erro, cls: "erro" }; render(); return;
+    }
+    var aba = abaAtiva;
+    await carregar();
+    abaAtiva = aba;
+    statusMsg = { txt: "✔ " + itens.length + " linha(s) salva(s).", cls: "ok" };
+    render();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Deducoes (deflatores): faixa e % de reducao editaveis; o limite vem da regra
+  // ---------------------------------------------------------------------------
+  function renderDeducoes() {
+    var linhas = linhasDoTipo("DEDUCAO").sort(function (a, b) {
+      return ordemFuncao(a.Funcao) - ordemFuncao(b.Funcao) || (json(a.Escalas).ordem || 0) - (json(b.Escalas).ordem || 0) || a.ID - b.ID;
+    });
+    var html = barraSalvar("Deflatores do Procedimento por função. O % é a redução aplicada sobre o valor apurado.");
+    var funcao = null;
+    linhas.forEach(function (d) {
+      if (d.Funcao !== funcao) {
+        if (funcao !== null) html += '</tbody></table></div>';
+        funcao = d.Funcao;
+        html += '<div class="grupo-titulo">' + esc(funcao) + '</div><div class="rolagem"><table class="edit"><thead><tr>' +
+          '<th style="width:22%">Indicador</th><th>Faixa</th><th style="width:26%">Regra aplicada</th><th class="n" style="width:150px">% de redução</th></tr></thead><tbody>';
+      }
+      html += '<tr><td>' + esc(d.Indicador) + '</td><td>' + campo(d, "Valor", "txt", "Faixa") + '</td>' +
+        '<td class="regra">' + esc(textoRegra(json(d.Escalas))) + '</td><td class="n">' + campo(d, "Medicao", "pct", "% de redução") + '</td></tr>';
+    });
+    if (funcao !== null) html += '</tbody></table></div>';
+    if (!linhas.length) html += '<div class="aviso info"><h3>Nenhuma dedução cadastrada para ' + ANO + '</h3></div>';
+    painel.innerHTML = html;
+    ligarEdicao();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Coletivas: meta e realizado da empresa; o % sai da escala do Procedimento
+  // ---------------------------------------------------------------------------
+  function renderColetivas() {
+    var linhas = linhasDoTipo("COLETIVA").sort(function (a, b) { return a.ID - b.ID; });
+    var html = barraSalvar("Meta e realizado da empresa no ano. Informe os dois na mesma unidade (R$ ou %).");
+    html += '<div class="cartoes">' + linhas.map(function (d) {
+      return '<div class="cartao" data-coletiva="' + d.ID + '"><h3>' + esc(d.Indicador) + '</h3>' +
+        '<div class="linha"><label for="meta' + d.ID + '">Meta</label>' + campo(d, "Meta", "num", "Meta").replace('<input ', '<input id="meta' + d.ID + '" ') + '</div>' +
+        '<div class="linha"><label for="real' + d.ID + '">Realizado</label>' + campo(d, "Medicao", "num", "Realizado").replace('<input ', '<input id="real' + d.ID + '" ') + '</div>' +
+        '<div class="res"><span>Atingimento <b data-ating>–</b></span><span>Apuração pela escala <b data-apur>–</b></span></div>' +
+        '<div class="obs">' + esc(d.Observacao || "") + '</div></div>';
+    }).join("") + '</div>';
+    if (!linhas.length) html += '<div class="aviso info"><h3>Nenhuma meta coletiva cadastrada para ' + ANO + '</h3></div>';
+    painel.innerHTML = html;
+    ligarEdicao();
+    atualizarDerivados();
+  }
+  function atualizarDerivados() {
+    painel.querySelectorAll("[data-coletiva]").forEach(function (c) {
+      var id = c.getAttribute("data-coletiva");
+      var d = (dados || []).find(function (x) { return String(x.ID) === id; });
+      var meta = lerNumero(document.getElementById("meta" + id).value);
+      var real = lerNumero(document.getElementById("real" + id).value);
+      var at = (meta && real !== null && !isNaN(meta) && !isNaN(real)) ? real / meta : null;
+      c.querySelector("[data-ating]").textContent = at === null ? "–" : fmtPct(at);
+      var ap = pctColetiva(at, json(d && d.Escalas).faixas);
+      c.querySelector("[data-apur]").textContent = ap === null ? "–" : fmtPct(ap);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Metricas: pesos por funcao (planilha MÉTRICAS / Procedimento)
+  // ---------------------------------------------------------------------------
+  function renderMetricas() {
+    var linhas = linhasDoTipo("METRICA").sort(function (a, b) { return ordemFuncao(a.Funcao) - ordemFuncao(b.Funcao); });
+    var html = barraSalvar("Pesos sobre a contraprestação anual (principal e plus) e divisão da medição (coletivas, individual, OKR).");
+    html += '<div class="rolagem"><table class="edit"><thead><tr><th>Função</th><th class="n">Bônus principal</th><th class="n">Bônus plus</th>' +
+      '<th class="n">Lucro líquido</th><th class="n">Geração de caixa</th><th class="n">Individual</th><th class="n">OKR</th><th>Deflatores</th></tr></thead><tbody>' +
+      linhas.map(function (d) {
+        var e = json(d.Escalas);
+        return '<tr><td><b>' + esc(d.Funcao) + '</b></td>' +
+          ["PesoPrincipal", "PesoPlus", "PesoLucro", "PesoCaixa", "PesoIndividual", "PesoOKR"].map(function (k) {
+            return '<td class="n">' + campo(d, k, "pct", d.Funcao + " " + k) + '</td>';
+          }).join("") + '<td class="dica">' + esc((e.deflatores || []).join(", ") || "—") + '</td></tr>';
+      }).join("") + '</tbody></table></div>';
+    painel.innerHTML = html;
+    ligarEdicao();
+  }
+
+  function renderErro(erro) {
+    painel.innerHTML = '<div class="aviso erro"><h3>Não foi possível ler a lista</h3><p>' + esc(erro) + '</p></div>' +
+      '<button type="button" class="btn" id="btnRecarregar">Tentar de novo</button>';
+    document.getElementById("btnRecarregar").onclick = carregar;
   }
 
   function render(erro) {
     document.getElementById("subtitulo").textContent = String(ANO);
     renderSessao();
+    renderAbas();
     if (!sessao) { renderLogin(); return; }
-    if (dados || erro) { renderConexao(erro); return; }
-    renderCarregando();
+    if (erro) { renderErro(erro); return; }
+    if (!dados) { renderCarregando(); return; }
+    if (abaAtiva === "coletivas") renderColetivas();
+    else if (abaAtiva === "metricas") renderMetricas();
+    else renderDeducoes();
   }
 
   document.getElementById("diag").textContent =
