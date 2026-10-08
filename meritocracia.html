@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meritocracia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Mesmo sistema visual do rpco_destaques.html */
+  :root {
+    --bg-main: #0b1a3a;
+    --bg-bar: #10244d;
+    --bg-card: #ffffff;
+    --bg-soft: #f1f5f9;
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --ok: #16a34a;
+    --warn-bg: #fef3c7;
+    --danger: #b91c1c;
+    --danger-bg: #fee2e2;
+    --text: #0f172a;
+    --muted: #475569;
+    --line: #cbd5e1;
+    --line-soft: #e2e8f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 24px; }
+  body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: var(--bg-main); color: var(--text); font-size: 21px; }
+  button, input { font-family: inherit; font-size: inherit; }
+  .app { padding: 16px 20px 40px; }
+  .topo { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--bg-bar); border: 1px solid #1e3a70; border-radius: 12px; padding: 12px 18px; color: #e2e8f0; }
+  .marca { font-weight: 800; font-size: 1.15rem; letter-spacing: .02em; color: #fff; }
+  .marca span { font-weight: 600; font-size: .85rem; color: #93c5fd; margin-left: 10px; letter-spacing: .06em; }
+  .sessao { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: .85rem; }
+  .pill { background: #047857; color: #fff; border-radius: 999px; padding: 3px 10px; font-weight: 800; font-size: .72rem; letter-spacing: .06em; }
+  .btn { border: none; border-radius: 8px; padding: 8px 14px; font-weight: 800; cursor: pointer; background: var(--accent); color: #fff; white-space: nowrap; }
+  .btn:hover { background: var(--accent-dark); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.sec { background: #e2e8f0; color: #334155; }
+  .btn.sec:hover { background: #cbd5e1; }
+  .btn:focus-visible, input:focus-visible { outline: 3px solid #93c5fd; outline-offset: 1px; }
+  .painel { background: var(--bg-card); border-radius: 12px; padding: 20px; margin-top: 14px; min-height: 400px; }
+  .login { max-width: 560px; margin: 40px auto; border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+  .login h2 { font-size: 1.1rem; margin-bottom: 4px; }
+  .login p { color: var(--muted); font-size: .85rem; margin-bottom: 16px; }
+  .login label { display: block; font-size: .74rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 10px 0 4px; }
+  .login input { width: 100%; padding: 9px 11px; border: 1.5px solid var(--line); border-radius: 8px; }
+  .login .btn { width: 100%; margin-top: 16px; padding: 10px; }
+  .aviso { border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .aviso h3 { font-size: 1rem; margin-bottom: 4px; }
+  .aviso p { color: var(--muted); font-size: .86rem; }
+  .aviso.erro { background: var(--danger-bg); border: 1px solid #fecaca; }
+  .aviso.erro h3 { color: #991b1b; }
+  .aviso.info { background: var(--accent-soft); border: 1px solid #bfdbfe; }
+  .aviso.info h3 { color: #1e3a8a; }
+  table { border-collapse: collapse; font-size: .84rem; min-width: 420px; }
+  th { text-align: left; font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 10px; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--line-soft); }
+  th.n, td.n { text-align: right; }
+  td.n { font-variant-numeric: tabular-nums; }
+  .rolagem { overflow-x: auto; }
+  .diag { margin-top: 12px; font-size: .7rem; color: #94a3b8; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topo">
+    <div class="marca">MERITOCRACIA<span id="subtitulo"></span></div>
+    <div class="sessao" id="sessao"></div>
+  </div>
+  <div class="painel" id="painel"></div>
+  <div class="diag" id="diag"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ===========================================================================
+  // Fluxos (Power Automate). NPE-Login devolve um token de 64 caracteres valido por 4 h
+  // (PARAM_ACESSO.TokenValidade). NPE-Ler-Meritocracia e NPE-Gravar-Meritocracia conferem
+  // login + token + perfil PROPRIETARIO e respondem 401 a qualquer outro caso.
+  // ===========================================================================
+  var FLOW = {
+    login:  "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/bcf1295963df418f91a48dd71ea02e60/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VfbYQC2H12f_6GZCSMmrctJBKF1B8ns4TalVByCO688",
+    ler:    "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/31/workflows/77cb0bdc193a4525af1fb1da8f2fcdf5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=V9NVZwV1cq3J4REThC5A8EuG-cvLQVgg68mRkugFcJw",
+    gravar: "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/23/workflows/0ad769e7e83a431fabbad3899788a2c4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=uo1CVIepIAcQmYbt9AaKRcN0bJz6eXhTCTPhHuuVggk"
+  };
+  var ITERACOES = 200000;
+  var LOTE = 20;
+
+  var P = new URLSearchParams(location.search);
+  var ANO = parseInt(P.get("Ano"), 10) || new Date().getFullYear();
+
+  // ===========================================================================
+  // Sessao: SO na memoria desta pagina. A meritocracia mostra remuneracao, entao nao herda a
+  // sessao de 4 h do Acompanhamento e sempre pede a senha (decisao de 28/09/2026). Quando o
+  // Power BI recria o visual, a senha e pedida de novo.
+  // ===========================================================================
+  var sessao = null;
+  var dados = null;
+  var erroLogin = "";
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function fluxoPronto(u) { return !!u && !/^__URL_/.test(u); }
+
+  async function derivarHash(login, senha) {
+    var enc = new TextEncoder();
+    var chave = await crypto.subtle.importKey("raw", enc.encode(senha), "PBKDF2", false, ["deriveBits"]);
+    var bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(String(login).toLowerCase().trim()), iterations: ITERACOES, hash: "SHA-256" }, chave, 256);
+    return Array.from(new Uint8Array(bits)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+  }
+  async function postar(url, corpo) {
+    var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+    var txt = await r.text();
+    var json = null;
+    try { json = txt ? JSON.parse(txt) : null; } catch (e) {}
+    return { status: r.status, json: json };
+  }
+
+  // 401 = token vencido, sessao encerrada ou perfil sem acesso: volta para o login
+  function sessaoCaiu(msg) {
+    sessao = null;
+    dados = null;
+    erroLogin = msg || "Sua sessão terminou. Entre novamente.";
+    render();
+  }
+
+  async function entrar(login, senha) {
+    login = String(login || "").toLowerCase().trim();
+    if (!login || !senha) { erroLogin = "Informe usuário e senha."; render(); return; }
+    if (!fluxoPronto(FLOW.login)) { erroLogin = "Fluxo de login não configurado."; render(); return; }
+    erroLogin = "";
+    renderEntrando();
+    try {
+      var hash = await derivarHash(login, senha);
+      var r = await postar(FLOW.login, { login: login, hash: hash });
+      var j = r.json || {};
+      if (r.status !== 200 || j.ok !== true) { erroLogin = "Usuário ou senha incorretos."; render(); return; }
+      if (j.perfil !== "PROPRIETARIO") { erroLogin = "A Meritocracia é restrita ao perfil Proprietário."; render(); return; }
+      if (String(j.token || "").length !== 64) { erroLogin = "O servidor não devolveu o token de acesso. Tente de novo."; render(); return; }
+      sessao = { login: login, nome: j.nome || login, perfil: j.perfil, token: j.token, desde: Date.now() };
+      await carregar();
+    } catch (e) {
+      erroLogin = "Não foi possível validar o acesso agora.";
+      render();
+    }
+  }
+
+  function sair() { sessao = null; dados = null; erroLogin = ""; render(); }
+
+  // Le a lista MERITOCRACIA inteira (metricas, deducoes, coletivas, remuneracoes...)
+  async function ler() {
+    if (!sessao) throw new Error("sem sessao");
+    var r = await postar(FLOW.ler, { login: sessao.login, token: sessao.token });
+    if (r.status === 401) { sessaoCaiu(); return null; }
+    if (r.status !== 200 || !Array.isArray(r.json)) throw new Error("Falha ao ler (" + r.status + ")");
+    return r.json;
+  }
+
+  // itens = [{ id: 0 para novo | ID do SharePoint, campos: { NomeInterno: valor } }]
+  // Nada e apagado: para tirar uma linha, grave campos.Ativo = "Nao".
+  async function gravar(itens) {
+    if (!sessao) throw new Error("sem sessao");
+    var total = 0;
+    for (var i = 0; i < itens.length; i += LOTE) {
+      var r = await postar(FLOW.gravar, { login: sessao.login, token: sessao.token, itens: itens.slice(i, i + LOTE) });
+      if (r.status === 401) { sessaoCaiu(); return { ok: false, n: total, erro: "sessao" }; }
+      if (r.status !== 200 || !r.json || r.json.ok !== true) return { ok: false, n: total, erro: "Falha ao gravar o lote que começa no item " + (i + 1) + " (" + r.status + ")." };
+      total += r.json.n || 0;
+    }
+    return { ok: true, n: total };
+  }
+
+  async function carregar() {
+    renderCarregando();
+    try {
+      var linhas = await ler();
+      if (!linhas) return;
+      dados = linhas;
+      render();
+    } catch (e) {
+      dados = null;
+      render(e.message);
+    }
+  }
+
+  // ===========================================================================
+  // Tela
+  // ===========================================================================
+  var painel = document.getElementById("painel");
+
+  function renderSessao() {
+    var el = document.getElementById("sessao");
+    el.innerHTML = sessao
+      ? '<span class="pill">PROPRIETÁRIO</span><span>' + esc(sessao.nome) + '</span><button type="button" class="btn sec" id="btnSair">Sair</button>'
+      : "";
+    var b = document.getElementById("btnSair");
+    if (b) b.onclick = sair;
+  }
+
+  function renderLogin() {
+    painel.innerHTML =
+      '<form class="login" id="formLogin" autocomplete="off">' +
+        '<h2>Entrar na Meritocracia</h2>' +
+        '<p>Área restrita ao Proprietário. A senha é pedida sempre que a página abre.</p>' +
+        (erroLogin ? '<div class="aviso erro"><h3>' + esc(erroLogin) + '</h3></div>' : '') +
+        '<label for="loginUsuario">Usuário</label><input id="loginUsuario" type="text" autocomplete="username">' +
+        '<label for="loginSenha">Senha</label><input id="loginSenha" type="password" autocomplete="current-password">' +
+        '<button type="submit" class="btn" id="btnEntrar">Entrar</button>' +
+      '</form>';
+    document.getElementById("formLogin").onsubmit = function (ev) {
+      ev.preventDefault();
+      entrar(document.getElementById("loginUsuario").value, document.getElementById("loginSenha").value);
+    };
+    document.getElementById("loginUsuario").focus();
+  }
+
+  function renderEntrando() { painel.innerHTML = '<div class="login"><h2>Conferindo o acesso…</h2></div>'; }
+  function renderCarregando() { renderSessao(); painel.innerHTML = '<div class="login"><h2>Carregando a lista da Meritocracia…</h2></div>'; }
+
+  // Por enquanto (passo 2c) a tela so prova a conexao: quantas linhas a lista tem por tipo.
+  function renderConexao(erro) {
+    if (erro) {
+      painel.innerHTML = '<div class="aviso erro"><h3>Não foi possível ler a lista</h3><p>' + esc(erro) + '</p></div>' +
+        '<button type="button" class="btn" id="btnRecarregar">Tentar de novo</button>';
+      document.getElementById("btnRecarregar").onclick = carregar;
+      return;
+    }
+    var porTipo = {};
+    dados.forEach(function (d) {
+      var tipo = d.Tipo || "(sem tipo)";
+      var ano = d.Ano == null ? "" : String(d.Ano);
+      var k = tipo + "|" + ano;
+      if (!porTipo[k]) porTipo[k] = { tipo: tipo, ano: ano, ativos: 0, inativos: 0 };
+      if (String(d.Ativo || "").toLowerCase() === "nao") porTipo[k].inativos++; else porTipo[k].ativos++;
+    });
+    var linhas = Object.keys(porTipo).sort().map(function (k) {
+      var t = porTipo[k];
+      return '<tr><td>' + esc(t.tipo) + '</td><td>' + esc(t.ano) + '</td><td class="n">' + t.ativos + '</td><td class="n">' + t.inativos + '</td></tr>';
+    }).join("");
+    painel.innerHTML =
+      '<div class="aviso info"><h3>Conectado à lista MERITOCRACIA</h3><p>' + dados.length + ' linhas lidas com o seu acesso de Proprietário.</p></div>' +
+      '<div class="rolagem"><table><thead><tr><th>Tipo</th><th>Ano</th><th class="n">Ativas</th><th class="n">Desativadas</th></tr></thead><tbody>' + linhas + '</tbody></table></div>';
+  }
+
+  function render(erro) {
+    document.getElementById("subtitulo").textContent = String(ANO);
+    renderSessao();
+    if (!sessao) { renderLogin(); return; }
+    if (dados || erro) { renderConexao(erro); return; }
+    renderCarregando();
+  }
+
+  document.getElementById("diag").textContent =
+    "fluxos: login " + (fluxoPronto(FLOW.login) ? "ok" : "falta") +
+    " · ler " + (fluxoPronto(FLOW.ler) ? "ok" : "falta") +
+    " · gravar " + (fluxoPronto(FLOW.gravar) ? "ok" : "falta");
+
+  // Acesso para depuracao no console; tudo continua exigindo o token da sessao.
+  window.MERITO = { ler: ler, gravar: gravar, logado: function () { return !!sessao; } };
+
+  render();
+})();
+</script>
+</body>
+</html>
