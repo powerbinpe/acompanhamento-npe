@@ -53,6 +53,8 @@
   .aba { background: transparent; color: #cbd5e1; border: 1px solid #1e3a70; border-bottom: none; border-radius: 10px 10px 0 0; padding: 10px 18px; font-weight: 700; cursor: pointer; }
   .aba.on { background: var(--bg-card); color: var(--text); border-color: var(--bg-card); }
   .painel { background: var(--bg-card); border-radius: 0 12px 12px 12px; padding: 20px; min-height: 400px; }
+  .painel-merito { border-radius: 0 12px 12px 12px; overflow: hidden; }
+  .painel-merito .aviso { margin: 0; }
 
   .aviso { border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
   .aviso h3 { font-size: 1rem; margin-bottom: 4px; }
@@ -301,6 +303,7 @@
   </div>
   <div class="abas" role="tablist" id="abas"></div>
   <div class="painel" id="painel"></div>
+  <div id="painelMerito" class="painel-merito" hidden></div>
   <div class="diag" id="diag"></div>
 </div>
 <div id="flutuante" class="flutuante" hidden></div>
@@ -421,7 +424,8 @@
     } catch (e) {}
     return null;
   }
-  function gravarSessao(s) { try { window.name = s ? PREFIXO + JSON.stringify(s) : ""; } catch (e) {} }
+  // O token da Meritocracia fica so na memoria: nao vai para o window.name
+  function gravarSessao(s) { try { window.name = s ? PREFIXO + JSON.stringify(s, function (k, v) { return k === "token" ? undefined : v; }) : ""; } catch (e) {} }
   var SEM_FILTRO_PORTAL = P.get("SP") === "1";
   var AVISO_MIN = 15;
   function validadeMs() { return sessao && sessao.validade ? Date.parse(sessao.validade) : 0; }
@@ -455,6 +459,38 @@
     renderSessao();
   }, 30000);
   function ehProprietario() { return !!sessao && sessao.perfil === "PROPRIETARIO"; }
+
+  // ===========================================================================
+  // Meritocracia (08/10/2026): guia so do Proprietario. A meritocracia.html abre aqui dentro com os
+  // dados do modelo (MER, depois do "#", so quando nao ha filtro do portal). O token do login feito
+  // NESTA tela vai por mensagem e nao e guardado; sessao retomada (window.name ou SharePoint) nao
+  // tem token, e a Meritocracia pede a senha la dentro.
+  // ===========================================================================
+  var MER = String(P.get("MER") || "");
+  var meritoFrame = null;
+  function montarMerito() {
+    var caixa = document.getElementById("painelMerito");
+    if (!MER) { meritoFrame = null; caixa.innerHTML = '<div class="painel"><div class="aviso info"><h3>Meritocracia sem dados</h3><p>Os dados da Meritocracia chegam do modelo só pela página DESTAQUES do Power BI, sem filtro do portal.</p></div></div>'; return; }
+    if (meritoFrame && caixa.contains(meritoFrame)) return;
+    caixa.innerHTML = "";
+    meritoFrame = document.createElement("iframe");
+    meritoFrame.title = "Meritocracia";
+    meritoFrame.src = "meritocracia.html?_cb=" + encodeURIComponent(P.get("_cb") || Date.now()) + "&Ano=" + ANO + "#" + MER;
+    meritoFrame.style.cssText = "width:100%;height:3300px;border:0;display:block;background:#0b1a3a;";
+    caixa.appendChild(meritoFrame);
+  }
+  function fecharMerito() {
+    if (meritoFrame) { try { meritoFrame.contentWindow.postMessage({ tipo: "npe-merito-sair" }, "*"); } catch (e) {} }
+    meritoFrame = null;
+    var c = document.getElementById("painelMerito");
+    if (c) { c.innerHTML = ""; c.hidden = true; }
+  }
+  // A meritocracia avisa que carregou; so entao recebe login + token (so para o iframe que criamos)
+  window.addEventListener("message", function (ev) {
+    if (!meritoFrame || ev.source !== meritoFrame.contentWindow || !ev.data || ev.data.tipo !== "npe-merito-pronta") return;
+    if (ehProprietario() && String(sessao.token || "").length === 64)
+      meritoFrame.contentWindow.postMessage({ tipo: "npe-merito-sessao", login: sessao.login, nome: sessao.nome, perfil: sessao.perfil, token: sessao.token }, "*");
+  });
   // Master = quem entrou pela PARAM_ACESSO; so ele ve o consolidado da empresa
   function ehMaster() { return !!sessao; }
 
@@ -771,7 +807,7 @@
   // ===========================================================================
   // Renderizacao
   // ===========================================================================
-  var ABAS = [["metas", "Metas"], ["operacional", "Acompanhamento Operacional"], ["destaques", "Destaques"]];
+  var ABAS = [["metas", "Metas"], ["operacional", "Acompanhamento Operacional"], ["destaques", "Destaques"], ["meritocracia", "Meritocracia"]];
   function marcarNegativos(raiz) {
     raiz.querySelectorAll("td.n, .linha-barra b, .duas b").forEach(function (el) {
       el.classList.toggle("neg", /^\s*[-\u2212(]/.test(el.textContent) && /\d/.test(el.textContent));
@@ -784,11 +820,15 @@
     renderSessao();
     if (!sessao && abaAtiva === "metas") abaAtiva = "operacional";
     if (!sessao && abaAtiva === "destaques") abaAtiva = "operacional";
-    document.getElementById("abas").innerHTML = ABAS.filter(function (a) { return sessao || (a[0] !== "metas" && a[0] !== "destaques"); }).map(function (a) {
+    if (!ehProprietario()) { if (abaAtiva === "meritocracia") abaAtiva = "operacional"; fecharMerito(); }
+    document.getElementById("abas").innerHTML = ABAS.filter(function (a) { return a[0] === "meritocracia" ? ehProprietario() : sessao || (a[0] !== "metas" && a[0] !== "destaques"); }).map(function (a) {
       return '<button type="button" role="tab" class="aba' + (a[0] === abaAtiva ? " on" : "") + '" aria-selected="' + (a[0] === abaAtiva) + '" data-aba="' + a[0] + '">' + a[1] + "</button>";
     }).join("");
     var painel = document.getElementById("painel");
-    if (!sessao && abaAtiva === "login") { painel.innerHTML = htmlLogin(); ligarLogin(); var lu = document.getElementById("lgUsuario"); if (lu) lu.focus(); }
+    painel.hidden = abaAtiva === "meritocracia";
+    document.getElementById("painelMerito").hidden = abaAtiva !== "meritocracia";
+    if (abaAtiva === "meritocracia") { painel.innerHTML = ""; montarMerito(); }
+    else if (!sessao && abaAtiva === "login") { painel.innerHTML = htmlLogin(); ligarLogin(); var lu = document.getElementById("lgUsuario"); if (lu) lu.focus(); }
     else if (abaAtiva === "operacional") painel.innerHTML = htmlAcompanhamento();
     else if (abaAtiva === "gerenciais") painel.innerHTML = htmlGerenciais();
     else if (abaAtiva === "destaques") painel.innerHTML = htmlDestaques();
@@ -865,7 +905,7 @@
         avisoLogin(res.status === 200 ? "Usuário ou senha incorretos." : "Falha ao consultar o servidor (HTTP " + res.status + ").", login);
         return;
       }
-      sessao = { login: login, nome: res.json.nome || login, perfil: res.json.perfil || "MASTER", hash: hash, ts: Date.now() };
+      sessao = { login: login, nome: res.json.nome || login, perfil: res.json.perfil || "MASTER", hash: hash, ts: Date.now(), token: String(res.json.token || "") };
       await acaoSessao("abrir");
       if (abaAtiva === "login") abaAtiva = "metas";
       gravarSessao(sessao);

@@ -215,6 +215,18 @@
 
   function sair() { sessao = null; dados = null; erroLogin = ""; render(); }
 
+  // Dentro da guia Meritocracia do RPCO (pagina DESTAQUES): o RPCO manda login + token do login que o
+  // Proprietario acabou de fazer la, sem pedir a senha de novo. Sessao retomada no RPCO nao manda token.
+  window.addEventListener("message", function (ev) {
+    if (window.parent === window || ev.source !== window.parent || !ev.data) return;
+    var d = ev.data;
+    if (d.tipo === "npe-merito-sair") { if (sessao) sair(); return; }
+    if (d.tipo !== "npe-merito-sessao" || sessao || d.perfil !== "PROPRIETARIO" || !d.login || String(d.token || "").length !== 64) return;
+    sessao = { login: String(d.login).toLowerCase().trim(), nome: d.nome || d.login, perfil: d.perfil, token: String(d.token), desde: Date.now() };
+    carregar();
+  });
+  if (window.parent !== window) { try { window.parent.postMessage({ tipo: "npe-merito-pronta" }, "*"); } catch (e) {} }
+
   // Le a lista MERITOCRACIA inteira (metricas, deducoes, coletivas, remuneracoes...)
   async function ler() {
     if (!sessao) throw new Error("sem sessao");
