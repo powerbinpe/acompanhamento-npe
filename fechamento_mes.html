@@ -234,7 +234,8 @@
   function atualizarResumo() {
     var c = { pendente: 0, ok: 0, revisar: 0, erro: 0 };
     estado.lista.forEach(function (o) { var r = estado.resultados[o.code]; c[(r && r.estado) || "pendente"] = (c[(r && r.estado) || "pendente"] || 0) + 1; });
-    el("resumo").textContent = estado.lista.length + " OS(s) | prontas: " + c.ok + " | para revisar: " + c.revisar + " | com erro: " + c.erro + " | pendentes: " + c.pendente;
+    var marcadas = estado.lista.filter(function (o) { return o.marcada; }).length;
+    el("resumo").textContent = estado.lista.length + " OS(s) | MARCADAS PARA PROCESSAR: " + marcadas + " | prontas: " + c.ok + " | para revisar: " + c.revisar + " | com erro: " + c.erro + " | pendentes: " + c.pendente;
   }
   function marcar(i, est, texto) {
     var o = estado.lista[i];
@@ -268,7 +269,7 @@
       });
       estado.lista = codigos.map(function (c) {
         var ancora = c.split("|")[0];
-        return { code: ancora, nome: c.split("|").join(" + ") + (nomes[c] ? " - " + nomes[c] : ""), marcada: true };
+        return { code: ancora, nome: c.split("|").join(" + ") + (nomes[c] ? " - " + nomes[c] : ""), marcada: el("etapa").value === "aba5" };
       });
       if (!estado.lista.length) throw new Error("O modelo não devolveu nenhuma OS elegível para " + mes + "/" + ano + ".");
       estado.resultados = lerProgresso();
@@ -281,7 +282,7 @@
 
   el("corpo").addEventListener("change", function (ev) {
     var i = ev.target.getAttribute && ev.target.getAttribute("data-i");
-    if (i != null) estado.lista[parseInt(i, 10)].marcada = ev.target.checked;
+    if (i != null) { estado.lista[parseInt(i, 10)].marcada = ev.target.checked; atualizarResumo(); }
   });
   el("btnTodas").addEventListener("click", function () {
     var todas = estado.lista.every(function (o) { return o.marcada; });
@@ -377,14 +378,16 @@
     var oque = etapaSel === "aba5" ? "as notas (Aba 5) de janeiro até o último mês fechado, substituindo as já gravadas"
              : etapaSel === "aba3" ? "o resumo anual (Aba 3) de janeiro até o último mês fechado, substituindo o que já estava gravado em cada indicador gerado"
              : "os pareceres e a síntese do mês na ATA (o texto de cada indicador NÃO validado será SUBSTITUÍDO; mês fechado não deve ser processado)";
-    if (gravar && !window.confirm("Gravar " + oque + " de " + fila.length + " OS(s)?\n\nReferência: " + mes + "/" + ano + ".")) return;
+    var nomesFila = fila.slice(0, 6).map(function (k) { return estado.lista[k].code; }).join(", ") + (fila.length > 6 ? " ..." : "");
+    if (gravar && !window.confirm("Gravar " + oque + " de " + fila.length + " OS(s)?\n\nOSs: " + nomesFila + "\nReferência: " + mes + "/" + ano + ".")) return;
     estado.rodando = true; estado.parar = false; estado.persistir = gravar;
     el("btnIniciar").disabled = true; el("btnParar").disabled = false; el("btnCarregar").disabled = true;
     log((gravar ? "GRAVANDO" : "TESTE (sem gravar)") + " - " + fila.length + " OS(s) na fila.");
     for (var k = 0; k < fila.length; k++) {
       if (estado.parar) { log("Parado pelo usuário."); break; }
       await processarUma(fila[k], ano, mes, gravar);
-      await espera(2500);
+      // Etapas com IA: intervalo maior entre OSs (o plano gratuito do Gemini limita chamadas por minuto).
+      await espera(el("etapa").value === "aba5" ? 2500 : 8000);
     }
     estado.rodando = false;
     el("btnIniciar").disabled = false; el("btnParar").disabled = true; el("btnCarregar").disabled = false;

@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-08 09:45";
+    window.NPE_BUILD = "2026-10-08 10:42";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -7969,8 +7969,12 @@ function hydrateFromPowerBI() {
       }
       var url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(nomeModelo) + ":generateContent";
       var ultimoErro = "";
-      for (var tent = 0; tent < 4; tent++) {
-        if (tent > 0) await new Promise(function(r) { setTimeout(r, 4000 * tent); });
+      var esperaMs = 0;
+      // Limite do plano gratuito: o Google informa quanto esperar (RetryInfo / "Please retry in 39s").
+      // Ate 6 tentativas; a espera pedida pelo Google vale (maximo 70 s), senao 8 s x tentativa.
+      for (var tent = 0; tent < 6; tent++) {
+        if (tent > 0) await new Promise(function(r) { setTimeout(r, esperaMs || (8000 * tent)); });
+        esperaMs = 0;
         var resp;
         try {
           resp = await fetch(url, {
@@ -7982,7 +7986,22 @@ function hydrateFromPowerBI() {
             })
           });
         } catch (e) { ultimoErro = "sem conexao com o Gemini"; continue; }
-        if (resp.status === 429 || resp.status >= 500) { ultimoErro = "Gemini respondeu " + resp.status + " (limite ou instabilidade)"; continue; }
+        if (resp.status === 429 || resp.status >= 500) {
+          ultimoErro = "Gemini respondeu " + resp.status + " (limite ou instabilidade)";
+          try {
+            var jr = await resp.json();
+            var det = (jr && jr.error && jr.error.details) || [];
+            for (var di = 0; di < det.length; di++) {
+              var rd = det[di] && det[di].retryDelay;
+              if (rd) { var segs = parseFloat(String(rd).replace("s", "")); if (isFinite(segs)) esperaMs = Math.min(70000, Math.ceil(segs * 1000) + 1500); }
+            }
+            if (!esperaMs && jr && jr.error && jr.error.message) {
+              var mm = /retry in ([0-9.]+)s/i.exec(jr.error.message);
+              if (mm) esperaMs = Math.min(70000, Math.ceil(parseFloat(mm[1]) * 1000) + 1500);
+            }
+          } catch (e3) {}
+          continue;
+        }
         if (!resp.ok) {
           var detalhe = "";
           try { var je = await resp.json(); detalhe = (je && je.error && je.error.message) ? je.error.message : ""; } catch (e2) {}
