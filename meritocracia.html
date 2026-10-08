@@ -110,6 +110,13 @@
   .chip.sem { background: var(--warn-bg); color: #92400e; margin: 1px; }
   td.n.neg { color: var(--danger); font-weight: 700; }
   .total-geral { margin-top: 18px; padding: 12px 14px; border-radius: 10px; background: var(--bg-soft); font-size: .9rem; }
+  .inc-grade { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.4fr); gap: 18px; margin-top: 10px; }
+  .inc-grade label { display: block; font-size: .72rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 8px 0 4px; }
+  .inc-grade select, .inc-grade input[type=search] { width: 100%; padding: 6px 9px; border: 1.5px solid var(--line); border-radius: 6px; font: inherit; font-size: .84rem; }
+  .inc-os { max-height: 260px; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: #fff; }
+  .inc-os label { display: block; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--text); font-size: .8rem; margin: 2px 0; }
+  .x { background: none; border: none; color: #94a3b8; font-weight: 800; cursor: pointer; font-size: .9rem; padding: 0 4px; }
+  .x:hover { color: var(--danger); }
   textarea.copia { width: 100%; font: 12px/1.35 Consolas, 'Courier New', monospace; white-space: pre; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin-top: 8px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -352,7 +359,7 @@
   // Dados do modelo (_mMeritoDados) -- chegam depois do "#" na URL montada pela medida.
   // Cada campo e decodificado so depois de separado (os separadores ; ~ | : , nunca vem codificados).
   // ===========================================================================
-  var HR, NOMES_G, NOMES_R, NOMES_S, OSS, OS_POR_COD;
+  var HR, NOMES_G, NOMES_R, NOMES_S, NOMES_CTT, OSS, OS_POR_COD;
   function dec(s) { try { return decodeURIComponent(String(s || "")); } catch (e) { return String(s || ""); } }
   function n36(x) { if (!x) return 0; var neg = x.charAt(0) === "-"; var v = parseInt(neg ? x.slice(1) : x, 36); return isNaN(v) ? 0 : (neg ? -v : v); }
   function pad6(c) { c = String(c || "").trim(); return /^\d+$/.test(c) ? ("000000" + c).slice(-6) : c; }
@@ -366,6 +373,9 @@
     HR = {};
     String(location.hash || "").replace(/^#/, "").split("&").forEach(function (kv) { var i = kv.indexOf("="); if (i > 0) HR[kv.slice(0, i)] = kv.slice(i + 1); });
     NOMES_G = dicionario("PG"); NOMES_R = dicionario("PR"); NOMES_S = dicionario("PS");
+    // Todas as pessoas da CTT (codigo -> nome exato), para incluir pessoa escolhendo da lista
+    NOMES_CTT = dicionario("PC");
+    [NOMES_G, NOMES_R, NOMES_S].forEach(function (d) { Object.keys(d).forEach(function (c) { if (!NOMES_CTT[c]) NOMES_CTT[c] = d[c]; }); });
     OSS = String(HR.MO || "").split(";").filter(Boolean).map(function (l) {
     var f = l.split("~").map(function (x, i) { return i === 4 ? x : dec(x); });
     var ev = {};
@@ -466,6 +476,14 @@
         add(cs, NOMES_S[cs] || (vs && vs.nome) || "", FUNC_OP.s, os.cod, m);
       }
     });
+    // Inclusao manual (escolhida da CTT na pagina) em funcao operacional: entra com as OSs escolhidas, o ano todo
+    linhasDoTipo("PESSOA").forEach(function (d) {
+      if (!d.Funcao || !NIVEL_OP(d.Funcao)) return;
+      var cod = pad6(d.CodPessoa), e = json(d.Escalas), k = cod + "|" + d.Funcao;
+      (e.oss || []).forEach(function (os) { for (var m = 1; m <= 12; m++) add(cod, d.Nome || NOMES_CTT[cod] || "", d.Funcao, os, m); });
+      if (!mapa[k] && !fixos[cod]) mapa[k] = { cod: cod, nome: d.Nome || NOMES_CTT[cod] || "", funcao: d.Funcao, meses: todosMeses(), oss: {}, origem: "INCLUÍDA" };
+      if (mapa[k]) mapa[k].incluida = true;
+    });
     // Decisao do usuario (08/10): quem a CTT coloca em dois niveis conta so no mais alto. Mes a mes, para
     // que a promocao no meio do ano continue proporcional a cada funcao.
     var NIVEL = {}; NIVEL[FUNC_OP.s] = 3; NIVEL[FUNC_OP.g] = 2; NIVEL[FUNC_OP.c] = 1;
@@ -487,10 +505,11 @@
       }
       ks.forEach(function (k) { if (!Object.keys(mapa[k].meses).length) delete mapa[k]; });
     });
+    // Inclusao manual / importada em funcao nao operacional (fixos, apoio, comercial): o ano todo
     linhasDoTipo("PESSOA").forEach(function (d) {
-      if (!d.Funcao) return;
+      if (!d.Funcao || NIVEL_OP(d.Funcao)) return;
       var cod = pad6(d.CodPessoa), k = cod + "|" + d.Funcao;
-      if (!mapa[k]) mapa[k] = { cod: cod, nome: d.Nome || "", funcao: d.Funcao, meses: todosMeses(), oss: {}, origem: "IMPORTADA" };
+      if (!mapa[k]) mapa[k] = { cod: cod, nome: d.Nome || NOMES_CTT[cod] || "", funcao: d.Funcao, meses: todosMeses(), oss: {}, origem: "INCLUÍDA" };
     });
     // Periodo: admitido ate janeiro = integral; de fevereiro em diante, a partir do mes de admissao;
     // a partir de outubro nao recebe; minimo de 3 meses no ano (Procedimento).
@@ -740,6 +759,7 @@
     var mt = ultimaMontagem = montarPessoas();
     var html = '<div class="barra"><span class="dica">Pessoas elegíveis de ' + ANO + '. Operacionais vêm da CTT com a vigência da PARAM_ELEGIBILIDADE; apoio e comercial entram pela importação.</span>' +
       '<span class="status ' + statusMsg.cls + '" id="status">' + esc(statusMsg.txt) + '</span><div class="dir">' +
+      '<button type="button" class="btn sec" id="btnIncluir">Incluir pessoa</button>' +
       '<button type="button" class="btn sec" id="btnExportar">Exportar lista</button><button type="button" class="btn sec" id="btnImportar">Importar planilha</button>' +
       '<button type="button" class="btn sec" id="btnDescartar">Descartar</button><button type="button" class="btn" id="btnSalvarPessoas">Salvar alterações</button></div></div>';
     if (!OSS.length) html += '<div class="aviso erro"><h3>Os dados do modelo não chegaram</h3><p>A lista de OSs, a hierarquia e os indicadores vêm da medida _mMeritoDados. Abra a página pelo Power BI.</p></div>';
@@ -770,7 +790,9 @@
           CAMPOS_PESSOA.map(function (c) { return '<th class="n" style="width:' + c.w + 'px">' + c.rot + '</th>'; }).join("") +
           '<th class="n">Período</th></tr></thead><tbody>';
       }
+      var podeTirar = p.origem === "INCLUÍDA" || p.incluida;
       html += '<tr><td class="os">' + esc(p.cod) + '</td><td>' + esc(p.nome) + (p.origem !== "CTT" ? ' <span class="chip">' + esc(p.origem.toLowerCase()) + '</span>' : '') +
+        (podeTirar ? ' <button type="button" class="x" title="Tirar da lista (a inclusão manual)" data-tirar="' + esc(p.cod) + '">✕</button>' : '') +
         '</td><td class="dica oss">' + esc(resumoOSs(p)) + '</td><td class="n">' + p.mesesValidos.length + '</td>' +
         CAMPOS_PESSOA.map(function (c) {
           if (c.so && c.so.indexOf(p.funcao) < 0) return '<td class="n dica">—</td>';
@@ -801,6 +823,22 @@
     document.getElementById("btnSalvarPessoas").onclick = function () { salvarPessoas(lerEdicoesPessoas()); };
     document.getElementById("btnDescartar").onclick = function () { statusMsg = { txt: "", cls: "" }; painelExtra = ""; render(); };
     document.getElementById("btnExportar").onclick = mostrarExportacao;
+    document.getElementById("btnIncluir").onclick = mostrarInclusao;
+    painel.querySelectorAll("[data-tirar]").forEach(function (b) { b.onclick = function () { tirarInclusao(b.getAttribute("data-tirar")); }; });
+    var bInc = document.getElementById("btnGravarInclusao");
+    if (bInc) bInc.onclick = gravarInclusao;
+    var fInc = document.getElementById("incFiltro");
+    if (fInc) fInc.oninput = function () {
+      var q = fInc.value.trim().toUpperCase();
+      Array.prototype.forEach.call(document.getElementById("incPessoa").options, function (o) { o.hidden = !!q && o.text.toUpperCase().indexOf(q) < 0; });
+    };
+    var fOs = document.getElementById("incFiltroOS");
+    if (fOs) fOs.oninput = function () {
+      var q = fOs.value.trim().toUpperCase();
+      painel.querySelectorAll(".inc-os label").forEach(function (l) { l.hidden = !!q && l.textContent.toUpperCase().indexOf(q) < 0; });
+    };
+    var sF = document.getElementById("incFuncao");
+    if (sF) sF.onchange = function () { document.getElementById("incBlocoOS").hidden = !NIVEL_OP(sF.value); };
     document.getElementById("btnImportar").onclick = mostrarImportacao;
     painel.querySelectorAll("[data-pend]").forEach(function (b) {
       b.onclick = function () { gravarPendencia(+b.getAttribute("data-pend")); };
@@ -870,6 +908,50 @@
     await carregar(); abaAtiva = "pessoas"; statusMsg = { txt: "✔ Coordenador de " + x.os + " gravado.", cls: "ok" }; render();
   }
 
+  // Inclusao manual em qualquer nivel: a pessoa e escolhida da lista da CTT (codigo e nome exatos), nunca digitada.
+  // Grava na linha PESSOA da pessoa: Funcao e, para funcao operacional, as OSs (Escalas.oss).
+  function mostrarInclusao() {
+    var cods = Object.keys(NOMES_CTT).sort(function (a, b) { return String(NOMES_CTT[a]).localeCompare(String(NOMES_CTT[b])); });
+    painelExtra = '<div class="aviso info inclusao"><h3>Incluir pessoa</h3><p>Escolha a função e a pessoa da CTT (' + cods.length +
+      ' pessoas). Para função operacional, marque as OSs dela. Quem já está na lista pela CTT não precisa ser incluído.</p>' +
+      '<div class="inc-grade"><div><label for="incFuncao">Função</label><select id="incFuncao">' +
+      ORDEM_FUNCOES.map(function (f) { return '<option>' + esc(f) + '</option>'; }).join("") + '</select>' +
+      '<label for="incFiltro">Pessoa da CTT</label><input id="incFiltro" type="search" placeholder="filtrar por nome ou código">' +
+      '<select id="incPessoa" size="9">' + cods.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c + " — " + NOMES_CTT[c]) + '</option>'; }).join("") + '</select></div>' +
+      '<div id="incBlocoOS" hidden><label for="incFiltroOS">OSs da pessoa</label><input id="incFiltroOS" type="search" placeholder="filtrar OS"><div class="inc-os">' +
+      OSS.map(function (o) { return '<label><input type="checkbox" value="' + esc(o.cod) + '"> ' + esc(o.desc) + '</label>'; }).join("") + '</div></div></div>' +
+      '<div class="barra"><span class="status" id="statusInc"></span><div class="dir"><button type="button" class="btn sec" id="btnFecharExtra">Fechar</button>' +
+      '<button type="button" class="btn" id="btnGravarInclusao">Incluir</button></div></div></div>';
+    render();
+  }
+  async function gravarInclusao() {
+    var funcao = document.getElementById("incFuncao").value, cod = document.getElementById("incPessoa").value;
+    var oss = Array.prototype.slice.call(painel.querySelectorAll(".inc-os input:checked")).map(function (i) { return i.value; });
+    var st = document.getElementById("statusInc");
+    if (!cod) { st.textContent = "Escolha a pessoa na lista."; st.className = "status erro"; return; }
+    if (NIVEL_OP(funcao) && !oss.length) { st.textContent = "Marque pelo menos uma OS para função operacional."; st.className = "status erro"; return; }
+    var ja = (ultimaMontagem || montarPessoas()).lista.find(function (p) { return p.cod === cod && p.funcao === funcao && p.origem === "CTT" && !NIVEL_OP(funcao); });
+    if (ja) { st.textContent = "Essa pessoa já está na lista nessa função."; st.className = "status erro"; return; }
+    var d = pessoaRow(cod), e = json(d && d.Escalas), c = {};
+    if (NIVEL_OP(funcao)) e.oss = oss; else delete e.oss;
+    c.Funcao = funcao; c.Escalas = JSON.stringify(e); c.AtualizadoPor = sessao.login; c.AtualizadoEm = new Date().toISOString();
+    if (!d) { c.Title = ANO + "|PESSOA|" + cod; c.Ano = ANO; c.Tipo = "PESSOA"; c.CodPessoa = cod; c.Ativo = "Sim"; c.Nome = NOMES_CTT[cod] || ""; }
+    else if (!d.Nome) c.Nome = NOMES_CTT[cod] || "";
+    st.textContent = "Gravando…"; st.className = "status";
+    var r = await gravar([{ id: d ? d.ID : 0, campos: c }]);
+    if (!r.ok) { if (r.erro !== "sessao") { st.textContent = r.erro; st.className = "status erro"; } return; }
+    await carregar(); abaAtiva = "pessoas"; painelExtra = "";
+    statusMsg = { txt: "✔ " + (NOMES_CTT[cod] || cod) + " incluído(a) em " + funcao + ".", cls: "ok" }; render();
+  }
+  async function tirarInclusao(cod) {
+    var d = pessoaRow(cod);
+    if (!d || !window.confirm("Tirar " + (d.Nome || cod) + " da lista? Os dados de remuneração e indicadores ficam guardados.")) return;
+    var e = json(d.Escalas); delete e.oss;
+    var r = await gravar([{ id: d.ID, campos: { Funcao: "", Escalas: JSON.stringify(e), AtualizadoPor: sessao.login, AtualizadoEm: new Date().toISOString() } }]);
+    if (!r.ok) { if (r.erro !== "sessao") { statusMsg = { txt: r.erro, cls: "erro" }; render(); } return; }
+    await carregar(); abaAtiva = "pessoas"; statusMsg = { txt: "✔ Inclusão retirada.", cls: "ok" }; render();
+  }
+
   // Exportar / importar: texto separado por TAB (copiar e colar no Excel). Casamento SEMPRE por CODIGO.
   var COLS_IMPORT = ["CODIGO", "NOME", "FUNCAO", "OSS", "ADMISSAO", "CLT_ANO", "PJ_ANO", "ENGAJ_CLIMA", "DESEMPENHO", "TAXA_CAF", "ORCAMENTO", "OKR"];
   function mostrarExportacao() {
@@ -883,7 +965,7 @@
       vistos[p.cod] = 1;
     });
     painelExtra = '<div class="aviso info"><h3>Exportar lista (' + lista.length + ' linhas)</h3><p>Copie e cole no Excel. Preencha admissão, remuneração e os indicadores de Pessoas e importe de volta. ' +
-      'Para incluir apoio e comercial, acrescente linhas com CODIGO, NOME e FUNCAO (' + FUNCOES_IMPORTAVEIS.join(", ") + ').</p>' +
+      'Para incluir apoio e comercial pela planilha, acrescente linhas com CODIGO e FUNCAO (o nome vem da CTT pelo código; ' + FUNCOES_IMPORTAVEIS.join(", ") + ').</p>' +
       '<textarea id="txtExport" class="copia" rows="10" readonly>' + esc(linhas.join("\n")) + '</textarea>' +
       '<div class="barra"><div class="dir"><button type="button" class="btn sec" id="btnFecharExtra">Fechar</button><button type="button" class="btn" id="btnCopiarExport">Copiar</button></div></div></div>';
     render();
@@ -913,8 +995,9 @@
       var funcao = cel("FUNCAO").toUpperCase();
       if (!conhecidos[cod]) {
         if (FUNCOES_IMPORTAVEIS.indexOf(funcao) < 0) { erros.push("linha " + (n + 2) + " (" + cod + "): fora da lista e sem FUNCAO de apoio/comercial válida"); return; }
-        if (!cel("NOME")) { erros.push("linha " + (n + 2) + " (" + cod + "): pessoa nova sem NOME"); return; }
-        extra[cod] = { nome: cel("NOME"), funcao: funcao }; novos++;
+        // nunca nome digitado: a pessoa tem de estar na CTT e o nome vem de la, pelo codigo
+        if (!NOMES_CTT[cod]) { erros.push("linha " + (n + 2) + " (" + cod + "): código não está na CTT"); return; }
+        extra[cod] = { nome: NOMES_CTT[cod], funcao: funcao }; novos++;
       } else atual++;
       var m = porCod[cod] || (porCod[cod] = {});
       [["ADMISSAO", "adm", "txt"], ["CLT_ANO", "clt", "num"], ["PJ_ANO", "pj", "num"], ["ENGAJ_CLIMA", "engaj", "pct"], ["DESEMPENHO", "desemp", "pct"], ["TAXA_CAF", "taxaCaf", "num"],
