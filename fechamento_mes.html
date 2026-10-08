@@ -46,6 +46,7 @@
   <p class="nota">As URLs ficam só neste navegador (não vão para o código). Campo em branco mantém a URL atual.</p>
   <button id="btnSalvarCfg" class="sec" type="button">Salvar</button>
   <button id="btnTestarGemini" class="sec" type="button">Testar o Gemini</button>
+  <button id="btnListarModelos" class="sec" type="button">Ver modelos disponíveis</button>
 </section>
 
 <section>
@@ -156,6 +157,26 @@
         log("Gemini " + modelos[i] + ": ok em " + Math.round((Date.now() - t0) / 100) / 10 + " s - " + (txt || "(sem texto)"));
       } catch (e) { log("Gemini " + modelos[i] + ": falhou - " + (e && e.message ? e.message : e)); }
     }
+  });
+
+  // Pergunta ao Google quais modelos esta chave pode chamar (generateContent) e lista os nomes.
+  el("btnListarModelos").addEventListener("click", async function () {
+    var chave = lerK("npe_gemini_api_key");
+    if (chave.length < 20) return log("Cole a chave do Gemini e clique em Salvar antes.");
+    try {
+      var nomes = [], token = "", paginas = 0;
+      do {
+        var r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200" + (token ? "&pageToken=" + encodeURIComponent(token) : ""), { headers: { "x-goog-api-key": chave } });
+        var j = await r.json().catch(function () { return {}; });
+        if (!r.ok) return log("Lista de modelos: HTTP " + r.status + " - " + ((j.error && j.error.message) || "sem detalhe"));
+        (j.models || []).forEach(function (m) {
+          if ((m.supportedGenerationMethods || []).indexOf("generateContent") !== -1) nomes.push(String(m.name || "").replace(/^models\//, ""));
+        });
+        token = j.nextPageToken || ""; paginas++;
+      } while (token && paginas < 5);
+      nomes = nomes.filter(function (n) { return /^gemini/i.test(n); }).sort();
+      log("Modelos Gemini que a sua chave pode chamar (" + nomes.length + "): " + nomes.join(", "));
+    } catch (e) { log("Lista de modelos falhou - " + (e && e.message ? e.message : e)); }
   });
 
   // ---------- chamadas aos fluxos ----------
