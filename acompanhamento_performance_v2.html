@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-08 10:42";
+    window.NPE_BUILD = "2026-10-08 13:39";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -7987,19 +7987,29 @@ function hydrateFromPowerBI() {
           });
         } catch (e) { ultimoErro = "sem conexao com o Gemini"; continue; }
         if (resp.status === 429 || resp.status >= 500) {
-          ultimoErro = "Gemini respondeu " + resp.status + " (limite ou instabilidade)";
+          ultimoErro = "Gemini respondeu " + resp.status + " (limite ou instabilidade) em " + nomeModelo;
+          var pediuSeg = 0, quotas = [], msgGoogle = "";
           try {
             var jr = await resp.json();
+            msgGoogle = (jr && jr.error && jr.error.message) ? String(jr.error.message) : "";
             var det = (jr && jr.error && jr.error.details) || [];
             for (var di = 0; di < det.length; di++) {
               var rd = det[di] && det[di].retryDelay;
-              if (rd) { var segs = parseFloat(String(rd).replace("s", "")); if (isFinite(segs)) esperaMs = Math.min(70000, Math.ceil(segs * 1000) + 1500); }
+              if (rd) { var segs = parseFloat(String(rd).replace("s", "")); if (isFinite(segs)) pediuSeg = segs; }
+              var viol = (det[di] && det[di].violations) || [];
+              for (var vi = 0; vi < viol.length; vi++) if (viol[vi] && viol[vi].quotaId) quotas.push(String(viol[vi].quotaId));
             }
-            if (!esperaMs && jr && jr.error && jr.error.message) {
-              var mm = /retry in ([0-9.]+)s/i.exec(jr.error.message);
-              if (mm) esperaMs = Math.min(70000, Math.ceil(parseFloat(mm[1]) * 1000) + 1500);
+            if (!pediuSeg && msgGoogle) {
+              var mm = /retry in ([0-9.]+)s/i.exec(msgGoogle);
+              if (mm) pediuSeg = parseFloat(mm[1]);
             }
           } catch (e3) {}
+          if (quotas.length) ultimoErro += " [" + quotas.join("; ") + "]";
+          // Cota DIARIA ou espera pedida acima de 2 min: esperar nao resolve. Falha na hora, dizendo o motivo.
+          if (resp.status === 429 && (pediuSeg > 120 || quotas.some(function(q) { return /PerDay/i.test(q); }))) {
+            throw new Error(ultimoErro + ". O Google pede espera de " + (pediuSeg ? Math.round(pediuSeg / 60) + " min" : "muito tempo") + " (cota diaria esgotada ou modelo sem cota no plano gratuito).");
+          }
+          if (pediuSeg) esperaMs = Math.min(70000, Math.ceil(pediuSeg * 1000) + 1500);
           continue;
         }
         if (!resp.ok) {
@@ -8017,7 +8027,7 @@ function hydrateFromPowerBI() {
         }
         return texto;
       }
-      throw new Error(ultimoErro || "O Gemini nao respondeu.");
+      throw new Error((ultimoErro || "O Gemini nao respondeu.") + " (6 tentativas)");
     }
 
     async function chamarGerarTexto(modelo, prompt) {
