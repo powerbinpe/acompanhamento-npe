@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-08 09:41";
+    window.NPE_BUILD = "2026-10-08 09:45";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -7961,11 +7961,11 @@ function hydrateFromPowerBI() {
     // modelos ficam em npe_gemini_modelo_rapido / npe_gemini_modelo_forte para trocar sem republicar.
     async function chamarGemini(modelo, prompt, chaveApi) {
       var nomeModelo = (modelo === "gpt41")
-        ? safeGetStorage("npe_gemini_modelo_forte", "gemini-2.5-pro")
-        : safeGetStorage("npe_gemini_modelo_rapido", "gemini-2.5-flash");
+        ? safeGetStorage("npe_gemini_modelo_forte", "gemini-3.1-pro-preview")
+        : safeGetStorage("npe_gemini_modelo_rapido", "gemini-3.8-flash");
       // Nome de modelo que nao parece nome de modelo (ex.: a chave colada no campo errado) e ignorado.
       if (!/^gemini[A-Za-z0-9._-]{0,60}$/i.test(String(nomeModelo || ""))) {
-        nomeModelo = (modelo === "gpt41") ? "gemini-2.5-pro" : "gemini-2.5-flash";
+        nomeModelo = (modelo === "gpt41") ? "gemini-3.1-pro-preview" : "gemini-3.8-flash";
       }
       var url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(nomeModelo) + ":generateContent";
       var ultimoErro = "";
