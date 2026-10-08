@@ -98,6 +98,17 @@
   table.pessoas input.v { max-width: 130px; }
   table.pessoas input.t { max-width: 120px; }
   .zero { color: var(--danger); font-size: .74rem; font-weight: 700; }
+  table.apur { font-size: .76rem; min-width: 1500px; }
+  table.apur th { font-size: .6rem; white-space: normal; vertical-align: bottom; }
+  table.apur td { white-space: nowrap; }
+  table.apur tr.lin { cursor: pointer; }
+  table.apur tr.lin:hover td { background: #f8fafc; }
+  table.apur tr.aberta td { background: var(--accent-soft); }
+  table.apur tr.subtotal td { background: var(--bg-soft); font-weight: 800; border-top: 2px solid var(--line); }
+  table.apur tr.det td { background: #fbfdff; white-space: normal; }
+  .detalhe { font-size: .76rem; line-height: 1.6; color: var(--text); padding: 4px 6px 8px; }
+  .chip.sem { background: var(--warn-bg); color: #92400e; margin: 1px; }
+  .total-geral { margin-top: 18px; padding: 12px 14px; border-radius: 10px; background: var(--bg-soft); font-size: .9rem; }
   textarea.copia { width: 100%; font: 12px/1.35 Consolas, 'Courier New', monospace; white-space: pre; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin-top: 8px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -415,7 +426,7 @@
   function dadosPessoa(cod) {
     var d = pessoaRow(cod), e = json(d && d.Escalas);
     return { row: d, clt: d ? d.RemCLT : null, pj: d ? d.RemPJ : null, adm: d ? (d.Admissao || "") : "",
-      engaj: e.engajClima, desemp: e.desempenho, taxaCaf: e.taxaCaf, e: e };
+      engaj: e.engajClima, desemp: e.desempenho, taxaCaf: e.taxaCaf, orcamento: e.orcamento, okr: e.okr, e: e };
   }
   // "dd/mm/aaaa" ou "aaaa-mm-dd" -> {y, m, d}
   function lerData(s) {
@@ -454,6 +465,27 @@
         add(cs, NOMES_S[cs] || (vs && vs.nome) || "", FUNC_OP.s, os.cod, m);
       }
     });
+    // Decisao do usuario (08/10): quem a CTT coloca em dois niveis conta so no mais alto. Mes a mes, para
+    // que a promocao no meio do ano continue proporcional a cada funcao.
+    var NIVEL = {}; NIVEL[FUNC_OP.s] = 3; NIVEL[FUNC_OP.g] = 2; NIVEL[FUNC_OP.c] = 1;
+    var porCod = {};
+    Object.keys(mapa).forEach(function (k) { var p = mapa[k]; if (NIVEL[p.funcao]) (porCod[p.cod] = porCod[p.cod] || []).push(k); });
+    Object.keys(porCod).forEach(function (cod) {
+      var ks = porCod[cod];
+      if (ks.length < 2) return;
+      for (var m = 1; m <= 12; m++) {
+        var com = ks.filter(function (k) { return mapa[k].meses[m]; });
+        if (com.length < 2) continue;
+        var topo = com.sort(function (a, b) { return NIVEL[mapa[b].funcao] - NIVEL[mapa[a].funcao]; })[0];
+        com.forEach(function (k) {
+          if (k === topo) return;
+          var p = mapa[k];
+          delete p.meses[m];
+          Object.keys(p.oss).forEach(function (os) { delete p.oss[os][m]; if (!Object.keys(p.oss[os]).length) delete p.oss[os]; });
+        });
+      }
+      ks.forEach(function (k) { if (!Object.keys(mapa[k].meses).length) delete mapa[k]; });
+    });
     linhasDoTipo("PESSOA").forEach(function (d) {
       if (!d.Funcao) return;
       var cod = pad6(d.CodPessoa), k = cod + "|" + d.Funcao;
@@ -488,12 +520,14 @@
   // Abas
   // ===========================================================================
   var ABAS = [
+    { id: "resumo", nome: "Resumo" },
+    { id: "apuracao", nome: "Apuração" },
     { id: "pessoas", nome: "Pessoas" },
     { id: "deducoes", nome: "Deduções" },
     { id: "coletivas", nome: "Coletivas" },
     { id: "metricas", nome: "Métricas" }
   ];
-  var abaAtiva = "pessoas";
+  var abaAtiva = "resumo";
   var statusMsg = { txt: "", cls: "" };
 
   function renderAbas() {
@@ -662,8 +696,12 @@
     { k: "pj", rot: "PJ ano (R$)", fmt: "num", w: 140 },
     { k: "engaj", rot: "Engaj. + clima", fmt: "pct", w: 110 },
     { k: "desemp", rot: "Desempenho", fmt: "pct", w: 110 },
-    { k: "taxaCaf", rot: "Taxa CAF", fmt: "num", w: 100, so: [FUNC_OP.g, FUNC_OP.s] }
+    { k: "taxaCaf", rot: "Taxa CAF", fmt: "num", w: 100, so: [FUNC_OP.g, FUNC_OP.s] },
+    { k: "orcamento", rot: "Orçamento (real ÷ orçado)", fmt: "pct", w: 120, so: FUNCOES_IMPORTAVEIS },
+    { k: "okr", rot: "OKR", fmt: "pct", w: 100, so: FUNCOES_IMPORTAVEIS }
   ];
+  // campo da tela -> chave dentro do JSON gravado em Escalas da linha PESSOA
+  var CHAVE_ESCALAS = { engaj: "engajClima", desemp: "desempenho", taxaCaf: "taxaCaf", orcamento: "orcamento", okr: "okr" };
   var ultimaMontagem = null, painelExtra = "";
 
   function fmtCampo(v, fmt) {
@@ -777,8 +815,8 @@
     var agora = new Date().toISOString(), lista = (ultimaMontagem || montarPessoas()).lista;
     var itens = cods.map(function (cod) {
       var mud = porCod[cod], d = pessoaRow(cod), e = json(d && d.Escalas), c = {};
-      ["engaj", "desemp", "taxaCaf"].forEach(function (k) {
-        var nome = k === "engaj" ? "engajClima" : k === "desemp" ? "desempenho" : "taxaCaf";
+      Object.keys(CHAVE_ESCALAS).forEach(function (k) {
+        var nome = CHAVE_ESCALAS[k];
         if (Object.prototype.hasOwnProperty.call(mud, k)) { if (mud[k] === null) delete e[nome]; else e[nome] = mud[k]; }
       });
       if (Object.prototype.hasOwnProperty.call(mud, "clt")) c.RemCLT = mud.clt;
@@ -815,14 +853,15 @@
   }
 
   // Exportar / importar: texto separado por TAB (copiar e colar no Excel). Casamento SEMPRE por CODIGO.
-  var COLS_IMPORT = ["CODIGO", "NOME", "FUNCAO", "OSS", "ADMISSAO", "CLT_ANO", "PJ_ANO", "ENGAJ_CLIMA", "DESEMPENHO", "TAXA_CAF"];
+  var COLS_IMPORT = ["CODIGO", "NOME", "FUNCAO", "OSS", "ADMISSAO", "CLT_ANO", "PJ_ANO", "ENGAJ_CLIMA", "DESEMPENHO", "TAXA_CAF", "ORCAMENTO", "OKR"];
   function mostrarExportacao() {
     var lista = (ultimaMontagem || montarPessoas()).lista, vistos = {};
     var linhas = [COLS_IMPORT.join("\t")];
     lista.forEach(function (p) {
       var d = p.dados;
       linhas.push([p.cod, p.nome, p.funcao, resumoOSs(p), d.adm || "", fmtCampo(d.clt, "num"), fmtCampo(d.pj, "num"),
-        fmtCampo(d.engaj, "pct"), fmtCampo(d.desemp, "pct"), (vistos[p.cod] ? "" : fmtCampo(d.taxaCaf, "num"))].join("\t"));
+        fmtCampo(d.engaj, "pct"), fmtCampo(d.desemp, "pct"), (vistos[p.cod] ? "" : fmtCampo(d.taxaCaf, "num")),
+        fmtCampo(d.orcamento, "pct"), fmtCampo(d.okr, "pct")].join("\t"));
       vistos[p.cod] = 1;
     });
     painelExtra = '<div class="aviso info"><h3>Exportar lista (' + lista.length + ' linhas)</h3><p>Copie e cole no Excel. Preencha admissão, remuneração e os indicadores de Pessoas e importe de volta. ' +
@@ -860,7 +899,8 @@
         extra[cod] = { nome: cel("NOME"), funcao: funcao }; novos++;
       } else atual++;
       var m = porCod[cod] || (porCod[cod] = {});
-      [["ADMISSAO", "adm", "txt"], ["CLT_ANO", "clt", "num"], ["PJ_ANO", "pj", "num"], ["ENGAJ_CLIMA", "engaj", "pct"], ["DESEMPENHO", "desemp", "pct"], ["TAXA_CAF", "taxaCaf", "num"]].forEach(function (c) {
+      [["ADMISSAO", "adm", "txt"], ["CLT_ANO", "clt", "num"], ["PJ_ANO", "pj", "num"], ["ENGAJ_CLIMA", "engaj", "pct"], ["DESEMPENHO", "desemp", "pct"], ["TAXA_CAF", "taxaCaf", "num"],
+        ["ORCAMENTO", "orcamento", "pct"], ["OKR", "okr", "pct"]].forEach(function (c) {
         var t = cel(c[0]);
         if (!t) return;
         if (c[2] === "txt") { if (!lerData(t)) { erros.push("linha " + (n + 2) + " (" + cod + "): data inválida em " + c[0]); return; } m[c[1]] = t; }
@@ -879,6 +919,274 @@
     salvarPessoas(porCod, pv.extra);
   }
 
+  // ===========================================================================
+  // Apuracao (formulas da planilha CALCULO MERITOCRACIA 2026, aba APURACAO)
+  //   base = (CLT + PJ) x periodo
+  //   J = base x peso principal ; K = base x peso plus
+  //   coletiva = escala(lucro) x peso lucro + escala(caixa) x peso caixa
+  //   individual (operacionais) = real/meta da margem: < 50% = 0 ; > 100% = peso ; entre = proporcional
+  //   individual (apoio/comercial) = orcamento (< 100% peso cheio, ate 110% metade, acima 0) + OKR (>= 90% peso OKR)
+  //   plus = 1 se lucro > 100%, caixa >= 100% (quando a funcao tem caixa) e individual cheio
+  //   M = J x (coletiva + individual) ; N = K x plus ; O = M + N
+  //   deflatores do Procedimento somados, cada indicador e o total limitados a 100% ; V = O - O x deflator
+  // ===========================================================================
+  var CATEGORIA_DEFLATOR = [["SSMA", "ssma"], ["CLIENTE", "cliente"], ["PESSOAS", "pessoas"], ["BOAS", "bp"], ["ASSERTIVIDADE", "assert"]];
+  function categoriaDe(indicador) {
+    var s = String(indicador || "").toUpperCase();
+    for (var i = 0; i < CATEGORIA_DEFLATOR.length; i++) if (s.indexOf(CATEGORIA_DEFLATOR[i][0]) === 0) return CATEGORIA_DEFLATOR[i][1];
+    return null;
+  }
+  function casaRegra(e, v) {
+    if (v === null || v === undefined || isNaN(v)) return false;
+    if (e.igual !== undefined && !(Math.abs(v - e.igual) < 1e-9)) return false;
+    if (e.min !== undefined && !(v >= e.min - 1e-12)) return false;
+    if (e.min_excl !== undefined && !(v > e.min_excl)) return false;
+    if (e.max !== undefined && !(v <= e.max + 1e-12)) return false;
+    if (e.max_excl !== undefined && !(v < e.max_excl)) return false;
+    return true;
+  }
+  function coletivas() {
+    var c = { ll: null, cx: null, fll: [], fcx: [] };
+    linhasDoTipo("COLETIVA").forEach(function (d) {
+      var at = (d.Meta && d.Medicao !== null && d.Medicao !== undefined) ? d.Medicao / d.Meta : null;
+      var ind = String(d.Indicador || "").toUpperCase();
+      if (ind.indexOf("LUCRO") === 0) { c.ll = at; c.fll = json(d.Escalas).faixas; }
+      else if (ind.indexOf("GERA") === 0) { c.cx = at; c.fcx = json(d.Escalas).faixas; }
+    });
+    return c;
+  }
+  function semestreFechado(s) {
+    // S1 fecha no fechamento de julho; S2 no fechamento de janeiro do ano seguinte (regra das Boas Praticas)
+    var hoje = new Date(), ref = hoje.getFullYear() * 100 + hoje.getMonth() + 1;
+    return s === 1 ? ref >= ANO * 100 + 8 : ref >= (ANO + 1) * 100 + 2;
+  }
+  function metaNivel(nivel, campoCod, cod) {
+    var fat = 0, res = 0, n = 0;
+    metasRPCO.forEach(function (x) {
+      if (String(x.Nivel || "").toUpperCase() !== nivel || +x.Ano !== ANO || pad6(x[campoCod]) !== cod) return;
+      fat += +x.FatMeta || 0; res += +x.ResMeta || 0; n++;
+    });
+    return n ? { fat: fat, res: res, linhas: n } : null;
+  }
+  function apurarPessoa(p, met, col, regras) {
+    var d = p.dados, e = json(met && met.Escalas), r = { p: p, pend: [] };
+    var W = +met.PesoPrincipal || 0, X = +met.PesoPlus || 0, Y = +met.PesoLucro || 0, Z = +met.PesoCaixa || 0,
+      AD = +met.PesoIndividual || 0, AF = +met.PesoOKR || 0;
+    r.total = (+d.clt || 0) + (+d.pj || 0);
+    if (!r.total) r.pend.push("sem remuneração");
+    r.base = r.total * p.periodo;
+    r.J = r.base * W; r.K = r.base * X;
+    // coletivas
+    r.AA = pctColetiva(col.ll, col.fll); r.AB = pctColetiva(col.cx, col.fcx);
+    if (r.AA === null || r.AB === null) r.pend.push("coletivas sem meta/realizado");
+    r.AC = (r.AA || 0) * Y + (r.AB || 0) * Z;
+    // individual
+    var osMeses = [];
+    Object.keys(p.oss).forEach(function (os) { Object.keys(p.oss[os]).forEach(function (m) { if (p.mesesValidos.indexOf(+m) >= 0) osMeses.push({ os: os, m: +m }); }); });
+    r.osMeses = osMeses;
+    var plusIndiv = true;
+    if (NIVEL_OP(p.funcao)) {
+      var meta = null;
+      if (p.funcao === FUNC_OP.c) {
+        var porOS = {};
+        osMeses.forEach(function (x) { porOS[x.os] = (porOS[x.os] || 0) + 1; });
+        var mf = 0, mr = 0, n = 0;
+        metasRPCO.forEach(function (x) {
+          if (String(x.Nivel || "").toUpperCase() !== "OS" || +x.Ano !== ANO || !porOS[x.CodOS]) return;
+          var w = porOS[x.CodOS] / 12; mf += (+x.FatMeta || 0) * w; mr += (+x.ResMeta || 0) * w; n++;
+        });
+        meta = n ? { fat: mf, res: mr, linhas: n } : null;
+      } else meta = p.funcao === FUNC_OP.g ? metaNivel("GERENTE", "CodGerente", p.cod) : metaNivel("SUPERINTENDENTE", "CodSuperintendente", p.cod);
+      var rf = 0, rr = 0;
+      osMeses.forEach(function (x) { var o = OS_POR_COD[x.os], v = o && o.fr[x.m - 1]; if (v) { rf += v.fat; rr += v.res; } });
+      r.AG = meta && meta.fat ? meta.res / meta.fat : null; r.metaLinhas = meta ? meta.linhas : 0;
+      r.AH = rf ? rr / rf : null;
+      if (r.AG === null) r.pend.push("sem meta no RPCO");
+      var q = (r.AG && r.AH !== null) ? r.AH / r.AG : null;
+      r.razaoIndiv = q;
+      r.AK = (q === null || isNaN(q)) ? 0 : q < 0.5 ? 0 : q > 1 ? AD : q * AD;
+      plusIndiv = Math.abs(r.AK - AD) < 1e-9 && AD > 0;
+    } else if (AD || AF) {
+      r.AI = d.orcamento; r.AJ = d.okr;
+      if (r.AI === undefined || r.AI === null) r.pend.push("sem orçamento");
+      if (AF && (r.AJ === undefined || r.AJ === null)) r.pend.push("sem OKR");
+      var parteOrc = (r.AI === undefined || r.AI === null) ? 0 : r.AI < 1 ? AD : r.AI <= 1.1 ? AD * 0.5 : 0;
+      var parteOkr = (r.AJ === undefined || r.AJ === null || r.AJ < 0.9) ? 0 : AF;
+      r.AK = parteOrc + parteOkr;
+      plusIndiv = r.AI !== undefined && r.AI !== null && r.AI <= 1 && (!AF || (r.AJ !== null && r.AJ !== undefined && r.AJ >= 1));
+    } else r.AK = 0;
+    r.F = r.AC + r.AK;
+    var semCaixa = String(e.plusCaixaEmpresa || "") === "-";
+    r.G = (col.ll !== null && col.ll > 1 && (semCaixa || (col.cx !== null && col.cx >= 1)) && plusIndiv) ? 1 : 0;
+    r.M = r.J * r.F; r.N = r.K * r.G; r.O = r.M + r.N;
+    // deflatores
+    var valores = valoresDeflator(p, r);
+    r.vals = valores;
+    r.def = { ssma: 0, cliente: 0, pessoas: 0, bp: 0, assert: 0 };
+    r.regrasAplicadas = [];
+    regras.forEach(function (rg) {
+      var es = json(rg.Escalas), cat = categoriaDe(rg.Indicador);
+      if (!cat || !es.campo) return;
+      var pct = +rg.Medicao || 0;
+      if (es.campo === "BP_SEMESTRE") {
+        (valores.bpSem || []).forEach(function (s) { if (s.fechado && s.falhou) { r.def.bp += pct; r.regrasAplicadas.push(rg.Indicador + " S" + s.s + ": " + rg.Valor); } });
+        return;
+      }
+      if (es.soma) {
+        var n = (valores[es.campo + "_LISTA"] || []).filter(function (v) { return casaRegra(es, v); }).length;
+        if (n) { r.def[cat] += pct * n; r.regrasAplicadas.push(rg.Indicador + ": " + rg.Valor + (n > 1 ? " (x" + n + ")" : "")); }
+        return;
+      }
+      if (casaRegra(es, valores[es.campo])) { r.def[cat] += pct; if (pct) r.regrasAplicadas.push(rg.Indicador + ": " + rg.Valor); }
+    });
+    Object.keys(r.def).forEach(function (k) { r.def[k] = Math.min(1, r.def[k]); });
+    r.H = Math.min(1, r.def.ssma + r.def.cliente + r.def.pessoas + r.def.bp + r.def.assert);
+    r.vdef = {}; Object.keys(r.def).forEach(function (k) { r.vdef[k] = r.O * r.def[k]; });
+    r.P = r.O * r.H; r.V = r.O - r.P;
+    valores.pendencias.forEach(function (x) { r.pend.push(x); });
+    return r;
+  }
+  function NIVEL_OP(f) { return f === FUNC_OP.c || f === FUNC_OP.g || f === FUNC_OP.s; }
+  // Numeros que as regras de deducao consultam, a partir das OSs e meses da pessoa
+  function valoresDeflator(p, r) {
+    var v = { pendencias: [] }, d = p.dados, f = p.funcao;
+    var oss = {}; r.osMeses.forEach(function (x) { (oss[x.os] = oss[x.os] || []).push(x.m); });
+    // SSMA
+    v.TAXA_CAF = (d.taxaCaf === undefined || d.taxaCaf === null) ? null : +d.taxaCaf;
+    if ((f === FUNC_OP.g || f === FUNC_OP.s) && v.TAXA_CAF === null) v.pendencias.push("sem Taxa CAF");
+    var saf = 0, caf = 0;
+    r.osMeses.forEach(function (x) { var o = OS_POR_COD[x.os], e = o && o.ev[x.m]; if (e) { saf += e.saf; caf += e.caf; } });
+    v.QTD_SAF = saf; v.QTD_CAF = caf;
+    // Cliente: ultima pesquisa do ano de cada OS
+    var sats = Object.keys(oss).map(function (c) { return OS_POR_COD[c] && OS_POR_COD[c].sat; }).filter(function (x) { return x !== null && x !== undefined; });
+    v.SATISFACAO_MENOR_OS_LISTA = sats;
+    v.SATISFACAO_MEDIA = sats.length ? sats.reduce(function (a, b) { return a + b; }, 0) / sats.length : null;
+    v.satOS = Object.keys(oss).map(function (c) { var o = OS_POR_COD[c]; return { os: c, sat: o ? o.sat : null, mes: o ? o.satMes : null }; });
+    // Pessoas
+    v.PESSOAS_ENGAJ_CLIMA = (d.engaj === undefined || d.engaj === null) ? null : +d.engaj;
+    v.PESSOAS_DESEMPENHO = (d.desemp === undefined || d.desemp === null) ? null : +d.desemp;
+    if (v.PESSOAS_ENGAJ_CLIMA === null || v.PESSOAS_DESEMPENHO === null) v.pendencias.push("sem indicadores de Pessoas");
+    // Boas Praticas por semestre (como a planilha): aprovadas >= 3 x n OSs e reconhecidas >= n OSs
+    v.bpSem = [1, 2].map(function (s) {
+      var ini = s === 1 ? 1 : 7, fim = s === 1 ? 6 : 12, nos = {}, apr = 0, rec = 0;
+      r.osMeses.forEach(function (x) {
+        if (x.m < ini || x.m > fim) return;
+        nos[x.os] = 1; var o = OS_POR_COD[x.os], e = o && o.ev[x.m]; if (e) { apr += e.bpa; rec += e.bpr; }
+      });
+      var n = Object.keys(nos).length;
+      return { s: s, nOS: n, apr: apr, rec: rec, fechado: semestreFechado(s) && n > 0, falhou: n > 0 && (apr < 3 * n || rec < n) };
+    });
+    // Assertividade: meses assertivos / meses com FCST nas OSs da pessoa; CD = o evento (inclui o ano anterior)
+    var ok = 0, tot = 0;
+    Object.keys(oss).forEach(function (c) {
+      var o = OS_POR_COD[c]; if (!o) return;
+      var meses = oss[c].map(function (m) { return 12 + m - 1; });
+      if (o.tp === "C") for (var i = 0; i < 12; i++) meses.push(i);
+      meses.forEach(function (i) { var ch = o.ass.charAt(i); if (ch === "1") { ok++; tot++; } else if (ch === "0") tot++; });
+    });
+    v.ASSERTIVIDADE = tot ? ok / tot : null; v.assertMeses = { ok: ok, tot: tot };
+    return v;
+  }
+  function apurarTodos() {
+    var mt = montarPessoas(), col = coletivas(), met = {}, reg = {};
+    linhasDoTipo("METRICA").forEach(function (m) { met[m.Funcao] = m; });
+    linhasDoTipo("DEDUCAO").forEach(function (d) { (reg[d.Funcao] = reg[d.Funcao] || []).push(d); });
+    var linhas = mt.lista.map(function (p) { return apurarPessoa(p, met[p.funcao] || {}, col, reg[p.funcao] || []); });
+    return { linhas: linhas, col: col, pendencias: mt.pendencias };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tela da apuracao: linha a linha por funcao (com detalhe) e o resumo por funcao
+  // ---------------------------------------------------------------------------
+  var CAMPOS_SOMA = ["total", "base", "J", "K", "M", "N", "O", "P", "V"];
+  function somar(linhas) {
+    var s = { vdef: { ssma: 0, cliente: 0, pessoas: 0, bp: 0, assert: 0 } };
+    CAMPOS_SOMA.forEach(function (k) { s[k] = 0; });
+    linhas.forEach(function (r) {
+      CAMPOS_SOMA.forEach(function (k) { s[k] += r[k] || 0; });
+      Object.keys(s.vdef).forEach(function (k) { s.vdef[k] += r.vdef[k] || 0; });
+    });
+    return s;
+  }
+  function rs(v) { return fmtNum(Math.round(v || 0), 0); }
+  var abertos = {};
+  function renderApuracao() {
+    var ap = apurarTodos();
+    var html = '<div class="barra"><span class="dica">Apuração de ' + ANO + ' pela regra da planilha, com o período, os deflatores do Procedimento e as metas do RPCO. Clique no nome para ver o detalhe.</span></div>';
+    if (ap.col.ll === null || ap.col.cx === null) html += '<div class="aviso warn"><h3>Coletivas sem meta ou realizado</h3><p>Preencha a aba Coletivas; até lá a parte coletiva fica zerada.</p></div>';
+    var funcao = null, grupo = [];
+    function fechaGrupo() {
+      if (funcao === null) return;
+      var s = somar(grupo);
+      html += '<tr class="subtotal"><td>Total ' + esc(funcao) + '</td><td class="n">' + rs(s.total) + '</td><td></td><td class="n">' + rs(s.J) + '</td><td class="n">' + rs(s.K) +
+        '</td><td></td><td></td><td></td><td></td><td class="n">' + rs(s.O) + '</td><td></td><td class="n">' + rs(s.P) + '</td><td class="n"><b>' + rs(s.V) + '</b></td><td></td></tr></tbody></table></div>';
+    }
+    ap.linhas.forEach(function (r) {
+      var p = r.p;
+      if (p.funcao !== funcao) {
+        fechaGrupo(); funcao = p.funcao; grupo = [];
+        html += '<div class="grupo-titulo">' + esc(funcao) + '</div><div class="rolagem"><table class="apur"><thead><tr>' +
+          '<th>Nome</th><th class="n">Total ano</th><th class="n">Período</th><th class="n">Principal</th><th class="n">Plus</th>' +
+          '<th class="n">% Coletiva</th><th class="n">Indiv. (real ÷ meta)</th><th class="n">% Principal</th><th class="n">Plus?</th>' +
+          '<th class="n">Valor apurado</th><th class="n">Deflator</th><th class="n">Valor deflator</th><th class="n">Valor líquido</th><th>Pendências</th></tr></thead><tbody>';
+      }
+      grupo.push(r);
+      var k = p.cod + "|" + p.funcao, indiv;
+      if (NIVEL_OP(p.funcao)) indiv = r.AG === null ? "sem meta" : fmtPct(r.AH, 1) + " ÷ " + fmtPct(r.AG, 1) + " = " + fmtPct(r.AK, 1);
+      else indiv = fmtPct(r.AK, 1);
+      html += '<tr class="lin' + (abertos[k] ? " aberta" : "") + '" data-abre="' + esc(k) + '"><td><b>' + esc(p.nome) + '</b> <span class="dica">' + esc(p.cod) + '</span></td>' +
+        '<td class="n">' + rs(r.total) + '</td><td class="n">' + (p.motivoZero ? '<span class="zero">0</span>' : fmtPct(p.periodo, 1)) + '</td><td class="n">' + rs(r.J) + '</td><td class="n">' + rs(r.K) + '</td>' +
+        '<td class="n">' + fmtPct(r.AC, 1) + '</td><td class="n">' + indiv + '</td><td class="n">' + fmtPct(r.F, 1) + '</td><td class="n">' + (r.G ? "sim" : "não") + '</td>' +
+        '<td class="n">' + rs(r.O) + '</td><td class="n">' + fmtPct(r.H, 1) + '</td><td class="n">' + rs(r.P) + '</td><td class="n"><b>' + rs(r.V) + '</b></td>' +
+        '<td>' + r.pend.map(function (x) { return '<span class="chip sem">' + esc(x) + '</span>'; }).join(" ") + '</td></tr>';
+      if (abertos[k]) html += '<tr class="det"><td colspan="14">' + detalhe(r) + '</td></tr>';
+    });
+    fechaGrupo();
+    var t = somar(ap.linhas);
+    html += '<div class="total-geral">Total geral — apurado <b>' + rs(t.O) + '</b> · deflatores <b>' + rs(t.P) + '</b> · líquido <b>' + rs(t.V) + '</b></div>';
+    painel.innerHTML = html;
+    painel.querySelectorAll("[data-abre]").forEach(function (tr) {
+      tr.onclick = function () { var k = tr.getAttribute("data-abre"); abertos[k] = !abertos[k]; renderApuracao(); };
+    });
+  }
+  function detalhe(r) {
+    var p = r.p, v = r.vals, l = [];
+    l.push('<b>Base:</b> CLT ' + rs(p.dados.clt) + ' + PJ ' + rs(p.dados.pj) + ' = ' + rs(r.total) + ' × período ' + fmtPct(p.periodo, 1) +
+      ' (' + p.mesesValidos.length + ' meses' + (p.dados.adm ? ', admissão ' + esc(p.dados.adm) : '') + (p.motivoZero ? ', ' + esc(p.motivoZero) : '') + ') = ' + rs(r.base));
+    l.push('<b>Coletivas:</b> lucro ' + (r.AA === null ? "–" : fmtPct(r.AA, 1)) + ' · caixa ' + (r.AB === null ? "–" : fmtPct(r.AB, 1)) + ' → ' + fmtPct(r.AC, 1));
+    if (NIVEL_OP(p.funcao)) l.push('<b>Individual:</b> margem real ' + (r.AH === null ? "–" : fmtPct(r.AH, 2)) + ' ÷ meta ' + (r.AG === null ? "–" : fmtPct(r.AG, 2)) +
+      (r.metaLinhas ? ' (' + r.metaLinhas + ' linha(s) de meta do RPCO)' : '') + ' → ' + fmtPct(r.AK, 1));
+    else if (r.AI !== undefined) l.push('<b>Individual:</b> orçamento ' + (r.AI === null ? "–" : fmtPct(r.AI, 1)) + ' · OKR ' + (r.AJ === null || r.AJ === undefined ? "–" : fmtPct(r.AJ, 1)) + ' → ' + fmtPct(r.AK, 1));
+    if (Object.keys(p.oss).length) l.push('<b>OSs:</b> ' + esc(resumoOSs(p)));
+    l.push('<b>SSMA:</b> SAF ' + v.QTD_SAF + ' · CAF ' + v.QTD_CAF + ' · Taxa CAF ' + (v.TAXA_CAF === null ? "–" : fmtNum(v.TAXA_CAF, 2)));
+    l.push('<b>Cliente:</b> ' + (v.satOS.length ? v.satOS.map(function (s) { return esc(s.os) + ' ' + (s.sat === null ? 'sem pesquisa' : fmtPct(s.sat, 1) + ' (' + MESES_ABREV[s.mes] + ')'); }).join(' · ') : '–') +
+      (v.SATISFACAO_MEDIA !== null ? ' → média ' + fmtPct(v.SATISFACAO_MEDIA, 1) : ''));
+    l.push('<b>Pessoas:</b> engajamento + clima ' + (v.PESSOAS_ENGAJ_CLIMA === null ? "–" : fmtPct(v.PESSOAS_ENGAJ_CLIMA, 1)) + ' · desempenho ' + (v.PESSOAS_DESEMPENHO === null ? "–" : fmtPct(v.PESSOAS_DESEMPENHO, 1)));
+    l.push('<b>Boas Práticas:</b> ' + v.bpSem.map(function (s) { return 'S' + s.s + ' ' + s.apr + ' aprov./' + s.rec + ' reconh. em ' + s.nOS + ' OS(s)' + (s.fechado ? '' : ' (em andamento)'); }).join(' · '));
+    l.push('<b>Assertividade:</b> ' + (v.ASSERTIVIDADE === null ? "–" : v.assertMeses.ok + '/' + v.assertMeses.tot + ' meses = ' + fmtPct(v.ASSERTIVIDADE, 1)));
+    l.push('<b>Deflatores aplicados:</b> ' + (r.regrasAplicadas.length ? r.regrasAplicadas.map(esc).join(' · ') : 'nenhum') +
+      ' → SSMA ' + fmtPct(r.def.ssma, 0) + ', Cliente ' + fmtPct(r.def.cliente, 0) + ', Pessoas ' + fmtPct(r.def.pessoas, 0) + ', BP ' + fmtPct(r.def.bp, 0) + ', Assertividade ' + fmtPct(r.def.assert, 0));
+    return '<div class="detalhe">' + l.join('<br>') + '</div>';
+  }
+  function renderResumo() {
+    var ap = apurarTodos(), porF = {};
+    ap.linhas.forEach(function (r) { (porF[r.p.funcao] = porF[r.p.funcao] || []).push(r); });
+    var fs = Object.keys(porF).sort(function (a, b) { return ordemFuncao(a) - ordemFuncao(b); });
+    var cab = '<tr><th>Representante</th><th class="n">Total ano</th><th class="n">Valor principal</th><th class="n">Valor plus</th><th class="n">Valor total</th>' +
+      '<th class="n">Apurado principal</th><th class="n">Apurado plus</th><th class="n">Apurado total</th><th class="n">Total deflator</th>' +
+      '<th class="n">SSMA</th><th class="n">Satisfação</th><th class="n">Pessoas</th><th class="n">Boas práticas</th><th class="n">Assertividade</th><th class="n">Valor líquido</th></tr>';
+    function linha(nome, s, cls) {
+      return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + esc(nome) + '</td><td class="n">' + rs(s.total) + '</td><td class="n">' + rs(s.J) + '</td><td class="n">' + rs(s.K) + '</td><td class="n">' + rs(s.J + s.K) +
+        '</td><td class="n">' + rs(s.M) + '</td><td class="n">' + rs(s.N) + '</td><td class="n">' + rs(s.O) + '</td><td class="n">' + rs(s.P) +
+        '</td><td class="n">' + rs(s.vdef.ssma) + '</td><td class="n">' + rs(s.vdef.cliente) + '</td><td class="n">' + rs(s.vdef.pessoas) + '</td><td class="n">' + rs(s.vdef.bp) + '</td><td class="n">' + rs(s.vdef.assert) +
+        '</td><td class="n"><b>' + rs(s.V) + '</b></td></tr>';
+    }
+    painel.innerHTML = '<div class="barra"><span class="dica">Resumo da meritocracia ' + ANO + ' por função (mesma estrutura da aba RESUMO da planilha).</span></div>' +
+      '<div class="rolagem"><table class="apur"><thead>' + cab + '</thead><tbody>' +
+      fs.map(function (f) { return linha(f + " (" + porF[f].length + ")", somar(porF[f])); }).join("") +
+      linha("TOTAL GERAL", somar(ap.linhas), "subtotal") + '</tbody></table></div>';
+  }
+
   function renderErro(erro) {
     painel.innerHTML = '<div class="aviso erro"><h3>Não foi possível ler a lista</h3><p>' + esc(erro) + '</p></div>' +
       '<button type="button" class="btn" id="btnRecarregar">Tentar de novo</button>';
@@ -895,6 +1203,8 @@
     if (abaAtiva === "coletivas") renderColetivas();
     else if (abaAtiva === "metricas") renderMetricas();
     else if (abaAtiva === "pessoas") renderPessoas();
+    else if (abaAtiva === "apuracao") renderApuracao();
+    else if (abaAtiva === "resumo") renderResumo();
     else renderDeducoes();
   }
 
