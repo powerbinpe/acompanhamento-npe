@@ -42,6 +42,7 @@
   .btn.sec:hover { background: #cbd5e1; }
   .btn:focus-visible, input:focus-visible { outline: 3px solid #93c5fd; outline-offset: 1px; }
   .painel { background: var(--bg-card); border-radius: 12px; padding: 20px; margin-top: 14px; min-height: 400px; }
+  .armado { background: #b42318 !important; color: #fff !important; }
   .login { max-width: 560px; margin: 40px auto; border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
   .login h2 { font-size: 1.1rem; margin-bottom: 4px; }
   .login p { color: var(--muted); font-size: .85rem; margin-bottom: 16px; }
@@ -285,18 +286,20 @@
 
   function renderLogin() {
     painel.innerHTML =
-      '<form class="login" id="formLogin" autocomplete="off">' +
+      // Sem <form>: o visual HTML do Power BI e sandbox sem allow-forms e o envio nunca dispara
+      '<div class="login" id="formLogin">' +
         '<h2>Entrar na Meritocracia</h2>' +
         '<p>Área restrita ao Proprietário. A senha é pedida sempre que a página abre.</p>' +
         (erroLogin ? '<div class="aviso erro"><h3>' + esc(erroLogin) + '</h3></div>' : '') +
-        '<label for="loginUsuario">Usuário</label><input id="loginUsuario" type="text" autocomplete="username">' +
-        '<label for="loginSenha">Senha</label><input id="loginSenha" type="password" autocomplete="current-password">' +
-        '<button type="submit" class="btn" id="btnEntrar">Entrar</button>' +
-      '</form>';
-    document.getElementById("formLogin").onsubmit = function (ev) {
-      ev.preventDefault();
-      entrar(document.getElementById("loginUsuario").value, document.getElementById("loginSenha").value);
-    };
+        '<label for="loginUsuario">Usuário</label><input id="loginUsuario" type="text" autocomplete="off">' +
+        '<label for="loginSenha">Senha</label><input id="loginSenha" type="password" autocomplete="off">' +
+        '<button type="button" class="btn" id="btnEntrar">Entrar</button>' +
+      '</div>';
+    function enviar() { entrar(document.getElementById("loginUsuario").value, document.getElementById("loginSenha").value); }
+    document.getElementById("btnEntrar").addEventListener("click", enviar);
+    ["loginUsuario", "loginSenha"].forEach(function (id) {
+      document.getElementById(id).addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); enviar(); } });
+    });
     document.getElementById("loginUsuario").focus();
   }
 
@@ -563,6 +566,16 @@
   var abaAtiva = "resumo";
   var statusMsg = { txt: "", cls: "" };
 
+  // confirm()/alert() somem sem erro dentro do visual do Power BI (confirm devolve false). Confirmacao
+  // e pelo segundo clique no mesmo botao em ate 8 s; o botao troca de texto enquanto espera.
+  function segundoClique(botao, texto) {
+    if (botao.getAttribute("data-armado") === "1") { botao.removeAttribute("data-armado"); return true; }
+    var antes = botao.textContent;
+    botao.setAttribute("data-armado", "1"); botao.textContent = texto; botao.classList.add("armado");
+    setTimeout(function () { if (botao.getAttribute("data-armado") === "1") { botao.removeAttribute("data-armado"); botao.textContent = antes; botao.classList.remove("armado"); } }, 8000);
+    return false;
+  }
+
   function renderAbas() {
     var el = document.getElementById("abas");
     if (!sessao || !dados) { el.innerHTML = ""; return; }
@@ -571,7 +584,7 @@
     }).join("");
     el.querySelectorAll("[data-aba]").forEach(function (b) {
       b.onclick = function () {
-        if (temAlteracoes() && !window.confirm("Há alterações não salvas nesta aba. Sair sem salvar?")) return;
+        if (temAlteracoes() && !segundoClique(b, "Sair sem salvar? Clique de novo")) return;
         abaAtiva = b.getAttribute("data-aba"); statusMsg = { txt: "", cls: "" }; render();
       };
     });
@@ -836,7 +849,7 @@
     document.getElementById("btnDescartar").onclick = function () { statusMsg = { txt: "", cls: "" }; painelExtra = ""; render(); };
     document.getElementById("btnExportar").onclick = mostrarExportacao;
     document.getElementById("btnIncluir").onclick = mostrarInclusao;
-    painel.querySelectorAll("[data-tirar]").forEach(function (b) { b.onclick = function () { tirarInclusao(b.getAttribute("data-tirar")); }; });
+    painel.querySelectorAll("[data-tirar]").forEach(function (b) { b.onclick = function () { if (segundoClique(b, "Confirmar: tirar da lista")) tirarInclusao(b.getAttribute("data-tirar")); }; });
     var bInc = document.getElementById("btnGravarInclusao");
     if (bInc) bInc.onclick = gravarInclusao;
     var fInc = document.getElementById("incFiltro");
@@ -957,7 +970,7 @@
   }
   async function tirarInclusao(cod) {
     var d = pessoaRow(cod);
-    if (!d || !window.confirm("Tirar " + (d.Nome || cod) + " da lista? Os dados de remuneração e indicadores ficam guardados.")) return;
+    if (!d) return;
     var e = json(d.Escalas); delete e.oss;
     var r = await gravar([{ id: d.ID, campos: { Funcao: "", Escalas: JSON.stringify(e), AtualizadoPor: sessao.login, AtualizadoEm: new Date().toISOString() } }]);
     if (!r.ok) { if (r.erro !== "sessao") { statusMsg = { txt: r.erro, cls: "erro" }; render(); } return; }
