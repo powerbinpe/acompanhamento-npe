@@ -50,6 +50,12 @@
 <section>
   <h2>2. Mês e OSs</h2>
   <div class="linha">
+    <div style="flex:2 1 260px"><label for="etapa">Etapa</label>
+      <select id="etapa">
+        <option value="aba1">Aba 1 - pareceres e síntese do mês (IA)</option>
+        <option value="aba5">Aba 5 - notas do ano até o último mês fechado</option>
+        <option value="aba3">Aba 3 - resumo anual até o último mês fechado (IA)</option>
+      </select></div>
     <div><label for="ano">Ano</label><input id="ano" type="number" min="2024" max="2100"></div>
     <div><label for="mes">Mês</label>
       <select id="mes">
@@ -60,7 +66,7 @@
       </select></div>
     <div style="flex:0 0 auto"><button id="btnCarregar" type="button">Carregar OSs elegíveis</button></div>
   </div>
-  <p class="nota">Não use em mês já fechado: o texto de cada indicador NÃO validado é substituído. Indicadores validados nunca são alterados.</p>
+  <p class="nota" id="notaEtapa"></p>
 </section>
 
 <section id="secLista" style="display:none">
@@ -166,7 +172,7 @@
   function fecharQuadro(q) { try { document.body.removeChild(q.frame); } catch (e) {} }
 
   // ---------- lista de OSs ----------
-  function chaveProgresso() { return "npe_fechamento_" + el("ano").value + "_" + el("mes").value; }
+  function chaveProgresso() { return "npe_fechamento_" + el("etapa").value + "_" + el("ano").value + "_" + el("mes").value; }
   function lerProgresso() { try { return JSON.parse(lerK(chaveProgresso()) || "{}") || {}; } catch (e) { return {}; } }
   function gravarProgresso() { gravarK(chaveProgresso(), JSON.stringify(estado.resultados)); }
 
@@ -243,21 +249,46 @@
     return partes.join(" | ");
   }
 
+  function resultadoAba5(r, gravar) {
+    if (r.aviso) return { estado: "ok", texto: r.aviso };
+    var lista = r.meses.map(function (x) { return x.mes + ": " + (x.notaMes == null ? "-" : String(x.notaMes).replace(".", ",")); }).join(" | ");
+    var tail = r.gravado === null ? "não gravou (teste)" : (r.gravado ? "gravado" : "FALHOU nos meses " + r.falhou.join(", "));
+    return { estado: (gravar && r.gravado === false) ? "erro" : "ok", texto: r.meses.length + " mês(es), acum. " + (r.meses.length ? String(r.meses[r.meses.length - 1].notaAcum).replace(".", ",") : "-") + " | notas do mês " + lista + " | " + tail };
+  }
+  function resultadoAba3(r, gravar) {
+    if (r.aviso) return { estado: "ok", texto: r.aviso };
+    var p = [r.textos + " resumo(s) até o mês " + r.mesRef];
+    if (r.refeitos) p.push(r.refeitos + " refeito(s) no GPT-4.1");
+    if (r.revisar.length) p.push("REVISAR " + r.revisar.map(function (x) { return "#" + x.tid; }).join(", "));
+    p.push(r.gravado === null ? "não gravou (teste)" : (r.gravado ? "gravado" : "NÃO GRAVOU"));
+    var extra = (r.primeiraRodada && r.primeiraRodada.length) ? ["   mini reprovado em: " + r.primeiraRodada.map(function (x) { return "#" + x.tid + " (" + x.motivos.join(", ") + ")"; }).join("; ")] : [];
+    return { estado: (gravar && r.gravado === false) ? "erro" : (r.revisar.length ? "revisar" : "ok"), texto: p.join(" | "), extra: extra };
+  }
+  function resultadoAba1(r, gravar) {
+    var precisaRevisar = r.revisar.length > 0 || r.sintese.motivos.length > 0 || !r.sintese.gerada;
+    var extra = [];
+    if (r.primeiraRodada && r.primeiraRodada.length) extra.push("   mini reprovado em: " + r.primeiraRodada.map(function (x) { return "#" + x.tid + " (" + x.motivos.join(", ") + ")"; }).join("; "));
+    if (r.sintese.motivosMini && r.sintese.motivosMini.length) extra.push("   síntese no mini reprovada: " + r.sintese.motivosMini.join("; "));
+    return { estado: (gravar && r.gravado === false) ? "erro" : (precisaRevisar ? "revisar" : "ok"), texto: textoResultado(r), extra: extra };
+  }
+
   async function processarUma(i, ano, mes, gravar) {
     var o = estado.lista[i];
+    var etapa = el("etapa").value;
     marcar(i, "rodando", "abrindo os dados da OS...");
     var q = null;
     try {
       var url = await lerUrlOS(o.code, ano, mes);
       if (!gravar) url += (url.indexOf("?") === -1 ? "?" : "&") + "NPE_DRY=1";
       q = await abrirNoQuadro(url);
-      var r = await q.win.processarOSAtual({ gravar: gravar, onStatus: function (t) { var e2 = el("res_" + i); if (e2) e2.textContent = t + "..."; } });
-      var precisaRevisar = r.revisar.length > 0 || r.sintese.motivos.length > 0 || !r.sintese.gerada;
-      var falhouGravar = gravar && r.gravado === false;
-      marcar(i, falhouGravar ? "erro" : (precisaRevisar ? "revisar" : "ok"), textoResultado(r));
-      log("OS " + o.code + ": " + textoResultado(r));
-      if (r.primeiraRodada && r.primeiraRodada.length) log("   mini reprovado em: " + r.primeiraRodada.map(function (x) { return "#" + x.tid + " (" + x.motivos.join(", ") + ")"; }).join("; "));
-      if (r.sintese.motivosMini && r.sintese.motivosMini.length) log("   síntese no mini reprovada: " + r.sintese.motivosMini.join("; "));
+      var onStatus = function (t) { var e2 = el("res_" + i); if (e2) e2.textContent = t + "..."; };
+      var fim;
+      if (etapa === "aba5") fim = resultadoAba5(await q.win.processarNotasAnoAtual({ gravar: gravar }), gravar);
+      else if (etapa === "aba3") fim = resultadoAba3(await q.win.processarResumoAnualAtual({ gravar: gravar, onStatus: onStatus }), gravar);
+      else fim = resultadoAba1(await q.win.processarOSAtual({ gravar: gravar, onStatus: onStatus }), gravar);
+      marcar(i, fim.estado, fim.texto);
+      log("OS " + o.code + ": " + fim.texto);
+      (fim.extra || []).forEach(log);
     } catch (e) {
       marcar(i, "erro", String(e && e.message ? e.message : e));
       log("OS " + o.code + ": ERRO - " + (e && e.message ? e.message : e));
@@ -277,9 +308,12 @@
       if (o.marcada && (refazer || !r || r.estado === "pendente" || r.estado === "erro" || r.estado === "rodando")) fila.push(i);
     });
     if (!fila.length) return log("Nenhuma OS para processar (marque as OSs ou use 'Refazer as já concluídas').");
-    if (lerK("npe_flow_gerar_texto_mini_url").indexOf("https://") !== 0) return log("Configure a URL do fluxo NPE-Gerar-Texto-Mini antes de começar.");
-    if (gravar && !window.confirm("Gravar na ATA os pareceres e a síntese de " + fila.length + " OS(s) de " + mes + "/" + ano +
-        "?\n\nO texto de cada indicador não validado será SUBSTITUÍDO. Mês fechado não deve ser processado.")) return;
+    var etapaSel = el("etapa").value;
+    if (etapaSel !== "aba5" && lerK("npe_flow_gerar_texto_mini_url").indexOf("https://") !== 0) return log("Configure a URL do fluxo NPE-Gerar-Texto-Mini antes de começar.");
+    var oque = etapaSel === "aba5" ? "as notas (Aba 5) de janeiro até o último mês fechado, substituindo as já gravadas"
+             : etapaSel === "aba3" ? "o resumo anual (Aba 3) de janeiro até o último mês fechado, substituindo o que já estava gravado em cada indicador gerado"
+             : "os pareceres e a síntese do mês na ATA (o texto de cada indicador NÃO validado será SUBSTITUÍDO; mês fechado não deve ser processado)";
+    if (gravar && !window.confirm("Gravar " + oque + " de " + fila.length + " OS(s)?\n\nReferência: " + mes + "/" + ano + ".")) return;
     estado.rodando = true; estado.parar = false; estado.persistir = gravar;
     el("btnIniciar").disabled = true; el("btnParar").disabled = false; el("btnCarregar").disabled = true;
     log((gravar ? "GRAVANDO" : "TESTE (sem gravar)") + " - " + fila.length + " OS(s) na fila.");
@@ -299,7 +333,19 @@
   // ---------- inicio ----------
   var hoje = new Date();
   el("ano").value = hoje.getFullYear();
-  el("mes").value = String(hoje.getMonth() + 1);
+  function ultimoFechado() { var u = hoje.getMonth(); if (hoje.getDate() <= 20) u -= 1; return u > 0 ? u : 1; }
+  function aoMudarEtapa() {
+    var e = el("etapa").value;
+    el("mes").value = String(e === "aba1" ? hoje.getMonth() + 1 : ultimoFechado());
+    el("notaEtapa").textContent = e === "aba1"
+      ? "Não use em mês já fechado: o texto de cada indicador NÃO validado é substituído. Indicadores validados nunca são alterados."
+      : e === "aba5"
+      ? "Grava a nota consolidada de cada mês fechado (janeiro até o último fechado) de cada OS. Não mexe nos pareceres da Aba 1. Não usa IA."
+      : "Gera o resumo do ano por indicador a partir dos pareceres já gravados (janeiro até o último mês fechado). Substitui o resumo anual anterior de cada indicador gerado; não mexe nos pareceres da Aba 1.";
+    estado.lista = []; el("secLista").style.display = "none";
+  }
+  el("etapa").addEventListener("change", aoMudarEtapa);
+  aoMudarEtapa();
   desenharCfg();
 })();
 </script>
