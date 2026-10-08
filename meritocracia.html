@@ -88,6 +88,17 @@
   .cartao .res { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); display: flex; gap: 18px; flex-wrap: wrap; font-size: .9rem; }
   .cartao .res b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
   .cartao .obs { margin-top: 10px; font-size: .74rem; color: var(--muted); }
+  .aviso.warn { background: var(--warn-bg); border: 1px solid #fcd34d; }
+  .aviso.warn h3 { color: #92400e; }
+  .linha-pend { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: .84rem; }
+  .linha-pend select { padding: 5px 8px; border: 1.5px solid var(--line); border-radius: 6px; font: inherit; max-width: 420px; }
+  .btn.peq { padding: 4px 10px; font-size: .74rem; }
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: .66rem; font-weight: 800; background: #e2e8f0; color: #334155; vertical-align: middle; }
+  table.pessoas td.oss { max-width: 360px; white-space: normal; font-size: .74rem; }
+  table.pessoas input.v { max-width: 130px; }
+  table.pessoas input.t { max-width: 120px; }
+  .zero { color: var(--danger); font-size: .74rem; font-weight: 700; }
+  textarea.copia { width: 100%; font: 12px/1.35 Consolas, 'Courier New', monospace; white-space: pre; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin-top: 8px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -114,7 +125,9 @@
   var FLOW = {
     login:  "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/bcf1295963df418f91a48dd71ea02e60/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VfbYQC2H12f_6GZCSMmrctJBKF1B8ns4TalVByCO688",
     ler:    "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/31/workflows/77cb0bdc193a4525af1fb1da8f2fcdf5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=V9NVZwV1cq3J4REThC5A8EuG-cvLQVgg68mRkugFcJw",
-    gravar: "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/23/workflows/0ad769e7e83a431fabbad3899788a2c4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=uo1CVIepIAcQmYbt9AaKRcN0bJz6eXhTCTPhHuuVggk"
+    gravar: "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/23/workflows/0ad769e7e83a431fabbad3899788a2c4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=uo1CVIepIAcQmYbt9AaKRcN0bJz6eXhTCTPhHuuVggk",
+    // NPE-Ler-Metas (publico, o mesmo do RPCO): PARAM_ELEGIBILIDADE com a vigencia de gerente, superintendente e responsavel
+    metas:  "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/eee057e0905d4712aa0317bb0acd74c3/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xDFTcuw4PksmljQDhYgPLtMDZtUeOWxXHojiUPzGCR0"
   };
   var ITERACOES = 200000;
   var LOTE = 20;
@@ -188,9 +201,13 @@
     if (!sessao) throw new Error("sem sessao");
     var r = await postar(FLOW.ler, { login: sessao.login, token: sessao.token });
     if (r.status === 401) { sessaoCaiu(); return null; }
-    if (r.status !== 200 || !Array.isArray(r.json)) throw new Error("Falha ao ler (" + r.status + ")");
-    return r.json;
+    // Desde 08/10 a resposta e { merito: [...], metas: [...] } (metas = META_FINANCEIRA ativa, do RPCO)
+    var j = r.json;
+    if (r.status !== 200 || !j || (!Array.isArray(j) && !Array.isArray(j.merito))) throw new Error("Falha ao ler (" + r.status + ")");
+    metasRPCO = Array.isArray(j) ? [] : (j.metas || []);
+    return Array.isArray(j) ? j : j.merito;
   }
+  var metasRPCO = [];
 
   // itens = [{ id: 0 para novo | ID do SharePoint, campos: { NomeInterno: valor } }]
   // Nada e apagado: para tirar uma linha, grave campos.Ativo = "Nao".
@@ -209,7 +226,9 @@
   async function carregar() {
     renderCarregando();
     try {
+      var pv = vigCarregada ? null : carregarVigencia();
       var linhas = await ler();
+      if (pv) await pv;
       if (!linhas) return;
       dados = linhas;
       render();
@@ -318,14 +337,163 @@
   }
 
   // ===========================================================================
+  // Dados do modelo (_mMeritoDados) -- chegam depois do "#" na URL montada pela medida.
+  // Cada campo e decodificado so depois de separado (os separadores ; ~ | : , nunca vem codificados).
+  // ===========================================================================
+  var HR, NOMES_G, NOMES_R, NOMES_S, OSS, OS_POR_COD;
+  function dec(s) { try { return decodeURIComponent(String(s || "")); } catch (e) { return String(s || ""); } }
+  function n36(x) { if (!x) return 0; var neg = x.charAt(0) === "-"; var v = parseInt(neg ? x.slice(1) : x, 36); return isNaN(v) ? 0 : (neg ? -v : v); }
+  function pad6(c) { c = String(c || "").trim(); return /^\d+$/.test(c) ? ("000000" + c).slice(-6) : c; }
+  function dicionario(nome) {
+    var d = {};
+    String(HR[nome] || "").split("|").filter(Boolean).forEach(function (p) { var i = p.indexOf(":"); if (i > 0) d[pad6(dec(p.slice(0, i)))] = dec(p.slice(i + 1)); });
+    return d;
+  }
+  // Le de novo sempre que o "#" muda: o Power BI pode trocar so essa parte da URL e o navegador nao recarrega
+  function lerDadosModelo() {
+    HR = {};
+    String(location.hash || "").replace(/^#/, "").split("&").forEach(function (kv) { var i = kv.indexOf("="); if (i > 0) HR[kv.slice(0, i)] = kv.slice(i + 1); });
+    NOMES_G = dicionario("PG"); NOMES_R = dicionario("PR"); NOMES_S = dicionario("PS");
+    OSS = String(HR.MO || "").split(";").filter(Boolean).map(function (l) {
+    var f = l.split("~").map(function (x, i) { return i === 4 ? x : dec(x); });
+    var ev = {};
+    String(f[5] || "").split(",").filter(Boolean).forEach(function (p) {
+      var q = p.split(":"), v = String(q[1] || "").split(".");
+      ev[+q[0]] = { saf: +v[0] || 0, caf: +v[1] || 0, bpa: +v[2] || 0, bpr: +v[3] || 0 };
+    });
+    var fr = String(f[10] || "").split(",").map(function (p) { if (!p) return null; var v = p.split("."); return { fat: n36(v[0]), res: n36(v[1]) }; });
+    return {
+      cod: f[0], tp: f[1], satMes: f[2] ? +f[2] : null, sat: (f[3] !== undefined && f[3] !== "") ? (+f[3]) / 10000 : null,
+      ass: f[4] || "", ev: ev, gestor: pad6(f[6]), ger: pad6(f[7]), sup: pad6(f[8]), desc: f[9] || f[0], fr: fr
+    };
+    });
+    OS_POR_COD = {};
+    OSS.forEach(function (o) { OS_POR_COD[o.cod] = o; });
+  }
+  lerDadosModelo();
+  window.addEventListener("hashchange", function () { lerDadosModelo(); if (sessao && dados) render(); });
+
+  // ===========================================================================
+  // Vigencia da hierarquia (PARAM_ELEGIBILIDADE, lida ao vivo pelo NPE-Ler-Metas)
+  //   GERENTE_OS / SUPERINTENDENTE_OS = "OS|codigo|nome" ; RESPONSAVEL = "OS|nome" (sem codigo)
+  // ===========================================================================
+  var VIG = { coord: {}, ger: {}, sup: {} }, vigCarregada = false, vigErro = "";
+  async function carregarVigencia() {
+    if (!fluxoPronto(FLOW.metas)) { vigErro = "Fluxo de vigência não configurado."; return; }
+    try {
+      var r = await postar(FLOW.metas, {});
+      var p = (r.json && r.json.parametros) || [];
+      VIG = { coord: {}, ger: {}, sup: {} };
+      p.forEach(function (x) {
+        if (String(x.ativo || "").trim().toLowerCase().charAt(0) !== "s") return;
+        var v = String(x.valor || "").split("|"), ym = Math.round(+x.vigencia || 0);
+        if (x.tipo === "RESPONSAVEL") (VIG.coord[v[0]] = VIG.coord[v[0]] || []).push({ ym: ym, nome: v[1] || "" });
+        else if (x.tipo === "GERENTE_OS") (VIG.ger[v[0]] = VIG.ger[v[0]] || []).push({ ym: ym, cod: pad6(v[1]), nome: v[2] || "" });
+        else if (x.tipo === "SUPERINTENDENTE_OS") (VIG.sup[v[0]] = VIG.sup[v[0]] || []).push({ ym: ym, cod: pad6(v[1]), nome: v[2] || "" });
+      });
+      Object.keys(VIG).forEach(function (k) { Object.keys(VIG[k]).forEach(function (os) { VIG[k][os].sort(function (a, b) { return a.ym - b.ym; }); }); });
+      vigCarregada = true; vigErro = "";
+    } catch (e) { vigErro = "Não foi possível ler a vigência da hierarquia (PARAM_ELEGIBILIDADE)."; }
+  }
+  function vigente(lista, ym) { var a = null; (lista || []).forEach(function (x) { if (x.ym <= ym) a = x; }); return a; }
+
+  // ===========================================================================
+  // Pessoas elegiveis. Operacionais: coordenador (GESTOR DO CONTRATO), gerente e superintendente de cada
+  // OS, mes a mes. Fixos (CEO, VP, Diretores) e importados (apoio/comercial) vem da lista MERITOCRACIA.
+  // Troca de coordenador registrada sem codigo: o Master escolhe a pessoa (Tipo COORD_OS); nada e casado por nome.
+  // ===========================================================================
+  var FUNC_OP = { c: "COORDENADORES OPERACIONAIS", g: "GERENTES OPERACIONAIS", s: "SUPERINTENDENTES OPERACIONAIS" };
+  var FUNCOES_IMPORTAVEIS = ["SUPERINTENDENTES APOIOS", "SUPERINTENDENTES COMERCIAIS", "GERENTES APOIOS", "GERENTES COMERCIAIS", "COORDENADORES APOIOS"];
+  function todosMeses() { var o = {}; for (var m = 1; m <= 12; m++) o[m] = 1; return o; }
+  function escolhaCoord(os, ym) {
+    return linhasDoTipo("COORD_OS").filter(function (d) { return d.Indicador === os && Math.round(+d.VigenciaAnoMes) === ym; })
+      .sort(function (a, b) { return b.ID - a.ID; })[0] || null;
+  }
+  function pessoaRow(cod) {
+    return linhasDoTipo("PESSOA").filter(function (d) { return pad6(d.CodPessoa) === cod; }).sort(function (a, b) { return b.ID - a.ID; })[0] || null;
+  }
+  function dadosPessoa(cod) {
+    var d = pessoaRow(cod), e = json(d && d.Escalas);
+    return { row: d, clt: d ? d.RemCLT : null, pj: d ? d.RemPJ : null, adm: d ? (d.Admissao || "") : "",
+      engaj: e.engajClima, desemp: e.desempenho, taxaCaf: e.taxaCaf, e: e };
+  }
+  // "dd/mm/aaaa" ou "aaaa-mm-dd" -> {y, m, d}
+  function lerData(s) {
+    s = String(s || "").trim();
+    var a = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/), b = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (a) return { y: +a[3], m: +a[2], d: +a[1] };
+    if (b) return { y: +b[1], m: +b[2], d: +b[3] };
+    return null;
+  }
+  function montarPessoas() {
+    var mapa = {}, pend = [], fixos = {};
+    linhasDoTipo("FIXO").forEach(function (d) {
+      var cod = pad6(d.CodPessoa); fixos[cod] = 1;
+      mapa[cod + "|" + d.Funcao] = { cod: cod, nome: d.Nome || "", funcao: d.Funcao, meses: todosMeses(), oss: {}, origem: "FIXO" };
+    });
+    function add(cod, nome, funcao, os, m) {
+      if (!cod || fixos[cod]) return;
+      var k = cod + "|" + funcao;
+      var p = mapa[k] || (mapa[k] = { cod: cod, nome: nome, funcao: funcao, meses: {}, oss: {}, origem: "CTT" });
+      if (!p.nome && nome) p.nome = nome;
+      p.meses[m] = 1; (p.oss[os] = p.oss[os] || {})[m] = 1;
+    }
+    OSS.forEach(function (os) {
+      for (var m = 1; m <= 12; m++) {
+        var ym = ANO * 100 + m;
+        var vc = vigente(VIG.coord[os.cod], ym);
+        if (!vc || vc.ym <= ANO * 100 + 1) add(os.gestor, NOMES_G[os.gestor] || "", FUNC_OP.c, os.cod, m);
+        else {
+          var esc = escolhaCoord(os.cod, vc.ym);
+          if (esc) add(pad6(esc.CodPessoa), esc.Nome || "", FUNC_OP.c, os.cod, m);
+          else if (!pend.some(function (x) { return x.os === os.cod && x.ym === vc.ym; })) pend.push({ os: os.cod, desc: os.desc, ym: vc.ym, nome: vc.nome });
+        }
+        var vg = vigente(VIG.ger[os.cod], ym), cg = vg ? vg.cod : os.ger;
+        add(cg, NOMES_R[cg] || (vg && vg.nome) || "", FUNC_OP.g, os.cod, m);
+        var vs = vigente(VIG.sup[os.cod], ym), cs = vs ? vs.cod : os.sup;
+        add(cs, NOMES_S[cs] || (vs && vs.nome) || "", FUNC_OP.s, os.cod, m);
+      }
+    });
+    linhasDoTipo("PESSOA").forEach(function (d) {
+      if (!d.Funcao) return;
+      var cod = pad6(d.CodPessoa), k = cod + "|" + d.Funcao;
+      if (!mapa[k]) mapa[k] = { cod: cod, nome: d.Nome || "", funcao: d.Funcao, meses: todosMeses(), oss: {}, origem: "IMPORTADA" };
+    });
+    // Periodo: admitido ate janeiro = integral; de fevereiro em diante, a partir do mes de admissao;
+    // a partir de outubro nao recebe; minimo de 3 meses no ano (Procedimento).
+    var totalMesesPorCod = {};
+    var lista = Object.keys(mapa).map(function (k) {
+      var p = mapa[k], dp = dadosPessoa(p.cod), a = lerData(dp.adm), ini = 1, zero = "";
+      if (a) {
+        if (a.y > ANO || (a.y === ANO && a.m >= 10)) { ini = 13; zero = "admissão a partir de 01/10/" + ANO; }
+        else if (a.y === ANO && a.m >= 2) ini = a.m;
+      }
+      p.mesesValidos = Object.keys(p.meses).map(Number).filter(function (m) { return m >= ini; }).sort(function (x, y) { return x - y; });
+      p.motivoZero = zero;
+      p.dados = dp;
+      var t = totalMesesPorCod[p.cod] || (totalMesesPorCod[p.cod] = {});
+      p.mesesValidos.forEach(function (m) { t[m] = 1; });
+      return p;
+    });
+    lista.forEach(function (p) {
+      var total = Object.keys(totalMesesPorCod[p.cod] || {}).length;
+      if (total < 3 && !p.motivoZero) p.motivoZero = "menos de 3 meses no ano";
+      p.periodo = p.motivoZero ? 0 : p.mesesValidos.length / 12;
+    });
+    lista.sort(function (a, b) { return ordemFuncao(a.funcao) - ordemFuncao(b.funcao) || String(a.nome).localeCompare(String(b.nome)); });
+    return { lista: lista, pendencias: pend };
+  }
+
+  // ===========================================================================
   // Abas
   // ===========================================================================
   var ABAS = [
+    { id: "pessoas", nome: "Pessoas" },
     { id: "deducoes", nome: "Deduções" },
     { id: "coletivas", nome: "Coletivas" },
     { id: "metricas", nome: "Métricas" }
   ];
-  var abaAtiva = "deducoes";
+  var abaAtiva = "pessoas";
   var statusMsg = { txt: "", cls: "" };
 
   function renderAbas() {
@@ -354,7 +522,10 @@
   function camposEditados() {
     return Array.prototype.slice.call(painel.querySelectorAll("input[data-campo]")).filter(function (i) { return i.value !== i.getAttribute("data-orig"); });
   }
-  function temAlteracoes() { return camposEditados().length > 0; }
+  function temAlteracoes() {
+    return camposEditados().length > 0 ||
+      Array.prototype.slice.call(painel.querySelectorAll("input[data-pk]")).some(function (i) { return i.value !== i.getAttribute("data-orig"); });
+  }
 
   function barraSalvar(dica) {
     return '<div class="barra"><span class="dica">' + dica + '</span><span class="status ' + statusMsg.cls + '" id="status">' + esc(statusMsg.txt) + '</span>' +
@@ -480,6 +651,234 @@
     ligarEdicao();
   }
 
+  // ---------------------------------------------------------------------------
+  // Pessoas: lista de elegiveis, dados por pessoa (remuneracao, admissao, indicadores de Pessoas,
+  // Taxa CAF), exportar/importar por CODIGO e pendencias de coordenador sem codigo
+  // ---------------------------------------------------------------------------
+  var MESES_ABREV = ["", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  var CAMPOS_PESSOA = [
+    { k: "adm", rot: "Admissão", fmt: "txt", w: 120 },
+    { k: "clt", rot: "CLT ano (R$)", fmt: "num", w: 140 },
+    { k: "pj", rot: "PJ ano (R$)", fmt: "num", w: 140 },
+    { k: "engaj", rot: "Engaj. + clima", fmt: "pct", w: 110 },
+    { k: "desemp", rot: "Desempenho", fmt: "pct", w: 110 },
+    { k: "taxaCaf", rot: "Taxa CAF", fmt: "num", w: 100, so: [FUNC_OP.g, FUNC_OP.s] }
+  ];
+  var ultimaMontagem = null, painelExtra = "";
+
+  function fmtCampo(v, fmt) {
+    if (v === null || v === undefined || v === "") return "";
+    if (fmt === "pct") return fmtPct(v, 2);
+    if (fmt === "num") return Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+    return String(v);
+  }
+  function resumoOSs(p) {
+    var cods = Object.keys(p.oss).sort();
+    if (!cods.length) return p.origem === "FIXO" ? "fixo" : p.origem === "IMPORTADA" ? "importada" : "";
+    return cods.map(function (c) {
+      var ms = Object.keys(p.oss[c]).map(Number);
+      return c + (ms.length < 12 ? " (" + MESES_ABREV[Math.min.apply(null, ms)] + "–" + MESES_ABREV[Math.max.apply(null, ms)] + ")" : "");
+    }).join(", ");
+  }
+  function renderPessoas() {
+    var mt = ultimaMontagem = montarPessoas();
+    var html = '<div class="barra"><span class="dica">Pessoas elegíveis de ' + ANO + '. Operacionais vêm da CTT com a vigência da PARAM_ELEGIBILIDADE; apoio e comercial entram pela importação.</span>' +
+      '<span class="status ' + statusMsg.cls + '" id="status">' + esc(statusMsg.txt) + '</span><div class="dir">' +
+      '<button type="button" class="btn sec" id="btnExportar">Exportar lista</button><button type="button" class="btn sec" id="btnImportar">Importar planilha</button>' +
+      '<button type="button" class="btn sec" id="btnDescartar">Descartar</button><button type="button" class="btn" id="btnSalvarPessoas">Salvar alterações</button></div></div>';
+    if (!OSS.length) html += '<div class="aviso erro"><h3>Os dados do modelo não chegaram</h3><p>A lista de OSs, a hierarquia e os indicadores vêm da medida _mMeritoDados. Abra a página pelo Power BI.</p></div>';
+    if (vigErro) html += '<div class="aviso erro"><h3>' + esc(vigErro) + '</h3><p>Sem a vigência, gerente e superintendente seguem a CTT atual o ano inteiro.</p></div>';
+    html += painelExtra;
+    if (mt.pendencias.length) {
+      var opcoes = {};
+      [NOMES_G, NOMES_R, NOMES_S].forEach(function (d) { Object.keys(d).forEach(function (c) { if (!opcoes[c]) opcoes[c] = d[c]; }); });
+      mt.lista.forEach(function (p) { if (!opcoes[p.cod]) opcoes[p.cod] = p.nome; });
+      var opts = Object.keys(opcoes).sort(function (a, b) { return String(opcoes[a]).localeCompare(String(opcoes[b])); })
+        .map(function (c) { return '<option value="' + esc(c) + '">' + esc(c + " — " + opcoes[c]) + '</option>'; }).join("");
+      html += '<div class="aviso warn"><h3>Troca de coordenador sem código (' + mt.pendencias.length + ')</h3>' +
+        '<p>O cadastro de responsáveis guarda só o nome. Escolha a pessoa pelo código; até lá, esses meses ficam sem coordenador na apuração.</p>' +
+        mt.pendencias.map(function (x, i) {
+          return '<div class="linha-pend"><b>' + esc(x.os) + '</b> ' + esc(x.desc.replace(x.os + " - ", "")) + ' — <b>' + esc(x.nome) + '</b> desde ' +
+            esc(MESES_ABREV[x.ym % 100] + "/" + Math.floor(x.ym / 100)) + ' <select id="pend' + i + '"><option value="">escolha o código…</option>' + opts + '</select>' +
+            ' <button type="button" class="btn peq" data-pend="' + i + '">Gravar</button></div>';
+        }).join("") + '</div>';
+    }
+    var funcao = null;
+    mt.lista.forEach(function (p) {
+      if (p.funcao !== funcao) {
+        if (funcao !== null) html += '</tbody></table></div>';
+        funcao = p.funcao;
+        var n = mt.lista.filter(function (x) { return x.funcao === funcao; }).length;
+        html += '<div class="grupo-titulo">' + esc(funcao) + ' <span class="dica">(' + n + ')</span></div><div class="rolagem"><table class="edit pessoas"><thead><tr>' +
+          '<th>Código</th><th>Nome</th><th>OSs</th><th class="n">Meses</th>' +
+          CAMPOS_PESSOA.map(function (c) { return '<th class="n" style="width:' + c.w + 'px">' + c.rot + '</th>'; }).join("") +
+          '<th class="n">Período</th></tr></thead><tbody>';
+      }
+      html += '<tr><td class="os">' + esc(p.cod) + '</td><td>' + esc(p.nome) + (p.origem !== "CTT" ? ' <span class="chip">' + esc(p.origem.toLowerCase()) + '</span>' : '') +
+        '</td><td class="dica oss">' + esc(resumoOSs(p)) + '</td><td class="n">' + p.mesesValidos.length + '</td>' +
+        CAMPOS_PESSOA.map(function (c) {
+          if (c.so && c.so.indexOf(p.funcao) < 0) return '<td class="n dica">—</td>';
+          var mostra = fmtCampo(p.dados[c.k], c.fmt);
+          return '<td class="n"><input class="' + (c.fmt === "txt" ? "t" : "v") + '" data-pcod="' + esc(p.cod) + '" data-pk="' + c.k + '" data-fmt="' + c.fmt +
+            '" data-orig="' + esc(mostra) + '" value="' + esc(mostra) + '" placeholder="' + (c.fmt === "txt" ? "dd/mm/aaaa" : "") + '" aria-label="' + esc(p.nome + " " + c.rot) + '"></td>';
+        }).join("") +
+        '<td class="n" title="' + esc(p.motivoZero || (p.mesesValidos.map(function (m) { return MESES_ABREV[m]; }).join(" "))) + '">' +
+        (p.motivoZero ? '<span class="zero">0 — ' + esc(p.motivoZero) + '</span>' : fmtPct(p.periodo, 1)) + '</td></tr>';
+    });
+    if (funcao !== null) html += '</tbody></table></div>';
+    painel.innerHTML = html;
+    ligarPessoas();
+  }
+  function camposPessoaEditados() {
+    return Array.prototype.slice.call(painel.querySelectorAll("input[data-pk]")).filter(function (i) { return i.value !== i.getAttribute("data-orig"); });
+  }
+  function ligarPessoas() {
+    painel.querySelectorAll("input[data-pk]").forEach(function (i) {
+      i.oninput = function () {
+        // a mesma pessoa pode aparecer em mais de uma funcao: os campos andam juntos
+        painel.querySelectorAll('input[data-pcod="' + i.getAttribute("data-pcod") + '"][data-pk="' + i.getAttribute("data-pk") + '"]').forEach(function (o) {
+          if (o !== i) o.value = i.value;
+          o.classList.toggle("alterado", o.value !== o.getAttribute("data-orig"));
+        });
+      };
+    });
+    document.getElementById("btnSalvarPessoas").onclick = function () { salvarPessoas(lerEdicoesPessoas()); };
+    document.getElementById("btnDescartar").onclick = function () { statusMsg = { txt: "", cls: "" }; painelExtra = ""; render(); };
+    document.getElementById("btnExportar").onclick = mostrarExportacao;
+    document.getElementById("btnImportar").onclick = mostrarImportacao;
+    painel.querySelectorAll("[data-pend]").forEach(function (b) {
+      b.onclick = function () { gravarPendencia(+b.getAttribute("data-pend")); };
+    });
+    var bi = document.getElementById("btnAplicarImport");
+    if (bi) bi.onclick = aplicarImportacao;
+    var bc = document.getElementById("btnCopiarExport");
+    if (bc) bc.onclick = function () { var t = document.getElementById("txtExport"); t.select(); try { document.execCommand("copy"); bc.textContent = "Copiado ✔"; } catch (e) {} };
+    var bf = document.getElementById("btnFecharExtra");
+    if (bf) bf.onclick = function () { painelExtra = ""; render(); };
+    var tp = document.getElementById("txtImport");
+    if (tp) tp.oninput = function () { document.getElementById("previaImport").innerHTML = previaImportacao(tp.value).html; };
+  }
+  // { cod: { clt: v, ... } } a partir dos campos alterados na tela
+  function lerEdicoesPessoas() {
+    var porCod = {}, invalidos = 0;
+    camposPessoaEditados().forEach(function (i) {
+      var cod = i.getAttribute("data-pcod"), k = i.getAttribute("data-pk"), fmt = i.getAttribute("data-fmt"), v;
+      if (fmt === "txt") { v = i.value.trim(); if (v && !lerData(v)) { invalidos++; return; } }
+      else { v = lerNumero(i.value, fmt === "pct"); if (v !== null && isNaN(v)) { invalidos++; return; } }
+      (porCod[cod] = porCod[cod] || {})[k] = v;
+    });
+    return invalidos ? { erro: invalidos + " valor(es) inválido(s): datas em dd/mm/aaaa, números como 1.234,56 ou 15%." } : porCod;
+  }
+  // grava uma linha PESSOA por codigo (cria quando nao existe); extra = { cod: {nome, funcao} } da importacao
+  async function salvarPessoas(porCod, extra) {
+    if (porCod.erro) { statusMsg = { txt: porCod.erro, cls: "erro" }; document.getElementById("status").textContent = statusMsg.txt; document.getElementById("status").className = "status erro"; return; }
+    var cods = Object.keys(porCod);
+    if (!cods.length) { statusMsg = { txt: "Nada para salvar.", cls: "" }; document.getElementById("status").textContent = statusMsg.txt; return; }
+    var agora = new Date().toISOString(), lista = (ultimaMontagem || montarPessoas()).lista;
+    var itens = cods.map(function (cod) {
+      var mud = porCod[cod], d = pessoaRow(cod), e = json(d && d.Escalas), c = {};
+      ["engaj", "desemp", "taxaCaf"].forEach(function (k) {
+        var nome = k === "engaj" ? "engajClima" : k === "desemp" ? "desempenho" : "taxaCaf";
+        if (Object.prototype.hasOwnProperty.call(mud, k)) { if (mud[k] === null) delete e[nome]; else e[nome] = mud[k]; }
+      });
+      if (Object.prototype.hasOwnProperty.call(mud, "clt")) c.RemCLT = mud.clt;
+      if (Object.prototype.hasOwnProperty.call(mud, "pj")) c.RemPJ = mud.pj;
+      if (Object.prototype.hasOwnProperty.call(mud, "adm")) c.Admissao = mud.adm;
+      c.Escalas = JSON.stringify(e);
+      var x = extra && extra[cod];
+      if (x && x.funcao) c.Funcao = x.funcao;
+      if (!d) {
+        var p = lista.find(function (q) { return q.cod === cod; });
+        c.Title = ANO + "|PESSOA|" + cod; c.Ano = ANO; c.Tipo = "PESSOA"; c.CodPessoa = cod; c.Ativo = "Sim";
+        c.Nome = (x && x.nome) || (p && p.nome) || "";
+      } else if (x && x.nome && !d.Nome) c.Nome = x.nome;
+      c.AtualizadoPor = sessao.login; c.AtualizadoEm = agora;
+      return { id: d ? d.ID : 0, campos: c };
+    });
+    document.getElementById("status").textContent = "Salvando " + itens.length + " pessoa(s)…";
+    var r = await gravar(itens);
+    if (!r.ok) { if (r.erro === "sessao") return; statusMsg = { txt: r.erro, cls: "erro" }; render(); return; }
+    await carregar();
+    abaAtiva = "pessoas"; painelExtra = "";
+    statusMsg = { txt: "✔ " + itens.length + " pessoa(s) salva(s).", cls: "ok" };
+    render();
+  }
+  async function gravarPendencia(i) {
+    var x = ultimaMontagem.pendencias[i], sel = document.getElementById("pend" + i), cod = sel.value;
+    if (!cod) { sel.focus(); return; }
+    var nome = sel.options[sel.selectedIndex].text.replace(/^\S+ — /, "");
+    var r = await gravar([{ id: 0, campos: { Title: ANO + "|COORD_OS|" + x.os + "|" + x.ym, Ano: ANO, Tipo: "COORD_OS", Indicador: x.os,
+      VigenciaAnoMes: x.ym, CodPessoa: cod, Nome: nome, Valor: x.nome, Ativo: "Sim",
+      Observacao: "Troca de coordenador registrada sem código; código escolhido pelo Master", AtualizadoPor: sessao.login, AtualizadoEm: new Date().toISOString() } }]);
+    if (!r.ok) { if (r.erro !== "sessao") { statusMsg = { txt: r.erro, cls: "erro" }; render(); } return; }
+    await carregar(); abaAtiva = "pessoas"; statusMsg = { txt: "✔ Coordenador de " + x.os + " gravado.", cls: "ok" }; render();
+  }
+
+  // Exportar / importar: texto separado por TAB (copiar e colar no Excel). Casamento SEMPRE por CODIGO.
+  var COLS_IMPORT = ["CODIGO", "NOME", "FUNCAO", "OSS", "ADMISSAO", "CLT_ANO", "PJ_ANO", "ENGAJ_CLIMA", "DESEMPENHO", "TAXA_CAF"];
+  function mostrarExportacao() {
+    var lista = (ultimaMontagem || montarPessoas()).lista, vistos = {};
+    var linhas = [COLS_IMPORT.join("\t")];
+    lista.forEach(function (p) {
+      var d = p.dados;
+      linhas.push([p.cod, p.nome, p.funcao, resumoOSs(p), d.adm || "", fmtCampo(d.clt, "num"), fmtCampo(d.pj, "num"),
+        fmtCampo(d.engaj, "pct"), fmtCampo(d.desemp, "pct"), (vistos[p.cod] ? "" : fmtCampo(d.taxaCaf, "num"))].join("\t"));
+      vistos[p.cod] = 1;
+    });
+    painelExtra = '<div class="aviso info"><h3>Exportar lista (' + lista.length + ' linhas)</h3><p>Copie e cole no Excel. Preencha admissão, remuneração e os indicadores de Pessoas e importe de volta. ' +
+      'Para incluir apoio e comercial, acrescente linhas com CODIGO, NOME e FUNCAO (' + FUNCOES_IMPORTAVEIS.join(", ") + ').</p>' +
+      '<textarea id="txtExport" class="copia" rows="10" readonly>' + esc(linhas.join("\n")) + '</textarea>' +
+      '<div class="barra"><div class="dir"><button type="button" class="btn sec" id="btnFecharExtra">Fechar</button><button type="button" class="btn" id="btnCopiarExport">Copiar</button></div></div></div>';
+    render();
+  }
+  function mostrarImportacao() {
+    painelExtra = '<div class="aviso info"><h3>Importar planilha</h3><p>Cole aqui as linhas copiadas do Excel, com a linha de títulos (' + COLS_IMPORT.join(", ") + '). ' +
+      'Colunas ausentes ou vazias não alteram o que já está gravado. A pessoa é identificada pelo CÓDIGO.</p>' +
+      '<textarea id="txtImport" class="copia" rows="10" placeholder="Cole aqui (Ctrl+V)"></textarea><div id="previaImport"></div>' +
+      '<div class="barra"><div class="dir"><button type="button" class="btn sec" id="btnFecharExtra">Fechar</button><button type="button" class="btn" id="btnAplicarImport">Importar e salvar</button></div></div></div>';
+    render();
+  }
+  function normCol(s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, ""); }
+  function previaImportacao(txt) {
+    var linhas = String(txt || "").replace(/\r/g, "").split("\n").filter(function (l) { return l.trim(); });
+    if (!linhas.length) return { html: "", porCod: {}, extra: {} };
+    var sep = linhas[0].indexOf("\t") >= 0 ? "\t" : ";";
+    var cab = linhas[0].split(sep).map(normCol), idx = {};
+    COLS_IMPORT.forEach(function (c) { idx[c] = cab.indexOf(c); });
+    if (idx.CODIGO < 0) return { html: '<div class="aviso erro"><h3>Falta a coluna CODIGO na primeira linha</h3></div>', porCod: {}, extra: {} };
+    var lista = (ultimaMontagem || montarPessoas()).lista, conhecidos = {};
+    lista.forEach(function (p) { conhecidos[p.cod] = p; });
+    var porCod = {}, extra = {}, erros = [], novos = 0, atual = 0;
+    linhas.slice(1).forEach(function (l, n) {
+      var f = l.split(sep), cel = function (c) { return idx[c] >= 0 ? String(f[idx[c]] || "").trim() : ""; };
+      var cod = pad6(cel("CODIGO"));
+      if (!cod) { erros.push("linha " + (n + 2) + ": sem código"); return; }
+      var funcao = cel("FUNCAO").toUpperCase();
+      if (!conhecidos[cod]) {
+        if (FUNCOES_IMPORTAVEIS.indexOf(funcao) < 0) { erros.push("linha " + (n + 2) + " (" + cod + "): fora da lista e sem FUNCAO de apoio/comercial válida"); return; }
+        if (!cel("NOME")) { erros.push("linha " + (n + 2) + " (" + cod + "): pessoa nova sem NOME"); return; }
+        extra[cod] = { nome: cel("NOME"), funcao: funcao }; novos++;
+      } else atual++;
+      var m = porCod[cod] || (porCod[cod] = {});
+      [["ADMISSAO", "adm", "txt"], ["CLT_ANO", "clt", "num"], ["PJ_ANO", "pj", "num"], ["ENGAJ_CLIMA", "engaj", "pct"], ["DESEMPENHO", "desemp", "pct"], ["TAXA_CAF", "taxaCaf", "num"]].forEach(function (c) {
+        var t = cel(c[0]);
+        if (!t) return;
+        if (c[2] === "txt") { if (!lerData(t)) { erros.push("linha " + (n + 2) + " (" + cod + "): data inválida em " + c[0]); return; } m[c[1]] = t; }
+        else { var v = lerNumero(t, c[2] === "pct"); if (isNaN(v)) { erros.push("linha " + (n + 2) + " (" + cod + "): número inválido em " + c[0]); return; } m[c[1]] = v; }
+      });
+    });
+    var html = '<p class="dica">' + atual + ' pessoa(s) da lista atualizada(s), ' + novos + ' nova(s) de apoio/comercial.</p>' +
+      (erros.length ? '<div class="aviso erro"><h3>' + erros.length + ' problema(s) — corrija antes de importar</h3><p>' + erros.slice(0, 12).map(esc).join("<br>") + (erros.length > 12 ? "<br>…" : "") + '</p></div>' : "");
+    return { html: html, porCod: porCod, extra: extra, erros: erros };
+  }
+  function aplicarImportacao() {
+    var pv = previaImportacao(document.getElementById("txtImport").value);
+    if (pv.erros && pv.erros.length) { document.getElementById("previaImport").innerHTML = pv.html; return; }
+    var porCod = {};
+    Object.keys(pv.porCod).forEach(function (c) { if (Object.keys(pv.porCod[c]).length || pv.extra[c]) porCod[c] = pv.porCod[c]; });
+    salvarPessoas(porCod, pv.extra);
+  }
+
   function renderErro(erro) {
     painel.innerHTML = '<div class="aviso erro"><h3>Não foi possível ler a lista</h3><p>' + esc(erro) + '</p></div>' +
       '<button type="button" class="btn" id="btnRecarregar">Tentar de novo</button>';
@@ -495,6 +894,7 @@
     if (!dados) { renderCarregando(); return; }
     if (abaAtiva === "coletivas") renderColetivas();
     else if (abaAtiva === "metricas") renderMetricas();
+    else if (abaAtiva === "pessoas") renderPessoas();
     else renderDeducoes();
   }
 
@@ -504,7 +904,7 @@
     " · gravar " + (fluxoPronto(FLOW.gravar) ? "ok" : "falta");
 
   // Acesso para depuracao no console; tudo continua exigindo o token da sessao.
-  window.MERITO = { ler: ler, gravar: gravar, logado: function () { return !!sessao; } };
+  window.MERITO = { ler: ler, gravar: gravar, logado: function () { return !!sessao; }, metas: function () { return metasRPCO; } };
 
   render();
 })();
