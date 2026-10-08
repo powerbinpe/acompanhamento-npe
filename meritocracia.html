@@ -108,6 +108,7 @@
   table.apur tr.det td { background: #fbfdff; white-space: normal; }
   .detalhe { font-size: .76rem; line-height: 1.6; color: var(--text); padding: 4px 6px 8px; }
   .chip.sem { background: var(--warn-bg); color: #92400e; margin: 1px; }
+  td.n.neg { color: var(--danger); font-weight: 700; }
   .total-geral { margin-top: 18px; padding: 12px 14px; border-radius: 10px; background: var(--bg-soft); font-size: .9rem; }
   textarea.copia { width: 100%; font: 12px/1.35 Consolas, 'Courier New', monospace; white-space: pre; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin-top: 8px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -525,7 +526,8 @@
     { id: "pessoas", nome: "Pessoas" },
     { id: "deducoes", nome: "Deduções" },
     { id: "coletivas", nome: "Coletivas" },
-    { id: "metricas", nome: "Métricas" }
+    { id: "metricas", nome: "Métricas" },
+    { id: "teto", nome: "Teto" }
   ];
   var abaAtiva = "resumo";
   var statusMsg = { txt: "", cls: "" };
@@ -582,9 +584,17 @@
       var fmt = i.getAttribute("data-fmt"), v;
       if (fmt === "txt") v = i.value.trim();
       else { v = lerNumero(i.value, fmt === "pct"); if (v !== null && isNaN(v)) { invalidos.push(i); return; } }
-      var id = i.getAttribute("data-id");
+      var id = i.getAttribute("data-id"), jk = i.getAttribute("data-jk");
+      if (jk) {
+        // valor guardado dentro do JSON de Escalas da linha, preservando o resto (ex.: faixas da coletiva)
+        var c = porId[id] = porId[id] || {};
+        if (!c.__json) { var d0 = (dados || []).find(function (x) { return String(x.ID) === id; }); c.__json = json(d0 && d0.Escalas); }
+        if (v === null) delete c.__json[jk]; else c.__json[jk] = v;
+        return;
+      }
       (porId[id] = porId[id] || {})[i.getAttribute("data-campo")] = v;
     });
+    Object.keys(porId).forEach(function (id) { if (porId[id].__json) { porId[id].Escalas = JSON.stringify(porId[id].__json); delete porId[id].__json; } });
     if (invalidos.length) {
       invalidos.forEach(function (i) { i.focus(); });
       statusMsg = { txt: invalidos.length + " valor(es) inválido(s). Use números como 15% ou 1.234,56.", cls: "erro" };
@@ -642,9 +652,17 @@
     var linhas = linhasDoTipo("COLETIVA").sort(function (a, b) { return a.ID - b.ID; });
     var html = barraSalvar("Meta e realizado da empresa no ano. Informe os dois na mesma unidade (R$ ou %).");
     html += '<div class="cartoes">' + linhas.map(function (d) {
+      var ehLucro = String(d.Indicador || "").toUpperCase().indexOf("LUCRO") === 0, e = json(d.Escalas);
+      // Lucro Liquido em R$ (meta e realizado) so para o teto; a escala segue pela meta/realizado acima (margem)
+      var rsCampo = function (k, rot) {
+        var mostra = e[k] === undefined || e[k] === null ? "" : Number(e[k]).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+        return '<div class="linha"><label for="' + k + d.ID + '">' + rot + '</label><input class="v" id="' + k + d.ID + '" data-id="' + d.ID + '" data-campo="Escalas" data-jk="' + k +
+          '" data-fmt="num" data-orig="' + esc(mostra) + '" value="' + esc(mostra) + '" aria-label="' + rot + '"></div>';
+      };
       return '<div class="cartao" data-coletiva="' + d.ID + '"><h3>' + esc(d.Indicador) + '</h3>' +
-        '<div class="linha"><label for="meta' + d.ID + '">Meta</label>' + campo(d, "Meta", "num", "Meta").replace('<input ', '<input id="meta' + d.ID + '" ') + '</div>' +
-        '<div class="linha"><label for="real' + d.ID + '">Realizado</label>' + campo(d, "Medicao", "num", "Realizado").replace('<input ', '<input id="real' + d.ID + '" ') + '</div>' +
+        '<div class="linha"><label for="meta' + d.ID + '">Meta' + (ehLucro ? ' (margem)' : '') + '</label>' + campo(d, "Meta", "num", "Meta").replace('<input ', '<input id="meta' + d.ID + '" ') + '</div>' +
+        '<div class="linha"><label for="real' + d.ID + '">Realizado' + (ehLucro ? ' (margem)' : '') + '</label>' + campo(d, "Medicao", "num", "Realizado").replace('<input ', '<input id="real' + d.ID + '" ') + '</div>' +
+        (ehLucro ? rsCampo("metaRS", "Lucro líquido meta (R$) — teto") + rsCampo("realRS", "Lucro líquido realizado (R$) — teto") : '') +
         '<div class="res"><span>Atingimento <b data-ating>–</b></span><span>Apuração pela escala <b data-apur>–</b></span></div>' +
         '<div class="obs">' + esc(d.Observacao || "") + '</div></div>';
     }).join("") + '</div>';
@@ -950,7 +968,12 @@
     linhasDoTipo("COLETIVA").forEach(function (d) {
       var at = (d.Meta && d.Medicao !== null && d.Medicao !== undefined) ? d.Medicao / d.Meta : null;
       var ind = String(d.Indicador || "").toUpperCase();
-      if (ind.indexOf("LUCRO") === 0) { c.ll = at; c.fll = json(d.Escalas).faixas; }
+      if (ind.indexOf("LUCRO") === 0) {
+        var e = json(d.Escalas);
+        c.ll = at; c.fll = e.faixas;
+        c.llMetaRS = (e.metaRS === undefined || e.metaRS === null) ? null : +e.metaRS;
+        c.llRealRS = (e.realRS === undefined || e.realRS === null) ? null : +e.realRS;
+      }
       else if (ind.indexOf("GERA") === 0) { c.cx = at; c.fcx = json(d.Escalas).faixas; }
     });
     return c;
@@ -1092,13 +1115,32 @@
     linhasDoTipo("METRICA").forEach(function (m) { met[m.Funcao] = m; });
     linhasDoTipo("DEDUCAO").forEach(function (d) { (reg[d.Funcao] = reg[d.Funcao] || []).push(d); });
     var linhas = mt.lista.map(function (p) { return apurarPessoa(p, met[p.funcao] || {}, col, reg[p.funcao] || []); });
-    return { linhas: linhas, col: col, pendencias: mt.pendencias };
+    return { linhas: linhas, col: col, pendencias: mt.pendencias, teto: aplicarTeto(linhas, col) };
+  }
+  // Teto (Procedimento): bonus principal limitado a 10% do Lucro Liquido; plus limitado a 50% do lucro
+  // que passar da meta. Passando, o limite e redistribuido na proporcao do que cada um apurou (liquido).
+  function aplicarTeto(linhas, col) {
+    var t = { principal: 0, plus: 0, capP: null, capN: null, fatorP: 1, fatorN: 1 };
+    linhas.forEach(function (r) {
+      r.PL = r.M * (1 - r.H); r.NL = r.N * (1 - r.H);
+      t.principal += r.PL; t.plus += r.NL;
+    });
+    if (col.llRealRS !== null && col.llRealRS !== undefined) {
+      t.capP = Math.max(0, 0.10 * col.llRealRS);
+      if (col.llMetaRS !== null && col.llMetaRS !== undefined) t.capN = Math.max(0, 0.50 * (col.llRealRS - col.llMetaRS));
+    }
+    if (t.capP !== null && t.principal > t.capP) t.fatorP = t.principal ? t.capP / t.principal : 1;
+    if (t.capN !== null && t.plus > t.capN) t.fatorN = t.plus ? t.capN / t.plus : 1;
+    linhas.forEach(function (r) {
+      r.PLt = r.PL * t.fatorP; r.NLt = r.NL * t.fatorN; r.Vt = r.PLt + r.NLt; r.dif = r.Vt - r.V;
+    });
+    return t;
   }
 
   // ---------------------------------------------------------------------------
   // Tela da apuracao: linha a linha por funcao (com detalhe) e o resumo por funcao
   // ---------------------------------------------------------------------------
-  var CAMPOS_SOMA = ["total", "base", "J", "K", "M", "N", "O", "P", "V"];
+  var CAMPOS_SOMA = ["total", "base", "J", "K", "M", "N", "O", "P", "V", "PL", "NL", "PLt", "NLt", "Vt", "dif"];
   function somar(linhas) {
     var s = { vdef: { ssma: 0, cliente: 0, pessoas: 0, bp: 0, assert: 0 } };
     CAMPOS_SOMA.forEach(function (k) { s[k] = 0; });
@@ -1174,17 +1216,59 @@
     var fs = Object.keys(porF).sort(function (a, b) { return ordemFuncao(a) - ordemFuncao(b); });
     var cab = '<tr><th>Representante</th><th class="n">Total ano</th><th class="n">Valor principal</th><th class="n">Valor plus</th><th class="n">Valor total</th>' +
       '<th class="n">Apurado principal</th><th class="n">Apurado plus</th><th class="n">Apurado total</th><th class="n">Total deflator</th>' +
-      '<th class="n">SSMA</th><th class="n">Satisfação</th><th class="n">Pessoas</th><th class="n">Boas práticas</th><th class="n">Assertividade</th><th class="n">Valor líquido</th></tr>';
+      '<th class="n">SSMA</th><th class="n">Satisfação</th><th class="n">Pessoas</th><th class="n">Boas práticas</th><th class="n">Assertividade</th><th class="n">Valor líquido</th><th class="n">Valor final (após teto)</th></tr>';
     function linha(nome, s, cls) {
       return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + esc(nome) + '</td><td class="n">' + rs(s.total) + '</td><td class="n">' + rs(s.J) + '</td><td class="n">' + rs(s.K) + '</td><td class="n">' + rs(s.J + s.K) +
         '</td><td class="n">' + rs(s.M) + '</td><td class="n">' + rs(s.N) + '</td><td class="n">' + rs(s.O) + '</td><td class="n">' + rs(s.P) +
         '</td><td class="n">' + rs(s.vdef.ssma) + '</td><td class="n">' + rs(s.vdef.cliente) + '</td><td class="n">' + rs(s.vdef.pessoas) + '</td><td class="n">' + rs(s.vdef.bp) + '</td><td class="n">' + rs(s.vdef.assert) +
-        '</td><td class="n"><b>' + rs(s.V) + '</b></td></tr>';
+        '</td><td class="n">' + rs(s.V) + '</td><td class="n"><b>' + rs(s.Vt) + '</b></td></tr>';
     }
     painel.innerHTML = '<div class="barra"><span class="dica">Resumo da meritocracia ' + ANO + ' por função (mesma estrutura da aba RESUMO da planilha).</span></div>' +
       '<div class="rolagem"><table class="apur"><thead>' + cab + '</thead><tbody>' +
       fs.map(function (f) { return linha(f + " (" + porF[f].length + ")", somar(porF[f])); }).join("") +
       linha("TOTAL GERAL", somar(ap.linhas), "subtotal") + '</tbody></table></div>';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Teto: valor apurado x valor redistribuido e a diferenca, por pessoa
+  // ---------------------------------------------------------------------------
+  function renderTeto() {
+    var ap = apurarTodos(), t = ap.teto, c = ap.col;
+    var html = '<div class="barra"><span class="dica">Procedimento: bônus principal limitado a 10% do Lucro Líquido; bônus plus limitado a 50% do lucro acima da meta. ' +
+      'Quando o apurado passa do limite, o limite é redistribuído na proporção do que cada um apurou.</span></div>';
+    if (c.llRealRS === null || c.llRealRS === undefined) html += '<div class="aviso warn"><h3>Falta o Lucro Líquido em R$</h3><p>Informe o lucro líquido realizado (e a meta) em R$ na aba Coletivas para calcular o teto. Até lá nada é limitado.</p></div>';
+    var blocos = [
+      ["Bônus principal", t.principal, t.capP, t.fatorP, c.llRealRS === null || c.llRealRS === undefined ? "—" : "10% de " + rs(c.llRealRS)],
+      ["Bônus plus", t.plus, t.capN, t.fatorN, (c.llRealRS === null || c.llRealRS === undefined || c.llMetaRS === null || c.llMetaRS === undefined) ? "—" : "50% de (" + rs(c.llRealRS) + " − " + rs(c.llMetaRS) + ")"]
+    ];
+    html += '<div class="cartoes">' + blocos.map(function (b) {
+      var passou = b[2] !== null && b[1] > b[2];
+      return '<div class="cartao"><h3>' + b[0] + '</h3><div class="res">' +
+        '<span>Apurado (líquido) <b>' + rs(b[1]) + '</b></span><span>Limite <b>' + (b[2] === null ? "—" : rs(b[2])) + '</b></span>' +
+        '<span>Fator <b>' + fmtPct(b[3], 2) + '</b></span></div><div class="obs">' + esc(b[4]) + (passou ? ' — <b>passou do limite: redistribuído</b>' : ' — dentro do limite') + '</div></div>';
+    }).join("") + '</div>';
+    var funcao = null, grupo = [];
+    function fecha() {
+      if (funcao === null) return;
+      var s = somar(grupo);
+      html += '<tr class="subtotal"><td>Total ' + esc(funcao) + '</td><td class="n">' + rs(s.PL) + '</td><td class="n">' + rs(s.PLt) + '</td><td class="n">' + rs(s.NL) + '</td><td class="n">' + rs(s.NLt) +
+        '</td><td class="n">' + rs(s.V) + '</td><td class="n">' + rs(s.Vt) + '</td><td class="n">' + rs(s.dif) + '</td></tr></tbody></table></div>';
+    }
+    ap.linhas.forEach(function (r) {
+      if (r.p.funcao !== funcao) {
+        fecha(); funcao = r.p.funcao; grupo = [];
+        html += '<div class="grupo-titulo">' + esc(funcao) + '</div><div class="rolagem"><table class="apur"><thead><tr><th>Nome</th>' +
+          '<th class="n">Principal apurado</th><th class="n">Principal redistribuído</th><th class="n">Plus apurado</th><th class="n">Plus redistribuído</th>' +
+          '<th class="n">Total apurado</th><th class="n">Total redistribuído</th><th class="n">Diferença</th></tr></thead><tbody>';
+      }
+      grupo.push(r);
+      html += '<tr><td><b>' + esc(r.p.nome) + '</b> <span class="dica">' + esc(r.p.cod) + '</span></td><td class="n">' + rs(r.PL) + '</td><td class="n">' + rs(r.PLt) +
+        '</td><td class="n">' + rs(r.NL) + '</td><td class="n">' + rs(r.NLt) + '</td><td class="n">' + rs(r.V) + '</td><td class="n"><b>' + rs(r.Vt) + '</b></td><td class="n' + (r.dif < -0.5 ? ' neg' : '') + '">' + rs(r.dif) + '</td></tr>';
+    });
+    fecha();
+    var g = somar(ap.linhas);
+    html += '<div class="total-geral">Total geral — apurado <b>' + rs(g.V) + '</b> · redistribuído <b>' + rs(g.Vt) + '</b> · diferença <b>' + rs(g.dif) + '</b></div>';
+    painel.innerHTML = html;
   }
 
   function renderErro(erro) {
@@ -1205,6 +1289,7 @@
     else if (abaAtiva === "pessoas") renderPessoas();
     else if (abaAtiva === "apuracao") renderApuracao();
     else if (abaAtiva === "resumo") renderResumo();
+    else if (abaAtiva === "teto") renderTeto();
     else renderDeducoes();
   }
 
