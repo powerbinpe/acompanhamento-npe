@@ -129,7 +129,7 @@
       var v = String(inp.value || "").trim();
       if (!v) return;
       var cfg = CHAVES[parseInt(inp.getAttribute("data-i"), 10)];
-      if (cfg.gemini ? v.length < 20 : (cfg.modelo ? !/^[A-Za-z0-9._-]{3,60}$/.test(v) : v.indexOf("https://") !== 0)) { ruins++; return; }
+      if (cfg.gemini ? v.length < 20 : (cfg.modelo ? !/^gemini[A-Za-z0-9._-]{0,60}$/i.test(v) : v.indexOf("https://") !== 0)) { ruins++; return; }
       if (gravarK(cfg.k, v)) salvos++;
     });
     desenharCfg();
@@ -141,7 +141,8 @@
   el("btnTestarGemini").addEventListener("click", async function () {
     var chave = lerK("npe_gemini_api_key");
     if (chave.length < 20) return log("Cole a chave do Gemini e clique em Salvar antes de testar.");
-    var modelos = [lerK("npe_gemini_modelo_rapido") || "gemini-2.5-flash", lerK("npe_gemini_modelo_forte") || "gemini-2.5-pro"];
+    function nomeValido(n, padrao) { return /^gemini[A-Za-z0-9._-]{0,60}$/i.test(n || "") ? n : padrao; }
+    var modelos = [nomeValido(lerK("npe_gemini_modelo_rapido"), "gemini-2.5-flash"), nomeValido(lerK("npe_gemini_modelo_forte"), "gemini-2.5-pro")];
     for (var i = 0; i < modelos.length; i++) {
       var t0 = Date.now();
       try {
