@@ -479,10 +479,10 @@
     // Inclusao manual (escolhida da CTT na pagina) em funcao operacional: entra com as OSs escolhidas, o ano todo
     linhasDoTipo("PESSOA").forEach(function (d) {
       if (!d.Funcao || !NIVEL_OP(d.Funcao)) return;
-      var cod = pad6(d.CodPessoa), e = json(d.Escalas), k = cod + "|" + d.Funcao;
+      var cod = pad6(d.CodPessoa), e = json(d.Escalas), k = cod + "|" + d.Funcao, existia = !!mapa[k];
       (e.oss || []).forEach(function (os) { for (var m = 1; m <= 12; m++) add(cod, d.Nome || NOMES_CTT[cod] || "", d.Funcao, os, m); });
       if (!mapa[k] && !fixos[cod]) mapa[k] = { cod: cod, nome: d.Nome || NOMES_CTT[cod] || "", funcao: d.Funcao, meses: todosMeses(), oss: {}, origem: "INCLUÍDA" };
-      if (mapa[k]) mapa[k].incluida = true;
+      if (mapa[k]) { mapa[k].incluida = true; if (!existia) mapa[k].origem = "INCLUÍDA"; }
     });
     // Decisao do usuario (08/10): quem a CTT coloca em dois niveis conta so no mais alto. Mes a mes, para
     // que a promocao no meio do ano continue proporcional a cada funcao.
