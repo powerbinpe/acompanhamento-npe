@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-07 21:30";
+    window.NPE_BUILD = "2026-10-07 21:55";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url"];
@@ -5670,7 +5670,10 @@ function hydrateFromPowerBI() {
         var e = resumo[codigo];
         if (!e || !e.meses || !mesesSnap.length) return 0;
         var feitos = Object.keys(e.meses).filter(function(mm) { return e.meses[mm].topicos > 0; }).length;
-        return Math.round(feitos * 100 / mesesSnap.length);
+        // A apuracao comeca no PRIMEIRO mes preenchido da OS: meses antes dele nao eram esperados.
+        var ini = Math.min.apply(null, Object.keys(e.meses).filter(function(mm) { return e.meses[mm].topicos > 0; }).map(Number).concat([99]));
+        var esperados = ini < 99 ? mesesSnap.filter(function(mm) { return mm >= ini; }).length : mesesSnap.length;
+        return esperados ? Math.round(feitos * 100 / esperados) : 0;
       }
       var ossPorNegocio = {};
       linhasNegocio.forEach(function(neg) {
@@ -6462,10 +6465,18 @@ function hydrateFromPowerBI() {
       var lista = TAB5_FILTRO === "PENDENTES" ? minhasSemAcomp : (TAB5_FILTRO === "FEITAS" ? minhasComAcomp : minhas);
 
       function adesaoDe(oss) {
-        var feitos = 0, esperados = oss.length * meses.length;
+        var feitos = 0, esperados = 0;
         oss.forEach(function(o) {
           var e = resumo[o.codigo];
-          if (e) feitos += Object.keys(e.meses).filter(function(mm) { return e.meses[mm].topicos > 0; }).length;
+          var ini = 99;
+          if (e && e.meses) {
+            var preench = Object.keys(e.meses).filter(function(mm) { return e.meses[mm].topicos > 0; });
+            feitos += preench.length;
+            if (preench.length) ini = Math.min.apply(null, preench.map(Number));
+          }
+          // A apuracao comeca no PRIMEIRO mes preenchido da OS (regra de 31/08): uma OS que entrou em
+          // agosto tem 1 mes esperado, nao 8. OS que ainda nao comecou continua esperando o periodo todo.
+          esperados += ini < 99 ? meses.filter(function(mm) { return mm >= ini; }).length : meses.length;
         });
         return { feitos: feitos, esperados: esperados,
                  pct: esperados ? Math.round(feitos * 100 / esperados) : 0 };
