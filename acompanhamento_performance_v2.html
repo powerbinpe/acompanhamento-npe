@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-07 21:55";
+    window.NPE_BUILD = "2026-10-08 07:35";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url"];
@@ -2020,18 +2020,31 @@ function hydrateFromPowerBI() {
       var osDoBloco = String(rawOS).split("|").map(function(s) { return s.trim(); }).filter(Boolean);
       if (!osDoBloco.length) osDoBloco = [osCode];
       try {
-        var respostas = await Promise.all(osDoBloco.map(function(cod) {
-          return fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ os: cod, ano: ano })
-          });
-        }));
+        // Resposta que NAO e 200 nao pode virar "OS sem historico": o app calculava a nota sem nenhum comentario
+        // e a gravava errada (visto no fechamento em lote, quando o fluxo recusou chamadas em sequencia: a
+        // M00100/agosto foi gravada com 47,8 em vez de 75,6). Tenta de novo com espera; se continuar falhando
+        // lanca erro e HISTORICO_PRONTO fica false -- ai nada que dependa dele grava.
         var rows = [];
-        for (var ri = 0; ri < respostas.length; ri++) {
-          if (!respostas[ri].ok) { console.warn("Historico:", osDoBloco[ri], "respondeu", respostas[ri].status); continue; }
-          var parte = await respostas[ri].json();
-          if (Array.isArray(parte)) rows = rows.concat(parte);
+        for (var bi = 0; bi < osDoBloco.length; bi++) {
+          var parte = null, ultimoErro = "";
+          for (var tent = 0; tent < 4 && parte === null; tent++) {
+            if (tent > 0) await new Promise(function(r) { setTimeout(r, 1500 * Math.pow(2, tent - 1)); });
+            try {
+              var resp = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ os: osDoBloco[bi], ano: ano })
+              });
+              if (resp.ok) {
+                var j = await resp.json();
+                if (Array.isArray(j)) parte = j;
+                else if (j === null || j === undefined) parte = [];
+                else ultimoErro = "resposta fora do formato";
+              } else { ultimoErro = "HTTP " + resp.status; }
+            } catch (e) { ultimoErro = String(e && e.message ? e.message : e); }
+          }
+          if (parte === null) throw new Error("historico de " + osDoBloco[bi] + " nao carregou (" + ultimoErro + ")");
+          rows = rows.concat(parte);
         }
         // rows.length === 0 e um resultado LEGITIMO (OS/mes sem historico anterior -- o caso
         // normal de quem esta preenchendo pela primeira vez) e nao pode continuar bloqueando
@@ -5304,6 +5317,8 @@ function hydrateFromPowerBI() {
     async function gravarNotaDoMes(osCode, monthNum, anoRef, userEmail) {
       // Pagina aberta pelo fechamento do mes em modo "so testar": nada pode ser gravado.
       try { if (new URLSearchParams(window.location.search).get("NPE_DRY") === "1") return false; } catch (e) {}
+      // Sem a ATA lida a nota sai calculada sem comentarios -- gravar isso estraga a nota do mes.
+      if (!window.HISTORICO_PRONTO) return false;
       var n = notasDaOS(osCode, monthNum);
       var statusNota = statusValidacaoDoMes(osCode, monthNum);
       if (!n) return false;

@@ -280,25 +280,35 @@
   async function processarUma(i, ano, mes, gravar) {
     var o = estado.lista[i];
     var etapa = el("etapa").value;
-    marcar(i, "rodando", "abrindo os dados da OS...");
-    var q = null;
-    try {
-      var url = await lerUrlOS(o.code, ano, mes);
-      if (!gravar) url += (url.indexOf("?") === -1 ? "?" : "&") + "NPE_DRY=1";
-      q = await abrirNoQuadro(url);
-      var onStatus = function (t) { var e2 = el("res_" + i); if (e2) e2.textContent = t + "..."; };
-      var fim;
-      if (etapa === "aba5") fim = resultadoAba5(await q.win.processarNotasAnoAtual({ gravar: gravar }), gravar);
-      else if (etapa === "aba3") fim = resultadoAba3(await q.win.processarResumoAnualAtual({ gravar: gravar, onStatus: onStatus }), gravar);
-      else fim = resultadoAba1(await q.win.processarOSAtual({ gravar: gravar, onStatus: onStatus }), gravar);
-      marcar(i, fim.estado, fim.texto);
-      log("OS " + o.code + ": " + fim.texto);
-      (fim.extra || []).forEach(log);
-    } catch (e) {
-      marcar(i, "erro", String(e && e.message ? e.message : e));
-      log("OS " + o.code + ": ERRO - " + (e && e.message ? e.message : e));
+    // Duas tentativas: o fluxo que le a ATA as vezes recusa chamadas em sequencia (HTTP 429). A segunda
+    // tentativa espera um pouco; se falhar de novo, a OS fica com "erro" e pode ser refeita depois.
+    for (var tent = 0; tent < 2; tent++) {
+      marcar(i, "rodando", tent ? "tentando de novo..." : "abrindo os dados da OS...");
+      var q = null, falhou = null;
+      try {
+        var url = await lerUrlOS(o.code, ano, mes);
+        if (!gravar) url += (url.indexOf("?") === -1 ? "?" : "&") + "NPE_DRY=1";
+        q = await abrirNoQuadro(url);
+        var onStatus = function (t) { var e2 = el("res_" + i); if (e2) e2.textContent = t + "..."; };
+        var fim;
+        if (etapa === "aba5") fim = resultadoAba5(await q.win.processarNotasAnoAtual({ gravar: gravar }), gravar);
+        else if (etapa === "aba3") fim = resultadoAba3(await q.win.processarResumoAnualAtual({ gravar: gravar, onStatus: onStatus }), gravar);
+        else fim = resultadoAba1(await q.win.processarOSAtual({ gravar: gravar, onStatus: onStatus }), gravar);
+        if (q) fecharQuadro(q);
+        // Falha de gravacao tambem merece nova tentativa (so se for a primeira).
+        if (fim.estado === "erro" && tent === 0) { log("OS " + o.code + ": " + fim.texto + " -- vou tentar de novo."); await espera(5000); continue; }
+        marcar(i, fim.estado, fim.texto);
+        log("OS " + o.code + ": " + fim.texto);
+        (fim.extra || []).forEach(log);
+        return;
+      } catch (e) {
+        falhou = String(e && e.message ? e.message : e);
+      }
+      if (q) fecharQuadro(q);
+      if (tent === 0) { log("OS " + o.code + ": " + falhou + " -- vou tentar de novo."); await espera(5000); continue; }
+      marcar(i, "erro", falhou);
+      log("OS " + o.code + ": ERRO - " + falhou);
     }
-    if (q) fecharQuadro(q);
   }
 
   el("btnIniciar").addEventListener("click", async function () {
@@ -326,7 +336,7 @@
     for (var k = 0; k < fila.length; k++) {
       if (estado.parar) { log("Parado pelo usuário."); break; }
       await processarUma(fila[k], ano, mes, gravar);
-      await espera(800);
+      await espera(2500);
     }
     estado.rodando = false;
     el("btnIniciar").disabled = false; el("btnParar").disabled = true; el("btnCarregar").disabled = false;
