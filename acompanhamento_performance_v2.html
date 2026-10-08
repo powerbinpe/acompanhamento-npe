@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-07 21:03";
+    window.NPE_BUILD = "2026-10-07 21:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url"];
@@ -8203,7 +8203,7 @@ function hydrateFromPowerBI() {
     }
 
     // Aba 3: resumo do ano por indicador da OS desta pagina, de janeiro ate o ULTIMO MES FECHADO (o mes
-    // corrente nunca entra). Le os pareceres ja gravados na ATA; mini primeiro, o que reprovar volta
+    // corrente nunca entra). Le os pareceres ja gravados na ATA; GPT-4.1 (mini so com opts.modelo); o que reprovar volta
     // no GPT-4.1. Com opts.gravar === false devolve os textos sem gravar.
     async function processarResumoAnualAtual(opts) {
       opts = opts || {};
@@ -8243,7 +8243,7 @@ function hydrateFromPowerBI() {
           return m.length > 0;
         });
       }
-      await rodar("mini");
+      await rodar(opts.modelo === "mini" ? "mini" : "gpt41");
       var falhas = reprovados();
       var primeiraRodada = falhas.map(function(tid) { return { tid: tid, motivos: (motivos[tid] || []).slice() }; });
       if (falhas.length) {
@@ -8264,7 +8264,8 @@ function hydrateFromPowerBI() {
       return {
         os: os, mesRef: mesRef, textos: Object.keys(paraGravar).length, chamadas: chamadas, refeitos: refeitos,
         revisar: falhas.map(function(tid) { return { tid: tid, motivos: motivos[tid] }; }),
-        primeiraRodada: primeiraRodada, gravado: gravado
+        primeiraRodada: primeiraRodada, gravado: gravado,
+        resumos: opts.devolverTextos ? paraGravar : undefined
       };
     }
     window.processarResumoAnualAtual = processarResumoAnualAtual;
