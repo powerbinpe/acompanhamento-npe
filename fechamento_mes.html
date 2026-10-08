@@ -207,16 +207,21 @@
     try {
       log("Buscando as OSs elegíveis de " + mes + "/" + ano + "...");
       // Com todas as OSs a URL passa de 16 mil caracteres (o GitHub Pages recusa), entao nao abrimos o app:
-      // lemos so o OSScoreData (um registro por OS, separado por ~; campos separados por ^).
+      // a lista vem do AllowedOSList (todas as OSs elegiveis, blocos como "M00100|M05100") e os nomes, quando
+      // o modelo os manda, do OSScoreData (registros separados por ~; campos por ^). Em alguns meses o modelo
+      // nao manda o OSScoreData; ai a lista mostra so o codigo.
       var url = await lerUrlOS("", ano, mes);
-      var bruto = "";
-      try { bruto = new URL(url).searchParams.get("OSScoreData") || ""; } catch (e) {}
-      estado.lista = [];
-      bruto.split("~").forEach(function (reg) {
+      var sp = null;
+      try { sp = new URL(url).searchParams; } catch (e) {}
+      var codigos = sp ? (sp.get("AllowedOSList") || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean) : [];
+      var nomes = {};
+      (sp ? (sp.get("OSScoreData") || "") : "").split("~").forEach(function (reg) {
         var f = reg.split("^");
-        if (f.length < 13 || !f[0]) return;
-        var codigo = f[0].split("|")[0];
-        estado.lista.push({ code: codigo, nome: f[0].split("|").join(" + ") + " - " + (f[1] || codigo), marcada: true });
+        if (f.length >= 13 && f[0]) nomes[f[0]] = f[1] || "";
+      });
+      estado.lista = codigos.map(function (c) {
+        var ancora = c.split("|")[0];
+        return { code: ancora, nome: c.split("|").join(" + ") + (nomes[c] ? " - " + nomes[c] : ""), marcada: true };
       });
       if (!estado.lista.length) throw new Error("O modelo não devolveu nenhuma OS elegível para " + mes + "/" + ano + ".");
       estado.resultados = lerProgresso();
