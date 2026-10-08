@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-08 13:39";
+    window.NPE_BUILD = "2026-10-08 14:07";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -7956,13 +7956,25 @@ function hydrateFromPowerBI() {
 
     // Chama o fluxo NPE-Gerar-Texto-<modelo> (AI Builder). A URL de cada fluxo NAO vai no codigo
     // (repositorio publico): fica guardada no navegador do Master.
+    // Configuracao da IA (chave, modelos, URLs dos fluxos): o que o Master salvou agora no navegador.
+    // safeGetStorage le primeiro um mapa persistido ANTIGO (NPE_PERSISTED_COMMENTS_MAP), entao um valor
+    // trocado depois (ex.: o modelo forte) era ignorado e o app usava o antigo -- por isso aqui o
+    // localStorage vem primeiro. No iframe do Power BI, sem localStorage, cai no safeGetStorage.
+    function lerConfigIA(chave, padrao) {
+      try {
+        var v = window.localStorage ? window.localStorage.getItem(chave) : null;
+        if (v !== null && v !== undefined && v !== "") return v;
+      } catch (e) {}
+      return safeGetStorage(chave, padrao);
+    }
+
     // Gemini (API do Google, chave do proprio Master): usado quando existe npe_gemini_api_key neste navegador.
     // "mini" = modelo rapido, "gpt41" = modelo forte (os nomes dos papeis vem dos fluxos antigos). Os nomes dos
     // modelos ficam em npe_gemini_modelo_rapido / npe_gemini_modelo_forte para trocar sem republicar.
     async function chamarGemini(modelo, prompt, chaveApi) {
       var nomeModelo = (modelo === "gpt41")
-        ? safeGetStorage("npe_gemini_modelo_forte", "gemini-3.1-pro-preview")
-        : safeGetStorage("npe_gemini_modelo_rapido", "gemini-3.8-flash");
+        ? lerConfigIA("npe_gemini_modelo_forte", "gemini-3.1-pro-preview")
+        : lerConfigIA("npe_gemini_modelo_rapido", "gemini-3.8-flash");
       // Nome de modelo que nao parece nome de modelo (ex.: a chave colada no campo errado) e ignorado.
       if (!/^gemini[A-Za-z0-9._-]{0,60}$/i.test(String(nomeModelo || ""))) {
         nomeModelo = (modelo === "gpt41") ? "gemini-3.1-pro-preview" : "gemini-3.8-flash";
@@ -8031,10 +8043,10 @@ function hydrateFromPowerBI() {
     }
 
     async function chamarGerarTexto(modelo, prompt) {
-      var chaveGemini = String(safeGetStorage("npe_gemini_api_key", "") || "").trim();
+      var chaveGemini = String(lerConfigIA("npe_gemini_api_key", "") || "").trim();
       if (chaveGemini.length >= 20) return chamarGemini(modelo, prompt, chaveGemini);
       var chave = (modelo === "gpt41") ? "npe_flow_gerar_texto_gpt41_url" : "npe_flow_gerar_texto_mini_url";
-      var url = safeGetStorage(chave, "");
+      var url = lerConfigIA(chave, "");
       if (String(url).indexOf("http") !== 0) throw new Error("A URL do fluxo de IA (" + modelo + ") ainda não foi configurada neste navegador.");
       var resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instrucao: prompt }) });
       if (!resp.ok) throw new Error("O fluxo de IA respondeu " + resp.status + ".");
