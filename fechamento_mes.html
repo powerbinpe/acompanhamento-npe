@@ -105,8 +105,8 @@
     { k: "npe_flow_gerar_texto_mini_url",   rotulo: "NPE-Gerar-Texto-Mini (GPT-4.1 mini)", obrigatoria: true },
     { k: "npe_flow_gerar_texto_gpt41_url",  rotulo: "NPE-Gerar-Texto-GPT41 (GPT-4.1)", obrigatoria: false },
     { k: "npe_gemini_api_key", rotulo: "Chave da API do Gemini (se preenchida, substitui os dois fluxos de IA)", obrigatoria: false, gemini: true },
-    { k: "npe_gemini_modelo_rapido", rotulo: "Gemini - modelo rápido (padrão gemini-3.8-flash)", obrigatoria: false, modelo: true },
-    { k: "npe_gemini_modelo_forte", rotulo: "Gemini - modelo forte (padrão gemini-3.1-pro-preview)", obrigatoria: false, modelo: true }
+    { k: "npe_gemini_modelo_rapido", rotulo: "Gemini - modelo rápido (padrão gemini-3.5-flash)", obrigatoria: false, modelo: true },
+    { k: "npe_gemini_modelo_forte", rotulo: "Gemini - modelo forte (padrão gemini-3.5-flash)", obrigatoria: false, modelo: true }
   ];
   var el = function (id) { return document.getElementById(id); };
   var estado = { lista: [], rodando: false, parar: false, resultados: {}, persistir: true };
@@ -148,7 +148,7 @@
     var chave = lerK("npe_gemini_api_key");
     if (chave.length < 20) return log("Cole a chave do Gemini e clique em Salvar antes de testar.");
     function nomeValido(n, padrao) { return /^gemini[A-Za-z0-9._-]{0,60}$/i.test(n || "") ? n : padrao; }
-    var modelos = [nomeValido(lerK("npe_gemini_modelo_rapido"), "gemini-3.8-flash"), nomeValido(lerK("npe_gemini_modelo_forte"), "gemini-3.1-pro-preview")];
+    var modelos = [nomeValido(lerK("npe_gemini_modelo_rapido"), "gemini-3.5-flash"), nomeValido(lerK("npe_gemini_modelo_forte"), "gemini-3.5-flash")];
     for (var i = 0; i < modelos.length; i++) {
       var t0 = Date.now();
       try {
