@@ -1003,7 +1003,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-08 14:07";
+    window.NPE_BUILD = "2026-10-09 13:42";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -8332,6 +8332,8 @@ function hydrateFromPowerBI() {
       if (mesRef < 1) return { os: os, mesRef: 0, textos: 0, revisar: [], gravado: null, aviso: "nenhum mês fechado em " + ano };
       if (!window.HISTORICO_PRONTO) { passo("lendo a ATA"); try { await historicoCarregado(); } catch (e) {} }
       if (!window.HISTORICO_PRONTO) throw new Error("Não consegui ler a ATA; nada foi feito.");
+      // OS sem nenhum mes preenchido ate o mes de referencia nao tem o que resumir: nao gasta IA.
+      if (primeiroMesPreenchido(os) > mesRef) return { os: os, mesRef: mesRef, textos: 0, revisar: [], gravado: null, aviso: "nenhum mês preenchido até o mês " + mesRef + " - sem resumo a gerar" };
 
       var tids = [];
       TOPIC_INDICATOR_MAP.concat(ACOMP_INDICATOR_MAP).forEach(function(t) {

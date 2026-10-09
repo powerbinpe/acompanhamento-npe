@@ -81,6 +81,11 @@
     <div style="flex:0 0 auto"><button id="btnIniciar" type="button">Processar selecionadas</button></div>
     <div style="flex:0 0 auto"><button id="btnParar" class="perigo" type="button" disabled>Parar</button></div>
   </div>
+  <div class="linha" style="margin-bottom:10px">
+    <div style="flex:3 1 320px"><label for="listaCodigos">Códigos de OS (separados por vírgula ou espaço)</label><input id="listaCodigos" type="text" placeholder="ex.: M01600, M02900, M00100"></div>
+    <div style="flex:0 0 auto"><button id="btnMarcarLista" class="sec" type="button">Marcar só estas</button></div>
+    <div style="flex:0 0 auto"><button id="btnDesmarcarLista" class="sec" type="button">Desmarcar estas</button></div>
+  </div>
   <div id="resumo" class="nota"></div>
   <div class="tabela"><table><thead><tr><th></th><th>OS</th><th>Contrato</th><th>Estado</th><th>Resultado</th></tr></thead><tbody id="corpo"></tbody></table></div>
 </section>
@@ -283,6 +288,26 @@
   el("corpo").addEventListener("change", function (ev) {
     var i = ev.target.getAttribute && ev.target.getAttribute("data-i");
     if (i != null) { estado.lista[parseInt(i, 10)].marcada = ev.target.checked; atualizarResumo(); }
+  });
+  function codigosDaLista() {
+    return String(el("listaCodigos").value || "").toUpperCase().split(/[\s,;]+/).filter(Boolean);
+  }
+  el("btnMarcarLista").addEventListener("click", function () {
+    var cods = codigosDaLista();
+    if (!cods.length) return log("Digite os códigos das OSs primeiro.");
+    var achou = 0;
+    estado.lista.forEach(function (o) { o.marcada = cods.indexOf(String(o.code).toUpperCase()) !== -1; if (o.marcada) achou++; });
+    var nao = cods.filter(function (c) { return !estado.lista.some(function (o) { return String(o.code).toUpperCase() === c; }); });
+    desenharLista();
+    log("Marcadas só as OSs da lista: " + achou + (nao.length ? " (não encontradas na lista: " + nao.join(", ") + ")" : "") + ".");
+  });
+  el("btnDesmarcarLista").addEventListener("click", function () {
+    var cods = codigosDaLista();
+    if (!cods.length) return log("Digite os códigos das OSs primeiro.");
+    var tirou = 0;
+    estado.lista.forEach(function (o) { if (o.marcada && cods.indexOf(String(o.code).toUpperCase()) !== -1) { o.marcada = false; tirou++; } });
+    desenharLista();
+    log("Desmarcadas " + tirou + " OS(s) da lista.");
   });
   el("btnTodas").addEventListener("click", function () {
     var todas = estado.lista.every(function (o) { return o.marcada; });
