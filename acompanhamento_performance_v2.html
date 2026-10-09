@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-09 15:52";
+    window.NPE_BUILD = "2026-10-09 16:00";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -7605,7 +7605,7 @@ function hydrateFromPowerBI() {
     // Exporta TODAS as OS (ignora filtro), com indicadores, notas e comentários acumulados,
     // e uma instrução específica de Lições Aprendidas / Gestão de Risco.
     // Monta o prompt das Licoes (Aba 4) a partir dos resumos anuais das OSs recebidas em comResumo.
-    function construirPromptLicoes(todos, comResumo, ano, selMonthNum) {
+    function construirPromptLicoes(todos, comResumo, ano, selMonthNum, mesesPorOS) {
       function nomeOS(os) {
         var c = ACTIVE_CONTRACTS_CATALOG.find(function(x) { return extractPrimaryOSCode(x.code) === os; });
         return c ? c.name : os;
@@ -7625,9 +7625,11 @@ function hydrateFromPowerBI() {
       // Destaque positivo: atendeu 80% ou mais dos meses avaliados. Negativo: um terco ou
       // menos. O meio termo -- que e a maioria -- nao vira noticia e fica fora.
       // Exige 3 meses avaliados: com um ou dois, "100%" nao significa consistencia.
-      function classificar(r) {
+      function classificar(r, os) {
         if (!r || typeof r === "string") return "";      // registro antigo, sem desempenho
-        if (!r.n || r.n < 3) return "";
+        // Minimo de 3 meses avaliados, MAS uma OS com 1 ou 2 meses de apuracao (todos validados) vale pelos meses que tem (decisao de 09/10).
+        var minimo = Math.min(3, (mesesPorOS && mesesPorOS[os]) || 3);
+        if (!r.n || r.n < minimo) return "";
         var taxa = r.ok / r.n;
         if (taxa >= 0.80) return "POS";
         if (taxa <= 0.34) return "NEG";
@@ -7643,7 +7645,7 @@ function hydrateFromPowerBI() {
         var idC = (tc.id === "prazo") ? 26 : (tc.id === "preenchimento" ? 27 : tc.id);
         var c = { POS: 0, NEG: 0 };
         comResumo.forEach(function(os) {
-          var cls = classificar(todos[os].resumos[String(idC)]);
+          var cls = classificar(todos[os].resumos[String(idC)], os);
           if (cls === "POS") c.POS++; else if (cls === "NEG") c.NEG++;
         });
         contagem[idC] = c;
@@ -7657,7 +7659,7 @@ function hydrateFromPowerBI() {
           var blocos = [];
           comResumo.forEach(function(os) {
             var r = todos[os].resumos[String(idBusca)];
-            var cls = classificar(r);
+            var cls = classificar(r, os);
             if (cls === "" && r) semClassificacao++;
             if (cls !== lado) return;
             var txt = textoDe(r);
@@ -7767,9 +7769,12 @@ function hydrateFromPowerBI() {
         var reg = resumos[cod];
         var n = reg && reg.resumos ? Object.keys(reg.resumos).length : 0;
         if (n < 20) { item.motivo = "validada, mas falta o resumo anual (Aba 3)"; fora.push(item); return; }
+        item.meses = ultimo - inicio + 1;
         entram.push(item);
       });
-      return { ano: ano, ultimo: ultimo, entram: entram, fora: fora, resumos: resumos };
+      var mesesPorOS = {};
+      entram.forEach(function(x) { mesesPorOS[x.os] = x.meses; });
+      return { ano: ano, ultimo: ultimo, entram: entram, fora: fora, resumos: resumos, mesesPorOS: mesesPorOS };
     }
 
     async function situacaoLicoes() {
@@ -7829,7 +7834,7 @@ function hydrateFromPowerBI() {
       }
       var todos = sel.resumos;
       var cods = sel.entram.map(function(x) { return x.os; });
-      var pr = construirPromptLicoes(todos, cods, ano, sel.ultimo);
+      var pr = construirPromptLicoes(todos, cods, ano, sel.ultimo, sel.mesesPorOS);
       if (!pr.qtdTextos) { showToast("\u26a0\ufe0f Nenhum indicador se destacou pelo critério (80% ou mais, ou um terço ou menos dos meses) nas " + cods.length + " OSs validadas."); return; }
       var segue = await confirmarNaPagina(
         "\ud83e\udd16 Gerar Lições & Riscos com IA",
@@ -7881,7 +7886,7 @@ function hydrateFromPowerBI() {
         showToast("\u26a0\ufe0f Nenhuma OS validada com resumo anual ainda (" + sel.fora.length + " ficam de fora). Veja em \"Situação das OSs\".");
         return;
       }
-      var pr = construirPromptLicoes(sel.resumos, sel.entram.map(function(x) { return x.os; }), ano, sel.ultimo);
+      var pr = construirPromptLicoes(sel.resumos, sel.entram.map(function(x) { return x.os; }), ano, sel.ultimo, sel.mesesPorOS);
       if (!pr.qtdTextos) {
         showToast("\u26a0\ufe0f Nenhum indicador se destacou pelo critério (80% ou mais, ou um terço ou menos dos meses)." +
           (pr.semClassificacao ? " " + pr.semClassificacao + " resumo(s) sem desempenho gravado \u2014 regrave-os na Aba 3." : ""));
