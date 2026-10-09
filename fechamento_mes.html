@@ -109,7 +109,7 @@
     { k: "npe_gemini_modelo_forte", rotulo: "Gemini - modelo forte (padrão gemini-3.5-flash)", obrigatoria: false, modelo: true }
   ];
   var el = function (id) { return document.getElementById(id); };
-  var estado = { lista: [], rodando: false, parar: false, resultados: {}, persistir: true };
+  var estado = { lista: [], rodando: false, parar: false, resultados: {}, persistir: true, jaNoSP: {} };
 
   function lerK(k) { try { return window.localStorage.getItem(k) || ""; } catch (e) { return ""; } }
   function gravarK(k, v) { try { window.localStorage.setItem(k, v); return true; } catch (e) { return false; } }
@@ -253,6 +253,33 @@
     atualizarResumo();
   }
 
+  // Aba 3: a verdade esta no SharePoint (SNAPSHOT ano 9996). Le por uma moldura do app, mostra como "ok" as OSs
+  // que ja tem resumo anual completo e deixa marcadas SO as que faltam.
+  function aplicarJaNoSP(soEstado) {
+    estado.lista.forEach(function (o) {
+      var n = estado.jaNoSP[String(o.code).toUpperCase()];
+      if (n) { estado.resultados[o.code] = { estado: "ok", texto: "já gravado no SharePoint (" + n + " indicadores)", ts: "" }; if (!soEstado) o.marcada = false; }
+    });
+  }
+  async function lerResumosGravados(ano, mes) {
+    estado.jaNoSP = {};
+    var q = null;
+    try {
+      var url = await lerUrlOS(estado.lista[0].code, ano, mes);
+      q = await abrirNoQuadro(url + (url.indexOf("?") === -1 ? "?" : "&") + "NPE_DRY=1");
+      var mapa = await q.win.carregarResumosAnuais();
+      Object.keys(mapa || {}).forEach(function (os) {
+        var reg = mapa[os];
+        var n = reg && reg.resumos ? Object.keys(reg.resumos).length : 0;
+        if (n >= 20) estado.jaNoSP[String(os).toUpperCase()] = n;
+      });
+      return true;
+    } catch (e) {
+      log("Não consegui ler o que já está gravado no SharePoint: " + (e && e.message ? e.message : e));
+      return false;
+    } finally { if (q) fecharQuadro(q); }
+  }
+
   el("btnCarregar").addEventListener("click", async function () {
     var ano = parseInt(el("ano").value, 10), mes = parseInt(el("mes").value, 10);
     if (!ano || !mes) return log("Informe ano e mês.");
@@ -278,6 +305,15 @@
       });
       if (!estado.lista.length) throw new Error("O modelo não devolveu nenhuma OS elegível para " + mes + "/" + ano + ".");
       estado.resultados = lerProgresso();
+      if (el("etapa").value === "aba3") {
+        log("Conferindo no SharePoint quais OSs já têm resumo anual...");
+        if (await lerResumosGravados(ano, mes)) {
+          estado.lista.forEach(function (o) { o.marcada = true; });
+          aplicarJaNoSP();
+          var feitas = estado.lista.filter(function (o) { return estado.jaNoSP[String(o.code).toUpperCase()]; }).length;
+          log("Já gravadas no SharePoint: " + feitas + " de " + estado.lista.length + ". Ficaram marcadas só as " + (estado.lista.length - feitas) + " que faltam.");
+        }
+      }
       el("secLista").style.display = "block";
       desenharLista();
       log(estado.lista.length + " OS(s) elegíveis encontradas.");
@@ -389,7 +425,7 @@
     var ano = parseInt(el("ano").value, 10), mes = parseInt(el("mes").value, 10);
     var gravar = !el("soTestar").checked, refazer = el("refazer").checked;
     // Rodada real parte so do que foi gravado de verdade antes (nunca de resultado de teste).
-    if (gravar) { estado.resultados = lerProgresso(); desenharLista(); }
+    if (gravar) { estado.resultados = lerProgresso(); aplicarJaNoSP(true); desenharLista(); }
     var fila = [];
     estado.lista.forEach(function (o, i) {
       var r = estado.resultados[o.code];
