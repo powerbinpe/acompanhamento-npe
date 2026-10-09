@@ -455,6 +455,12 @@
         </p>
       </div>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <button type="button" id="btnSituacaoLicoes" data-action="situacaoLicoes" title="Mostra quais OSs entram na analise da Aba 4 (todos os meses validados e resumo anual gravado) e quais ficam de fora." style="display:none; background:#ecfdf5; color:#047857; border:1.5px solid #6ee7b7; padding:9px 14px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+          &#128203; Situa&ccedil;&atilde;o das OSs
+        </button>
+        <button type="button" id="btnGerarLicoesIA" data-action="gerarLicoesComIA" title="Gera com a IA os tres quadros (o que deu certo, o que nao deu, gestao de risco) a partir dos resumos anuais das OSs validadas." style="display:none; background:linear-gradient(135deg,#10b981,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+          &#129302; Gerar com IA
+        </button>
         <button type="button" id="btnCopyLicoes" data-action="openCopyLicoesModal" style="display:none; background:linear-gradient(135deg,#10b981,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
           📋 Copiar p/ IA (Lições & Riscos)
         </button>
@@ -1017,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-09 15:46";
+    window.NPE_BUILD = "2026-10-09 15:52";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -1409,7 +1415,7 @@ function hydrateFromPowerBI() {
     // Botoes que so o Setor de Performance usa. Exportar pareceres alimenta a analise da
     // Performance, entao acompanha o Cadastro de Metas: sem sessao, nem aparecem.
     var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas", "btnCopyMonthPareceres", "btnCopyPareceresPerf",
-                                    "btnImportarPareceres", "btnGerarPareceresIA", "btnConfigFluxoIA", "btnImportarResumos", "btnGerarResumoIA", "btnSituacaoResumos", "btnSituacaoNotas", "btnSituacaoPareceres",
+                                    "btnImportarPareceres", "btnGerarPareceresIA", "btnConfigFluxoIA", "btnImportarResumos", "btnGerarResumoIA", "btnSituacaoResumos", "btnSituacaoNotas", "btnSituacaoPareceres", "btnSituacaoLicoes", "btnGerarLicoesIA",
                                     "btnCopyAllForAI", "btnCopyLicoes", "btnGravarNotasAno",
                                     "btnCongelarSnapshot", "btnArmarRegravacao"];
     function aplicarVisibilidadeMaster(liberado) {
@@ -7132,6 +7138,10 @@ function hydrateFromPowerBI() {
         congelarSnapshot();
       } else if (acao === "gravarNotasDoAno") {
         gravarNotasDoAno();
+      } else if (acao === "gerarLicoesComIA") {
+        gerarLicoesComIA();
+      } else if (acao === "situacaoLicoes") {
+        situacaoLicoes();
       } else if (acao === "situacaoNotasAno") {
         situacaoNotasAno();
       } else if (acao === "situacaoPareceresMes") {
@@ -7594,24 +7604,8 @@ function hydrateFromPowerBI() {
 
     // Exporta TODAS as OS (ignora filtro), com indicadores, notas e comentários acumulados,
     // e uma instrução específica de Lições Aprendidas / Gestão de Risco.
-    async function openCopyLicoesModal() {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usu\u00e1rios M\u00e1ster podem exportar."); return; }
-      var p = new URLSearchParams(window.location.search);
-      var selMonthNum = getMonthNumberFromParams(p);
-      var ano = parseInt(p.get("SelectedAno"), 10) || "\u2014";
-
-      showToast("\u23f3 Lendo os resumos anuais de todas as OSs...");
-      window.RESUMOS_ANUAIS = null; window._RESUMOS_CARREGANDO = false;
-      var todos = await carregarResumosAnuais();
-
-      var comResumo = Object.keys(todos).filter(function(os) {
-        return todos[os] && todos[os].resumos && Object.keys(todos[os].resumos).length;
-      });
-      if (!comResumo.length) {
-        showToast("\u26a0\ufe0f Nenhum resumo anual gravado ainda. Gere-os na Aba 3 antes desta exporta\u00e7\u00e3o.");
-        return;
-      }
-
+    // Monta o prompt das Licoes (Aba 4) a partir dos resumos anuais das OSs recebidas em comResumo.
+    function construirPromptLicoes(todos, comResumo, ano, selMonthNum) {
       function nomeOS(os) {
         var c = ACTIVE_CONTRACTS_CATALOG.find(function(x) { return extractPrimaryOSCode(x.code) === os; });
         return c ? c.name : os;
@@ -7689,11 +7683,7 @@ function hydrateFromPowerBI() {
         });
       });
 
-      if (!qtdTextos) {
-        showToast("\u26a0\ufe0f Nenhum indicador se destacou pelo crit\u00e9rio (80% ou mais, ou um ter\u00e7o ou menos dos meses)." +
-          (semClassificacao ? " " + semClassificacao + " resumo(s) sem desempenho gravado \u2014 regrave-os na Aba 3." : ""));
-        return;
-      }
+      if (!qtdTextos) { return { texto: "", qtdTextos: 0, semClassificacao: semClassificacao }; }
 
       lines.push("");
       lines.push(sep);
@@ -7727,9 +7717,179 @@ function hydrateFromPowerBI() {
       lines.push("REPETINDO: tabela não é um formato válido para esta resposta -- não existe, não pode ser oferecida nem sugerida. Só texto corrido dentro de cada BLOCO.");
 
       var texto = lines.join("\n");
-      mostrarCaixaCopia("Vis\u00e3o corporativa \u2022 " + comResumo.length + " OS(s), " + qtdTextos +
-        " resumo(s) \u2022 " + Math.round(texto.length / 1000) + " mil caracteres \u2022 os 3 blocos voltam para os campos da Aba 4.",
-        texto);
+      return { texto: texto, qtdTextos: qtdTextos, semClassificacao: semClassificacao };
+    }
+
+    // ---- Aba 4: so entram as OSs VALIDADAS (criterio B, decisao de 09/10) ----------------------------------
+    // Entra a OS que (1) tem TODOS os meses, do primeiro mes preenchido ate o ultimo mes fechado, com os 23
+    // indicadores validados e (2) tem o resumo anual gravado. O filtro e so o ano: ignora OS e mes do relatorio.
+    async function lerAtaMesComTentativas(ano, mes) {
+      for (var t = 0; t < 3; t++) {
+        if (t > 0) await new Promise(function(r) { setTimeout(r, 2500 * t); });
+        try {
+          var rows = await tab5Post(window.FLOW_LER_ATA_ANO_URL, { ano: ano, mes: mes });
+          if (Array.isArray(rows)) return rows;
+        } catch (e) {}
+      }
+      throw new Error("Não consegui ler a ATA de " + (MESES_PT[mes - 1] || mes) + "; nada foi alterado.");
+    }
+
+    async function osValidadasAba4(ano) {
+      var ultimo = ultimoMesFechado(ano);
+      window.RESUMOS_ANUAIS = null; window._RESUMOS_CARREGANDO = false;
+      var resumos = await carregarResumosAnuais();
+      try { await garantirHierarquia(); } catch (e) {}
+      var elegiveis = tab5OSElegiveis();
+      var porOS = {};
+      for (var m = 1; m <= ultimo; m++) {
+        var rows = await lerAtaMesComTentativas(ano, m);
+        rows.forEach(function(r) {
+          var os = extractPrimaryOSCode(String(r.os || "").toUpperCase()) || String(r.os || "").toUpperCase();
+          var t = parseInt(r.topico, 10);
+          if (!os || !(t >= 1 && t <= 23)) return;
+          var mm = ((porOS[os] = porOS[os] || {})[m] = (porOS[os][m] || { val: 0, preench: false }));
+          if (String(r.status || "") === "Validado") mm.val++;
+          var g = String(r.gestor || "").trim(), p = String(r.master || "").trim();
+          if ((g && g !== "Sem justificativas") || (p && p !== "Sem parecer registrado")) mm.preench = true;
+        });
+      }
+      var entram = [], fora = [];
+      elegiveis.forEach(function(o) {
+        var cod = String(o.codigo).toUpperCase();
+        var meses = porOS[cod] || {};
+        var inicio = 0;
+        for (var k = 1; k <= ultimo && !inicio; k++) { if (meses[k] && meses[k].preench) inicio = k; }
+        var item = { os: cod, rotulo: rotuloCompletoOS(o) };
+        if (!inicio) { item.motivo = "nenhum mês preenchido até " + (MESES_PT[ultimo - 1] || ultimo); fora.push(item); return; }
+        var faltam = [];
+        for (var k2 = inicio; k2 <= ultimo; k2++) { if (!meses[k2] || meses[k2].val < 23) faltam.push(k2); }
+        if (faltam.length) { item.motivo = "falta validar " + (faltam.length === 1 ? "o mês " : "os meses ") + faltam.join(", ") + " (de " + inicio + " a " + ultimo + ")"; fora.push(item); return; }
+        var reg = resumos[cod];
+        var n = reg && reg.resumos ? Object.keys(reg.resumos).length : 0;
+        if (n < 20) { item.motivo = "validada, mas falta o resumo anual (Aba 3)"; fora.push(item); return; }
+        entram.push(item);
+      });
+      return { ano: ano, ultimo: ultimo, entram: entram, fora: fora, resumos: resumos };
+    }
+
+    async function situacaoLicoes() {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
+      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+      if (!ano) { showToast("\u26a0\ufe0f Selecione o ano no Power BI."); return; }
+      if (ultimoMesFechado(ano) < 1) { showToast("\u26a0\ufe0f Nenhum mês fechado em " + ano + " ainda."); return; }
+      showToast("\u23f3 Conferindo validação e resumos de todas as OSs (alguns segundos)...");
+      try {
+        var sel = await osValidadasAba4(ano);
+        var linhas = sel.entram.map(function(x) { return { rotulo: x.rotulo, estado: "ok", detalhe: "entra na análise" }; })
+          .concat(sel.fora.map(function(x) { return { rotulo: x.rotulo, estado: "pendente", detalhe: x.motivo }; }));
+        mostrarSituacaoIA("\ud83d\udccb Lições & Riscos (Aba 4) \u2014 quais OSs entram",
+          sel.entram.length + " de " + linhas.length + " OSs entram na análise (todos os meses validados até " + (MESES_PT[sel.ultimo - 1] || sel.ultimo) + " e resumo anual gravado).", linhas);
+      } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as OSs.")); }
+    }
+    window.situacaoLicoes = situacaoLicoes;
+
+    // Separa a resposta da IA nos tres quadros: linhas "BLOCO 1/2/3" abrem cada um.
+    function separarBlocosLicoes(texto) {
+      var partes = { 1: "", 2: "", 3: "" }, atual = 0;
+      String(texto || "").split(/\r?\n/).forEach(function(l) {
+        var mt = /^\s*[#*\s]*BLOCO\s*([123])\b/i.exec(l);
+        if (mt) { atual = parseInt(mt[1], 10); return; }
+        if (atual) partes[atual] += (partes[atual] ? "\n" : "") + l;
+      });
+      return { licoes_bom: partes[1].trim(), licoes_ruim: partes[2].trim(), licoes_risco: partes[3].trim() };
+    }
+    function conferirLicoes(blocos) {
+      var motivos = [];
+      [["licoes_bom", "O que deu certo"], ["licoes_ruim", "O que não deu certo"], ["licoes_risco", "Gestão de risco"]].forEach(function(b) {
+        var t = blocos[b[0]] || "";
+        if (t.length < 150) motivos.push(b[1] + ": vazio ou curto demais");
+        if (/[\[\]]/.test(t)) motivos.push(b[1] + ": tem colchetes");
+        if (/^\s*\|.*\|\s*$/m.test(t)) motivos.push(b[1] + ": formato de tabela");
+      });
+      return motivos;
+    }
+
+    // Aba 4: gera os tres quadros com a IA, so com as OSs validadas, e grava (filtro so do ano).
+    async function gerarLicoesComIA() {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
+      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+      if (!ano) { showToast("\u26a0\ufe0f Selecione o ano no Power BI."); return; }
+      if (ultimoMesFechado(ano) < 1) { showToast("\u26a0\ufe0f Nenhum mês fechado em " + ano + " ainda."); return; }
+      if (!iaConfiguradaNesteNavegador()) {
+        var configurou = await configurarFluxosIA();
+        if (!configurou) return;
+      }
+      showToast("\u23f3 Conferindo quais OSs estão validadas...");
+      var sel;
+      try { sel = await osValidadasAba4(ano); }
+      catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as OSs.")); return; }
+      if (!sel.entram.length) {
+        showToast("\u26a0\ufe0f Nenhuma OS entra ainda: " + sel.fora.length + " OSs ficam de fora (falta validar meses ou o resumo anual). Veja em \"Situação das OSs\".");
+        return;
+      }
+      var todos = sel.resumos;
+      var cods = sel.entram.map(function(x) { return x.os; });
+      var pr = construirPromptLicoes(todos, cods, ano, sel.ultimo);
+      if (!pr.qtdTextos) { showToast("\u26a0\ufe0f Nenhum indicador se destacou pelo critério (80% ou mais, ou um terço ou menos dos meses) nas " + cods.length + " OSs validadas."); return; }
+      var segue = await confirmarNaPagina(
+        "\ud83e\udd16 Gerar Lições & Riscos com IA",
+        "<b>" + cods.length + " OS(s) validadas</b> entram na análise (" + sel.fora.length + " ficam de fora: falta validar ou falta o resumo anual).\n" +
+        "Ano <b>" + ano + "</b>, janeiro até <b>" + (MONTH_NAMES_FULL_PT[sel.ultimo] || sel.ultimo) + "</b>.\n\n" +
+        "Os três quadros da Aba 4 serão <b>substituídos</b> e ficam visíveis para todos.",
+        "Gerar e gravar");
+      if (!segue) return;
+      showToast("\u23f3 Gerando os três quadros com IA... (de 30 s a 2 min)");
+      try {
+        var blocos = null, motivos = [];
+        for (var tent = 0; tent < 2; tent++) {
+          var resp = await chamarGerarTexto("gpt41", pr.texto);
+          blocos = separarBlocosLicoes(resp);
+          motivos = conferirLicoes(blocos);
+          if (!motivos.length) break;
+        }
+        // Mostra o texto nas caixas e guarda neste navegador, para o Master ler na hora.
+        renderLicoesResumoSection();
+        LICOES_BLOCOS.forEach(function(b) {
+          var el = document.getElementById("licoesTA_" + b.key);
+          if (el && blocos[b.key]) el.value = blocos[b.key];
+          if (blocos[b.key]) safeSetStorage("licoes_resumo_" + b.key, blocos[b.key]);
+        });
+        if (motivos.length) {
+          showToast("\u26a0\ufe0f A IA devolveu texto com problema (" + motivos.join("; ") + "). NÃO gravei: leia, ajuste e clique em Salvar.");
+          return;
+        }
+        var ok = await salvarLicoes();
+        showToast(ok ? "\u2705 Lições & Riscos gravados com " + cods.length + " OS(s) validadas (visível para todos)."
+                     : "\u26a0\ufe0f Gerei os textos mas NÃO consegui gravar no SharePoint. Clique em Salvar.");
+      } catch (err) {
+        showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao gerar as Lições & Riscos."));
+      }
+    }
+    window.gerarLicoesComIA = gerarLicoesComIA;
+
+    // Aba 4 (copia manual): mesmos criterios -- so as OSs validadas.
+    async function openCopyLicoesModal() {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usu\u00e1rios M\u00e1ster podem exportar."); return; }
+      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+      if (!ano) { showToast("\u26a0\ufe0f Selecione o ano no Power BI."); return; }
+      if (ultimoMesFechado(ano) < 1) { showToast("\u26a0\ufe0f Nenhum mês fechado em " + ano + " ainda."); return; }
+      showToast("\u23f3 Conferindo quais OSs estão validadas e lendo os resumos anuais...");
+      var sel;
+      try { sel = await osValidadasAba4(ano); }
+      catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as OSs.")); return; }
+      if (!sel.entram.length) {
+        showToast("\u26a0\ufe0f Nenhuma OS validada com resumo anual ainda (" + sel.fora.length + " ficam de fora). Veja em \"Situação das OSs\".");
+        return;
+      }
+      var pr = construirPromptLicoes(sel.resumos, sel.entram.map(function(x) { return x.os; }), ano, sel.ultimo);
+      if (!pr.qtdTextos) {
+        showToast("\u26a0\ufe0f Nenhum indicador se destacou pelo critério (80% ou mais, ou um terço ou menos dos meses)." +
+          (pr.semClassificacao ? " " + pr.semClassificacao + " resumo(s) sem desempenho gravado \u2014 regrave-os na Aba 3." : ""));
+        return;
+      }
+      mostrarCaixaCopia("Vis\u00e3o corporativa \u2022 " + sel.entram.length + " OS(s) validadas, " + pr.qtdTextos +
+        " resumo(s) \u2022 " + Math.round(pr.texto.length / 1000) + " mil caracteres \u2022 os 3 blocos voltam para os campos da Aba 4.",
+        pr.texto);
     }
 
     // Aba 1 -- copia só os 23 pareceres do Setor de Performance (Máster) do MÊS ATUAL, para
