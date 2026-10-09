@@ -234,6 +234,10 @@
         &#128248; Congelar Fechamento
       </button>
 
+      <button type="button" id="btnSituacaoNotas" data-action="situacaoNotasAno" title="Mostra quais OSs ja tem as notas do ano gravadas ate o ultimo mes fechado." style="display:none; background:#fef3c7; color:#78350f; border:1.5px solid #fcd34d; padding:9px 14px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; align-items:center; gap:6px;">
+        &#128203; Situa&ccedil;&atilde;o das notas
+      </button>
+
       <button type="button" id="btnGravarNotasAno" data-action="gravarNotasDoAno" style="display:none; background:linear-gradient(135deg,#b45309,#78350f); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
         &#128197; Gravar Notas do Ano
       </button>
@@ -247,6 +251,10 @@
 
       <button type="button" id="btnGerarPareceresIA" data-action="gerarPareceresComIA" title="Gera os pareceres desta OS e mês com a IA corporativa (AI Builder) e preenche as caixas. Nada é gravado na ATA até você clicar em Salvar Comentários." style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:9px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; align-items:center; gap:6px;">
         &#129302; Gerar com IA
+      </button>
+
+      <button type="button" id="btnSituacaoPareceres" data-action="situacaoPareceresMes" title="Mostra, para o mes selecionado, quais OSs ja tem os pareceres escritos e quantos estao validados." style="display:none; background:#ede9fe; color:#5b21b6; border:1.5px solid #c4b5fd; padding:8px 12px; border-radius:8px; font-weight:800; font-size:0.84rem; cursor:pointer; align-items:center; gap:6px;">
+        &#128203; Situa&ccedil;&atilde;o das OSs
       </button>
 
       <button type="button" id="btnConfigFluxoIA" data-action="configurarFluxosIA" title="Cole aqui a URL dos fluxos de IA (ficam só neste navegador, nunca no código)." style="display:none; background:#ede9fe; color:#5b21b6; border:1.5px solid #c4b5fd; padding:8px 12px; border-radius:8px; font-weight:800; font-size:0.84rem; cursor:pointer; align-items:center; gap:6px;">
@@ -1009,7 +1017,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-09 15:39";
+    window.NPE_BUILD = "2026-10-09 15:46";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -1401,7 +1409,7 @@ function hydrateFromPowerBI() {
     // Botoes que so o Setor de Performance usa. Exportar pareceres alimenta a analise da
     // Performance, entao acompanha o Cadastro de Metas: sem sessao, nem aparecem.
     var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas", "btnCopyMonthPareceres", "btnCopyPareceresPerf",
-                                    "btnImportarPareceres", "btnGerarPareceresIA", "btnConfigFluxoIA", "btnImportarResumos", "btnGerarResumoIA", "btnSituacaoResumos",
+                                    "btnImportarPareceres", "btnGerarPareceresIA", "btnConfigFluxoIA", "btnImportarResumos", "btnGerarResumoIA", "btnSituacaoResumos", "btnSituacaoNotas", "btnSituacaoPareceres",
                                     "btnCopyAllForAI", "btnCopyLicoes", "btnGravarNotasAno",
                                     "btnCongelarSnapshot", "btnArmarRegravacao"];
     function aplicarVisibilidadeMaster(liberado) {
@@ -2197,6 +2205,8 @@ function hydrateFromPowerBI() {
       if (btnCopyPareceresPerfEl) btnCopyPareceresPerfEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
       var btnGerarIAEl = document.getElementById("btnGerarPareceresIA");
       if (btnGerarIAEl) btnGerarIAEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
+      var btnSitParEl = document.getElementById("btnSituacaoPareceres");
+      if (btnSitParEl) btnSitParEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
       var btnConfigIAEl = document.getElementById("btnConfigFluxoIA");
       if (btnConfigIAEl) btnConfigIAEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
       var btnImportarEl = document.getElementById("btnImportarPareceres");
@@ -7122,6 +7132,10 @@ function hydrateFromPowerBI() {
         congelarSnapshot();
       } else if (acao === "gravarNotasDoAno") {
         gravarNotasDoAno();
+      } else if (acao === "situacaoNotasAno") {
+        situacaoNotasAno();
+      } else if (acao === "situacaoPareceresMes") {
+        situacaoPareceresMes();
       } else if (acao === "gerarResumoAnualComIA") {
         gerarResumoAnualComIA();
       } else if (acao === "situacaoResumosAnuais") {
@@ -8508,6 +8522,73 @@ function hydrateFromPowerBI() {
     }
     window.gerarResumoAnualComIA = gerarResumoAnualComIA;
     window.situacaoResumosAnuais = situacaoResumosAnuais;
+
+
+    // Aba 5: quais OSs ja tem as notas do ano gravadas (ate o ultimo mes fechado).
+    async function situacaoNotasAno() {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
+      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+      if (!ano) { showToast("\u26a0\ufe0f Selecione o ano no Power BI."); return; }
+      var ultimo = ultimoMesFechado(ano);
+      if (ultimo < 1) { showToast("\u26a0\ufe0f Nenhum mês fechado em " + ano + " ainda."); return; }
+      showToast("\u23f3 Lendo as notas gravadas...");
+      try { await garantirHierarquia(); } catch (e) {}
+      var notas = await tab5Post(window.FLOW_LER_NOTAS_URL, { ano: ano });
+      var porOS = {};
+      (notas || []).forEach(function(r) {
+        var os = extractPrimaryOSCode(String(r.os || "").toUpperCase()) || String(r.os || "").toUpperCase();
+        var m = parseInt(r.mes, 10);
+        if (!os || !m || m > 12) return;
+        (porOS[os] = porOS[os] || {})[m] = true;
+      });
+      var linhas = tab5OSElegiveis().map(function(o) {
+        var meses = Object.keys(porOS[String(o.codigo).toUpperCase()] || {}).map(Number).filter(function(m) { return m <= ultimo; }).sort(function(a, b) { return a - b; });
+        var temUltimo = meses.indexOf(ultimo) !== -1;
+        return {
+          rotulo: rotuloCompletoOS(o),
+          estado: temUltimo ? "ok" : (meses.length ? "parcial" : "pendente"),
+          detalhe: meses.length ? "meses gravados: " + meses.join(", ") : "sem nota gravada (OS sem mês preenchido não recebe nota)"
+        };
+      });
+      var prontas = linhas.filter(function(l) { return l.estado === "ok"; }).length;
+      mostrarSituacaoIA("\ud83d\udccb Notas do ano (Aba 5) \u2014 situação das OSs",
+        prontas + " de " + linhas.length + " OSs com a nota de " + (MESES_PT[ultimo - 1] || ultimo) + " (último mês fechado) gravada.", linhas);
+    }
+    window.situacaoNotasAno = situacaoNotasAno;
+
+    // Aba 1: para o mes selecionado, quais OSs ja tem os pareceres escritos e quantos indicadores estao validados.
+    async function situacaoPareceresMes() {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
+      var pp = new URLSearchParams(window.location.search);
+      var ano = parseInt(pp.get("SelectedAno"), 10);
+      var mes = getMonthNumberFromParams(pp);
+      if (!ano || !mes) { showToast("\u26a0\ufe0f Selecione ano e mês no Power BI."); return; }
+      showToast("\u23f3 Lendo os pareceres do mês...");
+      try { await garantirHierarquia(); } catch (e) {}
+      var rows = await tab5Post(window.FLOW_LER_ATA_ANO_URL, { ano: ano, mes: mes });
+      var porOS = {};
+      (rows || []).forEach(function(r) {
+        var os = extractPrimaryOSCode(String(r.os || "").toUpperCase()) || String(r.os || "").toUpperCase();
+        var t = parseInt(r.topico, 10);
+        if (!os || !(t === 26 || t === 27 || (t >= 1 && t <= 23))) return;
+        var o = porOS[os] = porOS[os] || { pareceres: 0, validados: 0 };
+        var texto = String(r.master || "").trim();
+        if (texto && texto !== "Sem parecer registrado") o.pareceres++;
+        if (String(r.status || "") === "Validado" && t <= 23) o.validados++;
+      });
+      var linhas = tab5OSElegiveis().map(function(o) {
+        var x = porOS[String(o.codigo).toUpperCase()] || { pareceres: 0, validados: 0 };
+        return {
+          rotulo: rotuloCompletoOS(o),
+          estado: x.pareceres >= 23 ? "ok" : (x.pareceres > 0 ? "parcial" : "pendente"),
+          detalhe: x.pareceres + " de 25 pareceres escritos \u2022 " + x.validados + " de 23 indicadores validados"
+        };
+      });
+      var prontas = linhas.filter(function(l) { return l.estado === "ok"; }).length;
+      mostrarSituacaoIA("\ud83d\udccb Pareceres de " + (MESES_PT[mes - 1] || mes) + "/" + ano + " \u2014 situação das OSs",
+        prontas + " de " + linhas.length + " OSs com os pareceres do mês escritos (23 ou mais).", linhas);
+    }
+    window.situacaoPareceresMes = situacaoPareceresMes;
 
     // Janela para colar a URL dos fluxos de IA. As URLs carregam a chave de acesso do fluxo, por isso
     // NAO ficam no codigo (repositorio publico): so neste navegador. Campo em branco mantem o que ja existe.
