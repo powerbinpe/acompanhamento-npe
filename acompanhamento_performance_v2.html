@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-10 19:53";
+    window.NPE_BUILD = "2026-10-10 20:35";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -7897,7 +7897,7 @@ function hydrateFromPowerBI() {
           resumo: sel.entram.length + " de " + linhas.length + " OSs entram na análise (com meses validados e resumo anual gerado só com eles).",
           colunas: ["OS", "Contrato", "Negócio", "Gerente", "Entra na análise", "Meses validados", "Resumo usa os meses", "Motivo"],
           rotulosSituacao: { ok: "Entra", parcial: "Fora", pendente: "Fora" },
-          idxSit: 4, arquivo: "licoes_aba4", linhas: linhas
+          idxSit: 4, larguras: [9, 16, 7, 13, 8, 9, 16, 22], arquivo: "licoes_aba4", linhas: linhas
         });
       } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as OSs.")); }
     }
@@ -8742,7 +8742,7 @@ function hydrateFromPowerBI() {
             '<input data-busca type="text" placeholder="Buscar OS, contrato, negócio ou gerente" style="flex:1; min-width:200px; padding:8px 10px; border:1.5px solid #94a3b8; border-radius:8px; font-size:0.86rem;">' +
             '<button type="button" data-csv style="' + btn + ' background:#0e7490; color:#fff;">&#128196; Exportar CSV</button>' +
           '</div>' +
-          '<div style="padding:0 18px 6px; flex:1 1 auto; min-height:0; overflow:auto;"><table data-tab style="width:100%; border-collapse:collapse; font-size:0.84rem;"></table></div>' +
+          '<div style="padding:0 18px 6px; flex:1 1 auto; min-height:0; overflow:auto;"><table data-tab style="width:100%; table-layout:fixed; border-collapse:collapse; font-size:0.82rem;"></table></div>' +
           '<div style="padding:6px 18px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px;">' +
             '<span data-cont style="font-size:0.82rem; color:#64748b;"></span>' +
             '<button type="button" data-fechar style="' + btn + ' background:#e2e8f0; color:#475569;">Fechar</button>' +
@@ -8793,7 +8793,7 @@ function hydrateFromPowerBI() {
         });
         var cab = '<thead><tr>' + cfg.colunas.map(function(c, i) {
           var seta = st.col === i ? (st.dir === 1 ? " \u25b2" : " \u25bc") : "";
-          return '<th data-c="' + i + '" title="Clique para ordenar" style="text-align:left; padding:7px 10px; background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0; cursor:pointer; white-space:nowrap; color:#334155;">' + escH(c) + seta + '</th>';
+          return '<th data-c="' + i + '" title="Clique para ordenar" style="text-align:left; padding:7px 10px; background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0; cursor:pointer; white-space:normal; line-height:1.15; vertical-align:bottom; color:#334155;">' + escH(c) + seta + '</th>';
         }).join("") + '</tr></thead>';
         var corpo = '<tbody>' + v.map(function(l) {
           return '<tr style="border-bottom:1px solid #e2e8f0;">' + l.cel.map(function(c, i) {
@@ -8801,10 +8801,12 @@ function hydrateFromPowerBI() {
               return '<td style="padding:6px 8px; white-space:nowrap;"><span style="display:inline-block; padding:2px 10px; border-radius:999px; font-weight:800; font-size:0.8rem; background:' +
                 COR[l.estado][0] + '; color:' + COR[l.estado][1] + ';">' + escH(ROT[l.estado]) + '</span></td>';
             }
-            return '<td title="' + escH(c.t) + '" style="padding:5px 10px; vertical-align:middle; white-space:nowrap;' + (i === 0 ? " font-weight:800; color:#0f2b5c;" : "") + '">' + escH(c.t) + '</td>';
+            return '<td title="' + escH(c.t) + '" style="padding:5px 8px; vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;' + (i === 0 ? " font-weight:800; color:#0f2b5c;" : "") + '">' + escH(c.t) + '</td>';
           }).join("") + '</tr>';
         }).join("") + '</tbody>';
-        fundo.querySelector("[data-tab]").innerHTML = cab + corpo;
+        var pesos = cfg.larguras || [9, 17, 7, 14, 8, 13, 16, 16];
+        var colg = '<colgroup>' + cfg.colunas.map(function(_, i) { return '<col style="width:' + (pesos[i] || 10) + '%">'; }).join("") + '</colgroup>';
+        fundo.querySelector("[data-tab]").innerHTML = colg + cab + corpo;
         fundo.querySelector("[data-cont]").textContent = v.length + " de " + total + " OSs na lista.";
       }
 
@@ -8893,7 +8895,7 @@ function hydrateFromPowerBI() {
           titulo: "\ud83d\udccb Resumo anual (Aba 3) \u2014 situação das OSs",
           resumo: feitas + " OSs com o resumo em dia \u2022 " + aGerar + " a gerar/refazer \u2022 só os meses validados entram.",
           colunas: ["OS", "Contrato", "Negócio", "Gerente", "Situação", "Meses validados", "Resumo anual", "Próxima ação"],
-          idxSit: 4, arquivo: "resumo_anual_aba3", linhas: linhas
+          idxSit: 4, larguras: [9, 16, 7, 13, 7, 9, 20, 19], arquivo: "resumo_anual_aba3", linhas: linhas
         });
       } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir.")); }
     }
@@ -8980,7 +8982,7 @@ function hydrateFromPowerBI() {
           titulo: "\ud83d\udccb Notas do ano (Aba 5) \u2014 situação das OSs",
           resumo: prontas + " de " + linhas.length + " OSs com nota gravada em todos os meses validados (até " + (MESES_PT[ultimo - 1] || ultimo) + "). OS sem mês validado não entra na nota.",
           colunas: ["OS", "Contrato", "Negócio", "Gerente", "Situação", "Meses validados", "Notas gravadas", "Acumulado (validados)"],
-          idxSit: 4, arquivo: "notas_aba5", linhas: linhas
+          idxSit: 4, larguras: [9, 17, 7, 14, 8, 10, 19, 16], arquivo: "notas_aba5", linhas: linhas
         });
       } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as notas.")); }
     }
@@ -9028,7 +9030,7 @@ function hydrateFromPowerBI() {
         titulo: "\ud83d\udccb Pareceres de " + (MESES_PT[mes - 1] || mes) + "/" + ano + " \u2014 situação das OSs",
         resumo: prontas + " de " + linhas.length + " OSs com os pareceres do mês escritos (23 ou mais). Só o mês selecionado.",
         colunas: ["OS", "Contrato", "Negócio", "Gerente", "Situação", "Pareceres escritos", "Indicadores validados", "Justificativas do gestor"],
-        idxSit: 4, arquivo: "pareceres_" + (MESES_PT[mes - 1] || mes).toLowerCase() + "_aba1", linhas: linhas
+        idxSit: 4, larguras: [10, 20, 8, 16, 8, 12, 12, 14], arquivo: "pareceres_" + (MESES_PT[mes - 1] || mes).toLowerCase() + "_aba1", linhas: linhas
       });
     }
     window.situacaoPareceresMes = situacaoPareceresMes;
