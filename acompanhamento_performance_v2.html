@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-10 19:15";
+    window.NPE_BUILD = "2026-10-10 19:22";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -6241,6 +6241,18 @@ function hydrateFromPowerBI() {
       var resumo = tab5ResumoPorOS();
       var notas = tab5NotasPorOS();
       var meses = window.TAB5.meses || [];
+      // Quantos meses de cada OS estao validados (so eles contam na nota). Visivel a todos, ao lado do nome da OS;
+      // nao muda quem ve o que: a lista de baixo continua seguindo a seguranca (tab5OSDoUsuario).
+      var valPorOS = tab5MesesValidadosPorOS();
+      function badgeValidados(codigo) {
+        if (!valPorOS || !meses.length) return "";
+        var v = valPorOS[codigo] || {};
+        var n = meses.filter(function(mm) { return v[mm]; }).length;
+        var cor = n === 0 ? "#b91c1c" : (n === meses.length ? "#15803d" : "#b45309");
+        var bg = n === 0 ? "#fee2e2" : (n === meses.length ? "#dcfce7" : "#fef3c7");
+        return '<span title="Meses com os 23 indicadores validados -- s\u00f3 estes entram na nota" style="display:inline-block; margin-left:8px; padding:2px 8px; border-radius:999px; font-size:0.78rem; font-weight:800; background:' + bg + '; color:' + cor + ';">' +
+          n + ' de ' + meses.length + ' validados</span>';
+      }
 
       var comAcomp = elegiveis.filter(function(o) { return ((resumo[o.codigo] || {}).totalMeses || 0) > 0; });
       var semAcomp = elegiveis.filter(function(o) { return !(((resumo[o.codigo] || {}).totalMeses || 0) > 0); });
@@ -6435,7 +6447,7 @@ function hydrateFromPowerBI() {
             var nome = rotuloCompletoOS({ codigo: r.codigo, rotulo: r.codigo });
             h += '<tr style="border-bottom:1px solid #f1f5f9; background:' + (destacarPodio && pos <= 3 ? "#f0fdf4" : "#ffffff") + ';">' +
               '<td style="padding:8px 10px; text-align:center; font-weight:900; color:#0f2b5c; font-size:1.10rem;">' + medalha + '</td>' +
-              '<td style="padding:8px 10px; font-weight:800; color:#0f2b5c; font-size:1.06rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + nome + '">' + nome + '</td>' +
+              '<td style="padding:8px 10px; font-weight:800; color:#0f2b5c; font-size:1.06rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + nome + '">' + nome + badgeValidados(r.codigo) + '</td>' +
               // Meses trazem a QUANTIDADE de topicos preenchidos: e dela que sai a adesao.
               meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
               '<td style="padding:8px 6px; text-align:center;">' +
@@ -6724,7 +6736,7 @@ function hydrateFromPowerBI() {
                   var tierOS = scoreTier(aOS.pct);
                   html += '<tr style="border-bottom:1px solid #f1f5f9;' + (nunca ? " background:#fffafa;" : "") + '">' +
                     '<td style="padding:10px 10px 10px 66px; font-weight:800; font-size:1.15rem; color:#0f2b5c; white-space:nowrap; width:376px; overflow:hidden; text-overflow:ellipsis;">' +
-                      rotuloCompletoOS(o) +
+                      rotuloCompletoOS(o) + badgeValidados(o.codigo) +
                       '<span style="font-weight:700; color:#64748b; font-size:0.86rem; margin-left:8px;">' + ((window.OS_HIER || {})[o.codigo] || {}).neg + '</span>' +
                     '</td>' +
                     meses.map(function(mm) { return tab5CelulaMes(e.meses[mm]); }).join("") +
