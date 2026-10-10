@@ -257,25 +257,28 @@
   // que ja tem resumo anual completo e deixa marcadas SO as que faltam.
   function aplicarJaNoSP(soEstado) {
     estado.lista.forEach(function (o) {
-      var n = estado.jaNoSP[String(o.code).toUpperCase()];
-      if (n) { estado.resultados[o.code] = { estado: "ok", texto: "já gravado no SharePoint (" + n + " indicadores)", ts: "" }; if (!soEstado) o.marcada = false; }
+      var info = estado.jaNoSP[String(o.code).toUpperCase()];
+      if (info) { estado.resultados[o.code] = { estado: "ok", texto: info, ts: "" }; if (!soEstado) o.marcada = false; }
     });
   }
+  // Regra de 10/10: so contam os meses VALIDADOS. A conferencia vem do proprio app (osValidadasAba4): ele le a ATA
+  // e o SharePoint e diz, por OS, se o resumo anual esta em dia, se precisa gerar/refazer ou se nao ha nada a gerar.
   async function lerResumosGravados(ano, mes) {
     estado.jaNoSP = {};
     var q = null;
     try {
       var url = await lerUrlOS(estado.lista[0].code, ano, mes);
       q = await abrirNoQuadro(url + (url.indexOf("?") === -1 ? "?" : "&") + "NPE_DRY=1");
-      var mapa = await q.win.carregarResumosAnuais();
-      Object.keys(mapa || {}).forEach(function (os) {
-        var reg = mapa[os];
-        var n = reg && reg.resumos ? Object.keys(reg.resumos).length : 0;
-        if (n >= 20) estado.jaNoSP[String(os).toUpperCase()] = n;
+      var sel = await q.win.osValidadasAba4(ano);
+      sel.entram.forEach(function (x) {
+        estado.jaNoSP[String(x.os).toUpperCase()] = "resumo em dia (" + x.validados + " mês(es) validado(s))";
+      });
+      sel.fora.forEach(function (x) {
+        if (!/resumo anual/.test(x.motivo)) estado.jaNoSP[String(x.os).toUpperCase()] = "nada a gerar: " + x.motivo;
       });
       return true;
     } catch (e) {
-      log("Não consegui ler o que já está gravado no SharePoint: " + (e && e.message ? e.message : e));
+      log("Não consegui conferir validação e resumos no SharePoint: " + (e && e.message ? e.message : e));
       return false;
     } finally { if (q) fecharQuadro(q); }
   }
@@ -306,12 +309,12 @@
       if (!estado.lista.length) throw new Error("O modelo não devolveu nenhuma OS elegível para " + mes + "/" + ano + ".");
       estado.resultados = lerProgresso();
       if (el("etapa").value === "aba3") {
-        log("Conferindo no SharePoint quais OSs já têm resumo anual...");
+        log("Conferindo meses validados e resumos gravados (alguns segundos)...");
         if (await lerResumosGravados(ano, mes)) {
           estado.lista.forEach(function (o) { o.marcada = true; });
           aplicarJaNoSP();
           var feitas = estado.lista.filter(function (o) { return estado.jaNoSP[String(o.code).toUpperCase()]; }).length;
-          log("Já gravadas no SharePoint: " + feitas + " de " + estado.lista.length + ". Ficaram marcadas só as " + (estado.lista.length - feitas) + " que faltam.");
+          log("Em dia ou sem nada a gerar: " + feitas + " de " + estado.lista.length + ". Ficaram marcadas só as " + (estado.lista.length - feitas) + " com mês validado e resumo a gerar/refazer.");
         }
       }
       el("secLista").style.display = "block";

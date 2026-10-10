@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-10 19:09";
+    window.NPE_BUILD = "2026-10-10 19:15";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -2930,12 +2930,13 @@ function hydrateFromPowerBI() {
     // Quem decide se o mes foi atendido e o proprio calculateOSScore -- o mesmo calculo que
     // da o ponto. Reescrever a regra aqui faria o selo e a nota discordarem no dia em que a
     // tolerancia mudasse na tabela de metas.
-    function _taxaAtendimento(osCode, topicId, ateMes) {
+    function _taxaAtendimento(osCode, topicId, ateMes, mesesVal) {
       var c = _contratoDe(osCode);
       if (!c || typeof calculateOSScore !== "function") return null;
       var chave = _scoreKeyTendencia(topicId);
       var ok = 0, n = 0;
       for (var m = 1; m <= ateMes; m++) {
+        if (mesesVal && mesesVal.indexOf(m) === -1) continue;
         var sc = null;
         try { sc = calculateOSScore(c, m); } catch (e) { sc = null; }
         var tp = (sc && sc.topics) ? sc.topics[chave] : null;
@@ -5301,7 +5302,18 @@ function hydrateFromPowerBI() {
 
     // Mesma conta do card de ranking da Aba 2 -- de proposito: o numero gravado tem que ser
     // exatamente o numero que o gestor viu na tela quando salvou.
-    function notasDaOS(osCode, monthNum) {
+    // Meses (1..ate) da OS com os 23 indicadores validados -- pelos status do navegador (OS selecionada).
+    function mesesValidadosDaOS(osCode, ate) {
+      var out = [];
+      for (var m = 1; m <= ate; m++) {
+        if (statusValidacaoDoMes(osCode, m) === "Validado") out.push(m);
+      }
+      return out;
+    }
+
+    // mesesVal (opcional): so estes meses entram na nota ACUMULADA (regra de 10/10: Aba 3, 4 e 5 contam apenas
+    // os meses validados). Sem a lista, o comportamento antigo: todos os meses com dado.
+    function notasDaOS(osCode, monthNum, mesesVal) {
       if (typeof ACTIVE_CONTRACTS_CATALOG === "undefined" || !ACTIVE_CONTRACTS_CATALOG.length) return null;
       var alvo = extractPrimaryOSCode(osCode);
       var contract = ACTIVE_CONTRACTS_CATALOG.filter(function(c) {
@@ -5311,6 +5323,7 @@ function hydrateFromPowerBI() {
       var cur = calculateOSScore(contract, monthNum);
       var soma = 0, meses = 0;
       for (var m = 1; m <= monthNum; m++) {
+        if (mesesVal && mesesVal.indexOf(m) === -1) continue;
         var s = calculateOSScore(contract, m);
         if (s.hasEvaluableData) { meses++; soma += s.monthScore; }
       }
@@ -5342,7 +5355,7 @@ function hydrateFromPowerBI() {
       try { if (new URLSearchParams(window.location.search).get("NPE_DRY") === "1") return false; } catch (e) {}
       // Sem a ATA lida a nota sai calculada sem comentarios -- gravar isso estraga a nota do mes.
       if (!window.HISTORICO_PRONTO) return false;
-      var n = notasDaOS(osCode, monthNum);
+      var n = notasDaOS(osCode, monthNum, mesesValidadosDaOS(osCode, monthNum));
       var statusNota = statusValidacaoDoMes(osCode, monthNum);
       if (!n) return false;
       var url = window.FLOW_GRAVAR_NOTAS_URL || "";
@@ -5973,8 +5986,46 @@ function hydrateFromPowerBI() {
       }).map(function(o) { return o.codigo; }).sort();
     }
 
+    // Meses validados (23 indicadores com status Validado) por OS, pela ATA que a Aba 5 carregou.
+    // Devolve null quando a ATA nao chegou: ai nao filtra (melhor mostrar tudo do que esconder tudo).
+    function tab5MesesValidadosPorOS() {
+      var apm = (window.TAB5 && window.TAB5.ataPorMes) ? window.TAB5.ataPorMes : null;
+      if (!apm || !Object.keys(apm).length) return null;
+      var blocos = obterMapaDeBlocosOS();
+      var cont = {};
+      Object.keys(apm).forEach(function(m) {
+        (apm[m] || []).forEach(function(r) {
+          var tid = parseInt(r.topico, 10);
+          if (!(tid >= 1 && tid <= 23)) return;
+          if (String(r.status || "").indexOf("Validado") !== 0) return;
+          var bruto = extractPrimaryOSCode(String(r.os || "").toUpperCase()) || String(r.os || "").toUpperCase();
+          var os = blocos.alias[bruto] || bruto;
+          var mes = parseInt(r.mes, 10);
+          if (!os || !mes) return;
+          var k = os + "|" + mes;
+          cont[k] = (cont[k] || 0) + 1;
+        });
+      });
+      var out = {};
+      Object.keys(cont).forEach(function(k) {
+        if (cont[k] < 23) return;
+        var p = k.split("|");
+        (out[p[0]] = out[p[0]] || {})[parseInt(p[1], 10)] = true;
+      });
+      return out;
+    }
+
     function tab5NotasPorOS() {
       var blocos = obterMapaDeBlocosOS();
+      // Regra de 10/10: so contam os meses VALIDADOS. A nota acumulada e recalculada aqui sobre eles
+      // (a gravada no SharePoint pode ter sido calculada com meses ainda pendentes).
+      var validados = tab5MesesValidadosPorOS();
+      function mesValido(os, mes) { if (!validados) return true; var v = validados[os]; return !!(v && v[mes]); }
+      function mesesValidosAte(os, ate) {
+        var out = [];
+        for (var q = 1; q <= ate; q++) { if (mesValido(os, q)) out.push(q); }
+        return out;
+      }
       var mapa = {};
       (window.TAB5.notas || []).forEach(function(r) {
         var rawOs = extractPrimaryOSCode(String(r.os || "").toUpperCase());
@@ -5985,6 +6036,7 @@ function hydrateFromPowerBI() {
         // passaria a mandar no acumulado exibido.
         if (mes > ultimoMesFechado(window.TAB5.ano || new Date().getFullYear())) return;
         var os = blocos.alias[rawOs] || rawOs;
+        if (!mesValido(os, mes)) return;
         var e = mapa[os] || (mapa[os] = { meses: {}, ultima: null, ultimoMes: 0 });
         var reg = {
           notaMes: parseFloat(r.notaMes),
@@ -5996,10 +6048,9 @@ function hydrateFromPowerBI() {
           }
         };
         e.meses[mes] = reg;
-        if (mes >= e.ultimoMes) { e.ultimoMes = mes; e.ultima = reg; }
       });
 
-      // Complemento dinâmico para garantir que Parada, Rotina e Oficina tenham suas notas
+      // Complemento dinamico para garantir que Parada, Rotina e Oficina tenham suas notas
       // calculadas mesmo antes de serem gravadas manualmente na base do SharePoint
       var catalogo = (typeof ACTIVE_CONTRACTS_CATALOG !== "undefined" && ACTIVE_CONTRACTS_CATALOG) ? ACTIVE_CONTRACTS_CATALOG : [];
       if (catalogo.length) {
@@ -6013,21 +6064,29 @@ function hydrateFromPowerBI() {
             e = mapa[codPrimario] = { meses: {}, ultima: null, ultimoMes: 0 };
           }
           mesesTab5.forEach(function(m) {
-            if (!e.meses[m]) {
-              var n = notasDaOS(contract.code, m);
+            if (!e.meses[m] && mesValido(codPrimario, m)) {
+              var n = notasDaOS(contract.code, m, mesesValidosAte(codPrimario, m));
               if (n && n.temDado && typeof n.notaMes === "number" && isFinite(n.notaMes)) {
-                var reg = {
-                  notaMes: n.notaMes,
-                  notaAcum: n.notaAcum,
-                  cats: n.pct
-                };
-                e.meses[m] = reg;
-                if (m >= e.ultimoMes) { e.ultimoMes = m; e.ultima = reg; }
+                e.meses[m] = { notaMes: n.notaMes, notaAcum: n.notaAcum, cats: n.pct };
               }
             }
           });
         });
       }
+
+      // Acumulado = media da nota do mes sobre os meses validados; "ultima" = o ultimo mes validado.
+      Object.keys(mapa).forEach(function(os) {
+        var e = mapa[os];
+        var ms = Object.keys(e.meses).map(Number).sort(function(a, b) { return a - b; });
+        var soma = 0, qt = 0;
+        ms.forEach(function(m) {
+          var reg = e.meses[m];
+          if (isFinite(reg.notaMes)) { soma += reg.notaMes; qt++; }
+          reg.notaAcum = qt ? parseFloat((soma / qt).toFixed(1)) : reg.notaMes;
+        });
+        e.ultimoMes = ms.length ? ms[ms.length - 1] : 0;
+        e.ultima = ms.length ? e.meses[e.ultimoMes] : null;
+      });
 
       return mapa;
     }
@@ -7277,7 +7336,7 @@ function hydrateFromPowerBI() {
           var idAtual = parseInt(l.id, 10) || 0;
           // Se houver mais de uma linha da mesma OS (grava\u00e7\u00e3o antiga sem id), vale a mais nova.
           if (!mapa[os] || idAtual > mapa[os].id) {
-            mapa[os] = { id: idAtual, resumos: (d && d.resumos) ? d.resumos : {} };
+            mapa[os] = { id: idAtual, resumos: (d && d.resumos) ? d.resumos : {}, meses: (d && Array.isArray(d.meses)) ? d.meses : null };
           }
         });
       } catch (e) {}
@@ -7306,7 +7365,7 @@ function hydrateFromPowerBI() {
         if (!v) continue;
         var reg2 = { t: v };
         try {
-          var tx = _taxaAtendimento(activeOS, tid, mesRef);
+          var tx = _taxaAtendimento(activeOS, tid, mesRef, mesesValidadosDaOS(activeOS, mesRef));
           if (tx) { reg2.ok = tx.ok; reg2.n = tx.n; }
         } catch (e) {}
         resumos[String(tid)] = reg2;
@@ -7319,7 +7378,7 @@ function hydrateFromPowerBI() {
           id: reg.id || 0,
           titulo: "RESUMO_ANUAL " + osCode,
           ano: 9996, mes: 1,
-          dados: JSON.stringify({ os: osCode, resumos: resumos }),
+          dados: JSON.stringify({ os: osCode, resumos: resumos, meses: mesesValidadosDaOS(osCode, mesRef) }),
           geradoPor: quem
         })
       });
@@ -7379,9 +7438,15 @@ function hydrateFromPowerBI() {
       for (var s = 0; s < 70; s++) sep += "=";
       var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10) || "\u2014";
 
+      // Regra de 10/10: so os meses VALIDADOS entram (parecer, serie e contagem de meses atendidos).
+      var mesesVal = mesesValidadosDaOS(activeOS, selMonthNum);
+      var ultimoVal = mesesVal.length ? mesesVal[mesesVal.length - 1] : selMonthNum;
+
       var lines = [];
       lines.push("RESUMO ANUAL POR INDICADOR -- OS " + activeOS + " (" + contract.name + ")");
-      lines.push("Ano " + ano + " -- Janeiro a " + (MONTH_NAMES_FULL_PT[selMonthNum] || selMonthNum));
+      lines.push("Ano " + ano + " -- MESES VALIDADOS (os \u00fanicos considerados): " +
+                 (mesesVal.length ? mesesVal.map(function(x) { return MONTH_NAMES_FULL_PT[x] || x; }).join(", ") : "nenhum") +
+                 ". Os demais meses ainda n\u00e3o foram validados e N\u00c3O entram neste resumo.");
       lines.push(sep);
 
       function pareceresDoTopico(tid) {
@@ -7389,6 +7454,7 @@ function hydrateFromPowerBI() {
                     window.ATA_COMENTARIOS_DB[activeOS][String(tid)]) ? window.ATA_COMENTARIOS_DB[activeOS][String(tid)] : [];
         var out = [];
         for (var m = 1; m <= selMonthNum; m++) {
+          if (mesesVal.indexOf(m) === -1) continue;
           var r = rows.filter(function(x) { return x.tipo === "PERFORMANCE"; }).find(function(x) { return x.mes === m; });
           var txt = r ? r.comentario : safeGetStorage("m_" + activeOS + "_m" + m + "_" + tid, "");
           // "Sem parecer registrado" e o texto padrao que o gravador poe em campo vazio --
@@ -7407,6 +7473,7 @@ function hydrateFromPowerBI() {
         // Serie do ano e quantos meses atenderam -- pela regra do proprio score.
         var serie = [], ok = 0, aval = 0;
         for (var m = 1; m <= selMonthNum; m++) {
+          if (mesesVal.indexOf(m) === -1) continue;
           var md = contract.monthHistory ? contract.monthHistory[m] : null;
           var det = buildTopicDetailLine(t.scoreId, md, contract, m);
           var tp = null;
@@ -7423,8 +7490,8 @@ function hydrateFromPowerBI() {
         lines.push(cabecalhoExport(idAta, t.name) + (peso ? " | peso " + peso : "") +
                    (aval ? " | atendeu " + ok + " de " + aval + " meses" : " | sem meses avaliados"));
 
-        var tend = (typeof textoTendencia === "function") ? textoTendencia(activeOS, idAta, selMonthNum) : "";
-        if (tend) lines.push("Tend\u00eancia em " + (MONTH_NAMES_FULL_PT[selMonthNum] || selMonthNum) + ": " + tend);
+        var tend = (typeof textoTendencia === "function") ? textoTendencia(activeOS, idAta, ultimoVal) : "";
+        if (tend) lines.push("Tend\u00eancia em " + (MONTH_NAMES_FULL_PT[ultimoVal] || ultimoVal) + ": " + tend);
         if (serie.length) lines.push("S\u00e9rie: " + serie.join(" \u00b7 "));
 
         var pars = pareceresDoTopico(idAta);
@@ -7439,7 +7506,7 @@ function hydrateFromPowerBI() {
       lines.push("");
       lines.push(sep);
       lines.push("INSTRU\u00c7\u00c3O");
-      lines.push("Escreva UM RESUMO DO ANO POR INDICADOR, de janeiro at\u00e9 " + (MONTH_NAMES_FULL_PT[selMonthNum] || selMonthNum) + ".");
+      lines.push("Escreva UM RESUMO DO ANO POR INDICADOR, usando SOMENTE os meses validados listados acima: " + (mesesVal.length ? mesesVal.map(function(x) { return MONTH_NAMES_FULL_PT[x] || x; }).join(", ") : "nenhum") + ". N\u00e3o fale de meses n\u00e3o validados nem projete o ano inteiro.");
       lines.push("AVISO ANTES DE COME\u00c7AR: a resposta \u00e9 texto corrido, indicador por indicador -- tabela (markdown, HTML ou qualquer variante), planilha, slide e colunas lado a lado N\u00c3O EXISTEM como formato de resposta aqui, nem como oferta ao final. N\u00e3o pergunte se prefiro outro formato. Se voc\u00ea j\u00e1 respondeu em tabela antes nesta mesma conversa, IGNORE esse h\u00e1bito agora: a formata\u00e7\u00e3o exigida est\u00e1 detalhada no final desta instru\u00e7\u00e3o, e \u00e9 a \u00fanica que existe.");
       lines.push("");
       lines.push("Os textos acima s\u00e3o os pareceres que a Performance emitiu m\u00eas a m\u00eas -- cada um j\u00e1 \u00e9 um resumo daquele m\u00eas. Consolide-os numa leitura do ano, sem repetir m\u00eas a m\u00eas.");
@@ -7765,17 +7832,22 @@ function hydrateFromPowerBI() {
         if (!inicio) { item.motivo = "nenhum mês preenchido até " + (MESES_PT[ultimo - 1] || ultimo); fora.push(item); return; }
         // Decisao do usuario (10/10): entra a OS cujo ULTIMO MES FECHADO esta com os 23 indicadores validados;
         // meses anteriores ainda nao validados nao barram (so o mes validado conta).
-        var validados = 0;
-        for (var k2 = inicio; k2 <= ultimo; k2++) { if (meses[k2] && meses[k2].val >= 23) validados++; }
-        item.validados = validados; item.periodo = ultimo - inicio + 1;
-        if (!meses[ultimo] || meses[ultimo].val < 23) {
-          item.motivo = "falta validar o mês de " + (MESES_PT[ultimo - 1] || ultimo) + " (" + validados + " de " + item.periodo + " meses validados)";
+        var lista = [];
+        for (var k2 = inicio; k2 <= ultimo; k2++) { if (meses[k2] && meses[k2].val >= 23) lista.push(k2); }
+        var validados = lista.length;
+        item.validados = validados; item.periodo = ultimo - inicio + 1; item.listaMeses = lista;
+        if (!validados) {
+          item.motivo = "nenhum mês validado ainda (0 de " + item.periodo + " meses)";
           fora.push(item); return;
         }
         var reg = resumos[cod];
         var n = reg && reg.resumos ? Object.keys(reg.resumos).length : 0;
         if (n < 20) { item.motivo = "validada, mas falta o resumo anual (Aba 3)"; fora.push(item); return; }
-        item.meses = ultimo - inicio + 1;
+        // O resumo precisa ter sido gerado com EXATAMENTE os meses validados de hoje.
+        var usados = (reg && Array.isArray(reg.meses)) ? reg.meses.slice().sort(function(a, b) { return a - b; }).join(",") : null;
+        if (usados === null) { item.motivo = "resumo anual antigo (gerado com todos os meses): refazer na Aba 3 só com os meses validados"; fora.push(item); return; }
+        if (usados !== lista.join(",")) { item.motivo = "resumo anual desatualizado: validados agora " + lista.join(", ") + ", resumo usa " + usados + " (refazer na Aba 3)"; fora.push(item); return; }
+        item.meses = validados;
         entram.push(item);
       });
       var mesesPorOS = {};
@@ -7794,7 +7866,7 @@ function hydrateFromPowerBI() {
         var linhas = sel.entram.map(function(x) { return { rotulo: x.rotulo, estado: "ok", detalhe: "entra na análise (" + x.validados + " de " + x.periodo + " meses validados)" }; })
           .concat(sel.fora.map(function(x) { return { rotulo: x.rotulo, estado: "pendente", detalhe: x.motivo }; }));
         mostrarSituacaoIA("\ud83d\udccb Lições & Riscos (Aba 4) \u2014 quais OSs entram",
-          sel.entram.length + " de " + linhas.length + " OSs entram na análise (mês de " + (MESES_PT[sel.ultimo - 1] || sel.ultimo) + " validado e resumo anual gravado).", linhas);
+          sel.entram.length + " de " + linhas.length + " OSs entram na análise (com meses validados e resumo anual gerado só com eles).", linhas);
       } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as OSs.")); }
     }
     window.situacaoLicoes = situacaoLicoes;
@@ -8448,8 +8520,8 @@ function hydrateFromPowerBI() {
       if (!inicio) return { os: os, ultimoMes: ultimoMes, meses: [], gravado: null, aviso: "nenhum mês preenchido ainda (a apuração começa no primeiro mês com registro)" };
       var meses = [];
       for (var m = inicio; m <= ultimoMes; m++) {
-        var n = notasDaOS(os, m);
-        if (n) meses.push({ mes: m, notaMes: n.notaMes, notaAcum: n.notaAcum, temDado: !!n.temDado });
+        var n = notasDaOS(os, m, mesesValidadosDaOS(os, m));
+        if (n) meses.push({ mes: m, notaMes: n.notaMes, notaAcum: n.notaAcum, temDado: !!n.temDado, validado: statusValidacaoDoMes(os, m) === "Validado" });
       }
       if (opts.gravar === false) return { os: os, ultimoMes: ultimoMes, inicio: inicio, meses: meses, gravado: null };
       var sess = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
@@ -8476,7 +8548,7 @@ function hydrateFromPowerBI() {
 
     // Grava o resumo anual da OS (SNAPSHOT_FECHAMENTO, ano 9996) a partir de textos ja prontos:
     // troca so os indicadores recebidos e preserva os demais que ja estavam gravados.
-    async function gravarResumoAnualDireto(os, mesRef, textos) {
+    async function gravarResumoAnualDireto(os, mesRef, textos, mesesVal) {
       var s = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
       var quem = s ? (s.login || "") : (new URLSearchParams(window.location.search).get("UserEmail") || "");
       if (!window.RESUMOS_ANUAIS) await carregarResumosAnuais();
@@ -8489,7 +8561,7 @@ function hydrateFromPowerBI() {
       Object.keys(textos).forEach(function(k) {
         var r2 = { t: textos[k] };
         try {
-          var tx = _taxaAtendimento(os, parseInt(k, 10), mesRef);
+          var tx = _taxaAtendimento(os, parseInt(k, 10), mesRef, mesesVal);
           if (tx) { r2.ok = tx.ok; r2.n = tx.n; }
         } catch (e) {}
         resumos[k] = r2;
@@ -8500,12 +8572,13 @@ function hydrateFromPowerBI() {
           id: reg.id || 0,
           titulo: "RESUMO_ANUAL " + os,
           ano: 9996, mes: 1,
-          dados: JSON.stringify({ os: os, resumos: resumos }),
+          dados: JSON.stringify({ os: os, resumos: resumos, meses: mesesVal || null }),
           geradoPor: quem
         })
       });
       if (!(r.ok || r.status === 202)) return false;
-      reg.resumos = resumos;
+      reg.resumos = resumos;
+      reg.meses = mesesVal || null;
       window.RESUMOS_ANUAIS = window.RESUMOS_ANUAIS || {};
       window.RESUMOS_ANUAIS[os] = reg;
       if (!reg.id) { window.RESUMOS_ANUAIS = null; window._RESUMOS_CARREGANDO = false; await carregarResumosAnuais(); }
@@ -8527,6 +8600,9 @@ function hydrateFromPowerBI() {
       if (mesRef < 1) return { os: os, mesRef: 0, textos: 0, revisar: [], gravado: null, aviso: "nenhum mês fechado em " + ano };
       if (!window.HISTORICO_PRONTO) { passo("lendo a ATA"); try { await historicoCarregado(); } catch (e) {} }
       if (!window.HISTORICO_PRONTO) throw new Error("Não consegui ler a ATA; nada foi feito.");
+      // Regra de 10/10: o resumo anual usa SO os meses validados; sem nenhum, nao ha o que resumir.
+      var mesesVal = mesesValidadosDaOS(os, mesRef);
+      if (!mesesVal.length) return { os: os, mesRef: mesRef, textos: 0, revisar: [], gravado: null, aviso: "nenhum m\u00eas validado at\u00e9 o m\u00eas " + mesRef + " - sem resumo a gerar" };
       // OS sem nenhum mes preenchido ate o mes de referencia nao tem o que resumir: nao gasta IA.
       if (primeiroMesPreenchido(os) > mesRef) return { os: os, mesRef: mesRef, textos: 0, revisar: [], gravado: null, aviso: "nenhum mês preenchido até o mês " + mesRef + " - sem resumo a gerar" };
 
@@ -8571,7 +8647,7 @@ function hydrateFromPowerBI() {
       var gravado = null;
       if (opts.gravar !== false) {
         passo("gravando o resumo anual");
-        gravado = await gravarResumoAnualDireto(os, mesRef, paraGravar);
+        gravado = await gravarResumoAnualDireto(os, mesRef, paraGravar, mesesVal);
       }
       return {
         os: os, mesRef: mesRef, textos: Object.keys(paraGravar).length, chamadas: chamadas, refeitos: refeitos,
@@ -8630,27 +8706,26 @@ function hydrateFromPowerBI() {
     }
 
     // Aba 3: quais OSs ja tem o resumo anual gravado (SNAPSHOT ano 9996) e quais faltam.
-    async function situacaoResumosAnuais() {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
-      showToast("\u23f3 Lendo os resumos anuais gravados...");
-      window.RESUMOS_ANUAIS = null; window._RESUMOS_CARREGANDO = false;
-      var mapa = await carregarResumosAnuais();
-      try { await garantirHierarquia(); } catch (e) {}
-      var elegiveis = tab5OSElegiveis();
-      var linhas = elegiveis.map(function(o) {
-        var reg = (mapa || {})[String(o.codigo).toUpperCase()];
-        var n = reg && reg.resumos ? Object.keys(reg.resumos).length : 0;
-        return {
-          rotulo: rotuloCompletoOS(o),
-          estado: n >= 20 ? "ok" : (n > 0 ? "parcial" : "pendente"),
-          detalhe: n ? n + " indicadores gravados" : "sem resumo anual gravado"
-        };
-      });
-      var prontas = linhas.filter(function(l) { return l.estado === "ok"; }).length;
-      mostrarSituacaoIA("\ud83d\udccb Resumo anual (Aba 3) \u2014 situação das OSs",
-        prontas + " de " + linhas.length + " OSs com o resumo anual completo.", linhas);
-    }
-
+    async function situacaoResumosAnuais() {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usu\u00e1rios M\u00e1ster."); return; }
+      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+      if (!ano || ultimoMesFechado(ano) < 1) { showToast("\u26a0\ufe0f Selecione o ano no Power BI (com m\u00eas fechado)."); return; }
+      showToast("\u23f3 Conferindo meses validados e resumos gravados (alguns segundos)...");
+      try {
+        var sel = await osValidadasAba4(ano);
+        var linhas = sel.entram.map(function(x) {
+          return { rotulo: x.rotulo, estado: "ok", detalhe: "resumo anual em dia (" + x.validados + " m\u00eas(es) validado(s))" };
+        }).concat(sel.fora.map(function(x) {
+          var precisa = /resumo anual/.test(x.motivo);
+          return { rotulo: x.rotulo, estado: precisa ? "pendente" : "parcial", detalhe: x.motivo + (precisa ? "" : " (nada a gerar)") };
+        }));
+        var feitas = sel.entram.length;
+        var aGerar = sel.fora.filter(function(x) { return /resumo anual/.test(x.motivo); }).length;
+        mostrarSituacaoIA("\ud83d\udccb Resumo anual (Aba 3) \u2014 situa\u00e7\u00e3o das OSs",
+          feitas + " OSs com o resumo em dia \u2022 " + aGerar + " a gerar/refazer \u2022 " + (linhas.length - feitas - aGerar) + " sem m\u00eas validado (s\u00f3 meses validados entram).", linhas);
+      } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir.")); }
+    }
+
     // Aba 3: gera o resumo anual da OS selecionada (janeiro ate o ultimo mes fechado) e grava.
     async function gerarResumoAnualComIA() {
       if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
@@ -9418,7 +9493,7 @@ function hydrateFromPowerBI() {
 
       var comDado = [];
       for (var m = inicio; m <= ultimoMes; m++) {
-        var n = notasDaOS(os, m);
+        var n = notasDaOS(os, m, mesesValidadosDaOS(os, m));
         if (n) comDado.push(m);
       }
       if (!comDado.length) { showToast("\u26a0\ufe0f Nenhum mes com dado apurado nesta OS."); return; }
