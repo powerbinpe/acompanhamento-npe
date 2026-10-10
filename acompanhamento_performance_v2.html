@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-10 19:22";
+    window.NPE_BUILD = "2026-10-10 19:39";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -7348,7 +7348,7 @@ function hydrateFromPowerBI() {
           var idAtual = parseInt(l.id, 10) || 0;
           // Se houver mais de uma linha da mesma OS (grava\u00e7\u00e3o antiga sem id), vale a mais nova.
           if (!mapa[os] || idAtual > mapa[os].id) {
-            mapa[os] = { id: idAtual, resumos: (d && d.resumos) ? d.resumos : {}, meses: (d && Array.isArray(d.meses)) ? d.meses : null };
+            mapa[os] = { id: idAtual, resumos: (d && d.resumos) ? d.resumos : {}, meses: (d && Array.isArray(d.meses)) ? d.meses : null, em: String(l.atualizadoEm || l.geradoEm || "") };
           }
         });
       } catch (e) {}
@@ -7840,7 +7840,12 @@ function hydrateFromPowerBI() {
         var meses = porOS[cod] || {};
         var inicio = 0;
         for (var k = 1; k <= ultimo && !inicio; k++) { if (meses[k] && meses[k].preench) inicio = k; }
-        var item = { os: cod, rotulo: rotuloCompletoOS(o) };
+        var base = baseOSLista(o);
+        var item = { os: cod, rotulo: rotuloCompletoOS(o), codigoLabel: base.codigo, contrato: base.contrato, negocio: base.negocio, gerente: base.gerente };
+        var regRes = resumos[cod];
+        item.resumoN = regRes && regRes.resumos ? Object.keys(regRes.resumos).length : 0;
+        item.resumoMeses = (regRes && Array.isArray(regRes.meses)) ? regRes.meses.slice() : null;
+        item.resumoEm = regRes ? regRes.em : "";
         if (!inicio) { item.motivo = "nenhum mês preenchido até " + (MESES_PT[ultimo - 1] || ultimo); fora.push(item); return; }
         // Decisao do usuario (10/10): entra a OS cujo ULTIMO MES FECHADO esta com os 23 indicadores validados;
         // meses anteriores ainda nao validados nao barram (so o mes validado conta).
@@ -7875,10 +7880,25 @@ function hydrateFromPowerBI() {
       showToast("\u23f3 Conferindo validação e resumos de todas as OSs (alguns segundos)...");
       try {
         var sel = await osValidadasAba4(ano);
-        var linhas = sel.entram.map(function(x) { return { rotulo: x.rotulo, estado: "ok", detalhe: "entra na análise (" + x.validados + " de " + x.periodo + " meses validados)" }; })
-          .concat(sel.fora.map(function(x) { return { rotulo: x.rotulo, estado: "pendente", detalhe: x.motivo }; }));
-        mostrarSituacaoIA("\ud83d\udccb Lições & Riscos (Aba 4) \u2014 quais OSs entram",
-          sel.entram.length + " de " + linhas.length + " OSs entram na análise (com meses validados e resumo anual gerado só com eles).", linhas);
+        var todas = sel.entram.map(function(x) { return { x: x, ok: true }; }).concat(sel.fora.map(function(x) { return { x: x, ok: false }; }));
+        var linhas = todas.map(function(r) {
+          var x = r.x;
+          var precisa = !r.ok && /resumo anual/.test(x.motivo);
+          var estado = r.ok ? "ok" : (precisa ? "pendente" : "parcial");
+          var usa = x.resumoMeses ? mesesCurtos(x.resumoMeses) : (x.resumoN ? "antigo (todos os meses)" : "\u2014");
+          return { estado: estado, cel: [
+            { t: x.codigoLabel }, { t: x.contrato }, { t: x.negocio }, { t: x.gerente }, { t: "" },
+            { t: (x.validados || 0) + " de " + (x.periodo || 0), o: x.validados || 0 },
+            { t: usa }, { t: r.ok ? "Entra na análise" : x.motivo }
+          ] };
+        });
+        mostrarGradeSituacao({
+          titulo: "\ud83d\udccb Lições & Riscos (Aba 4) \u2014 quais OSs entram",
+          resumo: sel.entram.length + " de " + linhas.length + " OSs entram na análise (com meses validados e resumo anual gerado só com eles).",
+          colunas: ["OS", "Contrato", "Negócio", "Gerente", "Entra na análise", "Meses validados", "Resumo usa os meses", "Motivo"],
+          rotulosSituacao: { ok: "Entra", parcial: "Fora", pendente: "Fora" },
+          idxSit: 4, arquivo: "licoes_aba4", linhas: linhas
+        });
       } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as OSs.")); }
     }
     window.situacaoLicoes = situacaoLicoes;
@@ -8673,45 +8693,172 @@ function hydrateFromPowerBI() {
 
     // ---- Lista de situacao (modal) e botoes de IA da Aba 3 ----
 
-    // Modal simples com uma tabela. linhas: [{ rotulo, estado ("ok"|"parcial"|"pendente"|"erro"), detalhe }].
-    function mostrarSituacaoIA(titulo, resumoTxt, linhas) {
-      var cor = { ok: "#15803d", parcial: "#b45309", pendente: "#b91c1c", erro: "#b91c1c" };
-      var nome = { ok: "Pronto", parcial: "Parcial", pendente: "Pendente", erro: "Erro" };
-      var ordem = { pendente: 0, erro: 0, parcial: 1, ok: 2 };
-      linhas = linhas.slice().sort(function(a, b) {
-        return (ordem[a.estado] - ordem[b.estado]) || String(a.rotulo).localeCompare(String(b.rotulo));
-      });
-      var fundo = document.createElement("div");
-      fundo.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh;" +
-        "background:rgba(11,26,58,0.90); z-index:999999999; display:flex;" +
-        "justify-content:center; align-items:flex-start; padding:28px 20px; overflow-y:auto;";
-      var corpo = linhas.map(function(l) {
-        return '<tr style="border-bottom:1px solid #e2e8f0;">' +
-          '<td style="padding:6px 10px; font-weight:700; color:#0f2b5c;">' + l.rotulo + '</td>' +
-          '<td style="padding:6px 10px; font-weight:800; color:' + cor[l.estado] + ';">' + nome[l.estado] + '</td>' +
-          '<td style="padding:6px 10px; color:#475569;">' + (l.detalhe || "") + '</td></tr>';
-      }).join("");
-      fundo.innerHTML =
-        '<div style="background:#fff; border-radius:14px; width:100%; border:2.5px solid #7c3aed; overflow:hidden; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
-          '<div style="background:linear-gradient(135deg,#5b21b6,#7c3aed); padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">' + titulo + '</div>' +
-          '<div style="padding:14px 20px 6px; font-size:0.92rem; color:#334155; font-weight:700;">' + resumoTxt + '</div>' +
-          '<div style="padding:0 20px 8px; max-height:60vh; overflow:auto;"><table style="width:100%; border-collapse:collapse; font-size:0.88rem;">' +
-            '<thead><tr style="background:#f8fafc; text-align:left;"><th style="padding:6px 10px;">OS</th><th style="padding:6px 10px;">Situação</th><th style="padding:6px 10px;">Detalhe</th></tr></thead>' +
-            '<tbody>' + corpo + '</tbody></table></div>' +
-          '<div style="padding:8px 20px 18px; display:flex; justify-content:flex-end;">' +
-            '<button type="button" data-fechar="1" style="background:#e2e8f0; color:#475569; border:none; padding:9px 18px; border-radius:8px; font-weight:800; cursor:pointer;">Fechar</button>' +
-          '</div>' +
-        '</div>';
-      fundo.addEventListener("click", function(ev) {
-        if (ev.target === fundo || (ev.target.getAttribute && ev.target.getAttribute("data-fechar"))) {
-          try { document.body.removeChild(fundo); } catch (e) {}
-        }
-      });
-      document.body.appendChild(fundo);
-      ajustarCaixaAoVisual(fundo);
-      try { window.scrollTo(0, 0); } catch (e) {}
-    }
-
+    // ---- Grade de situacao (Abas 1, 3, 4 e 5): colunas, filtros, busca, ordenacao e CSV ----------------------------
+
+    function escH(t) {
+      return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // Colunas fixas da grade: vem do cadastro/hierarquia que o app ja carregou (nada e montado).
+    function baseOSLista(o) {
+      var h = (window.OS_HIER || {})[o.codigo] || {};
+      return {
+        codigo: formatOSLabel(o.rotulo || o.codigo),
+        contrato: o.desc || h.desc || "",
+        negocio: o.neg || h.neg || "",
+        gerente: o.ger || h.ger || ""
+      };
+    }
+
+    function dataCurta(iso) {
+      var t = String(iso || "");
+      return (t.length >= 10 && t.charAt(4) === "-") ? t.slice(8, 10) + "/" + t.slice(5, 7) : "";
+    }
+
+    // cfg: { titulo, resumo, colunas: [...], idxSit, rotulosSituacao?, arquivo,
+    //        linhas: [{ estado: "ok"|"parcial"|"pendente", cel: [{ t: texto, o: valorParaOrdenar? }, ...] }] }
+    function mostrarGradeSituacao(cfg) {
+      var ROT = cfg.rotulosSituacao || { ok: "Pronto", parcial: "Parcial", pendente: "Pendente" };
+      var COR = { ok: ["#dcfce7", "#166534"], parcial: ["#fef3c7", "#92400e"], pendente: ["#fee2e2", "#991b1b"] };
+      var RANK = { pendente: 0, parcial: 1, ok: 2 };
+      var idxSit = cfg.idxSit;
+      var st = { filtro: "todas", busca: "", col: -1, dir: 1 };
+      var linhas = cfg.linhas || [];
+
+      var fundo = document.createElement("div");
+      fundo.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh;" +
+        "background:rgba(11,26,58,0.90); z-index:999999999; display:flex;" +
+        "justify-content:center; align-items:flex-start; padding:18px 14px; overflow-y:auto;";
+      var btn = "border:none; border-radius:8px; padding:8px 14px; font-weight:800; font-size:0.84rem; cursor:pointer;";
+      fundo.innerHTML =
+        '<div style="background:#fff; border-radius:14px; width:100%; border:2.5px solid #7c3aed; overflow:hidden; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
+          '<div style="background:linear-gradient(135deg,#5b21b6,#7c3aed); padding:12px 18px; color:#fff; font-weight:800; font-size:1.02rem;">' + cfg.titulo + '</div>' +
+          '<div style="padding:10px 18px 2px; font-size:0.9rem; color:#334155; font-weight:700;">' + cfg.resumo + '</div>' +
+          '<div data-k style="display:flex; gap:10px; flex-wrap:wrap; padding:6px 18px;"></div>' +
+          '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:4px 18px 8px;">' +
+            '<button type="button" data-f="todas" style="' + btn + '">Todas</button>' +
+            '<button type="button" data-f="pend" style="' + btn + '">Pendentes</button>' +
+            '<button type="button" data-f="ok" style="' + btn + '">Prontas</button>' +
+            '<input data-busca type="text" placeholder="Buscar OS, contrato, negócio ou gerente" style="flex:1; min-width:200px; padding:8px 10px; border:1.5px solid #94a3b8; border-radius:8px; font-size:0.86rem;">' +
+            '<button type="button" data-csv style="' + btn + ' background:#0e7490; color:#fff;">&#128196; Exportar CSV</button>' +
+          '</div>' +
+          '<div style="padding:0 18px 6px; max-height:64vh; overflow:auto;"><table data-tab style="width:100%; border-collapse:collapse; font-size:0.88rem;"></table></div>' +
+          '<div style="padding:6px 18px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px;">' +
+            '<span data-cont style="font-size:0.82rem; color:#64748b;"></span>' +
+            '<button type="button" data-fechar style="' + btn + ' background:#e2e8f0; color:#475569;">Fechar</button>' +
+          '</div>' +
+        '</div>';
+
+      function visiveis() {
+        var q = st.busca.toLowerCase();
+        var v = linhas.filter(function(l) {
+          if (st.filtro === "pend" && l.estado === "ok") return false;
+          if (st.filtro === "ok" && l.estado !== "ok") return false;
+          if (!q) return true;
+          return l.cel.map(function(c) { return c.t; }).join(" ").toLowerCase().indexOf(q) !== -1;
+        });
+        v.sort(function(a, b) {
+          if (st.col < 0) {
+            return ((RANK[a.estado] - RANK[b.estado]) || String(a.cel[0].t).localeCompare(String(b.cel[0].t), "pt-BR", { numeric: true }));
+          }
+          var ca = a.cel[st.col], cb = b.cel[st.col], r;
+          if (st.col === idxSit) r = RANK[a.estado] - RANK[b.estado];
+          else if (typeof ca.o === "number" && typeof cb.o === "number") r = ca.o - cb.o;
+          else r = String(ca.t).localeCompare(String(cb.t), "pt-BR", { numeric: true });
+          return r * st.dir;
+        });
+        return v;
+      }
+
+      function textoCelula(l, i) { return i === idxSit ? ROT[l.estado] : l.cel[i].t; }
+
+      function desenhar() {
+        var v = visiveis();
+        var total = linhas.length;
+        var prontas = linhas.filter(function(l) { return l.estado === "ok"; }).length;
+        var pend = linhas.filter(function(l) { return l.estado === "pendente"; }).length;
+        var parc = total - prontas - pend;
+        function cartao(rot, val, cor) {
+          return '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:6px 12px; min-width:130px;">' +
+            '<div style="font-size:0.74rem; color:#64748b; font-weight:700;">' + rot + '</div>' +
+            '<div style="font-size:1.25rem; font-weight:800; color:' + cor + ';">' + val + '</div></div>';
+        }
+        fundo.querySelector("[data-k]").innerHTML =
+          cartao("OSs elegíveis", total, "#0f2b5c") + cartao("Prontas", prontas, "#166534") +
+          cartao("A gerar / refazer", pend, "#991b1b") + cartao("Nada a gerar", parc, "#92400e");
+        Array.prototype.forEach.call(fundo.querySelectorAll("[data-f]"), function(b) {
+          var on = b.getAttribute("data-f") === st.filtro;
+          b.style.background = on ? "#ede9fe" : "#f1f5f9";
+          b.style.color = on ? "#5b21b6" : "#475569";
+        });
+        var cab = '<thead><tr>' + cfg.colunas.map(function(c, i) {
+          var seta = st.col === i ? (st.dir === 1 ? " \u25b2" : " \u25bc") : "";
+          return '<th data-c="' + i + '" title="Clique para ordenar" style="text-align:left; padding:8px 8px; background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0; cursor:pointer; white-space:nowrap; color:#334155;">' + escH(c) + seta + '</th>';
+        }).join("") + '</tr></thead>';
+        var corpo = '<tbody>' + v.map(function(l) {
+          return '<tr style="border-bottom:1px solid #e2e8f0;">' + l.cel.map(function(c, i) {
+            if (i === idxSit) {
+              return '<td style="padding:6px 8px; white-space:nowrap;"><span style="display:inline-block; padding:2px 10px; border-radius:999px; font-weight:800; font-size:0.8rem; background:' +
+                COR[l.estado][0] + '; color:' + COR[l.estado][1] + ';">' + escH(ROT[l.estado]) + '</span></td>';
+            }
+            return '<td style="padding:6px 8px; vertical-align:top;' + (i === 0 ? " font-weight:800; color:#0f2b5c; white-space:nowrap;" : "") + '">' + escH(c.t) + '</td>';
+          }).join("") + '</tr>';
+        }).join("") + '</tbody>';
+        fundo.querySelector("[data-tab]").innerHTML = cab + corpo;
+        fundo.querySelector("[data-cont]").textContent = v.length + " de " + total + " OSs na lista.";
+      }
+
+      function exportarCsv() {
+        var v = visiveis();
+        var cab = cfg.colunas;
+        var linhasCsv = [cab].concat(v.map(function(l) { return cab.map(function(_, i) { return textoCelula(l, i); }); }));
+        var csv = linhasCsv.map(function(r) {
+          return r.map(function(x) { return '"' + String(x == null ? "" : x).replace(/"/g, '""') + '"'; }).join(";");
+        }).join("\r\n");
+        try {
+          var blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = url;
+          a.download = (cfg.arquivo || "situacao") + "_" + new Date().toISOString().slice(0, 10) + ".csv";
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(function() { try { URL.revokeObjectURL(url); } catch (e) {} }, 3000);
+        } catch (e) {}
+        try {
+          var ta = document.createElement("textarea");
+          ta.value = csv; ta.style.cssText = "position:fixed; left:-9999px; top:0;";
+          document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+        } catch (e) {}
+        showToast("\ud83d\udcc4 CSV com " + v.length + " linha(s). Se o visual bloquear o download, o texto foi copiado: cole numa planilha.");
+      }
+
+      fundo.addEventListener("click", function(ev) {
+        var t = ev.target;
+        if (t === fundo || (t.getAttribute && t.getAttribute("data-fechar") !== null)) {
+          try { document.body.removeChild(fundo); } catch (e) {}
+          return;
+        }
+        var f = t.closest ? t.closest("[data-f]") : null;
+        if (f) { st.filtro = f.getAttribute("data-f"); desenhar(); return; }
+        if (t.closest && t.closest("[data-csv]")) { exportarCsv(); return; }
+        var th = t.closest ? t.closest("th[data-c]") : null;
+        if (th) {
+          var c = parseInt(th.getAttribute("data-c"), 10);
+          if (st.col === c) st.dir = -st.dir; else { st.col = c; st.dir = 1; }
+          desenhar();
+        }
+      });
+      fundo.querySelector("[data-busca]").addEventListener("input", function(ev) { st.busca = ev.target.value || ""; desenhar(); });
+      document.body.appendChild(fundo);
+      ajustarCaixaAoVisual(fundo);
+      desenhar();
+      try { window.scrollTo(0, 0); } catch (e) {}
+    }
+
+    function mesesCurtos(lista) {
+      return (lista || []).map(function(m) { return (MESES_PT[m - 1] || m).slice(0, 3).toLowerCase(); }).join(", ");
+    }
+
     function iaConfiguradaNesteNavegador() {
       return String(lerConfigIA("npe_gemini_api_key", "") || "").trim().length >= 20 ||
         String(lerConfigIA("npe_flow_gerar_texto_gpt41_url", "")).indexOf("http") === 0;
@@ -8719,22 +8866,35 @@ function hydrateFromPowerBI() {
 
     // Aba 3: quais OSs ja tem o resumo anual gravado (SNAPSHOT ano 9996) e quais faltam.
     async function situacaoResumosAnuais() {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usu\u00e1rios M\u00e1ster."); return; }
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
       var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
-      if (!ano || ultimoMesFechado(ano) < 1) { showToast("\u26a0\ufe0f Selecione o ano no Power BI (com m\u00eas fechado)."); return; }
+      if (!ano || ultimoMesFechado(ano) < 1) { showToast("\u26a0\ufe0f Selecione o ano no Power BI (com mês fechado)."); return; }
       showToast("\u23f3 Conferindo meses validados e resumos gravados (alguns segundos)...");
       try {
         var sel = await osValidadasAba4(ano);
-        var linhas = sel.entram.map(function(x) {
-          return { rotulo: x.rotulo, estado: "ok", detalhe: "resumo anual em dia (" + x.validados + " m\u00eas(es) validado(s))" };
-        }).concat(sel.fora.map(function(x) {
-          var precisa = /resumo anual/.test(x.motivo);
-          return { rotulo: x.rotulo, estado: precisa ? "pendente" : "parcial", detalhe: x.motivo + (precisa ? "" : " (nada a gerar)") };
-        }));
+        var todas = sel.entram.map(function(x) { return { x: x, ok: true }; }).concat(sel.fora.map(function(x) { return { x: x, ok: false }; }));
+        var linhas = todas.map(function(r) {
+          var x = r.x;
+          var precisa = !r.ok && /resumo anual/.test(x.motivo);
+          var estado = r.ok ? "ok" : (precisa ? "pendente" : "parcial");
+          var resumoTxt = x.resumoN
+            ? (x.resumoN + " indicadores" + (x.resumoEm ? " \u00b7 " + dataCurta(x.resumoEm) : "") + (x.resumoMeses ? " \u00b7 meses: " + mesesCurtos(x.resumoMeses) : " \u00b7 antigo (todos os meses)"))
+            : "sem resumo";
+          var acao = r.ok ? "Em dia" : (precisa ? ((x.resumoN ? "Refazer" : "Gerar") + " na Aba 3") : x.motivo);
+          return { estado: estado, cel: [
+            { t: x.codigoLabel }, { t: x.contrato }, { t: x.negocio }, { t: x.gerente }, { t: "" },
+            { t: (x.validados || 0) + " de " + (x.periodo || 0), o: x.validados || 0 },
+            { t: resumoTxt, o: x.resumoN || 0 }, { t: acao }
+          ] };
+        });
         var feitas = sel.entram.length;
-        var aGerar = sel.fora.filter(function(x) { return /resumo anual/.test(x.motivo); }).length;
-        mostrarSituacaoIA("\ud83d\udccb Resumo anual (Aba 3) \u2014 situa\u00e7\u00e3o das OSs",
-          feitas + " OSs com o resumo em dia \u2022 " + aGerar + " a gerar/refazer \u2022 " + (linhas.length - feitas - aGerar) + " sem m\u00eas validado (s\u00f3 meses validados entram).", linhas);
+        var aGerar = linhas.filter(function(l) { return l.estado === "pendente"; }).length;
+        mostrarGradeSituacao({
+          titulo: "\ud83d\udccb Resumo anual (Aba 3) \u2014 situação das OSs",
+          resumo: feitas + " OSs com o resumo em dia \u2022 " + aGerar + " a gerar/refazer \u2022 só os meses validados entram.",
+          colunas: ["OS", "Contrato", "Negócio", "Gerente", "Situação", "Meses validados", "Resumo anual", "Próxima ação"],
+          idxSit: 4, arquivo: "resumo_anual_aba3", linhas: linhas
+        });
       } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir.")); }
     }
 
@@ -8782,70 +8942,95 @@ function hydrateFromPowerBI() {
     window.situacaoResumosAnuais = situacaoResumosAnuais;
 
 
-    // Aba 5: quais OSs ja tem as notas do ano gravadas (ate o ultimo mes fechado).
-    async function situacaoNotasAno() {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
-      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
-      if (!ano) { showToast("\u26a0\ufe0f Selecione o ano no Power BI."); return; }
-      var ultimo = ultimoMesFechado(ano);
-      if (ultimo < 1) { showToast("\u26a0\ufe0f Nenhum mês fechado em " + ano + " ainda."); return; }
-      showToast("\u23f3 Lendo as notas gravadas...");
-      try { await garantirHierarquia(); } catch (e) {}
-      var notas = await tab5Post(window.FLOW_LER_NOTAS_URL, { ano: ano });
-      var porOS = {};
-      (notas || []).forEach(function(r) {
-        var os = extractPrimaryOSCode(String(r.os || "").toUpperCase()) || String(r.os || "").toUpperCase();
-        var m = parseInt(r.mes, 10);
-        if (!os || !m || m > 12) return;
-        (porOS[os] = porOS[os] || {})[m] = true;
-      });
-      var linhas = tab5OSElegiveis().map(function(o) {
-        var meses = Object.keys(porOS[String(o.codigo).toUpperCase()] || {}).map(Number).filter(function(m) { return m <= ultimo; }).sort(function(a, b) { return a - b; });
-        var temUltimo = meses.indexOf(ultimo) !== -1;
-        return {
-          rotulo: rotuloCompletoOS(o),
-          estado: temUltimo ? "ok" : (meses.length ? "parcial" : "pendente"),
-          detalhe: meses.length ? "meses gravados: " + meses.join(", ") : "sem nota gravada (OS sem mês preenchido não recebe nota)"
-        };
-      });
-      var prontas = linhas.filter(function(l) { return l.estado === "ok"; }).length;
-      mostrarSituacaoIA("\ud83d\udccb Notas do ano (Aba 5) \u2014 situação das OSs",
-        prontas + " de " + linhas.length + " OSs com a nota de " + (MESES_PT[ultimo - 1] || ultimo) + " (último mês fechado) gravada.", linhas);
-    }
+    // Aba 5: por OS, as notas gravadas dos MESES VALIDADOS (so eles contam) e o acumulado sobre eles.
+    async function situacaoNotasAno() {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
+      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+      if (!ano) { showToast("\u26a0\ufe0f Selecione o ano no Power BI."); return; }
+      var ultimo = ultimoMesFechado(ano);
+      if (ultimo < 1) { showToast("\u26a0\ufe0f Nenhum mês fechado em " + ano + " ainda."); return; }
+      showToast("\u23f3 Conferindo meses validados e notas gravadas (alguns segundos)...");
+      try {
+        var sel = await osValidadasAba4(ano);
+        var notas = await tab5Post(window.FLOW_LER_NOTAS_URL, { ano: ano });
+        var nPorOS = {};
+        (notas || []).forEach(function(r) {
+          var os = extractPrimaryOSCode(String(r.os || "").toUpperCase()) || String(r.os || "").toUpperCase();
+          var m = parseInt(r.mes, 10);
+          if (!os || !m || m > 12) return;
+          (nPorOS[os] = nPorOS[os] || {})[m] = parseFloat(r.notaMes);
+        });
+        var linhas = sel.entram.concat(sel.fora).map(function(x) {
+          var val = x.listaMeses || [];
+          var gravados = Object.keys(nPorOS[x.os] || {}).map(Number).filter(function(m) { return m <= ultimo; }).sort(function(a, b) { return a - b; });
+          var comNota = val.filter(function(m) { return gravados.indexOf(m) !== -1; });
+          var soma = 0;
+          comNota.forEach(function(m) { var n = nPorOS[x.os][m]; if (isFinite(n)) soma += n; });
+          var acum = comNota.length ? soma / comNota.length : null;
+          var estado = !val.length ? "parcial" : (comNota.length === val.length ? "ok" : (comNota.length ? "parcial" : "pendente"));
+          return { estado: estado, cel: [
+            { t: x.codigoLabel }, { t: x.contrato }, { t: x.negocio }, { t: x.gerente }, { t: "" },
+            { t: (x.validados || 0) + " de " + (x.periodo || 0), o: x.validados || 0 },
+            { t: gravados.length ? mesesCurtos(gravados) : "sem nota gravada" , o: gravados.length },
+            { t: acum === null ? "\u2014" : acum.toFixed(1).replace(".", ","), o: acum === null ? -1 : acum }
+          ] };
+        });
+        var prontas = linhas.filter(function(l) { return l.estado === "ok"; }).length;
+        mostrarGradeSituacao({
+          titulo: "\ud83d\udccb Notas do ano (Aba 5) \u2014 situação das OSs",
+          resumo: prontas + " de " + linhas.length + " OSs com nota gravada em todos os meses validados (até " + (MESES_PT[ultimo - 1] || ultimo) + "). OS sem mês validado não entra na nota.",
+          colunas: ["OS", "Contrato", "Negócio", "Gerente", "Situação", "Meses validados", "Notas gravadas", "Acumulado (validados)"],
+          idxSit: 4, arquivo: "notas_aba5", linhas: linhas
+        });
+      } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as notas.")); }
+    }
     window.situacaoNotasAno = situacaoNotasAno;
 
-    // Aba 1: para o mes selecionado, quais OSs ja tem os pareceres escritos e quantos indicadores estao validados.
-    async function situacaoPareceresMes() {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
-      var pp = new URLSearchParams(window.location.search);
-      var ano = parseInt(pp.get("SelectedAno"), 10);
-      var mes = getMonthNumberFromParams(pp);
-      if (!ano || !mes) { showToast("\u26a0\ufe0f Selecione ano e mês no Power BI."); return; }
-      showToast("\u23f3 Lendo os pareceres do mês...");
-      try { await garantirHierarquia(); } catch (e) {}
-      var rows = await tab5Post(window.FLOW_LER_ATA_ANO_URL, { ano: ano, mes: mes });
-      var porOS = {};
-      (rows || []).forEach(function(r) {
-        var os = extractPrimaryOSCode(String(r.os || "").toUpperCase()) || String(r.os || "").toUpperCase();
-        var t = parseInt(r.topico, 10);
-        if (!os || !(t === 26 || t === 27 || (t >= 1 && t <= 23))) return;
-        var o = porOS[os] = porOS[os] || { pareceres: 0, validados: 0 };
-        var texto = String(r.master || "").trim();
-        if (texto && texto !== "Sem parecer registrado") o.pareceres++;
-        if (String(r.status || "") === "Validado" && t <= 23) o.validados++;
-      });
-      var linhas = tab5OSElegiveis().map(function(o) {
-        var x = porOS[String(o.codigo).toUpperCase()] || { pareceres: 0, validados: 0 };
-        return {
-          rotulo: rotuloCompletoOS(o),
-          estado: x.pareceres >= 23 ? "ok" : (x.pareceres > 0 ? "parcial" : "pendente"),
-          detalhe: x.pareceres + " de 25 pareceres escritos \u2022 " + x.validados + " de 23 indicadores validados"
-        };
-      });
-      var prontas = linhas.filter(function(l) { return l.estado === "ok"; }).length;
-      mostrarSituacaoIA("\ud83d\udccb Pareceres de " + (MESES_PT[mes - 1] || mes) + "/" + ano + " \u2014 situação das OSs",
-        prontas + " de " + linhas.length + " OSs com os pareceres do mês escritos (23 ou mais).", linhas);
-    }
+    // Aba 1: para o mes selecionado (so ele), quantos pareceres, validacoes e justificativas cada OS tem.
+    async function situacaoPareceresMes() {
+      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
+      var pp = new URLSearchParams(window.location.search);
+      var ano = parseInt(pp.get("SelectedAno"), 10);
+      var mes = getMonthNumberFromParams(pp);
+      if (!ano || !mes) { showToast("\u26a0\ufe0f Selecione ano e mês no Power BI."); return; }
+      showToast("\u23f3 Lendo os pareceres do mês...");
+      try { await garantirHierarquia(); } catch (e) {}
+      var rows = await tab5Post(window.FLOW_LER_ATA_ANO_URL, { ano: ano, mes: mes });
+      var porOS = {};
+      (rows || []).forEach(function(r) {
+        var os = extractPrimaryOSCode(String(r.os || "").toUpperCase()) || String(r.os || "").toUpperCase();
+        var t = parseInt(r.topico, 10);
+        if (!os || !(t === 26 || t === 27 || (t >= 1 && t <= 23))) return;
+        var o = porOS[os] = porOS[os] || { pareceres: 0, validados: 0, justif: 0 };
+        var texto = String(r.master || "").trim();
+        if (texto && texto !== "Sem parecer registrado") o.pareceres++;
+        if (t <= 23) {
+          if (String(r.status || "") === "Validado") o.validados++;
+          var g = String(r.gestor || "").trim();
+          if (g && g !== "Sem justificativas") o.justif++;
+        }
+      });
+      var linhas = tab5OSElegiveis().map(function(o) {
+        var b = baseOSLista(o);
+        var x = porOS[String(o.codigo).toUpperCase()] || { pareceres: 0, validados: 0, justif: 0 };
+        return {
+          estado: x.pareceres >= 23 ? "ok" : (x.pareceres > 0 ? "parcial" : "pendente"),
+          cel: [
+            { t: b.codigo }, { t: b.contrato }, { t: b.negocio }, { t: b.gerente }, { t: "" },
+            { t: x.pareceres + " de 25", o: x.pareceres },
+            { t: x.validados + " de 23", o: x.validados },
+            { t: x.justif + " de 23", o: x.justif }
+          ]
+        };
+      });
+      var prontas = linhas.filter(function(l) { return l.estado === "ok"; }).length;
+      mostrarGradeSituacao({
+        titulo: "\ud83d\udccb Pareceres de " + (MESES_PT[mes - 1] || mes) + "/" + ano + " \u2014 situação das OSs",
+        resumo: prontas + " de " + linhas.length + " OSs com os pareceres do mês escritos (23 ou mais). Só o mês selecionado.",
+        colunas: ["OS", "Contrato", "Negócio", "Gerente", "Situação", "Pareceres escritos", "Indicadores validados", "Justificativas do gestor"],
+        idxSit: 4, arquivo: "pareceres_" + (MESES_PT[mes - 1] || mes).toLowerCase() + "_aba1", linhas: linhas
+      });
+    }
     window.situacaoPareceresMes = situacaoPareceresMes;
 
     // Janela para colar a URL dos fluxos de IA. As URLs carregam a chave de acesso do fluxo, por isso
