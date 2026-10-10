@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-10 20:35";
+    window.NPE_BUILD = "2026-10-10 20:51";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -7896,8 +7896,9 @@ function hydrateFromPowerBI() {
           titulo: "\ud83d\udccb Lições & Riscos (Aba 4) \u2014 quais OSs entram",
           resumo: sel.entram.length + " de " + linhas.length + " OSs entram na análise (com meses validados e resumo anual gerado só com eles).",
           colunas: ["OS", "Contrato", "Negócio", "Gerente", "Entra na análise", "Meses validados", "Resumo usa os meses", "Motivo"],
-          rotulosSituacao: { ok: "Entra", parcial: "Fora", pendente: "Fora" },
-          idxSit: 4, larguras: [9, 16, 7, 13, 8, 9, 16, 22], arquivo: "licoes_aba4", linhas: linhas
+          rotulosSituacao: { ok: "Entra", parcial: "Sem validação", pendente: "Falta resumo" },
+          cartoes: { pend: "Validadas, falta resumo (Aba 3)", parc: "Sem mês validado" },
+          idxSit: 4, larguras: [9, 15, 7, 13, 10, 9, 15, 22], arquivo: "licoes_aba4", linhas: linhas
         });
       } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as OSs.")); }
     }
@@ -8785,7 +8786,7 @@ function hydrateFromPowerBI() {
         }
         fundo.querySelector("[data-k]").innerHTML =
           cartao("OSs elegíveis", total, "#0f2b5c") + cartao("Prontas", prontas, "#166534") +
-          cartao("A gerar / refazer", pend, "#991b1b") + cartao("Nada a gerar", parc, "#92400e");
+          cartao((cfg.cartoes && cfg.cartoes.pend) || "A gerar / refazer", pend, "#991b1b") + cartao((cfg.cartoes && cfg.cartoes.parc) || "Nada a gerar", parc, "#92400e");
         Array.prototype.forEach.call(fundo.querySelectorAll("[data-f]"), function(b) {
           var on = b.getAttribute("data-f") === st.filtro;
           b.style.background = on ? "#ede9fe" : "#f1f5f9";
