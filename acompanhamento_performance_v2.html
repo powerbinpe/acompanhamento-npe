@@ -455,7 +455,7 @@
         </p>
       </div>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <button type="button" id="btnSituacaoLicoes" data-action="situacaoLicoes" title="Mostra quais OSs entram na analise da Aba 4 (todos os meses validados e resumo anual gravado) e quais ficam de fora." style="display:none; background:#ecfdf5; color:#047857; border:1.5px solid #6ee7b7; padding:9px 14px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+        <button type="button" id="btnSituacaoLicoes" data-action="situacaoLicoes" title="Mostra quais OSs entram na analise da Aba 4 (ultimo mes fechado validado e resumo anual gravado) e quais ficam de fora." style="display:none; background:#ecfdf5; color:#047857; border:1.5px solid #6ee7b7; padding:9px 14px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
           &#128203; Situa&ccedil;&atilde;o das OSs
         </button>
         <button type="button" id="btnGerarLicoesIA" data-action="gerarLicoesComIA" title="Gera com a IA os tres quadros (o que deu certo, o que nao deu, gestao de risco) a partir dos resumos anuais das OSs validadas." style="display:none; background:linear-gradient(135deg,#10b981,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-09 16:00";
+    window.NPE_BUILD = "2026-10-10 19:09";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -7763,9 +7763,15 @@ function hydrateFromPowerBI() {
         for (var k = 1; k <= ultimo && !inicio; k++) { if (meses[k] && meses[k].preench) inicio = k; }
         var item = { os: cod, rotulo: rotuloCompletoOS(o) };
         if (!inicio) { item.motivo = "nenhum mês preenchido até " + (MESES_PT[ultimo - 1] || ultimo); fora.push(item); return; }
-        var faltam = [];
-        for (var k2 = inicio; k2 <= ultimo; k2++) { if (!meses[k2] || meses[k2].val < 23) faltam.push(k2); }
-        if (faltam.length) { item.motivo = "falta validar " + (faltam.length === 1 ? "o mês " : "os meses ") + faltam.join(", ") + " (de " + inicio + " a " + ultimo + ")"; fora.push(item); return; }
+        // Decisao do usuario (10/10): entra a OS cujo ULTIMO MES FECHADO esta com os 23 indicadores validados;
+        // meses anteriores ainda nao validados nao barram (so o mes validado conta).
+        var validados = 0;
+        for (var k2 = inicio; k2 <= ultimo; k2++) { if (meses[k2] && meses[k2].val >= 23) validados++; }
+        item.validados = validados; item.periodo = ultimo - inicio + 1;
+        if (!meses[ultimo] || meses[ultimo].val < 23) {
+          item.motivo = "falta validar o mês de " + (MESES_PT[ultimo - 1] || ultimo) + " (" + validados + " de " + item.periodo + " meses validados)";
+          fora.push(item); return;
+        }
         var reg = resumos[cod];
         var n = reg && reg.resumos ? Object.keys(reg.resumos).length : 0;
         if (n < 20) { item.motivo = "validada, mas falta o resumo anual (Aba 3)"; fora.push(item); return; }
@@ -7785,10 +7791,10 @@ function hydrateFromPowerBI() {
       showToast("\u23f3 Conferindo validação e resumos de todas as OSs (alguns segundos)...");
       try {
         var sel = await osValidadasAba4(ano);
-        var linhas = sel.entram.map(function(x) { return { rotulo: x.rotulo, estado: "ok", detalhe: "entra na análise" }; })
+        var linhas = sel.entram.map(function(x) { return { rotulo: x.rotulo, estado: "ok", detalhe: "entra na análise (" + x.validados + " de " + x.periodo + " meses validados)" }; })
           .concat(sel.fora.map(function(x) { return { rotulo: x.rotulo, estado: "pendente", detalhe: x.motivo }; }));
         mostrarSituacaoIA("\ud83d\udccb Lições & Riscos (Aba 4) \u2014 quais OSs entram",
-          sel.entram.length + " de " + linhas.length + " OSs entram na análise (todos os meses validados até " + (MESES_PT[sel.ultimo - 1] || sel.ultimo) + " e resumo anual gravado).", linhas);
+          sel.entram.length + " de " + linhas.length + " OSs entram na análise (mês de " + (MESES_PT[sel.ultimo - 1] || sel.ultimo) + " validado e resumo anual gravado).", linhas);
       } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as OSs.")); }
     }
     window.situacaoLicoes = situacaoLicoes;
@@ -7838,7 +7844,7 @@ function hydrateFromPowerBI() {
       if (!pr.qtdTextos) { showToast("\u26a0\ufe0f Nenhum indicador se destacou pelo critério (80% ou mais, ou um terço ou menos dos meses) nas " + cods.length + " OSs validadas."); return; }
       var segue = await confirmarNaPagina(
         "\ud83e\udd16 Gerar Lições & Riscos com IA",
-        "<b>" + cods.length + " OS(s) validadas</b> entram na análise (" + sel.fora.length + " ficam de fora: falta validar ou falta o resumo anual).\n" +
+        "<b>" + cods.length + " OS(s) validadas</b> entram na análise (" + sel.fora.length + " ficam de fora: falta validar o ultimo mes ou falta o resumo anual).\n" +
         "Ano <b>" + ano + "</b>, janeiro até <b>" + (MONTH_NAMES_FULL_PT[sel.ultimo] || sel.ultimo) + "</b>.\n\n" +
         "Os três quadros da Aba 4 serão <b>substituídos</b> e ficam visíveis para todos.",
         "Gerar e gravar");
