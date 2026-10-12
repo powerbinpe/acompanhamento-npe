@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-12 10:16";
+    window.NPE_BUILD = "2026-10-12 12:15";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -7627,15 +7627,16 @@ function hydrateFromPowerBI() {
       return reg;
     }
 
-    async function salvarLicoes() {
+    async function salvarLicoes(blocosPronto) {
       var s = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
       var quem = s ? (s.login || "") : "";
       if (!window.LICOES_DB) await carregarLicoes();
       var reg = window.LICOES_DB || { id: 0, blocos: {} };
       var blocos = {};
       LICOES_BLOCOS.forEach(function(b) {
-        var el = document.getElementById("licoesTA_" + b.key);
-        var v = el ? (el.value || "").trim() : "";
+        var v;
+        if (blocosPronto) v = String(blocosPronto[b.key] || "").trim();
+        else { var el = document.getElementById("licoesTA_" + b.key); v = el ? (el.value || "").trim() : ""; }
         if (v) blocos[b.key] = v;
       });
       var r = await fetch(window.FLOW_GRAVAR_SNAPSHOT_URL, {
@@ -7946,6 +7947,33 @@ function hydrateFromPowerBI() {
     }
 
     // Aba 4: gera os tres quadros com a IA, so com as OSs validadas, e grava (filtro so do ano).
+    // Aba 4 sem tela (agente): confere quais OSs entram, gera os tres quadros, confere e grava.
+    // opts: { ano?, gravar?, devolverTextos? }. Nao depende de OS nem de mes selecionados.
+    async function processarLicoesAno(opts) {
+      opts = opts || {};
+      var ano = parseInt(opts.ano, 10) || parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+      if (!ano) throw new Error("Ano nao identificado.");
+      if (ultimoMesFechado(ano) < 1) return { aviso: "nenhum mes fechado em " + ano, entram: 0, fora: 0, gravado: null };
+      var sel = await osValidadasAba4(ano);
+      var fora = sel.fora.map(function(x) { return { os: x.os, motivo: x.motivo }; });
+      if (!sel.entram.length) return { aviso: "nenhuma OS entra ainda (" + sel.fora.length + " ficam de fora)", entram: 0, fora: sel.fora.length, foraLista: fora, gravado: null };
+      var cods = sel.entram.map(function(x) { return x.os; });
+      var pr = construirPromptLicoes(sel.resumos, cods, ano, sel.ultimo, sel.mesesPorOS);
+      if (!pr.qtdTextos) return { aviso: "nenhum indicador se destacou pelo criterio nas " + cods.length + " OSs validadas", entram: cods.length, fora: sel.fora.length, foraLista: fora, gravado: null };
+      var blocos = null, motivos = [], chamadas = 0;
+      for (var tent = 0; tent < 2; tent++) {
+        var resp = await chamarGerarTexto("gpt41", pr.texto);
+        chamadas++;
+        blocos = separarBlocosLicoes(resp);
+        motivos = conferirLicoes(blocos);
+        if (!motivos.length) break;
+      }
+      if (motivos.length) return { aviso: "a IA devolveu texto com problema: " + motivos.join("; "), entram: cods.length, fora: sel.fora.length, foraLista: fora, chamadas: chamadas, gravado: false, motivos: motivos, blocos: opts.devolverTextos ? blocos : undefined };
+      var ok = (opts.gravar === false) ? null : await salvarLicoes(blocos);
+      return { entram: cods.length, fora: sel.fora.length, foraLista: fora, chamadas: chamadas, gravado: ok, blocos: opts.devolverTextos ? blocos : undefined };
+    }
+    window.processarLicoesAno = processarLicoesAno;
+
     async function gerarLicoesComIA() {
       if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
       var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);

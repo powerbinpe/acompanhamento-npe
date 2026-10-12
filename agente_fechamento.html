@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Agente do Fechamento - Acompanhamento NPE</title>
+<style>
+  body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; color: #0f2b5c; }
+  #log { background: #0f172a; color: #e2e8f0; font-family: Consolas, monospace; font-size: .8rem; padding: 10px 12px; border-radius: 8px; height: 260px; overflow: auto; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Agente do Fechamento</h1>
+<p>Página sem interface de operação: o executor na nuvem chama <code>window.NPE_AGENTE.rodar(config)</code>. Nenhuma chave ou senha fica neste arquivo; tudo chega em memória pelo executor.</p>
+<div id="log"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+  function log(t) {
+    var linha = "[" + new Date().toISOString().slice(11, 19) + "] " + t;
+    try { var d = document.getElementById("log"); d.textContent += linha + "\n"; d.scrollTop = d.scrollHeight; } catch (e) {}
+    try { if (typeof window.npeLog === "function") window.npeLog(linha); } catch (e) {}
+  }
+  function espera(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function msg(e) { return String(e && e.message ? e.message : e); }
+
+  // ---------- dados de cada OS (fluxo NPE-Ler-Url-App) ----------
+  async function lerUrlOS(cfg, os, ano, mes) {
+    if (String(cfg.urlLerUrlApp || "").indexOf("https://") !== 0) throw new Error("A URL do fluxo NPE-Ler-Url-App nao foi informada.");
+    if (os && !/^[A-Za-z0-9|]{3,24}$/.test(os)) throw new Error("Codigo de OS invalido: " + os);
+    var r = await fetch(cfg.urlLerUrlApp, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ os: os || "", ano: ano, mes: mes }) });
+    if (!r.ok) throw new Error("O fluxo NPE-Ler-Url-App respondeu " + r.status + ".");
+    var j = await r.json();
+    var linha = j && j.firstTableRows && j.firstTableRows[0];
+    var valor = linha ? linha[Object.keys(linha)[0]] : "";
+    var m = String(valor || "").match(/src="([^"]+)"/);
+    if (!m) throw new Error("O modelo nao devolveu os dados da OS " + (os || "(todas)") + ".");
+    return m[1].replace(/&amp;/g, "&");
+  }
+
+  // Abre o app numa moldura fora da tela e espera ficar pronto (mesmo criterio da pagina do fechamento).
+  function abrirNoQuadro(url) {
+    return new Promise(function (resolve, reject) {
+      var f = document.createElement("iframe");
+      f.style.cssText = "position:fixed; left:-12000px; top:0; width:1400px; height:1000px; border:0;";
+      f.src = url;
+      document.body.appendChild(f);
+      var t0 = Date.now();
+      (function poll() {
+        var w = null, pronto = false;
+        try { w = f.contentWindow; } catch (e) {}
+        try {
+          pronto = !!(w && typeof w.processarOSAtual === "function" && w.document &&
+                      w.document.getElementById("master_1") && w.ACTIVE_CONTRACTS_CATALOG && w.ACTIVE_CONTRACTS_CATALOG.length);
+        } catch (e) {}
+        if (pronto) return resolve({ frame: f, win: w });
+        if (Date.now() - t0 > 120000) { try { document.body.removeChild(f); } catch (e) {} return reject(new Error("O app nao ficou pronto em 120 s.")); }
+        setTimeout(poll, 500);
+      })();
+    });
+  }
+  function fecharQuadro(q) { try { document.body.removeChild(q.frame); } catch (e) {} }
+
+  // OSs elegiveis do periodo, na ordem em que o modelo as manda (blocos "M00100|M05100" usam o 1o codigo).
+  async function listarOSs(cfg, ano, mes) {
+    var url = await lerUrlOS(cfg, "", ano, mes);
+    var sp = new URL(url).searchParams;
+    var codigos = (sp.get("AllowedOSList") || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+    var lista = codigos.map(function (c) { return { code: c.split("|")[0], bloco: c }; });
+    if (!lista.length) throw new Error("O modelo nao devolveu nenhuma OS elegivel para " + mes + "/" + ano + ".");
+    return lista;
+  }
+
+  // ---------- acesso Master (usuario de servico) ----------
+  async function entrar(cfg, w) {
+    if (!cfg.login || !cfg.senha) throw new Error("Usuario e senha do agente nao foram informados.");
+    var r = await w.autenticarAcesso(cfg.login, cfg.senha);
+    if (!r || !r.ok) throw new Error("O usuario do agente nao conseguiu entrar: " + ((r && r.erro) || "sem detalhe") + " Confira o login e a senha nos Secrets.");
+    w.gravarSessaoAcesso({ login: r.login, nome: r.nome, perfil: r.perfil, id: r.id, ts: Date.now() });
+    await w.acaoSessaoServidor("abrir", r.hash);
+    w.isMaster = true;
+    return r;
+  }
+
+  // Abre uma moldura de uma OS qualquer so para entrar e deixar a sessao no armazenamento (as demais herdam).
+  async function iniciarSessao(cfg, ano, mes, osQualquer) {
+    var url = await lerUrlOS(cfg, osQualquer, ano, mes);
+    var q = await abrirNoQuadro(url + (url.indexOf("?") === -1 ? "?" : "&") + "NPE_DRY=1");
+    try {
+      var r = await entrar(cfg, q.win);
+      log("Agente entrou como " + r.login + " (perfil " + r.perfil + ").");
+      var ultimo = q.win.ultimoMesFechado(ano);
+      return { ultimoFechado: ultimo };
+    } finally { fecharQuadro(q); }
+  }
+
+  // ---------- uma OS por vez, com 2 tentativas ----------
+  async function porOS(cfg, os, ano, mes, executar) {
+    var falhou = "";
+    for (var tent = 0; tent < 2; tent++) {
+      var q = null;
+      try {
+        var url = await lerUrlOS(cfg, os, ano, mes);
+        if (cfg.gravar === false) url += (url.indexOf("?") === -1 ? "?" : "&") + "NPE_DRY=1";
+        q = await abrirNoQuadro(url);
+        var r = await executar(q.win);
+        fecharQuadro(q);
+        if (r && r.erro && tent === 0) { falhou = r.texto; log("OS " + os + ": " + r.texto + " -- tentando de novo."); await espera(5000); continue; }
+        return r;
+      } catch (e) {
+        falhou = msg(e);
+        if (q) fecharQuadro(q);
+        if (tent === 0) { log("OS " + os + ": " + falhou + " -- tentando de novo."); await espera(5000); }
+      }
+    }
+    return { estado: "erro", texto: falhou, erro: true };
+  }
+
+  function resumoAba1(r, gravar) {
+    var revisar = (r.revisar || []).length > 0 || (r.sintese && ((r.sintese.motivos || []).length > 0 || !r.sintese.gerada));
+    var partes = [r.preenchidos + " parecer(es)"];
+    if (r.validados && r.validados.length) partes.push(r.validados.length + " validados mantidos");
+    if (r.refeitos) partes.push(r.refeitos + " refeito(s)");
+    partes.push("sintese " + (r.sintese && r.sintese.gerada ? "ok" : "nao gerada"));
+    if ((r.revisar || []).length) partes.push("REVISAR " + r.revisar.map(function (x) { return "#" + x.tid; }).join(","));
+    partes.push(r.gravado === null ? "nao gravou (teste)" : (r.gravado ? "gravado na ATA" : "ATA NAO CONFIRMOU"));
+    var erro = gravar && r.gravado === false;
+    return { estado: erro ? "erro" : (revisar ? "revisar" : "ok"), texto: partes.join(" | "), erro: erro };
+  }
+  function resumoAba3(r, gravar) {
+    if (r.aviso) return { estado: "ok", texto: r.aviso };
+    var partes = [r.textos + " resumo(s) ate o mes " + r.mesRef];
+    if (r.refeitos) partes.push(r.refeitos + " refeito(s)");
+    if ((r.revisar || []).length) partes.push("REVISAR " + r.revisar.map(function (x) { return "#" + x.tid; }).join(","));
+    partes.push(r.gravado === null ? "nao gravou (teste)" : (r.gravado ? "gravado" : "NAO GRAVOU"));
+    var erro = gravar && r.gravado === false;
+    return { estado: erro ? "erro" : ((r.revisar || []).length ? "revisar" : "ok"), texto: partes.join(" | "), erro: erro };
+  }
+  function resumoAba5(r, gravar) {
+    if (r.aviso) return { estado: "ok", texto: r.aviso };
+    var n = (r.meses || []).length;
+    var acum = n ? String(r.meses[n - 1].notaAcum).replace(".", ",") : "-";
+    var tail = r.gravado === null ? "nao gravou (teste)" : (r.gravado ? "gravado" : "FALHOU nos meses " + (r.falhou || []).join(","));
+    var erro = gravar && r.gravado === false;
+    return { estado: erro ? "erro" : "ok", texto: n + " mes(es), acum. " + acum + " | " + tail, erro: erro };
+  }
+
+  // ---------- etapas ----------
+  async function etapaLote(cfg, nome, lista, ano, mesRef, estado, executar, pausaMs) {
+    var res = estado[nome] || (estado[nome] = {});
+    var feitos = 0;
+    for (var i = 0; i < lista.length; i++) {
+      var os = lista[i];
+      var prev = res[os];
+      if (prev && prev.estado === "ok" && !cfg.refazer) { continue; }
+      log(nome + ": OS " + os + " (" + (i + 1) + " de " + lista.length + ")...");
+      var r = await porOS(cfg, os, ano, mesRef, executar);
+      res[os] = { estado: r.estado, texto: r.texto, ts: new Date().toISOString() };
+      feitos++;
+      log(nome + ": OS " + os + ": " + r.estado.toUpperCase() + " - " + r.texto);
+      try { if (typeof window.npeEstado === "function") await window.npeEstado(JSON.stringify(estado)); } catch (e) {}
+      await espera(pausaMs);
+    }
+    return feitos;
+  }
+
+  async function rodar(cfg) {
+    var inicio = Date.now();
+    var estado = cfg.estado || {};
+    var relatorio = { inicio: new Date(inicio).toISOString(), ano: cfg.ano, mes: cfg.mes, gravar: cfg.gravar !== false, etapas: {}, avisos: [] };
+    var ano = parseInt(cfg.ano, 10);
+    var etapas = cfg.etapas || ["aba1", "aba5", "aba3", "aba4"];
+    var filtro = (cfg.os || []).map(function (x) { return String(x).toUpperCase(); });
+    try {
+      // OSs do periodo: a lista vale para todas as etapas por OS.
+      var mesLista = parseInt(cfg.mes, 10) || 1;
+      var todas = (await listarOSs(cfg, ano, mesLista)).map(function (x) { return x.code; });
+      if (filtro.length) todas = todas.filter(function (c) { return filtro.indexOf(c.toUpperCase()) !== -1; });
+      log("OSs elegiveis: " + todas.length + ".");
+      var sessao = await iniciarSessao(cfg, ano, mesLista, todas[0]);
+      var ultimo = sessao.ultimoFechado;
+      relatorio.ultimoMesFechado = ultimo;
+      log("Ultimo mes fechado de " + ano + ": " + (MESES[ultimo - 1] || ultimo) + ".");
+      var gravar = cfg.gravar !== false;
+
+      for (var e = 0; e < etapas.length; e++) {
+        var et = etapas[e];
+        var t0 = Date.now();
+        try {
+          if (et === "aba1") {
+            var mes = parseInt(cfg.mes, 10);
+            if (!mes) throw new Error("Informe o mes da Aba 1.");
+            if (mes <= ultimo && !cfg.permitirMesFechado) {
+              relatorio.etapas.aba1 = { aviso: "Mes " + mes + " ja esta fechado (ultimo fechado: " + ultimo + "). Aba 1 nao foi executada; use permitirMesFechado se for proposital." };
+              log(relatorio.etapas.aba1.aviso);
+              continue;
+            }
+            var chave = "aba1_" + ano + "_" + mes;
+            await etapaLote(cfg, chave, todas, ano, mes, estado, async function (w) {
+              return resumoAba1(await w.processarOSAtual({ gravar: gravar }), gravar);
+            }, 3000);
+            relatorio.etapas.aba1 = { chave: chave, resultados: estado[chave] || {} };
+          } else if (et === "aba5") {
+            if (ultimo < 1) throw new Error("Nenhum mes fechado em " + ano + ".");
+            var chave5 = "aba5_" + ano + "_" + ultimo;
+            await etapaLote(cfg, chave5, todas, ano, ultimo, estado, async function (w) {
+              return resumoAba5(await w.processarNotasAnoAtual({ gravar: gravar }), gravar);
+            }, 2500);
+            relatorio.etapas.aba5 = { chave: chave5, resultados: estado[chave5] || {} };
+          } else if (et === "aba3") {
+            if (ultimo < 1) throw new Error("Nenhum mes fechado em " + ano + ".");
+            // So as OSs com mes validado e resumo a gerar/refazer (o app le a ATA e o SharePoint).
+            var q3 = await abrirNoQuadro((await lerUrlOS(cfg, todas[0], ano, ultimo)) + "&NPE_DRY=1");
+            var sel;
+            try { sel = await q3.win.osValidadasAba4(ano); } finally { fecharQuadro(q3); }
+            var pend = sel.fora.filter(function (x) { return /resumo anual/.test(x.motivo); }).map(function (x) { return String(x.os).toUpperCase(); });
+            if (filtro.length) pend = pend.filter(function (c) { return filtro.indexOf(c) !== -1; });
+            var semNada = sel.fora.length - pend.length;
+            log("Aba 3: " + sel.entram.length + " em dia, " + pend.length + " a gerar/refazer, " + semNada + " sem mes validado.");
+            var chave3 = "aba3_" + ano + "_" + ultimo;
+            await etapaLote(cfg, chave3, pend, ano, ultimo, estado, async function (w) {
+              return resumoAba3(await w.processarResumoAnualAtual({ gravar: gravar }), gravar);
+            }, 3000);
+            relatorio.etapas.aba3 = { chave: chave3, emDia: sel.entram.length, aGerar: pend.length, semMesValidado: semNada, resultados: estado[chave3] || {} };
+          } else if (et === "aba4") {
+            if (ultimo < 1) throw new Error("Nenhum mes fechado em " + ano + ".");
+            var url4 = await lerUrlOS(cfg, todas[0], ano, ultimo);
+            var q4 = await abrirNoQuadro(url4 + (gravar ? "" : "&NPE_DRY=1"));
+            try {
+              var r4 = await q4.win.processarLicoesAno({ ano: ano, gravar: gravar, devolverTextos: false });
+              relatorio.etapas.aba4 = r4;
+              log("Aba 4: " + (r4.aviso ? r4.aviso : r4.entram + " OS(s) na analise, " + (r4.gravado === null ? "nao gravou (teste)" : (r4.gravado ? "gravado" : "NAO GRAVOU"))));
+            } finally { fecharQuadro(q4); }
+          } else {
+            relatorio.avisos.push("Etapa desconhecida: " + et);
+          }
+        } catch (err) {
+          relatorio.etapas[et] = Object.assign(relatorio.etapas[et] || {}, { erro: msg(err) });
+          log("ETAPA " + et + " FALHOU: " + msg(err));
+        }
+        log("Etapa " + et + " terminou em " + Math.round((Date.now() - t0) / 1000) + " s.");
+      }
+    } catch (err) {
+      relatorio.erro = msg(err);
+      log("ERRO GERAL: " + msg(err));
+    }
+    relatorio.fim = new Date().toISOString();
+    relatorio.duracaoS = Math.round((Date.now() - inicio) / 1000);
+    relatorio.estado = estado;
+    return relatorio;
+  }
+
+  window.NPE_AGENTE = { rodar: rodar, versao: "2026-10-12" };
+  log("Agente pronto.");
+})();
+</script>
+</body>
+</html>
