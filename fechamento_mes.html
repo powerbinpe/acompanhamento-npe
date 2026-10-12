@@ -45,6 +45,7 @@
   <div id="cfgLista"></div>
   <p class="nota">As URLs ficam só neste navegador (não vão para o código). Campo em branco mantém a URL atual.</p>
   <button id="btnSalvarCfg" class="sec" type="button">Salvar</button>
+  <button id="btnTestarClaude" class="sec" type="button">Testar o Claude</button>
   <button id="btnTestarGemini" class="sec" type="button">Testar o Gemini</button>
   <button id="btnListarModelos" class="sec" type="button">Ver modelos disponíveis</button>
 </section>
@@ -104,6 +105,10 @@
     { k: "npe_flow_ler_url_app_url",        rotulo: "NPE-Ler-Url-App (dados de cada OS)", obrigatoria: true },
     { k: "npe_flow_gerar_texto_mini_url",   rotulo: "NPE-Gerar-Texto-Mini (GPT-4.1 mini)", obrigatoria: true },
     { k: "npe_flow_gerar_texto_gpt41_url",  rotulo: "NPE-Gerar-Texto-GPT41 (GPT-4.1)", obrigatoria: false },
+    { k: "npe_claude_api_key", rotulo: "Chave da API do Claude (Anthropic) - tem prioridade sobre o Gemini e os fluxos", obrigatoria: false, gemini: true, prefixo: "sk-ant-", dica: "Cole a chave da API da Anthropic (começa com sk-ant-)" },
+    { k: "npe_claude_modelo_rapido", rotulo: "Claude - modelo rápido (padrão claude-haiku-5-5)", obrigatoria: false, modelo: true, familia: "claude" },
+    { k: "npe_claude_modelo_forte", rotulo: "Claude - modelo forte (padrão claude-sonnet-5-5)", obrigatoria: false, modelo: true, familia: "claude" },
+    { k: "npe_ia_provedor", rotulo: "Provedor de IA (em branco = Claude se houver chave; escreva gemini para forçar o Gemini)", obrigatoria: false, provedor: true },
     { k: "npe_gemini_api_key", rotulo: "Chave da API do Gemini (se preenchida, substitui os dois fluxos de IA)", obrigatoria: false, gemini: true },
     { k: "npe_gemini_modelo_rapido", rotulo: "Gemini - modelo rápido (padrão gemini-3.5-flash)", obrigatoria: false, modelo: true },
     { k: "npe_gemini_modelo_forte", rotulo: "Gemini - modelo forte (padrão gemini-3.5-flash)", obrigatoria: false, modelo: true }
@@ -123,10 +128,10 @@
   // ---------- configuracao ----------
   function desenharCfg() {
     el("cfgLista").innerHTML = CHAVES.map(function (c, i) {
-      var ok = c.gemini ? lerK(c.k).length >= 20 : (c.modelo ? lerK(c.k).length > 0 : lerK(c.k).indexOf("https://") === 0);
+      var ok = c.gemini ? lerK(c.k).length >= 20 : ((c.modelo || c.provedor) ? lerK(c.k).length > 0 : lerK(c.k).indexOf("https://") === 0);
       return '<div class="cfg"><label>' + esc(c.rotulo) + '<span class="st" style="color:' + (ok ? "var(--ok)" : "var(--erro)") + '">' +
         (ok ? "configurado" : (c.obrigatoria ? "NÃO configurado" : "não configurado (opcional)")) + '</span></label>' +
-        '<input type="' + (c.modelo ? "text" : "password") + '" autocomplete="off" data-i="' + i + '" placeholder="' + (ok ? "Em branco mantém o valor atual" : (c.gemini ? "Cole a chave da API do Google AI Studio" : (c.modelo ? "Opcional: nome do modelo" : "Cole a URL HTTP POST do gatilho"))) + '"></div>';
+        '<input type="' + ((c.modelo || c.provedor) ? "text" : "password") + '" autocomplete="off" data-i="' + i + '" placeholder="' + (ok ? "Em branco mantém o valor atual" : (c.dica ? c.dica : (c.gemini ? "Cole a chave da API do Google AI Studio" : ((c.modelo || c.provedor) ? "Opcional: nome do modelo ou provedor" : "Cole a URL HTTP POST do gatilho")))) + '"></div>';
     }).join("");
   }
   el("btnSalvarCfg").addEventListener("click", function () {
@@ -135,12 +140,40 @@
       var v = String(inp.value || "").trim();
       if (!v) return;
       var cfg = CHAVES[parseInt(inp.getAttribute("data-i"), 10)];
-      if (cfg.gemini ? v.length < 20 : (cfg.modelo ? !/^gemini[A-Za-z0-9._-]{0,60}$/i.test(v) : v.indexOf("https://") !== 0)) { ruins++; return; }
+      var ruim;
+      if (cfg.gemini) ruim = v.length < 20 || !!(cfg.prefixo && v.indexOf(cfg.prefixo) !== 0);
+      else if (cfg.provedor) ruim = !/^(claude|gemini)$/i.test(v);
+      else if (cfg.modelo) ruim = !new RegExp("^" + (cfg.familia || "gemini") + "[A-Za-z0-9._-]{0,60}$", "i").test(v);
+      else ruim = v.indexOf("https://") !== 0;
+      if (ruim) { ruins++; return; }
+      if (cfg.provedor) v = v.toLowerCase();
       if (gravarK(cfg.k, v)) salvos++;
     });
     desenharCfg();
     log(salvos ? salvos + " valor(es) guardado(s) neste navegador." : "Nada novo para guardar.");
     if (ruins) log("Atenção: " + ruins + " valor(es) ignorado(s) por não parecer(em) válido(s).");
+  });
+
+  // ---------- teste do Claude ----------
+  el("btnTestarClaude").addEventListener("click", async function () {
+    var chave = lerK("npe_claude_api_key");
+    if (chave.length < 20) return log("Cole a chave do Claude e clique em Salvar antes de testar.");
+    function nomeValido(n, padrao) { return /^claude[A-Za-z0-9._-]{0,60}$/i.test(n || "") ? n : padrao; }
+    var modelos = [nomeValido(lerK("npe_claude_modelo_rapido"), "claude-haiku-5-5"), nomeValido(lerK("npe_claude_modelo_forte"), "claude-sonnet-5-5")];
+    for (var i = 0; i < modelos.length; i++) {
+      var t0 = Date.now();
+      try {
+        var r = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-api-key": chave, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+          body: JSON.stringify({ model: modelos[i], max_tokens: 256, messages: [{ role: "user", content: "Responda em uma única frase curta, em português: o Claude está funcionando." }] })
+        });
+        var j = await r.json().catch(function () { return {}; });
+        if (!r.ok) { log("Claude " + modelos[i] + ": HTTP " + r.status + " - " + ((j.error && j.error.message) || "sem detalhe")); continue; }
+        var txt = ((j.content || []).filter(function (b) { return b && b.type === "text"; }).map(function (b) { return b.text || ""; }).join("") || "").trim();
+        log("Claude " + modelos[i] + ": ok em " + Math.round((Date.now() - t0) / 100) / 10 + " s - " + (txt || "(sem texto)"));
+      } catch (e) { log("Claude " + modelos[i] + ": falhou - " + (e && e.message ? e.message : e)); }
+    }
   });
 
   // ---------- teste do Gemini ----------
@@ -436,9 +469,9 @@
     });
     if (!fila.length) return log("Nenhuma OS para processar (marque as OSs ou use 'Refazer as já concluídas').");
     var etapaSel = el("etapa").value;
-    var temGemini = lerK("npe_gemini_api_key").length >= 20;
-    if (etapaSel === "aba3" && !temGemini && lerK("npe_flow_gerar_texto_gpt41_url").indexOf("https://") !== 0) return log("Configure a chave do Gemini ou a URL do fluxo NPE-Gerar-Texto-GPT41 antes de começar.");
-    if (etapaSel === "aba1" && !temGemini && lerK("npe_flow_gerar_texto_mini_url").indexOf("https://") !== 0) return log("Configure a chave do Gemini ou a URL do fluxo NPE-Gerar-Texto-Mini antes de começar.");
+    var temGemini = lerK("npe_gemini_api_key").length >= 20 || lerK("npe_claude_api_key").length >= 20;
+    if (etapaSel === "aba3" && !temGemini && lerK("npe_flow_gerar_texto_gpt41_url").indexOf("https://") !== 0) return log("Configure a chave do Claude/Gemini ou a URL do fluxo NPE-Gerar-Texto-GPT41 antes de começar.");
+    if (etapaSel === "aba1" && !temGemini && lerK("npe_flow_gerar_texto_mini_url").indexOf("https://") !== 0) return log("Configure a chave do Claude/Gemini ou a URL do fluxo NPE-Gerar-Texto-Mini antes de começar.");
     var oque = etapaSel === "aba5" ? "as notas (Aba 5) de janeiro até o último mês fechado, substituindo as já gravadas"
              : etapaSel === "aba3" ? "o resumo anual (Aba 3) de janeiro até o último mês fechado, substituindo o que já estava gravado em cada indicador gerado"
              : "os pareceres e a síntese do mês na ATA (o texto de cada indicador NÃO validado será SUBSTITUÍDO; mês fechado não deve ser processado)";
@@ -451,7 +484,8 @@
       if (estado.parar) { log("Parado pelo usuário."); break; }
       await processarUma(fila[k], ano, mes, gravar);
       // Etapas com IA: intervalo maior entre OSs (o plano gratuito do Gemini limita chamadas por minuto).
-      await espera(el("etapa").value === "aba5" ? 2500 : 8000);
+      var usaClaude = lerK("npe_claude_api_key").length >= 20 && lerK("npe_ia_provedor").toLowerCase() !== "gemini";
+      await espera(el("etapa").value === "aba5" ? 2500 : (usaClaude ? 3000 : 8000));
     }
     estado.rodando = false;
     el("btnIniciar").disabled = false; el("btnParar").disabled = true; el("btnCarregar").disabled = false;
