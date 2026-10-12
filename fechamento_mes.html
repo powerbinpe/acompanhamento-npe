@@ -48,6 +48,10 @@
   <button id="btnTestarClaude" class="sec" type="button">Testar o Claude</button>
   <button id="btnTestarGemini" class="sec" type="button">Testar o Gemini</button>
   <button id="btnListarModelos" class="sec" type="button">Ver modelos disponíveis</button>
+  <button id="btnCfgSalvarArquivo" class="sec" type="button">Salvar configuração em arquivo</button>
+  <button id="btnCfgCarregarArquivo" class="sec" type="button">Carregar configuração de arquivo</button>
+  <input id="arqCfg" type="file" accept=".json,application/json" style="display:none">
+  <p class="nota">Se o navegador apagar os dados do site ao fechar, guarde o arquivo numa pasta sua e carregue-o ao abrir a página. O arquivo contém as chaves e URLs em texto: não o coloque no repositório nem o envie a ninguém.</p>
 </section>
 
 <section>
@@ -152,6 +156,52 @@
     desenharCfg();
     log(salvos ? salvos + " valor(es) guardado(s) neste navegador." : "Nada novo para guardar.");
     if (ruins) log("Atenção: " + ruins + " valor(es) ignorado(s) por não parecer(em) válido(s).");
+  });
+
+  // ---------- configuracao em arquivo (para navegadores que apagam os dados do site ao fechar) ----------
+  function valorValido(cfg, v) {
+    if (cfg.gemini) return v.length >= 20 && !(cfg.prefixo && v.indexOf(cfg.prefixo) !== 0);
+    if (cfg.provedor) return /^(claude|gemini)$/i.test(v);
+    if (cfg.modelo) return new RegExp("^" + (cfg.familia || "gemini") + "[A-Za-z0-9._-]{0,60}$", "i").test(v);
+    return v.indexOf("https://") === 0;
+  }
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  el("btnCfgSalvarArquivo").addEventListener("click", function () {
+    var valores = {}, n = 0;
+    CHAVES.forEach(function (c) { var v = lerK(c.k); if (v) { valores[c.k] = v; n++; } });
+    if (!n) return log("Nada configurado neste navegador para salvar em arquivo.");
+    try {
+      var blob = new Blob([JSON.stringify({ versao: 1, valores: valores }, null, 2)], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = "npe_config_ia.json";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 3000);
+      log("Configuração salva em npe_config_ia.json (" + n + " valor(es)). Guarde o arquivo em local protegido.");
+    } catch (e) { log("Não consegui gerar o arquivo: " + (e && e.message ? e.message : e)); }
+  });
+  el("btnCfgCarregarArquivo").addEventListener("click", function () { el("arqCfg").click(); });
+  el("arqCfg").addEventListener("change", function (ev) {
+    var arq = ev.target.files && ev.target.files[0];
+    if (!arq) return;
+    var leitor = new FileReader();
+    leitor.onload = function () {
+      var salvos = 0, ruins = 0;
+      try {
+        var doc = JSON.parse(String(leitor.result || ""));
+        var vals = (doc && doc.valores) || {};
+        CHAVES.forEach(function (c) {
+          var v = String(vals[c.k] == null ? "" : vals[c.k]).trim();
+          if (!v) return;
+          if (!valorValido(c, v)) { ruins++; return; }
+          if (gravarK(c.k, v)) salvos++;
+        });
+      } catch (e) { log("O arquivo não é uma configuração válida."); return; }
+      desenharCfg();
+      log(salvos + " valor(es) carregado(s) do arquivo." + (ruins ? " " + ruins + " ignorado(s) por não parecer(em) válido(s)." : ""));
+    };
+    leitor.readAsText(arq);
+    ev.target.value = "";
   });
 
   // ---------- teste do Claude ----------
