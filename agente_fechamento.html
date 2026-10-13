@@ -139,7 +139,7 @@
     if ((r.revisar || []).length) partes.push("REVISAR " + r.revisar.map(function (x) { return "#" + x.tid; }).join(","));
     partes.push(r.gravado === null ? "nao gravou (teste)" : (r.gravado ? "gravado" : "NAO GRAVOU"));
     var erro = gravar && r.gravado === false;
-    return { estado: erro ? "erro" : ((r.revisar || []).length ? "revisar" : "ok"), texto: partes.join(" | "), erro: erro };
+    return { estado: erro ? "erro" : ((r.revisar || []).length ? "revisar" : "ok"), texto: partes.join(" | "), erro: erro, amostra: r.resumos || null };
   }
   function resumoAba5(r, gravar) {
     if (r.aviso) return { estado: "ok", texto: r.aviso };
@@ -161,6 +161,7 @@
       log(nome + ": OS " + os + " (" + (i + 1) + " de " + lista.length + ")...");
       var r = await porOS(cfg, os, ano, mesRef, executar);
       res[os] = { estado: r.estado, texto: r.texto, ts: new Date().toISOString() };
+      if (r.amostra && cfg.gravar === false) res[os].amostra = r.amostra;
       feitos++;
       log(nome + ": OS " + os + ": " + r.estado.toUpperCase() + " - " + r.texto);
       try { if (typeof window.npeEstado === "function") await window.npeEstado(JSON.stringify(estado)); } catch (e) {}
@@ -218,15 +219,15 @@
             var q3 = await abrirNoQuadro((await lerUrlOS(cfg, todas[0], ano, ultimo)) + "&NPE_DRY=1");
             var sel;
             try { sel = await q3.win.osValidadasAba4(ano); } finally { fecharQuadro(q3); }
-            var pend = sel.fora.filter(function (x) { return /resumo anual/.test(x.motivo); }).map(function (x) { return String(x.os).toUpperCase(); });
-            if (filtro.length) pend = pend.filter(function (c) { return filtro.indexOf(c) !== -1; });
-            var semNada = sel.fora.length - pend.length;
-            log("Aba 3: " + sel.entram.length + " em dia, " + pend.length + " a gerar/refazer, " + semNada + " sem mes validado.");
+            var pendTodas = sel.fora.filter(function (x) { return /resumo anual/.test(x.motivo); }).map(function (x) { return String(x.os).toUpperCase(); });
+            var semNada = sel.fora.length - pendTodas.length;
+            var pend = filtro.length ? pendTodas.filter(function (c) { return filtro.indexOf(c) !== -1; }) : pendTodas;
+            log("Aba 3 (todas as OSs): " + sel.entram.length + " em dia, " + pendTodas.length + " a gerar/refazer, " + semNada + " sem mes validado" + (filtro.length ? "; nesta rodada, so " + pend.length + " (filtro de OS)." : "."));
             var chave3 = "aba3_" + ano + "_" + ultimo;
             await etapaLote(cfg, chave3, pend, ano, ultimo, estado, async function (w) {
-              return resumoAba3(await w.processarResumoAnualAtual({ gravar: gravar }), gravar);
+              return resumoAba3(await w.processarResumoAnualAtual({ gravar: gravar, devolverTextos: !gravar }), gravar);
             }, 3000);
-            relatorio.etapas.aba3 = { chave: chave3, emDia: sel.entram.length, aGerar: pend.length, semMesValidado: semNada, resultados: estado[chave3] || {} };
+            relatorio.etapas.aba3 = { chave: chave3, emDiaTotal: sel.entram.length, aGerarTotal: pendTodas.length, semMesValidadoTotal: semNada, nestaRodada: pend.length, resultados: estado[chave3] || {} };
           } else if (et === "aba4") {
             if (ultimo < 1) throw new Error("Nenhum mes fechado em " + ano + ".");
             var url4 = await lerUrlOS(cfg, todas[0], ano, ultimo);
