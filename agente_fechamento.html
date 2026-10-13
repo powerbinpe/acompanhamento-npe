@@ -122,11 +122,12 @@
   }
 
   function resumoAba1(r, gravar) {
-    var revisar = (r.revisar || []).length > 0 || (r.sintese && ((r.sintese.motivos || []).length > 0 || !r.sintese.gerada));
+    var revisar = (r.revisar || []).length > 0 || (r.sintese && ((r.sintese.motivos || []).length > 0 || (!r.sintese.gerada && !r.sintese.mantida)));
     var partes = [r.preenchidos + " parecer(es)"];
+    if (r.mantidos && r.mantidos.length) partes.push(r.mantidos.length + " ja preenchidos mantidos");
     if (r.validados && r.validados.length) partes.push(r.validados.length + " validados mantidos");
     if (r.refeitos) partes.push(r.refeitos + " refeito(s)");
-    partes.push("sintese " + (r.sintese && r.sintese.gerada ? "ok" : "nao gerada"));
+    partes.push("sintese " + (r.sintese && r.sintese.gerada ? "ok" : (r.sintese && r.sintese.mantida ? "ja existia (mantida)" : "nao gerada")));
     if ((r.revisar || []).length) partes.push("REVISAR " + r.revisar.map(function (x) { return "#" + x.tid; }).join(","));
     partes.push(r.gravado === null ? "nao gravou (teste)" : (r.gravado ? "gravado na ATA" : "ATA NAO CONFIRMOU"));
     var erro = gravar && r.gravado === false;
@@ -282,7 +283,7 @@
               log("Aba 1 " + (MESES[m - 1] || m) + ": " + listaM.length + " OSs, " + cand.length + " a fazer; ignoradas: " + ign.validadas + " fechadas (23 validados), " + ign.semInicio + " ainda nao iniciadas, " + ign.prontas + " ja com pareceres.");
               var chave = "aba1_" + ano + "_" + m;
               if (!soPlano) await etapaLote(cfg, chave, cand, ano, m, estado, async function (w) {
-                return resumoAba1(await w.processarOSAtual({ gravar: gravar }), gravar);
+                return resumoAba1(await w.processarOSAtual({ gravar: gravar, preservarPreenchidos: !cfg.sobrescrever }), gravar);
               }, 3000);
               var resM = estado[chave] || {};
               var cont = { ok: 0, revisar: 0, erro: 0 }, problemas = [];

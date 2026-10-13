@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-12 12:15";
+    window.NPE_BUILD = "2026-10-13 15:50";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -8563,19 +8563,24 @@ function hydrateFromPowerBI() {
 
 
     // Poe os textos gerados nas caixas do Parecer da Performance, pulando indicador ja validado.
-    function aplicarTextosNasCaixas(activeOS, monthNum, textos) {
-      var preenchidos = 0, validados = [];
+    // preservar = true: caixa que ja tem parecer (texto diferente do padrao) NAO e sobrescrita.
+    function aplicarTextosNasCaixas(activeOS, monthNum, textos, preservar) {
+      var preenchidos = 0, validados = [], mantidos = [];
       Object.keys(textos).forEach(function(k) {
         var tid = parseInt(k, 10);
         var st = safeGetStorage("status_" + activeOS + "_m" + monthNum + "_" + tid, "");
         if (st === "Validado" || st === "Homologado") { validados.push("#" + tid); return; }
         var el = document.getElementById("master_" + tid);
         if (!el) return;
+        if (preservar) {
+          var atual = String(el.value || "").trim();
+          if (atual && atual !== "Sem parecer registrado") { mantidos.push("#" + tid); return; }
+        }
         el.value = textos[k];
         if (typeof handleCommentInput === "function") handleCommentInput(tid, "MASTER", el.value);
         preenchidos++;
       });
-      return { preenchidos: preenchidos, validados: validados };
+      return { preenchidos: preenchidos, validados: validados, mantidos: mantidos };
     }
 
     // Confere a Sintese do mes: devolve a lista de motivos (vazia = pode usar).
@@ -8612,12 +8617,15 @@ function hydrateFromPowerBI() {
 
       passo("pareceres");
       var res = await gerarPareceresOS(activeOS, monthNum, monthName);
-      var ap = aplicarTextosNasCaixas(activeOS, monthNum, res.textos);
+      var ap = aplicarTextosNasCaixas(activeOS, monthNum, res.textos, !!opts.preservarPreenchidos);
 
       passo("síntese do mês");
-      var chamadas = res.chamadas, sinteseRefeita = false, motivosSintese = [], sinteseGerada = false, motivosSinteseMini = [];
+      var chamadas = res.chamadas, sinteseRefeita = false, motivosSintese = [], sinteseGerada = false, motivosSinteseMini = [], sinteseMantida = false;
       var sint = construirPromptSintese(activeOS, monthNum, monthName);
-      if (sint.comParecer) {
+      var fElAtual = document.getElementById("finalPerformanceComment");
+      if (opts.preservarPreenchidos && fElAtual && String(fElAtual.value || "").trim().length > 0) {
+        sinteseMantida = true;   // ja existe sintese do mes: nao gasta IA nem sobrescreve
+      } else if (sint.comParecer) {
         var texto = await chamarGerarTexto("mini", sint.texto); chamadas++;
         motivosSintese = conferirSintese(texto, sint.comParecer);
         motivosSinteseMini = motivosSintese.slice();
@@ -8644,7 +8652,8 @@ function hydrateFromPowerBI() {
         preenchidos: ap.preenchidos, validados: ap.validados,
         refeitos: res.refeitos, chamadas: chamadas,
         revisar: res.revisar, primeiraRodada: res.primeiraRodada || [],
-        sintese: { gerada: sinteseGerada, refeita: sinteseRefeita, motivos: motivosSintese, motivosMini: motivosSinteseMini },
+        sintese: { gerada: sinteseGerada, refeita: sinteseRefeita, motivos: motivosSintese, motivosMini: motivosSinteseMini, mantida: sinteseMantida },
+        mantidos: ap.mantidos || [],
         gravado: gravado
       };
     }
