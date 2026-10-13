@@ -150,6 +150,40 @@
     return { estado: erro ? "erro" : "ok", texto: n + " mes(es), acum. " + acum + " | " + tail, erro: erro };
   }
 
+  // "1-8", "3", "1,2,5" -> [1,2,...] (so 1 a 12, sem repetir, em ordem)
+  function parseMeses(v) {
+    var txt = String(v == null ? "" : v).trim();
+    if (!txt) return [];
+    var out = [];
+    txt.split(/[,;\s]+/).forEach(function (p) {
+      var m = /^(\d{1,2})-(\d{1,2})$/.exec(p);
+      if (m) { for (var i = parseInt(m[1], 10); i <= parseInt(m[2], 10); i++) out.push(i); }
+      else if (/^\d{1,2}$/.test(p)) out.push(parseInt(p, 10));
+    });
+    return out.filter(function (n) { return n >= 1 && n <= 12; })
+              .filter(function (n, i, a) { return a.indexOf(n) === i; })
+              .sort(function (a, b) { return a - b; });
+  }
+
+  // Linhas da ATA de um mes -> por OS: pareceres escritos, indicadores validados e justificativas do gestor.
+  function resumirAta(rows, w) {
+    var por = {};
+    (rows || []).forEach(function (r) {
+      var os = w.extractPrimaryOSCode(String(r.os || "").toUpperCase()) || String(r.os || "").toUpperCase();
+      var t = parseInt(r.topico, 10);
+      if (!os || !(t === 26 || t === 27 || (t >= 1 && t <= 23))) return;
+      var o = por[os] = por[os] || { pareceres: 0, validados: 0, justif: 0 };
+      var texto = String(r.master || "").trim();
+      if (texto && texto !== "Sem parecer registrado") o.pareceres++;
+      if (t <= 23) {
+        if (String(r.status || "") === "Validado") o.validados++;
+        var g = String(r.gestor || "").trim();
+        if (g && g !== "Sem justificativas") o.justif++;
+      }
+    });
+    return por;
+  }
+
   // ---------- etapas ----------
   async function etapaLote(cfg, nome, lista, ano, mesRef, estado, executar, pausaMs) {
     var res = estado[nome] || (estado[nome] = {});
@@ -157,6 +191,7 @@
     for (var i = 0; i < lista.length; i++) {
       var os = lista[i];
       var prev = res[os];
+      if (cfg.fimMs && Date.now() > cfg.fimMs) { cfg.parouPorTempo = true; break; }
       // So conta como concluida a OS ja GRAVADA de verdade (modo "real"). Resultado de teste nunca vira progresso.
       if (prev && prev.estado === "ok" && prev.modo === "real" && !cfg.refazer && cfg.gravar !== false) { continue; }
       log(nome + ": OS " + os + " (" + (i + 1) + " de " + lista.length + ")...");
@@ -180,7 +215,9 @@
     var filtro = (cfg.os || []).map(function (x) { return String(x).toUpperCase(); });
     try {
       // OSs do periodo: a lista vale para todas as etapas por OS.
-      var mesLista = parseInt(cfg.mes, 10) || 1;
+      var mesesPedidos = parseMeses(cfg.mes);
+      var mesLista = mesesPedidos[0] || 1;
+      cfg.fimMs = Date.now() + ((parseInt(cfg.limiteMin, 10) || 300) * 60000);
       var todas = (await listarOSs(cfg, ano, mesLista)).map(function (x) { return x.code; });
       if (filtro.length) todas = todas.filter(function (c) { return filtro.indexOf(c.toUpperCase()) !== -1; });
       log("OSs elegiveis: " + todas.length + ".");
@@ -194,19 +231,72 @@
         var et = etapas[e];
         var t0 = Date.now();
         try {
-          if (et === "aba1") {
-            var mes = parseInt(cfg.mes, 10);
-            if (!mes) throw new Error("Informe o mes da Aba 1.");
-            if (mes <= ultimo && !cfg.permitirMesFechado) {
-              relatorio.etapas.aba1 = { aviso: "Mes " + mes + " ja esta fechado (ultimo fechado: " + ultimo + "). Aba 1 nao foi executada; use permitirMesFechado se for proposital." };
+          if (et === "aba1" || et === "aba1plano") {
+            // aba1plano: so o levantamento (quantas OSs por mes ficariam a fazer); nao gera nem grava nada.
+            var soPlano = (et === "aba1plano");
+            var meses = mesesPedidos;
+            if (!meses.length) throw new Error("Informe o mes da Aba 1 (um mes, uma lista ou um intervalo, ex.: 1-8).");
+            var jaFechados = meses.filter(function (m) { return m <= ultimo; });
+            if (jaFechados.length && !cfg.permitirMesFechado) {
+              relatorio.etapas.aba1 = { aviso: "Os meses " + jaFechados.join(", ") + " ja estao fechados (ultimo fechado: " + ultimo + "). Aba 1 nao foi executada; marque permitir_mes_fechado se for proposital." };
               log(relatorio.etapas.aba1.aviso);
               continue;
             }
-            var chave = "aba1_" + ano + "_" + mes;
-            await etapaLote(cfg, chave, todas, ano, mes, estado, async function (w) {
-              return resumoAba1(await w.processarOSAtual({ gravar: gravar }), gravar);
-            }, 3000);
-            relatorio.etapas.aba1 = { chave: chave, resultados: estado[chave] || {} };
+            // Uma leitura da ATA por mes (todas as OSs), de janeiro ate o ultimo mes pedido.
+            var maxMes = Math.max.apply(null, meses);
+            var qa = await abrirNoQuadro((await lerUrlOS(cfg, todas[0], ano, meses[0])) + "&NPE_DRY=1");
+            var ata = {}, resumoMes = {};
+            try {
+              for (var mi = 1; mi <= maxMes; mi++) {
+                ata[mi] = await qa.win.lerAtaMesComTentativas(ano, mi);
+                resumoMes[mi] = resumirAta(ata[mi], qa.win);
+              }
+            } finally { fecharQuadro(qa); }
+            // Primeiro mes em que cada OS tem algo preenchido (gestor ou parecer): antes disso a OS nao comecou.
+            var inicioOS = {};
+            for (var m1 = 1; m1 <= maxMes; m1++) {
+              Object.keys(resumoMes[m1]).forEach(function (cod) {
+                var x = resumoMes[m1][cod];
+                if (inicioOS[cod] === undefined && (x.justif > 0 || x.pareceres > 0)) inicioOS[cod] = m1;
+              });
+            }
+            var rel1 = { meses: {}, parouPorTempo: false };
+            relatorio.etapas.aba1 = rel1;
+            for (var k = 0; k < meses.length; k++) {
+              var m = meses[k];
+              if (cfg.parouPorTempo) break;
+              var listaM;
+              try { listaM = (await listarOSs(cfg, ano, m)).map(function (x) { return x.code; }); }
+              catch (eLista) { rel1.meses[m] = { aviso: msg(eLista) }; log("Aba 1 mes " + m + ": " + msg(eLista)); continue; }
+              if (filtro.length) listaM = listaM.filter(function (c) { return filtro.indexOf(c.toUpperCase()) !== -1; });
+              var cand = [], ign = { validadas: 0, semInicio: 0, prontas: 0 };
+              listaM.forEach(function (cod) {
+                var C = cod.toUpperCase();
+                var x = resumoMes[m][C] || { pareceres: 0, validados: 0, justif: 0 };
+                var ini = inicioOS[C];
+                if (x.validados >= 23) ign.validadas++;
+                else if (ini === undefined || m < ini) ign.semInicio++;
+                else if (x.pareceres >= 23 && !cfg.refazer) ign.prontas++;
+                else cand.push(cod);
+              });
+              log("Aba 1 " + (MESES[m - 1] || m) + ": " + listaM.length + " OSs, " + cand.length + " a fazer; ignoradas: " + ign.validadas + " fechadas (23 validados), " + ign.semInicio + " ainda nao iniciadas, " + ign.prontas + " ja com pareceres.");
+              var chave = "aba1_" + ano + "_" + m;
+              if (!soPlano) await etapaLote(cfg, chave, cand, ano, m, estado, async function (w) {
+                return resumoAba1(await w.processarOSAtual({ gravar: gravar }), gravar);
+              }, 3000);
+              var resM = estado[chave] || {};
+              var cont = { ok: 0, revisar: 0, erro: 0 }, problemas = [];
+              cand.forEach(function (cod) {
+                var r = resM[cod];
+                if (!r) return;
+                cont[r.estado] = (cont[r.estado] || 0) + 1;
+                if (r.estado !== "ok") problemas.push({ os: cod, estado: r.estado, texto: r.texto });
+              });
+              rel1.meses[m] = { osNoMes: listaM.length, aFazer: cand.length, ignoradas: ign, resultado: cont, problemas: problemas };
+              if (soPlano) rel1.meses[m].osAFazer = cand;
+            }
+            rel1.parouPorTempo = !!cfg.parouPorTempo;
+            if (cfg.parouPorTempo) log("Aba 1: parei por tempo (limite da rodada). O progresso esta guardado: rode de novo para continuar.");
           } else if (et === "aba5") {
             if (ultimo < 1) throw new Error("Nenhum mes fechado em " + ano + ".");
             var chave5 = "aba5_" + ano + "_" + ultimo;
