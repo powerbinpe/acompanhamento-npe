@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-14 06:54";
+    window.NPE_BUILD = "2026-10-14 07:08";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -8614,16 +8614,20 @@ function hydrateFromPowerBI() {
       var monthNum = getMonthNumberFromParams(pp);
       var monthName = pp.get("SelectedMes") || "";
       if (!activeOS || !monthNum) throw new Error("OS ou mês não identificados na página.");
+      var _t0 = Date.now(), _tempos = {};
+      function _marca(k) { var n = Date.now(); _tempos[k] = Math.round((n - _t0) / 100) / 10; _t0 = n; }
       if (!window.HISTORICO_PRONTO) {
         passo("lendo a ATA");
         try { await historicoCarregado(); } catch (e) {}
       }
       if (!window.HISTORICO_PRONTO) throw new Error("Não consegui ler a ATA; nada foi feito.");
 
+      _marca("ata");
       passo("pareceres");
       var res = await gerarPareceresOS(activeOS, monthNum, monthName);
       var ap = aplicarTextosNasCaixas(activeOS, monthNum, res.textos, !!opts.preservarPreenchidos);
 
+      _marca("pareceres");
       passo("síntese do mês");
       var chamadas = res.chamadas, sinteseRefeita = false, motivosSintese = [], sinteseGerada = false, motivosSinteseMini = [], sinteseMantida = false;
       var sint = construirPromptSintese(activeOS, monthNum, monthName);
@@ -8649,8 +8653,10 @@ function hydrateFromPowerBI() {
 
       var gravado = null;
       if (opts.gravar !== false) {
+        _marca("sintese");
         passo("gravando na ATA");
         gravado = !!(await saveAllComments());
+        _marca("gravar");
       }
       return {
         os: activeOS, mes: monthNum,
@@ -8659,6 +8665,7 @@ function hydrateFromPowerBI() {
         revisar: res.revisar, primeiraRodada: res.primeiraRodada || [],
         sintese: { gerada: sinteseGerada, refeita: sinteseRefeita, motivos: motivosSintese, motivosMini: motivosSinteseMini, mantida: sinteseMantida },
         mantidos: ap.mantidos || [],
+        tempos: _tempos,
         gravado: gravado
       };
     }

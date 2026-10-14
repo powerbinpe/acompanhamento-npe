@@ -110,12 +110,16 @@
     for (var tent = 0; tent < 2; tent++) {
       var q = null;
       try {
+        var tA = Date.now();
         var url = await lerUrlOS(cfg, os, ano, mes);
+        var tB = Date.now();
         if (cfg.gravar === false) url += (url.indexOf("?") === -1 ? "?" : "&") + "NPE_DRY=1";
         q = await abrirNoQuadro(url);
+        var tC = Date.now();
         var limite = new Promise(function (_, rej) { setTimeout(function () { rej(new Error("A OS passou de 12 min sem terminar; abandonada para seguir a fila.")); }, 12 * 60000); });
         var r = await Promise.race([executar(q.win), limite]);
         fecharQuadro(q);
+        if (r && r.texto) r.texto += " | fora do app(s): url " + Math.round((tB - tA) / 100) / 10 + ", abrir " + Math.round((tC - tB) / 100) / 10 + ", executar " + Math.round((Date.now() - tC) / 100) / 10;
         if (r && r.erro && tent === 0) { falhou = r.texto; log("OS " + os + ": " + r.texto + " -- tentando de novo."); await espera(5000); continue; }
         return r;
       } catch (e) {
@@ -136,6 +140,7 @@
     partes.push("sintese " + (r.sintese && r.sintese.gerada ? "ok" : (r.sintese && r.sintese.mantida ? "ja existia (mantida)" : "nao gerada")));
     if ((r.revisar || []).length) partes.push("REVISAR " + r.revisar.map(function (x) { return "#" + x.tid; }).join(","));
     partes.push(r.gravado === null ? "nao gravou (teste)" : (r.gravado ? "gravado na ATA" : "ATA NAO CONFIRMOU"));
+    if (r.tempos) partes.push("tempos(s): ata " + r.tempos.ata + ", pareceres " + r.tempos.pareceres + ", sintese " + r.tempos.sintese + (r.tempos.gravar != null ? ", gravar " + r.tempos.gravar : ""));
     var erro = gravar && r.gravado === false;
     return { estado: erro ? "erro" : (revisar ? "revisar" : "ok"), texto: partes.join(" | "), erro: erro };
   }
@@ -194,22 +199,30 @@
   // ---------- etapas ----------
   async function etapaLote(cfg, nome, lista, ano, mesRef, estado, executar, pausaMs) {
     var res = estado[nome] || (estado[nome] = {});
-    var feitos = 0;
-    for (var i = 0; i < lista.length; i++) {
-      var os = lista[i];
-      var prev = res[os];
-      if (cfg.fimMs && Date.now() > cfg.fimMs) { cfg.parouPorTempo = true; break; }
-      // So conta como concluida a OS ja GRAVADA de verdade (modo "real"). Resultado de teste nunca vira progresso.
-      if (prev && prev.estado === "ok" && prev.modo === "real" && !cfg.refazer && cfg.gravar !== false) { continue; }
-      log(nome + ": OS " + os + " (" + (i + 1) + " de " + lista.length + ")...");
-      var r = await porOS(cfg, os, ano, mesRef, executar);
-      res[os] = { estado: r.estado, texto: r.texto, ts: new Date().toISOString(), modo: (cfg.gravar === false ? "teste" : "real") };
-      if (r.amostra && cfg.gravar === false) res[os].amostra = r.amostra;
-      feitos++;
-      log(nome + ": OS " + os + ": " + r.estado.toUpperCase() + " - " + r.texto);
-      try { if (typeof window.npeEstado === "function") await window.npeEstado(JSON.stringify(estado)); } catch (e) {}
-      await espera(pausaMs);
+    var feitos = 0, proximo = 0;
+    var paralelo = Math.max(1, Math.min(6, parseInt(cfg.paralelo, 10) || 3));
+    async function trabalhador() {
+      while (true) {
+        if (cfg.fimMs && Date.now() > cfg.fimMs) { cfg.parouPorTempo = true; return; }
+        var i = proximo++;
+        if (i >= lista.length) return;
+        var os = lista[i];
+        var prev = res[os];
+        // So conta como concluida a OS ja GRAVADA de verdade (modo "real"). Resultado de teste nunca vira progresso.
+        if (prev && prev.estado === "ok" && prev.modo === "real" && !cfg.refazer && cfg.gravar !== false) continue;
+        log(nome + ": OS " + os + " (" + (i + 1) + " de " + lista.length + ")...");
+        var r = await porOS(cfg, os, ano, mesRef, executar);
+        res[os] = { estado: r.estado, texto: r.texto, ts: new Date().toISOString(), modo: (cfg.gravar === false ? "teste" : "real") };
+        if (r.amostra && cfg.gravar === false) res[os].amostra = r.amostra;
+        feitos++;
+        log(nome + ": OS " + os + ": " + r.estado.toUpperCase() + " - " + r.texto);
+        try { if (typeof window.npeEstado === "function") await window.npeEstado(JSON.stringify(estado)); } catch (e) {}
+        await espera(pausaMs);
+      }
     }
+    var ts = [];
+    for (var w = 0; w < paralelo; w++) { ts.push(trabalhador()); await espera(1500); }
+    await Promise.all(ts);
     return feitos;
   }
 
