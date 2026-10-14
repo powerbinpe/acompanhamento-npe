@@ -1149,22 +1149,28 @@
     r.osMeses = osMeses;
     var plusIndiv = true;
     if (NIVEL_OP(p.funcao)) {
-      var meta = null;
+      // Metas = aba Metas do app da pagina DESTAQUES (lista META_FINANCEIRA). Coordenador: meta das OSs dele e o
+      // realizado SO das OSs que tem meta (14/10/2026: 22 OSs elegiveis ainda sem meta; comparar igual com igual).
+      // Gerente e superintendente: meta propria (fixa) contra o realizado de todas as OSs.
+      var meta = null, metaOS = null;
+      r.osSemMeta = [];
       if (p.funcao === FUNC_OP.c) {
         var porOS = {};
         osMeses.forEach(function (x) { porOS[x.os] = (porOS[x.os] || 0) + 1; });
         var mf = 0, mr = 0, n = 0;
+        metaOS = {};
         metasRPCO.forEach(function (x) {
           if (String(x.Nivel || "").toUpperCase() !== "OS" || +x.Ano !== ANO || !porOS[x.CodOS]) return;
-          var w = porOS[x.CodOS] / 12; mf += (+x.FatMeta || 0) * w; mr += (+x.ResMeta || 0) * w; n++;
+          var w = porOS[x.CodOS] / 12; mf += (+x.FatMeta || 0) * w; mr += (+x.ResMeta || 0) * w; n++; metaOS[x.CodOS] = 1;
         });
         meta = n ? { fat: mf, res: mr, linhas: n } : null;
+        r.osSemMeta = Object.keys(porOS).filter(function (o) { return !metaOS[o]; }).sort();
       } else meta = p.funcao === FUNC_OP.g ? metaNivel("GERENTE", "CodGerente", p.cod) : metaNivel("SUPERINTENDENTE", "CodSuperintendente", p.cod);
       var rf = 0, rr = 0;
-      osMeses.forEach(function (x) { var o = OS_POR_COD[x.os], v = o && o.fr[x.m - 1]; if (v) { rf += v.fat; rr += v.res; } });
+      osMeses.forEach(function (x) { if (metaOS && !metaOS[x.os]) return; var o = OS_POR_COD[x.os], v = o && o.fr[x.m - 1]; if (v) { rf += v.fat; rr += v.res; } });
       r.AG = meta && meta.fat ? meta.res / meta.fat : null; r.metaLinhas = meta ? meta.linhas : 0;
       r.AH = rf ? rr / rf : null;
-      if (r.AG === null) r.pend.push("sem meta no RPCO");
+      if (r.AG === null) r.pend.push("sem meta na aba Metas");
       var q = (r.AG && r.AH !== null) ? r.AH / r.AG : null;
       r.razaoIndiv = q;
       r.AK = (q === null || isNaN(q)) ? 0 : q < 0.5 ? 0 : q > 1 ? AD : q * AD;
@@ -1298,7 +1304,7 @@
   function renderApuracao() {
     var ap = apurarTodos();
     var html = '<div class="faixa-fechado">' + esc(textoFechado()) + '</div>' +
-      '<div class="barra"><span class="dica">Apuração de ' + ANO + ' pela regra da planilha, com o período, os deflatores do Procedimento e as metas do RPCO. Clique no nome para ver o detalhe.</span></div>';
+      '<div class="barra"><span class="dica">Apuração de ' + ANO + ' pela regra da planilha, com o período, os deflatores do Procedimento e as metas da aba Metas (página DESTAQUES). Clique no nome para ver o detalhe.</span></div>';
     if (ap.col.ll === null || ap.col.cx === null) html += '<div class="aviso warn"><h3>Coletivas sem meta ou realizado</h3><p>Preencha a aba Coletivas; até lá a parte coletiva fica zerada.</p></div>';
     var funcao = null, grupo = [];
     function fechaGrupo() {
@@ -1342,7 +1348,8 @@
       ' (' + p.mesesValidos.length + ' meses' + (p.dados.adm ? ', admissão ' + esc(p.dados.adm) : '') + (p.motivoZero ? ', ' + esc(p.motivoZero) : '') + ') = ' + rs(r.base));
     l.push('<b>Coletivas:</b> lucro ' + (r.AA === null ? "–" : fmtPct(r.AA, 1)) + ' · caixa ' + (r.AB === null ? "–" : fmtPct(r.AB, 1)) + ' → ' + fmtPct(r.AC, 1));
     if (NIVEL_OP(p.funcao)) l.push('<b>Individual:</b> margem real ' + (r.AH === null ? "–" : fmtPct(r.AH, 2)) + ' ÷ meta ' + (r.AG === null ? "–" : fmtPct(r.AG, 2)) +
-      (r.metaLinhas ? ' (' + r.metaLinhas + ' linha(s) de meta do RPCO)' : '') + ' → ' + fmtPct(r.AK, 1));
+      (r.metaLinhas ? ' (' + r.metaLinhas + ' linha(s) da aba Metas da página DESTAQUES)' : '') + ' → ' + fmtPct(r.AK, 1) +
+      (r.osSemMeta && r.osSemMeta.length ? ' · fora do individual por não ter meta: ' + esc(r.osSemMeta.join(", ")) : ''));
     else if (r.AI !== undefined) l.push('<b>Individual:</b> orçamento ' + (r.AI === null ? "–" : fmtPct(r.AI, 1)) + ' · OKR ' + (r.AJ === null || r.AJ === undefined ? "–" : fmtPct(r.AJ, 1)) + ' → ' + fmtPct(r.AK, 1));
     if (Object.keys(p.oss).length) l.push('<b>OSs:</b> ' + esc(resumoOSs(p)));
     l.push('<b>SSMA:</b> SAF ' + v.QTD_SAF + ' · CAF ' + v.QTD_CAF + ' · Taxa CAF ' + (v.TAXA_CAF === null ? "–" : fmtNum(v.TAXA_CAF, 2)));
