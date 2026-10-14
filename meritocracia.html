@@ -109,6 +109,8 @@
   table.apur tr.det td { background: #fbfdff; white-space: normal; }
   .detalhe { font-size: .76rem; line-height: 1.6; color: var(--text); padding: 4px 6px 8px; }
   .chip.sem { background: var(--warn-bg); color: #92400e; margin: 1px; }
+  .chip.aberto { background: #e0f2fe; color: #075985; margin: 1px; font-weight: 700; }
+  .faixa-fechado { margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; background: #e0f2fe; color: #075985; font-size: .8rem; font-weight: 700; }
   td.n.neg { color: var(--danger); font-weight: 700; }
   .total-geral { margin-top: 18px; padding: 12px 14px; border-radius: 10px; background: var(--bg-soft); font-size: .9rem; }
   .inc-grade { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.4fr); gap: 18px; margin-top: 10px; }
@@ -147,6 +149,8 @@
     ler:    "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/31/workflows/77cb0bdc193a4525af1fb1da8f2fcdf5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=V9NVZwV1cq3J4REThC5A8EuG-cvLQVgg68mRkugFcJw",
     gravar: "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/23/workflows/0ad769e7e83a431fabbad3899788a2c4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=uo1CVIepIAcQmYbt9AaKRcN0bJz6eXhTCTPhHuuVggk",
     // NPE-Ler-Metas (publico, o mesmo do RPCO): PARAM_ELEGIBILIDADE com a vigencia de gerente, superintendente e responsavel
+    // NPE-Ler-PrazoLimite (publico, o mesmo do Acompanhamento): Data Limite de cada mes (#22). Mes fechado = Data Limite ja passou
+    prazo:  "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/21/workflows/9495a32361f54098aa49394fe749776d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=D57OfQGcGWAXogMiBYCGXxKoC-lIW4XlD_z_uxsvJCg",
     metas:  "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/eee057e0905d4712aa0317bb0acd74c3/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xDFTcuw4PksmljQDhYgPLtMDZtUeOWxXHojiUPzGCR0"
   };
   var ITERACOES = 200000;
@@ -255,12 +259,39 @@
     return { ok: true, n: total };
   }
 
+  // Mes fechado (14/10/2026, decisao do usuario): o resultado conta fechado ate o ultimo mes cuja Data Limite (#22 do
+  // Acompanhamento) ja passou; antes de 08/2026 (sem o fluxo da Data Limite) todo mes conta como fechado. Ate esse mes
+  // valem assertividade, SAF/CAF e o fechamento do semestre das BP; o que ainda nao fechou conta como atingido.
+  var MES_FECHADO = null;
+  var COMPETENCIA_INICIO_PRAZO = 202608;
+  async function carregarPrazos() {
+    if (!fluxoPronto(FLOW.prazo)) return;
+    var d = new Date(), hoje = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    var lim = await Promise.all([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(function (m) {
+      if (ANO * 100 + m < COMPETENCIA_INICIO_PRAZO) return Promise.resolve("fechado");
+      return postar(FLOW.prazo, { mes: m, ano: ANO }).then(function (r) { return (r.json && r.json.dataLimite) || ""; }).catch(function () { return null; });
+    }));
+    if (lim.some(function (x) { return x === null; })) return;
+    var mf = 0;
+    for (var i = 0; i < 12; i++) { if (lim[i] === "fechado" || (lim[i] && lim[i] < hoje)) mf = i + 1; else break; }
+    MES_FECHADO = mf;
+  }
+  function ateFechado(m) { return MES_FECHADO === null || m <= MES_FECHADO; }
+  function textoFechado() {
+    if (MES_FECHADO === null) return "Mês fechado não informado (fluxo da Data Limite indisponível): vale tudo o que o modelo traz.";
+    if (!MES_FECHADO) return "Nenhum mês fechado em " + ANO + ".";
+    return "Resultado fechado até " + MESES_ABREV[MES_FECHADO].toUpperCase() + "/" + ANO + (MES_FECHADO < 12 ? " + " + MESES_ABREV[MES_FECHADO + 1].toUpperCase() + "–DEZ como está no modelo (projetado)" : "") +
+      " · deflatores ainda em apuração contam como atingidos.";
+  }
+
   async function carregar() {
     renderCarregando();
     try {
+      var pp = MES_FECHADO === null ? carregarPrazos().catch(function () {}) : null;
       var pv = vigCarregada ? null : carregarVigencia();
       var linhas = await ler();
       if (pv) await pv;
+      if (pp) await pp;
       if (!linhas) return;
       dados = linhas;
       render();
@@ -1088,6 +1119,7 @@
   }
   function semestreFechado(s) {
     // S1 fecha no fechamento de julho; S2 no fechamento de janeiro do ano seguinte (regra das Boas Praticas)
+    if (MES_FECHADO !== null) return s === 1 ? MES_FECHADO >= 7 : MES_FECHADO >= 12;
     var hoje = new Date(), ref = hoje.getFullYear() * 100 + hoje.getMonth() + 1;
     return s === 1 ? ref >= ANO * 100 + 8 : ref >= (ANO + 1) * 100 + 2;
   }
@@ -1175,33 +1207,35 @@
     r.vdef = {}; Object.keys(r.def).forEach(function (k) { r.vdef[k] = r.O * r.def[k]; });
     r.P = r.O * r.H; r.V = r.O - r.P;
     valores.pendencias.forEach(function (x) { r.pend.push(x); });
+    r.abertos = valores.abertos;
     return r;
   }
   function NIVEL_OP(f) { return f === FUNC_OP.c || f === FUNC_OP.g || f === FUNC_OP.s; }
   // Numeros que as regras de deducao consultam, a partir das OSs e meses da pessoa
   function valoresDeflator(p, r) {
-    var v = { pendencias: [] }, d = p.dados, f = p.funcao;
+    var v = { pendencias: [], abertos: [] }, d = p.dados, f = p.funcao;
     var oss = {}; r.osMeses.forEach(function (x) { (oss[x.os] = oss[x.os] || []).push(x.m); });
     // SSMA
     v.TAXA_CAF = (d.taxaCaf === undefined || d.taxaCaf === null) ? null : +d.taxaCaf;
-    if ((f === FUNC_OP.g || f === FUNC_OP.s) && v.TAXA_CAF === null) v.pendencias.push("sem Taxa CAF");
+    if ((f === FUNC_OP.g || f === FUNC_OP.s) && v.TAXA_CAF === null) v.abertos.push("Taxa CAF em aberto: atingida");
     var saf = 0, caf = 0;
-    r.osMeses.forEach(function (x) { var o = OS_POR_COD[x.os], e = o && o.ev[x.m]; if (e) { saf += e.saf; caf += e.caf; } });
+    r.osMeses.forEach(function (x) { if (!ateFechado(x.m)) return; var o = OS_POR_COD[x.os], e = o && o.ev[x.m]; if (e) { saf += e.saf; caf += e.caf; } });
     v.QTD_SAF = saf; v.QTD_CAF = caf;
     // Cliente: ultima pesquisa do ano de cada OS
     var sats = Object.keys(oss).map(function (c) { return OS_POR_COD[c] && OS_POR_COD[c].sat; }).filter(function (x) { return x !== null && x !== undefined; });
     v.SATISFACAO_MENOR_OS_LISTA = sats;
     v.SATISFACAO_MEDIA = sats.length ? sats.reduce(function (a, b) { return a + b; }, 0) / sats.length : null;
     v.satOS = Object.keys(oss).map(function (c) { var o = OS_POR_COD[c]; return { os: c, sat: o ? o.sat : null, mes: o ? o.satMes : null }; });
+    if (v.satOS.some(function (x) { return x.sat === null || x.sat === undefined; })) v.abertos.push("pesquisa de satisfação em aberto: atingida");
     // Pessoas
     v.PESSOAS_ENGAJ_CLIMA = (d.engaj === undefined || d.engaj === null) ? null : +d.engaj;
     v.PESSOAS_DESEMPENHO = (d.desemp === undefined || d.desemp === null) ? null : +d.desemp;
-    if (v.PESSOAS_ENGAJ_CLIMA === null || v.PESSOAS_DESEMPENHO === null) v.pendencias.push("sem indicadores de Pessoas");
+    if (v.PESSOAS_ENGAJ_CLIMA === null || v.PESSOAS_DESEMPENHO === null) v.abertos.push("Pessoas em aberto: atingido");
     // Boas Praticas por semestre (como a planilha): aprovadas >= 3 x n OSs e reconhecidas >= n OSs
     v.bpSem = [1, 2].map(function (s) {
       var ini = s === 1 ? 1 : 7, fim = s === 1 ? 6 : 12, nos = {}, apr = 0, rec = 0;
       r.osMeses.forEach(function (x) {
-        if (x.m < ini || x.m > fim) return;
+        if (x.m < ini || x.m > fim || !ateFechado(x.m)) return;
         nos[x.os] = 1; var o = OS_POR_COD[x.os], e = o && o.ev[x.m]; if (e) { apr += e.bpa; rec += e.bpr; }
       });
       var n = Object.keys(nos).length;
@@ -1211,11 +1245,12 @@
     var ok = 0, tot = 0;
     Object.keys(oss).forEach(function (c) {
       var o = OS_POR_COD[c]; if (!o) return;
-      var meses = oss[c].map(function (m) { return 12 + m - 1; });
+      var meses = oss[c].filter(ateFechado).map(function (m) { return 12 + m - 1; });
       if (o.tp === "C") for (var i = 0; i < 12; i++) meses.push(i);
       meses.forEach(function (i) { var ch = o.ass.charAt(i); if (ch === "1") { ok++; tot++; } else if (ch === "0") tot++; });
     });
     v.ASSERTIVIDADE = tot ? ok / tot : null; v.assertMeses = { ok: ok, tot: tot };
+    if (v.ASSERTIVIDADE === null && (f === FUNC_OP.c || f === FUNC_OP.g)) v.abertos.push("assertividade em aberto: atingida");
     return v;
   }
   function apurarTodos() {
@@ -1262,7 +1297,8 @@
   var abertos = {};
   function renderApuracao() {
     var ap = apurarTodos();
-    var html = '<div class="barra"><span class="dica">Apuração de ' + ANO + ' pela regra da planilha, com o período, os deflatores do Procedimento e as metas do RPCO. Clique no nome para ver o detalhe.</span></div>';
+    var html = '<div class="faixa-fechado">' + esc(textoFechado()) + '</div>' +
+      '<div class="barra"><span class="dica">Apuração de ' + ANO + ' pela regra da planilha, com o período, os deflatores do Procedimento e as metas do RPCO. Clique no nome para ver o detalhe.</span></div>';
     if (ap.col.ll === null || ap.col.cx === null) html += '<div class="aviso warn"><h3>Coletivas sem meta ou realizado</h3><p>Preencha a aba Coletivas; até lá a parte coletiva fica zerada.</p></div>';
     var funcao = null, grupo = [];
     function fechaGrupo() {
@@ -1288,7 +1324,8 @@
         '<td class="n">' + rs(r.total) + '</td><td class="n">' + (p.motivoZero ? '<span class="zero">0</span>' : fmtPct(p.periodo, 1)) + '</td><td class="n">' + rs(r.J) + '</td><td class="n">' + rs(r.K) + '</td>' +
         '<td class="n">' + fmtPct(r.AC, 1) + '</td><td class="n">' + indiv + '</td><td class="n">' + fmtPct(r.F, 1) + '</td><td class="n">' + (r.G ? "sim" : "não") + '</td>' +
         '<td class="n">' + rs(r.O) + '</td><td class="n">' + fmtPct(r.H, 1) + '</td><td class="n">' + rs(r.P) + '</td><td class="n"><b>' + rs(r.V) + '</b></td>' +
-        '<td>' + r.pend.map(function (x) { return '<span class="chip sem">' + esc(x) + '</span>'; }).join(" ") + '</td></tr>';
+        '<td>' + r.pend.map(function (x) { return '<span class="chip sem">' + esc(x) + '</span>'; }).join(" ") +
+        (r.abertos || []).map(function (x) { return ' <span class="chip aberto">' + esc(x) + '</span>'; }).join("") + '</td></tr>';
       if (abertos[k]) html += '<tr class="det"><td colspan="14">' + detalhe(r) + '</td></tr>';
     });
     fechaGrupo();
@@ -1313,7 +1350,9 @@
       (v.SATISFACAO_MEDIA !== null ? ' → média ' + fmtPct(v.SATISFACAO_MEDIA, 1) : ''));
     l.push('<b>Pessoas:</b> engajamento + clima ' + (v.PESSOAS_ENGAJ_CLIMA === null ? "–" : fmtPct(v.PESSOAS_ENGAJ_CLIMA, 1)) + ' · desempenho ' + (v.PESSOAS_DESEMPENHO === null ? "–" : fmtPct(v.PESSOAS_DESEMPENHO, 1)));
     l.push('<b>Boas Práticas:</b> ' + v.bpSem.map(function (s) { return 'S' + s.s + ' ' + s.apr + ' aprov./' + s.rec + ' reconh. em ' + s.nOS + ' OS(s)' + (s.fechado ? '' : ' (em andamento)'); }).join(' · '));
-    l.push('<b>Assertividade:</b> ' + (v.ASSERTIVIDADE === null ? "–" : v.assertMeses.ok + '/' + v.assertMeses.tot + ' meses = ' + fmtPct(v.ASSERTIVIDADE, 1)));
+    l.push('<b>Assertividade:</b> ' + (v.ASSERTIVIDADE === null ? "–" : v.assertMeses.ok + '/' + v.assertMeses.tot + ' meses = ' + fmtPct(v.ASSERTIVIDADE, 1)) +
+      (MES_FECHADO ? ' (meses fechados até ' + MESES_ABREV[MES_FECHADO] + ')' : ''));
+    if (v.abertos.length) l.push('<b>Em aberto (contam como atingidos):</b> ' + v.abertos.map(esc).join(' · '));
     l.push('<b>Deflatores aplicados:</b> ' + (r.regrasAplicadas.length ? r.regrasAplicadas.map(esc).join(' · ') : 'nenhum') +
       ' → SSMA ' + fmtPct(r.def.ssma, 0) + ', Cliente ' + fmtPct(r.def.cliente, 0) + ', Pessoas ' + fmtPct(r.def.pessoas, 0) + ', BP ' + fmtPct(r.def.bp, 0) + ', Assertividade ' + fmtPct(r.def.assert, 0));
     return '<div class="detalhe">' + l.join('<br>') + '</div>';
@@ -1331,7 +1370,8 @@
         '</td><td class="n">' + rs(s.vdef.ssma) + '</td><td class="n">' + rs(s.vdef.cliente) + '</td><td class="n">' + rs(s.vdef.pessoas) + '</td><td class="n">' + rs(s.vdef.bp) + '</td><td class="n">' + rs(s.vdef.assert) +
         '</td><td class="n">' + rs(s.V) + '</td><td class="n"><b>' + rs(s.Vt) + '</b></td></tr>';
     }
-    painel.innerHTML = '<div class="barra"><span class="dica">Resumo da meritocracia ' + ANO + ' por função (mesma estrutura da aba RESUMO da planilha).</span></div>' +
+    painel.innerHTML = '<div class="faixa-fechado">' + esc(textoFechado()) + '</div>' +
+      '<div class="barra"><span class="dica">Resumo da meritocracia ' + ANO + ' por função (mesma estrutura da aba RESUMO da planilha).</span></div>' +
       '<div class="rolagem"><table class="apur"><thead>' + cab + '</thead><tbody>' +
       fs.map(function (f) { return linha(f + " (" + porF[f].length + ")", somar(porF[f])); }).join("") +
       linha("TOTAL GERAL", somar(ap.linhas), "subtotal") + '</tbody></table></div>';
