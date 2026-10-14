@@ -33,7 +33,12 @@
   async function lerUrlOS(cfg, os, ano, mes) {
     if (String(cfg.urlLerUrlApp || "").indexOf("https://") !== 0) throw new Error("A URL do fluxo NPE-Ler-Url-App nao foi informada.");
     if (os && !/^[A-Za-z0-9|]{3,24}$/.test(os)) throw new Error("Codigo de OS invalido: " + os);
-    var r = await fetch(cfg.urlLerUrlApp, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ os: os || "", ano: ano, mes: mes }) });
+    var ctl = new AbortController();
+    var tmo = setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 120000);
+    var r;
+    try { r = await fetch(cfg.urlLerUrlApp, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ os: os || "", ano: ano, mes: mes }), signal: ctl.signal }); }
+    catch (eF) { throw new Error("O fluxo NPE-Ler-Url-App nao respondeu em 120 s (" + msg(eF) + ")."); }
+    finally { clearTimeout(tmo); }
     if (!r.ok) throw new Error("O fluxo NPE-Ler-Url-App respondeu " + r.status + ".");
     var j = await r.json();
     var linha = j && j.firstTableRows && j.firstTableRows[0];
@@ -108,7 +113,8 @@
         var url = await lerUrlOS(cfg, os, ano, mes);
         if (cfg.gravar === false) url += (url.indexOf("?") === -1 ? "?" : "&") + "NPE_DRY=1";
         q = await abrirNoQuadro(url);
-        var r = await executar(q.win);
+        var limite = new Promise(function (_, rej) { setTimeout(function () { rej(new Error("A OS passou de 12 min sem terminar; abandonada para seguir a fila.")); }, 12 * 60000); });
+        var r = await Promise.race([executar(q.win), limite]);
         fecharQuadro(q);
         if (r && r.erro && tent === 0) { falhou = r.texto; log("OS " + os + ": " + r.texto + " -- tentando de novo."); await espera(5000); continue; }
         return r;

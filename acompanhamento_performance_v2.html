@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-13 15:50";
+    window.NPE_BUILD = "2026-10-14 06:54";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -8409,7 +8409,10 @@ function hydrateFromPowerBI() {
         esperaMs = 0;
         var resp;
         try {
+          var ctlC = new AbortController();
+          var tmoC = setTimeout(function() { try { ctlC.abort(); } catch (e0) {} }, 240000);
           resp = await fetch("https://api.anthropic.com/v1/messages", {
+            signal: ctlC.signal,
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -8424,11 +8427,13 @@ function hydrateFromPowerBI() {
             })
           });
         } catch (e) {
+          try { clearTimeout(tmoC); } catch (e1) {}
           // Falha de rede/CORS/bloqueio: repetir muitas vezes so atrasa o aviso. Duas tentativas e para.
           ultimoErro = "nao consegui falar com a API da Anthropic (" + ((e && e.message) || "falha de rede") + "); a rede ou o visual pode estar bloqueando api.anthropic.com";
           if (tent >= 1) break;
           continue;
         }
+        try { clearTimeout(tmoC); } catch (e2) {}
         if (resp.status === 429 || resp.status === 529 || resp.status >= 500) {
           ultimoErro = "Claude respondeu " + resp.status + " (limite ou instabilidade) em " + nomeModelo;
           var pedido = parseFloat(resp.headers.get("retry-after") || "");
