@@ -406,6 +406,9 @@
   // Cada campo e decodificado so depois de separado (os separadores ; ~ | : , nunca vem codificados).
   // ===========================================================================
   var HR, NOMES_G, NOMES_R, NOMES_S, NOMES_CTT, OSS, OS_POR_COD;
+  // OPER (14/10/2026): resultado operacional da empresa nos 4 negocios (Rotina, Parada, Oficina, Locacoes) no ano,
+  // fechado + projetado -- e o realizado da coletiva de resultado (a meta e digitada na aba Coletivas)
+  var OPER = null;
   function dec(s) { try { return decodeURIComponent(String(s || "")); } catch (e) { return String(s || ""); } }
   function n36(x) { if (!x) return 0; var neg = x.charAt(0) === "-"; var v = parseInt(neg ? x.slice(1) : x, 36); return isNaN(v) ? 0 : (neg ? -v : v); }
   function pad6(c) { c = String(c || "").trim(); return /^\d+$/.test(c) ? ("000000" + c).slice(-6) : c; }
@@ -422,6 +425,8 @@
     // Todas as pessoas da CTT (codigo -> nome exato), para incluir pessoa escolhendo da lista
     NOMES_CTT = dicionario("PC");
     [NOMES_G, NOMES_R, NOMES_S].forEach(function (d) { Object.keys(d).forEach(function (c) { if (!NOMES_CTT[c]) NOMES_CTT[c] = d[c]; }); });
+    OPER = null;
+    if (HR.OP) { var op = String(HR.OP).split("."); var of = +op[0], orr = +op[1]; if (of) OPER = { fat: of, res: orr, marg: orr / of }; }
     OSS = String(HR.MO || "").split(";").filter(Boolean).map(function (l) {
     var f = l.split("~").map(function (x, i) { return i === 4 ? x : dec(x); });
     var ev = {};
@@ -736,7 +741,11 @@
       };
       return '<div class="cartao" data-coletiva="' + d.ID + '"><h3>' + esc(d.Indicador) + '</h3>' +
         '<div class="linha"><label for="meta' + d.ID + '">Meta' + (ehLucro ? ' (margem)' : '') + '</label>' + campo(d, "Meta", "num", "Meta").replace('<input ', '<input id="meta' + d.ID + '" ') + '</div>' +
-        '<div class="linha"><label for="real' + d.ID + '">Realizado' + (ehLucro ? ' (margem)' : '') + '</label>' + campo(d, "Medicao", "num", "Realizado").replace('<input ', '<input id="real' + d.ID + '" ') + '</div>' +
+        '<div class="linha"><label for="real' + d.ID + '">Realizado' + (ehLucro ? ' (margem)' : '') + '</label>' + campo(d, "Medicao", "num", "Realizado").replace('<input ', '<input id="real' + d.ID + '" ' +
+          (ehLucro && OPER ? 'placeholder="' + esc(fmtPct(OPER.marg, 2)) + ' automático" ' : (!ehLucro ? 'placeholder="100% se vazio" ' : ''))) + '</div>' +
+        (ehLucro ? '<div class="obs">' + (OPER ? 'Realizado automático: resultado operacional da empresa nos 4 negócios (Rotina, Parada, Oficina, Locações), fechado + projetado até DEZ — ' +
+          esc(rs(OPER.res)) + ' ÷ ' + esc(rs(OPER.fat)) + ' = <b>' + esc(fmtPct(OPER.marg, 2)) + '</b>. Digite um realizado só para substituir. A meta é a margem operacional da empresa (digitada aqui).' : 'Resultado operacional não chegou do modelo: informe o realizado.') + '</div>' :
+          '<div class="obs">Sem meta e sem realizado, conta como 100% atingida.</div>') +
         (ehLucro ? rsCampo("metaRS", "Lucro líquido meta (R$) — teto") + rsCampo("realRS", "Lucro líquido realizado (R$) — teto") : '') +
         '<div class="res"><span>Atingimento <b data-ating>–</b></span><span>Apuração pela escala <b data-apur>–</b></span></div>' +
         '<div class="obs">' + esc(d.Observacao || "") + '</div></div>';
@@ -752,7 +761,11 @@
       var d = (dados || []).find(function (x) { return String(x.ID) === id; });
       var meta = lerNumero(document.getElementById("meta" + id).value);
       var real = lerNumero(document.getElementById("real" + id).value);
+      var ehLucro = String(d && d.Indicador || "").toUpperCase().indexOf("LUCRO") === 0;
+      if (ehLucro) { if (meta !== null && meta > 1) meta = meta / 100; if (real !== null && real > 1) real = real / 100; }
+      if (real === null && ehLucro && OPER) real = OPER.marg;
       var at = (meta && real !== null && !isNaN(meta) && !isNaN(real)) ? real / meta : null;
+      if (!ehLucro && meta === null && real === null) at = 1;
       c.querySelector("[data-ating]").textContent = at === null ? "–" : fmtPct(at);
       var ap = pctColetiva(at, json(d && d.Escalas).faixas);
       c.querySelector("[data-apur]").textContent = ap === null ? "–" : fmtPct(ap);
@@ -1105,15 +1118,27 @@
   function coletivas() {
     var c = { ll: null, cx: null, fll: [], fcx: [] };
     linhasDoTipo("COLETIVA").forEach(function (d) {
-      var at = (d.Meta && d.Medicao !== null && d.Medicao !== undefined) ? d.Medicao / d.Meta : null;
+      var temReal = d.Medicao !== null && d.Medicao !== undefined && d.Medicao !== "";
+      var at = (d.Meta && temReal) ? d.Medicao / d.Meta : null;
       var ind = String(d.Indicador || "").toUpperCase();
       if (ind.indexOf("LUCRO") === 0) {
         var e = json(d.Escalas);
+        // realizado = resultado operacional da empresa (modelo); o realizado digitado so substitui
+        // margem: valor acima de 1 foi digitado em pontos percentuais (12,9 = 12,9%)
+        var mg = function (v) { v = +v; return v > 1 ? v / 100 : v; };
+        c.llRealAuto = !temReal && !!OPER;
+        c.llReal = temReal ? mg(d.Medicao) : (OPER ? OPER.marg : null);
+        c.llMeta = d.Meta ? mg(d.Meta) : null;
+        at = (c.llMeta && c.llReal !== null) ? c.llReal / c.llMeta : null;
         c.ll = at; c.fll = e.faixas;
         c.llMetaRS = (e.metaRS === undefined || e.metaRS === null) ? null : +e.metaRS;
         c.llRealRS = (e.realRS === undefined || e.realRS === null) ? null : +e.realRS;
       }
-      else if (ind.indexOf("GERA") === 0) { c.cx = at; c.fcx = json(d.Escalas).faixas; }
+      else if (ind.indexOf("GERA") === 0) {
+        // sem meta e sem realizado: considerado 100% (decisao de 14/10/2026 -- coletiva sem dado = atingida)
+        c.cxAuto = !d.Meta && !temReal;
+        c.cx = c.cxAuto ? 1 : at; c.fcx = json(d.Escalas).faixas;
+      }
     });
     return c;
   }
@@ -1141,7 +1166,8 @@
     r.J = r.base * W; r.K = r.base * X;
     // coletivas
     r.AA = pctColetiva(col.ll, col.fll); r.AB = pctColetiva(col.cx, col.fcx);
-    if (r.AA === null || r.AB === null) r.pend.push("coletivas sem meta/realizado");
+    if (r.AA === null) r.pend.push("sem meta da coletiva de resultado");
+    if (r.AB === null) r.pend.push("Geração de Caixa sem meta/realizado");
     r.AC = (r.AA || 0) * Y + (r.AB || 0) * Z;
     // individual
     var osMeses = [];
@@ -1176,13 +1202,16 @@
       r.AK = (q === null || isNaN(q)) ? 0 : q < 0.5 ? 0 : q > 1 ? AD : q * AD;
       plusIndiv = Math.abs(r.AK - AD) < 1e-9 && AD > 0;
     } else if (AD || AF) {
+      // Orcamento e OKR sem valor = atingidos (simulacao, 14/10/2026); o que for preenchido prevalece
       r.AI = d.orcamento; r.AJ = d.okr;
-      if (r.AI === undefined || r.AI === null) r.pend.push("sem orçamento");
-      if (AF && (r.AJ === undefined || r.AJ === null)) r.pend.push("sem OKR");
-      var parteOrc = (r.AI === undefined || r.AI === null) ? 0 : r.AI < 1 ? AD : r.AI <= 1.1 ? AD * 0.5 : 0;
-      var parteOkr = (r.AJ === undefined || r.AJ === null || r.AJ < 0.9) ? 0 : AF;
+      var semOrc = r.AI === undefined || r.AI === null, semOkr = r.AJ === undefined || r.AJ === null;
+      r.abertosIndiv = [];
+      if (semOrc) r.abertosIndiv.push("orçamento em aberto: atingido");
+      if (AF && semOkr) r.abertosIndiv.push("OKR em aberto: atingido");
+      var parteOrc = semOrc ? AD : r.AI < 1 ? AD : r.AI <= 1.1 ? AD * 0.5 : 0;
+      var parteOkr = semOkr ? AF : (r.AJ < 0.9 ? 0 : AF);
       r.AK = parteOrc + parteOkr;
-      plusIndiv = r.AI !== undefined && r.AI !== null && r.AI <= 1 && (!AF || (r.AJ !== null && r.AJ !== undefined && r.AJ >= 1));
+      plusIndiv = (semOrc || r.AI <= 1) && (!AF || semOkr || r.AJ >= 1);
     } else r.AK = 0;
     r.F = r.AC + r.AK;
     var semCaixa = String(e.plusCaixaEmpresa || "") === "-";
@@ -1213,7 +1242,7 @@
     r.vdef = {}; Object.keys(r.def).forEach(function (k) { r.vdef[k] = r.O * r.def[k]; });
     r.P = r.O * r.H; r.V = r.O - r.P;
     valores.pendencias.forEach(function (x) { r.pend.push(x); });
-    r.abertos = valores.abertos;
+    r.abertos = (r.abertosIndiv || []).concat(valores.abertos);
     return r;
   }
   function NIVEL_OP(f) { return f === FUNC_OP.c || f === FUNC_OP.g || f === FUNC_OP.s; }
