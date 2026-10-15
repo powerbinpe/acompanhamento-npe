@@ -54,10 +54,10 @@
 
     /* Navigation Tabs */
     .nav-tabs {
-      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 0; padding-bottom: 0; border-bottom: none;
+      display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 0; padding-bottom: 0; border-bottom: none;
     }
 
-    .tab-btn { background: none; border: none; padding: 12px 20px; font-size: 1.05rem; font-weight: 700; color: #94a3b8; cursor: pointer; border-bottom: 3.5px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px; }
+    .tab-btn { background: none; border: none; padding: 9px 10px; font-size: 0.92rem; white-space: nowrap; font-weight: 700; color: #94a3b8; cursor: pointer; border-bottom: 3.5px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px; }
 
     .tab-btn:hover { background-color: #253a6e; color: #ffffff; }
     .tab-btn.active {
@@ -68,6 +68,13 @@
     /* Role & Save Buttons */
     .role-toggle-btn { background-color: #0284c7; color: #ffffff; border: 1.5px solid #38bdf8; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 1.0rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease; }
     .save-btn { background-color: #16a34a; color: #ffffff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; font-size: 1.0rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35); }
+
+    /* Botoes da barra: tres funcoes, tres estilos (acao de fechamento / consulta / configuracao) */
+    .btn-acao, .btn-consulta, .btn-config { display: none; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 8px; font-weight: 800; font-size: 0.88rem; cursor: pointer; transition: all 0.2s ease; }
+    .btn-acao { background: linear-gradient(135deg,#0f766e,#115e59); color: #ffffff; border: none; }
+    .btn-consulta { background: #f1f5f9; color: #0f2b5c; border: 1.5px solid #cbd5e1; }
+    .btn-config { background: #1e3a8a; color: #ffffff; border: 1.5px solid #3b82f6; }
+    .btn-acao:hover, .btn-consulta:hover, .btn-config:hover { filter: brightness(1.1); }
 
     .sim-banner { background: rgba(30, 58, 138, 0.4); border: 1.5px solid #3b82f6; padding: 12px 18px; border-radius: 8px; margin-bottom: 16px; font-size: 1.0rem; color: #bfdbfe; display: flex; align-items: center; gap: 10px; font-weight: 500; }
 
@@ -203,9 +210,9 @@
   <div class="navbar">
     <div class="nav-tabs">
       <button type="button" class="tab-btn active" data-action="switchTab" data-tab="tabMensal">📊 Aba 1: Acompanhamento Mensal</button>
-      <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabRanking">🏆 Aba 2: Gestão de Pontuação & Ranking</button>
+      <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabRanking">🏆 Aba 2: Pontuação &amp; Ranking</button>
       <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabConsolidacao">📈 Aba 3: Consolidação Anual</button>
-      <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabLicoes">💡 Aba 4: Lições Aprendidas & Gestão de Risco</button>
+      <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabLicoes">💡 Aba 4: Lições &amp; Gestão de Risco</button>
       <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabVisaoGeral">🗂️ Aba 5: Visão Geral das OSs</button>
     </div>
 
@@ -222,34 +229,31 @@
         💾 Salvar Comentários
       </button>
 
-      <button type="button" id="btnCadastroMetas" data-action="openMetasModal" style="display:none; background:linear-gradient(135deg,#0f766e,#065f46); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+      <button type="button" id="btnCadastroMetas" class="btn-config" data-action="openMetasModal" title="Cadastro das metas por OS e indicador." style="display:none;">
         &#127919; Cadastro de Metas
       </button>
 
-      <button type="button" id="btnArmarRegravacao" data-action="armarRegravacao" style="display:none; background:linear-gradient(135deg,#b91c1c,#7f1d1d); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+      <button type="button" id="btnSituacaoPareceres" class="btn-consulta" data-action="situacaoPareceresMes" title="Mostra, para o mes selecionado, quais OSs ja tem os pareceres escritos e quantos estao validados." style="display:none;">
+        &#128203; Pareceres do m&ecirc;s
+      </button>
+
+      <button type="button" id="btnSituacaoNotas" class="btn-consulta" data-action="situacaoNotasAno" title="Mostra quais OSs ja tem as notas do ano gravadas ate o ultimo mes fechado." style="display:none;">
+        &#128203; Notas do ano
+      </button>
+
+      <button type="button" id="btnArmarRegravacao" class="btn-acao" data-action="armarRegravacao" style="display:none;">
         &#9889; Armar Regrava&ccedil;&atilde;o
       </button>
 
-      <button type="button" id="btnCongelarSnapshot" data-action="congelarSnapshot" style="display:none; background:linear-gradient(135deg,#4338ca,#312e81); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+      <button type="button" id="btnCongelarSnapshot" class="btn-acao" data-action="congelarSnapshot" style="display:none;">
         &#128248; Congelar Fechamento
       </button>
 
-      <button type="button" id="btnSituacaoNotas" data-action="situacaoNotasAno" title="Mostra quais OSs ja tem as notas do ano gravadas ate o ultimo mes fechado." style="display:none; background:#fef3c7; color:#78350f; border:1.5px solid #fcd34d; padding:9px 14px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; align-items:center; gap:6px;">
-        &#128203; Situa&ccedil;&atilde;o das notas
-      </button>
-
-      <button type="button" id="btnGravarNotasAno" data-action="gravarNotasDoAno" style="display:none; background:linear-gradient(135deg,#b45309,#78350f); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+      <button type="button" id="btnGravarNotasAno" class="btn-acao" data-action="gravarNotasDoAno" style="display:none;">
         &#128197; Gravar Notas do Ano
       </button>
 
-      <!-- Os tres passos da esteira, na ordem em que se usam. Antes os nomes eram quase
-           iguais ("Copiar Pareceres" / "Copiar Pareceres do Mes") para acoes opostas, e o
-           Importar aparecia antes do Gerar. -->
-      <button type="button" id="btnSituacaoPareceres" data-action="situacaoPareceresMes" title="Mostra, para o mes selecionado, quais OSs ja tem os pareceres escritos e quantos estao validados." style="display:none; background:#ede9fe; color:#5b21b6; border:1.5px solid #c4b5fd; padding:8px 12px; border-radius:8px; font-weight:800; font-size:0.84rem; cursor:pointer; align-items:center; gap:6px;">
-        &#128203; Situa&ccedil;&atilde;o das OSs
-      </button>
-
-      <button type="button" id="btnFecharMesIA" data-action="abrirFecharMesIA" title="Dispara o agente na nuvem: ele gera pareceres, notas, resumos e li\u00e7\u00f5es com a IA e grava. Pede sua senha para confirmar." style="display:none; background:linear-gradient(135deg,#0f766e,#115e59); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
+      <button type="button" id="btnFecharMesIA" class="btn-acao" data-action="abrirFecharMesIA" title="Dispara o agente na nuvem: ele gera pareceres, notas, resumos e li\u00e7\u00f5es com a IA e grava. Pede sua senha para confirmar." style="display:none;">
         &#129302; Fechar o m&ecirc;s com IA
       </button>
 
@@ -367,9 +371,9 @@
     <div id="tab2TotalEligibleOSBadge" style="margin-bottom:14px;"></div>
 
     <div style="display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; margin-bottom:20px;">
-      <button type="button" id="btnSituacaoResumos" data-action="situacaoResumosAnuais" title="Mostra quais OSs ja tem o resumo anual gravado e quais faltam." style="display:none; background:#ede9fe; color:#5b21b6; border:1.5px solid #c4b5fd; padding:9px 14px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
-        &#128203; Situação das OSs
-      </button>
+      <button type="button" id="btnSituacaoResumos" class="btn-consulta" data-action="situacaoResumosAnuais" title="Mostra quais OSs ja tem o resumo anual gravado e quais faltam." style="display:none;">
+          &#128203; Resumos anuais
+        </button>
     </div>
 
     <!-- Cards de Resumo Corporativo Anual -->
@@ -390,8 +394,8 @@
         </p>
       </div>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <button type="button" id="btnSituacaoLicoes" data-action="situacaoLicoes" title="Mostra quais OSs entram na analise da Aba 4 (ultimo mes fechado validado e resumo anual gravado) e quais ficam de fora." style="display:none; background:#ecfdf5; color:#047857; border:1.5px solid #6ee7b7; padding:9px 14px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
-          &#128203; Situa&ccedil;&atilde;o das OSs
+        <button type="button" id="btnSituacaoLicoes" class="btn-consulta" data-action="situacaoLicoes" title="Mostra quais OSs entram na analise da Aba 4 (ultimo mes fechado validado e resumo anual gravado) e quais ficam de fora." style="display:none;">
+          &#128203; Li&ccedil;&otilde;es por OS
         </button>
       </div>
     </div>
@@ -1367,10 +1371,20 @@ function hydrateFromPowerBI() {
                                     "btnFecharMesIA", "btnSituacaoResumos", "btnSituacaoNotas", "btnSituacaoPareceres", "btnSituacaoLicoes",
                                     "btnGravarNotasAno",
                                     "btnCongelarSnapshot", "btnArmarRegravacao"];
+    // Botoes que so fazem sentido numa aba: aparecem so nela (ausente da lista = todas as abas).
+    var BOTOES_POR_ABA = {
+      btnSituacaoPareceres: ["tabMensal"],
+      btnSituacaoNotas: ["tabVisaoGeral"], btnGravarNotasAno: ["tabVisaoGeral"],
+      btnArmarRegravacao: ["tabVisaoGeral"], btnCongelarSnapshot: ["tabVisaoGeral"]
+    };
     function aplicarVisibilidadeMaster(liberado) {
+      var aba = window._ABA_ATIVA || safeGetStorage("pbi_active_tab", "tabMensal") || "tabMensal";
       BOTOES_EXCLUSIVOS_MASTER.forEach(function(id) {
         var el = document.getElementById(id);
-        if (el) el.style.display = liberado ? "inline-flex" : "none";
+        if (!el) return;
+        var lista = BOTOES_POR_ABA[id];
+        var naAba = !lista || lista.indexOf(aba) !== -1;
+        el.style.display = (liberado && naAba) ? "inline-flex" : "none";
       });
     }
 
@@ -2136,6 +2150,7 @@ function hydrateFromPowerBI() {
       }
 
       safeSetStorage('pbi_active_tab', tabId);
+      window._ABA_ATIVA = tabId;
 
       var tabButtons = document.querySelectorAll(".tab-btn");
       tabButtons.forEach(function(btn) { btn.classList.remove("active"); });
@@ -2160,8 +2175,7 @@ function hydrateFromPowerBI() {
       if (btnCopyPareceresPerfEl) btnCopyPareceresPerfEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
       var btnGerarIAEl = document.getElementById("btnGerarPareceresIA");
       if (btnGerarIAEl) btnGerarIAEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
-      var btnSitParEl = document.getElementById("btnSituacaoPareceres");
-      if (btnSitParEl) btnSitParEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
+      aplicarVisibilidadeMaster(!!window.isMaster);
       var btnConfigIAEl = document.getElementById("btnConfigFluxoIA");
       if (btnConfigIAEl) btnConfigIAEl.style.display = (tabId === 'tabMensal' && window.isMaster) ? "inline-flex" : "none";
       var btnImportarEl = document.getElementById("btnImportarPareceres");
