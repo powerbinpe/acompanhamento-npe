@@ -1023,7 +1023,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-14 07:21";
+    window.NPE_BUILD = "2026-10-15 07:53";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
@@ -8666,6 +8666,7 @@ function hydrateFromPowerBI() {
         revisar: res.revisar, primeiraRodada: res.primeiraRodada || [],
         sintese: { gerada: sinteseGerada, refeita: sinteseRefeita, motivos: motivosSintese, motivosMini: motivosSinteseMini, mantida: sinteseMantida },
         mantidos: ap.mantidos || [],
+        erroSalvar: gravado === false ? String(window.NPE_ERRO_SALVAR || "sem motivo registrado") : "",
         tempos: _tempos,
         gravado: gravado
       };
@@ -9908,6 +9909,7 @@ function hydrateFromPowerBI() {
 
 
     async function saveAllComments() {
+      window.NPE_ERRO_SALVAR = "saveAllComments saiu sem gravar e sem registrar o motivo (retorno antecipado)";
       var saveBtn = document.querySelector(".save-btn");
       // Blindagem: qualquer erro nao previsto aqui dentro (JS quebrando por um motivo
       // qualquer) antes so fazia o botao voltar mudo, sem nenhuma pista -- parecia "nao fez
@@ -10108,6 +10110,7 @@ function hydrateFromPowerBI() {
       } catch (e) {}
 
       var cloudSuccess = false;
+      window.NPE_ERRO_SALVAR = "";
       var webhook = window.CLOUD_WEBHOOK_URL || "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/bfaa9f5615144864914029734fbed5bd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=P-9LbSTlkgYK1spior6qlj8ejGES2_8pQRVn0JDjz-0";
       
       if (webhook && webhook.startsWith("http")) {
@@ -10121,6 +10124,7 @@ function hydrateFromPowerBI() {
             cloudSuccess = true;
           }
         } catch (err) {
+          window.NPE_ERRO_SALVAR = "falha de rede ao chamar o fluxo da ATA: " + String(err && err.message ? err.message : err);
           console.warn("Webhook cloud sync notice:", err);
         }
       }
@@ -10156,6 +10160,7 @@ function hydrateFromPowerBI() {
       return cloudSuccess;
       } catch (err) {
         console.error("saveAllComments:", err);
+        window.NPE_ERRO_SALVAR = "excecao: " + String(err && err.stack ? err.stack : err).slice(0, 600);
         showToast("⛔ Erro ao salvar: " + (err && err.message ? err.message : err) + ". Tente de novo ou avise o suporte.");
         if (saveBtn) { saveBtn.innerHTML = "💾 Salvar Comentários"; saveBtn.style.opacity = "1"; }
       }

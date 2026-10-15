@@ -139,7 +139,7 @@
     if (r.refeitos) partes.push(r.refeitos + " refeito(s)");
     partes.push("sintese " + (r.sintese && r.sintese.gerada ? "ok" : (r.sintese && r.sintese.mantida ? "ja existia (mantida)" : "nao gerada")));
     if ((r.revisar || []).length) partes.push("REVISAR " + r.revisar.map(function (x) { return "#" + x.tid; }).join(","));
-    partes.push(r.gravado === null ? "nao gravou (teste)" : (r.gravado ? "gravado na ATA" : "ATA NAO CONFIRMOU"));
+    partes.push(r.gravado === null ? "nao gravou (teste)" : (r.gravado ? "gravado na ATA" : "ATA NAO CONFIRMOU" + (r.erroSalvar ? " [" + r.erroSalvar + "]" : "")));
     if (r.tempos) partes.push("tempos(s): ata " + r.tempos.ata + ", pareceres " + r.tempos.pareceres + ", sintese " + r.tempos.sintese + (r.tempos.gravar != null ? ", gravar " + r.tempos.gravar : ""));
     var erro = gravar && r.gravado === false;
     return { estado: erro ? "erro" : (revisar ? "revisar" : "ok"), texto: partes.join(" | "), erro: erro };
