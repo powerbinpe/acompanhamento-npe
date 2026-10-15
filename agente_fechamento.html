@@ -368,7 +368,96 @@
     return relatorio;
   }
 
-  window.NPE_AGENTE = { rodar: rodar, versao: "2026-10-12" };
+  // ---------- v2: login e planejamento (o Node executa cada tarefa num contexto proprio) ----------
+  async function entrarV2(cfg) {
+    var ano = parseInt(cfg.ano, 10);
+    var m = parseMeses(cfg.mes)[0] || 1;
+    var lista = await listarOSs(cfg, ano, m);
+    var s = await iniciarSessao(cfg, ano, m, lista[0].code);
+    return { ultimoFechado: s.ultimoFechado, osNoMes: lista.length };
+  }
+
+  async function planejarV2(cfg) {
+    var ano = parseInt(cfg.ano, 10);
+    var et = cfg.etapa;
+    var ultimo = parseInt(cfg.ultimoFechado, 10) || 0;
+    var filtro = (cfg.os || []).map(function (x) { return String(x).toUpperCase(); });
+    var meses = parseMeses(cfg.mes);
+    var mesBase = meses[0] || ultimo || 1;
+    var base = (await listarOSs(cfg, ano, mesBase)).map(function (x) { return x.code; });
+    var todas = filtro.length ? base.filter(function (c) { return filtro.indexOf(c.toUpperCase()) !== -1; }) : base;
+    var plano = { etapa: et, tarefas: [], info: {}, log: [] };
+    if (!todas.length) { plano.aviso = "Nenhuma OS elegivel para o filtro informado."; return plano; }
+
+    if (et === "aba1") {
+      if (!meses.length) { plano.aviso = "Informe o mes da Aba 1 (um mes, uma lista ou um intervalo, ex.: 1-8)."; return plano; }
+      var jaFechados = meses.filter(function (m) { return m <= ultimo; });
+      if (jaFechados.length && !cfg.permitirMesFechado) {
+        plano.aviso = "Os meses " + jaFechados.join(", ") + " ja estao fechados (ultimo fechado: " + ultimo + "). Marque permitir_mes_fechado se for proposital.";
+        return plano;
+      }
+      var maxMes = Math.max.apply(null, meses);
+      var qa = await abrirNoQuadro((await lerUrlOS(cfg, todas[0], ano, meses[0])) + "&NPE_DRY=1");
+      var resumoMes = {};
+      try {
+        for (var mi = 1; mi <= maxMes; mi++) {
+          var rowsAta = await qa.win.lerAtaMesComTentativas(ano, mi);
+          resumoMes[mi] = resumirAta(rowsAta, qa.win);
+        }
+      } finally { fecharQuadro(qa); }
+      var inicioOS = {};
+      for (var m1 = 1; m1 <= maxMes; m1++) {
+        Object.keys(resumoMes[m1]).forEach(function (cod) {
+          var x = resumoMes[m1][cod];
+          if (inicioOS[cod] === undefined && (x.justif > 0 || x.pareceres > 0)) inicioOS[cod] = m1;
+        });
+      }
+      plano.info.meses = {};
+      for (var k = 0; k < meses.length; k++) {
+        var m = meses[k];
+        var listaM;
+        try { listaM = (await listarOSs(cfg, ano, m)).map(function (x) { return x.code; }); }
+        catch (eLista) { plano.info.meses[m] = { aviso: msg(eLista) }; plano.log.push("Aba 1 mes " + m + ": " + msg(eLista)); continue; }
+        if (filtro.length) listaM = listaM.filter(function (c) { return filtro.indexOf(c.toUpperCase()) !== -1; });
+        var ign = { validadas: 0, semInicio: 0, prontas: 0 }, n = 0;
+        listaM.forEach(function (cod) {
+          var C = cod.toUpperCase();
+          var x = resumoMes[m][C] || { pareceres: 0, validados: 0, justif: 0 };
+          var ini = inicioOS[C];
+          if (x.validados >= 23) ign.validadas++;
+          else if (ini === undefined || m < ini) ign.semInicio++;
+          else if (x.pareceres >= 23 && !cfg.refazer) ign.prontas++;
+          else { n++; plano.tarefas.push({ etapa: "aba1", chave: "aba1_" + ano + "_" + m, os: cod, ano: ano, mes: m }); }
+        });
+        plano.info.meses[m] = { osNoMes: listaM.length, aFazer: n, ignoradas: ign };
+        plano.log.push("Aba 1 " + (MESES[m - 1] || m) + ": " + listaM.length + " OSs, " + n + " a fazer; ignoradas: " + ign.validadas + " fechadas (23 validados), " + ign.semInicio + " ainda nao iniciadas, " + ign.prontas + " ja com pareceres.");
+      }
+    } else if (et === "aba5") {
+      if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
+      todas.forEach(function (cod) { plano.tarefas.push({ etapa: "aba5", chave: "aba5_" + ano + "_" + ultimo, os: cod, ano: ano, mes: ultimo }); });
+      plano.log.push("Aba 5: " + todas.length + " OSs, notas ate " + (MESES[ultimo - 1] || ultimo) + ".");
+    } else if (et === "aba3") {
+      if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
+      var q3 = await abrirNoQuadro((await lerUrlOS(cfg, todas[0], ano, ultimo)) + "&NPE_DRY=1");
+      var sel;
+      try { sel = await q3.win.osValidadasAba4(ano); } finally { fecharQuadro(q3); }
+      var pendTodas = sel.fora.filter(function (x) { return /resumo anual/.test(x.motivo); }).map(function (x) { return String(x.os).toUpperCase(); });
+      var semNada = sel.fora.length - pendTodas.length;
+      var pend = filtro.length ? pendTodas.filter(function (c) { return filtro.indexOf(c) !== -1; }) : pendTodas;
+      pend.forEach(function (cod) { plano.tarefas.push({ etapa: "aba3", chave: "aba3_" + ano + "_" + ultimo, os: cod, ano: ano, mes: ultimo }); });
+      plano.info = { emDiaTotal: sel.entram.length, aGerarTotal: pendTodas.length, semMesValidadoTotal: semNada };
+      plano.log.push("Aba 3 (todas as OSs): " + sel.entram.length + " em dia, " + pendTodas.length + " a gerar/refazer, " + semNada + " sem mes validado" + (filtro.length ? "; nesta rodada, so " + pend.length + " (filtro de OS)." : "."));
+    } else if (et === "aba4") {
+      if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
+      plano.tarefas.push({ etapa: "aba4", chave: "aba4_" + ano, os: todas[0], ano: ano, mes: ultimo });
+      plano.log.push("Aba 4: uma tarefa (os tres quadros), aberta pela OS " + todas[0] + ".");
+    } else {
+      plano.aviso = "Etapa desconhecida: " + et;
+    }
+    return plano;
+  }
+
+  window.NPE_AGENTE = { rodar: rodar, entrar: entrarV2, planejar: planejarV2, versao: "v2-2026-10-15" };
   log("Agente pronto.");
 })();
 </script>
