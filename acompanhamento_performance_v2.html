@@ -1030,7 +1030,7 @@ function hydrateFromPowerBI() {
     window.NPE_BUILD = "2026-10-15 11:43";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
-                               "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
+                               "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url",
                                "npe_gemini_api_key", "npe_claude_api_key", "npe_claude_modelo_rapido",
                                "npe_claude_modelo_forte", "npe_ia_provedor"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -1038,7 +1038,7 @@ function hydrateFromPowerBI() {
     // Chaves de API e URLs de fluxo (com a assinatura no endereco): segredos do Master. Ficam so no localStorage
     // deste navegador e na moldura (window.name, para o iframe do Power BI). NAO vao para cookie (cookie e enviado
     // a cada requisicao ao servidor), nem para o mapa persistido que vira cookie, nem para o IndexedDB.
-    var CHAVES_SEGREDO_IA = ["npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url",
+    var CHAVES_SEGREDO_IA = ["npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url",
                              "npe_gemini_api_key", "npe_claude_api_key"];
     function gravarSegredoIA(chave, valor) {
       window._GLOBAL_COMM_STORAGE[chave] = valor;
