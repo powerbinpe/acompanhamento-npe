@@ -9208,6 +9208,7 @@ function hydrateFromPowerBI() {
         fundo.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh;" +
           "background:rgba(11,26,58,0.90); z-index:999999999; display:flex;" +
           "justify-content:center; align-items:flex-start; padding:28px 20px; overflow-y:auto;";
+        fundo.addEventListener("keydown", function(ev) { if (ev.key === "Enter" && ev.target && ev.target.tagName === "INPUT") { var bs = fundo.querySelector('button[data-r="1"]'); if (bs) bs.click(); } });
         var linhas = campos.map(function(c, i) {
           var vAtual = String(safeGetStorage(c.chave, "") || "");
           var ok = c.gemini ? vAtual.length >= 20 : vAtual.indexOf("http") === 0;
@@ -9219,9 +9220,9 @@ function hydrateFromPowerBI() {
             '</div>';
         }).join("");
         fundo.innerHTML =
-          '<div style="background:#fff; border-radius:14px; width:100%; border:2.5px solid #7c3aed; overflow:hidden; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
+          '<div style="background:#fff; border-radius:14px; width:100%; border:2.5px solid #7c3aed; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
             '<div style="background:linear-gradient(135deg,#5b21b6,#7c3aed); padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">&#9881; IA do fechamento (chaves e fluxos)</div>' +
-            '<div style="padding:18px 20px; font-size:0.9rem; color:#334155; line-height:1.55;">' +
+            '<div style="padding:18px 20px; font-size:0.9rem; color:#334155; line-height:1.55; overflow-y:auto; flex:1 1 auto; min-height:0;">' +
               '<div style="margin-bottom:14px;">A URL de cada fluxo e as chaves de API ficam guardadas <b>somente neste navegador</b> &mdash; não vão para o código nem para a ATA. ' +
               'Copie-a no gatilho do fluxo (campo <b>URL HTTP POST</b>).</div>' + linhas +
             '</div>' +
@@ -9283,9 +9284,9 @@ function hydrateFromPowerBI() {
           'style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #94a3b8; border-radius:8px; font-size:0.9rem;"></div>';
       }
       fundo.innerHTML =
-        '<div style="background:#fff; border-radius:14px; width:100%; border:2.5px solid #0f766e; overflow:hidden; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
+        '<div style="background:#fff; border-radius:14px; width:100%; border:2.5px solid #0f766e; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
           '<div style="background:linear-gradient(135deg,#115e59,#0f766e); padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">&#129302; Fechar o m\u00eas com IA (agente na nuvem)</div>' +
-          '<div style="padding:16px 20px; font-size:0.9rem; color:#334155; line-height:1.5;">' +
+          '<div style="padding:16px 20px; font-size:0.9rem; color:#334155; line-height:1.5; overflow-y:auto; flex:1 1 auto; min-height:0;">' +
             '<div style="font-weight:800; color:#0f2b5c;">Etapas</div>' +
             chk("fmEtAba1", "Aba 1 \u2014 pareceres e s\u00edntese de cada OS (informe os meses abaixo)", false) +
             chk("fmEtAba5", "Aba 5 \u2014 notas das OSs", true) +
