@@ -8940,6 +8940,7 @@ function hydrateFromPowerBI() {
         showToast("\u26a0\ufe0f Falta a URL do fluxo NPE-Iniciar-Agente. Cole em \u2699 IA.");
         return;
       }
+      var urlStatus = String(safeGetStorage("npe_flow_status_agente_url", "__URL_STATUS__") || "");
       var login = loginLogado();
       if (!login) { showToast("\u26a0\ufe0f Entre com seu usu\u00e1rio para disparar o agente."); return; }
       var fundo = document.createElement("div");
@@ -8959,6 +8960,11 @@ function hydrateFromPowerBI() {
         '<div style="background:#fff; border-radius:14px; width:100%; border:2.5px solid #0f766e; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
           '<div style="background:linear-gradient(135deg,#115e59,#0f766e); padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">&#129302; Fechar o m\u00eas com IA (agente na nuvem)</div>' +
           '<div style="padding:16px 20px; font-size:0.9rem; color:#334155; line-height:1.5; overflow-y:auto; flex:1 1 auto; min-height:0;">' +
+            '<div style="border:1.5px solid #99f6e4; background:#f0fdfa; border-radius:10px; padding:10px 12px; margin-bottom:12px;">' +
+              '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><b style="color:#115e59;">Andamento do agente</b>' +
+              '<button type="button" data-r="2" style="background:#0f766e; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-weight:800; cursor:pointer;">Atualizar</button></div>' +
+              '<div id="fmAndamento" style="margin-top:6px; font-size:0.84rem; color:#334155;">Digite sua senha abaixo e clique em Atualizar para ver a \u00faltima execu\u00e7\u00e3o.</div>' +
+            '</div>' +
             '<div style="font-weight:800; color:#0f2b5c;">Etapas</div>' +
             chk("fmEtAba1", "Aba 1 \u2014 pareceres e s\u00edntese de cada OS (informe os meses abaixo)", false) +
             chk("fmEtAba5", "Aba 5 \u2014 notas das OSs", true) +
@@ -8981,7 +8987,80 @@ function hydrateFromPowerBI() {
         '</div>';
       function el(id) { return fundo.querySelector("#" + id); }
       function msg(t, cor) { var m = el("fmMsg"); m.style.color = cor || "#334155"; m.textContent = t; }
-      function fechar() { try { document.body.removeChild(fundo); } catch (e) {} }
+      var temporizador = null;
+      function fechar() { if (temporizador) { clearInterval(temporizador); temporizador = null; } try { document.body.removeChild(fundo); } catch (e) {} }
+      function esc(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+      function fmtData(d) { try { return new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; } }
+      function fmtDur(a, b) { var s = Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000)), m = Math.floor(s / 60); return m ? m + " min " + (s % 60) + " s" : s + " s"; }
+      function rotuloRun(r) {
+        if (r.status === "completed") return r.conclusion === "success" ? "\u2705 Conclu\u00edda" : (r.conclusion === "cancelled" ? "\u26d4 Cancelada" : "\u274c Falhou");
+        if (r.status === "in_progress") return "\u25b6\ufe0f Em andamento";
+        return "\u23f3 Na fila";
+      }
+      // Token da sessao so em memoria (nunca em storage): vale ate o visual ser recriado ou o servidor recusar.
+      async function tokenAgente() {
+        var c = window._NPE_TOKEN_AGENTE;
+        if (c && c.login === login && c.token && (Date.now() - c.ts) < 3 * 3600 * 1000) return c.token;
+        var senha = String(el("fmSenha").value || "");
+        if (!senha) return "";
+        var a = await autenticarAcesso(login, senha);
+        if (!a.ok || String(a.token || "").length !== 64) { msg(a.erro || "Acesso n\u00e3o confirmado.", "#b91c1c"); return ""; }
+        window._NPE_TOKEN_AGENTE = { login: login, token: a.token, ts: Date.now() };
+        return a.token;
+      }
+      async function consultarFluxo(acao, token) {
+        var r = await fetch(urlStatus, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: login, token: token, acao: acao }) });
+        if (r.status === 401) { window._NPE_TOKEN_AGENTE = null; return { naoAutorizado: true }; }
+        var j = null; try { j = await r.json(); } catch (e) {}
+        return { status: r.status, json: j };
+      }
+      async function atualizarAndamento(mostrarErro) {
+        var box = el("fmAndamento");
+        if (!box) return;
+        if (urlStatus.indexOf("https://") !== 0) { box.textContent = "O painel de andamento ainda n\u00e3o foi configurado."; return; }
+        var token = await tokenAgente();
+        if (!token) { if (mostrarErro) box.textContent = "Digite sua senha abaixo e clique em Atualizar."; return; }
+        try {
+          var rs = await consultarFluxo("status", token);
+          if (rs.naoAutorizado) { box.textContent = "Sess\u00e3o expirada: digite a senha de novo e clique em Atualizar."; return; }
+          var runs = rs.json && rs.json.workflow_runs;
+          if (!runs) { box.textContent = "N\u00e3o consegui ler as execu\u00e7\u00f5es (c\u00f3digo " + rs.status + ")."; return; }
+          var html = "";
+          if (!runs.length) html += "Nenhuma execu\u00e7\u00e3o encontrada.";
+          runs.slice(0, 3).forEach(function(r, i) {
+            var fim = r.status === "completed" ? r.updated_at : new Date().toISOString();
+            html += '<div style="' + (i ? "opacity:.75;" : "font-weight:700;") + ' margin-bottom:3px;">#' + r.run_number + " \u00b7 " + rotuloRun(r) +
+              " \u00b7 " + fmtData(r.run_started_at || r.created_at) + " \u00b7 " + fmtDur(r.run_started_at || r.created_at, fim) + "</div>";
+          });
+          var ativa = runs.length && runs[0].status !== "completed";
+          if (ativa) {
+            var rp = await consultarFluxo("progresso", token);
+            var pj = null;
+            try { pj = rp.json && rp.json.content ? JSON.parse(decodeURIComponent(escape(atob(String(rp.json.content).replace(/\n/g, ""))))) : null; } catch (e) {}
+            if (pj) {
+              var grupos = {};
+              Object.keys(pj.porChave || {}).forEach(function(k) {
+                var g = k.split("_")[0], v = pj.porChave[k];
+                var o = grupos[g] = grupos[g] || { ok: 0, revisar: 0, erro: 0 };
+                o.ok += v.ok || 0; o.revisar += v.revisar || 0; o.erro += v.erro || 0;
+              });
+              html += '<div style="margin-top:6px; padding-top:6px; border-top:1px dashed #99f6e4;">Progresso (atualizado \u00e0s ' + fmtData(pj.atualizadoEm) + ", a cada ~5 min):</div>";
+              Object.keys(grupos).sort().forEach(function(g) {
+                var o = grupos[g];
+                html += "<div>" + g.toUpperCase().replace("ABA", "Aba ") + ": " + o.ok + " ok" + (o.revisar ? ", " + o.revisar + " p/ revisar" : "") + (o.erro ? ", " + o.erro + " com erro" : "") + "</div>";
+              });
+              if (pj.emAndamento && pj.emAndamento.length) html += "<div>Agora: " + esc(pj.emAndamento.slice(0, 4).join(", ")) + (pj.emAndamento.length > 4 ? " ..." : "") + "</div>";
+            }
+          } else if (runs.length) {
+            html += '<div style="margin-top:4px; font-size:0.78rem; color:#64748b;">O relat\u00f3rio da execu\u00e7\u00e3o est\u00e1 no reposit\u00f3rio acompanhamento-agente (pasta relatorios).</div>';
+          }
+          box.innerHTML = html;
+          if (ativa && !temporizador) temporizador = setInterval(function() { atualizarAndamento(false); }, 20000);
+          if (!ativa && temporizador) { clearInterval(temporizador); temporizador = null; }
+        } catch (err) {
+          box.textContent = "N\u00e3o foi poss\u00edvel consultar o andamento agora.";
+        }
+      }
       async function iniciar() {
         var etapas = [];
         if (el("fmEtAba1").checked) etapas.push("aba1");
@@ -9000,6 +9079,7 @@ function hydrateFromPowerBI() {
           var a = await autenticarAcesso(login, senha);
           if (!a.ok) { msg(a.erro || "Acesso n\u00e3o confirmado.", "#b91c1c"); return; }
           if (a.token.length !== 64) { msg("O servidor n\u00e3o devolveu o token de acesso. Tente de novo.", "#b91c1c"); return; }
+          window._NPE_TOKEN_AGENTE = { login: login, token: a.token, ts: Date.now() };
           msg("Disparando o agente...");
           var resp = await fetch(url, {
             method: "POST", headers: { "Content-Type": "application/json" },
@@ -9017,6 +9097,7 @@ function hydrateFromPowerBI() {
             msg("\u2705 Agente iniciado" + (gravar ? " (gravando)." : " (apenas teste, nada \u00e9 gravado).") +
                 " Ele roda na nuvem e pode levar horas; o relat\u00f3rio fica no reposit\u00f3rio acompanhamento-agente.", "#15803d");
             botao.style.display = "none";
+            setTimeout(function() { atualizarAndamento(false); }, 15000);
             return;
           }
           msg("O GitHub recusou o pedido (c\u00f3digo " + ((j && j.status) || resp.status) + "). Avise o respons\u00e1vel t\u00e9cnico.", "#b91c1c");
@@ -9029,6 +9110,7 @@ function hydrateFromPowerBI() {
       fundo.addEventListener("click", function(ev) {
         var b = ev.target.closest ? ev.target.closest("button[data-r]") : null;
         if (b && b.getAttribute("data-r") === "1") iniciar();
+        else if (b && b.getAttribute("data-r") === "2") atualizarAndamento(true);
         else if (b) fechar();
         else if (ev.target === fundo) fechar();
       });
