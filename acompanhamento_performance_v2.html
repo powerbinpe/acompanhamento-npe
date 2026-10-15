@@ -9263,7 +9263,7 @@ function hydrateFromPowerBI() {
     // o navegador nao tem o token).
     function abrirFecharMesIA() {
       if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usu\u00e1rios M\u00e1ster."); return; }
-      var url = String(safeGetStorage("npe_flow_iniciar_agente_url", "") || "");
+      var url = String(safeGetStorage("npe_flow_iniciar_agente_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/15/workflows/0c3c4372cc7144c5a86f8996ff8cd732/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lpOJZksnp3DkRTmvuy_pzzGVTuG6jCGB4i4kyAwTIcA") || "");
       if (url.indexOf("https://") !== 0) {
         showToast("\u26a0\ufe0f Falta a URL do fluxo NPE-Iniciar-Agente. Cole em \u2699 IA.");
         return;
