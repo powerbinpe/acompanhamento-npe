@@ -307,47 +307,7 @@
   </div>
 
   <!-- Modal: Exportar todos os comentários do ano para colar numa IA externa -->
-  <div id="importaLoteModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
-    <div data-larg-frac="0.66" style="background:#ffffff; border-radius:14px; width:100%; max-width:none; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #059669; overflow:hidden; display:flex; flex-direction:column; max-height:90vh;">
-      <div style="background:linear-gradient(135deg, #0f2b5c 0%, #047857 100%); padding:14px 20px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
-        <div>
-          <h3 style="margin:0; font-size:1.10rem; font-weight:800;">&#128229; Importar textos da IA</h3>
-          <p id="importaLoteSub" style="margin:2px 0 0 0; font-size:0.78rem; color:#a7f3d0;">Cole a resposta da IA. Cada bloco precisa come&ccedil;ar com o n&uacute;mero do indicador.</p>
-        </div>
-        <button type="button" onclick="document.getElementById('importaLoteModal').style.display='none';" style="background:#ef4444; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; cursor:pointer; font-size:0.88rem;">&#10005; Fechar</button>
-      </div>
-      <div style="padding:16px 20px; overflow-y:auto; flex:1;">
-        <div style="background:#ecfdf5; border:1.5px solid #a7f3d0; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:0.80rem; color:#065f46;">
-          Reconhe&ccedil;o blocos que come&ccedil;am com o n&uacute;mero do indicador &mdash; <code>### #7</code>, <code>#7</code>, <code>7)</code> ou <code>7.</code>
-          O que vier antes do primeiro n&uacute;mero &eacute; ignorado, ent&atilde;o pode colar a resposta inteira.
-        </div>
-        <textarea id="importaLoteTA" placeholder="Cole aqui a resposta da IA com os textos dos indicadores..." style="width:100%; min-height:420px; font-family:monospace; font-size:0.80rem; padding:12px; border:1.5px solid #cbd5e1; border-radius:8px; color:#0f172a; box-sizing:border-box;"></textarea>
-      </div>
-      <div style="background:#f8fafc; padding:12px 20px; border-top:1.5px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:0.76rem; color:#64748b;">&#128161; Nada &eacute; gravado sem confirma&ccedil;&atilde;o &mdash; voc&ecirc; v&ecirc; antes quantos foram reconhecidos.</span>
-        <button type="button" id="importaLoteBtn" onclick="importarEmLote('PARECER')" style="background:#059669; color:#ffffff; border:none; padding:9px 20px; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer;">&#128229; Importar</button>
-      </div>
-    </div>
-  </div>
 
-  <div id="copyAllModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11,26,58,0.88); backdrop-filter:blur(5px); z-index:9999999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
-    <div data-larg-frac="0.66" style="background:#ffffff; border-radius:14px; width:100%; max-width:none; box-shadow:0 12px 36px rgba(0,0,0,0.4); border:2.5px solid #7c3aed; overflow:hidden; display:flex; flex-direction:column; max-height:90vh;">
-      <div style="background:linear-gradient(135deg, #0f2b5c 0%, #5b21b6 100%); padding:14px 20px; display:flex; justify-content:space-between; align-items:center; color:#ffffff;">
-        <div>
-          <h3 style="margin:0; font-size:1.10rem; font-weight:800;">📋 Exportar Comentários do Ano (para IA externa)</h3>
-          <p id="copyAllModalSubtitle" style="margin:2px 0 0 0; font-size:0.78rem; color:#ddd6fe;">Copie o texto abaixo e cole numa IA (ChatGPT, Copilot, etc.) para gerar o resumo de cada indicador.</p>
-        </div>
-        <button type="button" onclick="closeCopyAllModal()" style="background:#ef4444; color:#ffffff; border:none; padding:6px 14px; border-radius:6px; font-weight:800; cursor:pointer; font-size:0.88rem;">✕ Fechar</button>
-      </div>
-      <div style="padding:16px 20px; overflow-y:auto; flex:1;">
-        <textarea id="copyAllTextarea" readonly style="width:100%; min-height:420px; font-family:monospace; font-size:0.80rem; padding:12px; border:1.5px solid #cbd5e1; border-radius:8px; color:#0f172a; box-sizing:border-box;"></textarea>
-      </div>
-      <div style="background:#f8fafc; padding:12px 20px; border-top:1.5px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:0.76rem; color:#64748b;">💡 Se o botão não copiar automaticamente, clique dentro do texto, Ctrl+A e Ctrl+C.</span>
-        <button type="button" onclick="copyAllModalText()" style="background:#7c3aed; color:#ffffff; border:none; padding:9px 20px; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer;">📋 Copiar</button>
-      </div>
-    </div>
-  </div>
 
   <div id="debugUserInfo" style="font:11px monospace; color:#94a3b8; background:#0f172a; padding:3px 10px; white-space:nowrap; overflow-x:auto;"></div>
 
@@ -7198,34 +7158,16 @@ function hydrateFromPowerBI() {
         congelarSnapshot();
       } else if (acao === "gravarNotasDoAno") {
         gravarNotasDoAno();
-      } else if (acao === "gerarLicoesComIA") {
-        gerarLicoesComIA();
       } else if (acao === "situacaoLicoes") {
         situacaoLicoes();
       } else if (acao === "situacaoNotasAno") {
         situacaoNotasAno();
       } else if (acao === "situacaoPareceresMes") {
         situacaoPareceresMes();
-      } else if (acao === "gerarResumoAnualComIA") {
-        gerarResumoAnualComIA();
       } else if (acao === "situacaoResumosAnuais") {
         situacaoResumosAnuais();
-      } else if (acao === "configurarFluxosIA") {
-        configurarFluxosIA();
       } else if (acao === "abrirFecharMesIA") {
         abrirFecharMesIA();
-      } else if (acao === "gerarPareceresComIA") {
-        gerarPareceresComIA();
-      } else if (acao === "openCopyMonthPareceresModal") {
-        openCopyMonthPareceresModal();
-      } else if (acao === "openCopyPareceresPerfModal") {
-        openCopyPareceresPerfModal();
-      } else if (acao === "abrirImportaLote") {
-        abrirImportaLote(el.getAttribute("data-arg"));
-      } else if (acao === "openCopyAllModal") {
-        openCopyAllModal();
-      } else if (acao === "openCopyLicoesModal") {
-        openCopyLicoesModal();
       }
     });
 
@@ -7945,87 +7887,7 @@ function hydrateFromPowerBI() {
     }
     window.processarLicoesAno = processarLicoesAno;
 
-    async function gerarLicoesComIA() {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
-      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
-      if (!ano) { showToast("\u26a0\ufe0f Selecione o ano no Power BI."); return; }
-      if (ultimoMesFechado(ano) < 1) { showToast("\u26a0\ufe0f Nenhum mês fechado em " + ano + " ainda."); return; }
-      if (!iaConfiguradaNesteNavegador()) {
-        var configurou = await configurarFluxosIA();
-        if (!configurou) return;
-      }
-      showToast("\u23f3 Conferindo quais OSs estão validadas...");
-      var sel;
-      try { sel = await osValidadasAba4(ano); }
-      catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as OSs.")); return; }
-      if (!sel.entram.length) {
-        showToast("\u26a0\ufe0f Nenhuma OS entra ainda: " + sel.fora.length + " OSs ficam de fora (falta validar meses ou o resumo anual). Veja em \"Situação das OSs\".");
-        return;
-      }
-      var todos = sel.resumos;
-      var cods = sel.entram.map(function(x) { return x.os; });
-      var pr = construirPromptLicoes(todos, cods, ano, sel.ultimo, sel.mesesPorOS);
-      if (!pr.qtdTextos) { showToast("\u26a0\ufe0f Nenhum indicador se destacou pelo critério (80% ou mais, ou um terço ou menos dos meses) nas " + cods.length + " OSs validadas."); return; }
-      var segue = await confirmarNaPagina(
-        "\ud83e\udd16 Gerar Lições & Riscos com IA",
-        "<b>" + cods.length + " OS(s) validadas</b> entram na análise (" + sel.fora.length + " ficam de fora: falta validar o ultimo mes ou falta o resumo anual).\n" +
-        "Ano <b>" + ano + "</b>, janeiro até <b>" + (MONTH_NAMES_FULL_PT[sel.ultimo] || sel.ultimo) + "</b>.\n\n" +
-        "Os três quadros da Aba 4 serão <b>substituídos</b> e ficam visíveis para todos.",
-        "Gerar e gravar");
-      if (!segue) return;
-      showToast("\u23f3 Gerando os três quadros com IA... (de 30 s a 2 min)");
-      try {
-        var blocos = null, motivos = [];
-        for (var tent = 0; tent < 2; tent++) {
-          var resp = await chamarGerarTexto("gpt41", pr.texto);
-          blocos = separarBlocosLicoes(resp);
-          motivos = conferirLicoes(blocos);
-          if (!motivos.length) break;
-        }
-        // Mostra o texto nas caixas e guarda neste navegador, para o Master ler na hora.
-        renderLicoesResumoSection();
-        LICOES_BLOCOS.forEach(function(b) {
-          var el = document.getElementById("licoesTA_" + b.key);
-          if (el && blocos[b.key]) el.value = blocos[b.key];
-          if (blocos[b.key]) safeSetStorage("licoes_resumo_" + b.key, blocos[b.key]);
-        });
-        if (motivos.length) {
-          mostrarResultadoIA("A IA devolveu texto com problema", motivos.join("; ") + ".\nNÃO gravei: leia os quadros, ajuste e clique em Salvar.", false);
-          return;
-        }
-        var ok = await salvarLicoes();
-        if (ok) mostrarResultadoIA("Lições & Riscos gravados", "Gravados com " + cods.length + " OS(s) validadas (visível para todos).", true);
-        else mostrarResultadoIA("Textos gerados, mas não gravados", "Gerei os textos mas NÃO consegui gravar no SharePoint. Clique em Salvar.", false);
-      } catch (err) {
-        mostrarResultadoIA("Falha ao gerar as Lições & Riscos", (err && err.message ? err.message : "erro sem mensagem"), false);
-      }
-    }
-    window.gerarLicoesComIA = gerarLicoesComIA;
 
-    // Aba 4 (copia manual): mesmos criterios -- so as OSs validadas.
-    async function openCopyLicoesModal() {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usu\u00e1rios M\u00e1ster podem exportar."); return; }
-      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
-      if (!ano) { showToast("\u26a0\ufe0f Selecione o ano no Power BI."); return; }
-      if (ultimoMesFechado(ano) < 1) { showToast("\u26a0\ufe0f Nenhum mês fechado em " + ano + " ainda."); return; }
-      showToast("\u23f3 Conferindo quais OSs estão validadas e lendo os resumos anuais...");
-      var sel;
-      try { sel = await osValidadasAba4(ano); }
-      catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as OSs.")); return; }
-      if (!sel.entram.length) {
-        showToast("\u26a0\ufe0f Nenhuma OS validada com resumo anual ainda (" + sel.fora.length + " ficam de fora). Veja em \"Situação das OSs\".");
-        return;
-      }
-      var pr = construirPromptLicoes(sel.resumos, sel.entram.map(function(x) { return x.os; }), ano, sel.ultimo, sel.mesesPorOS);
-      if (!pr.qtdTextos) {
-        showToast("\u26a0\ufe0f Nenhum indicador se destacou pelo critério (80% ou mais, ou um terço ou menos dos meses)." +
-          (pr.semClassificacao ? " " + pr.semClassificacao + " resumo(s) sem desempenho gravado \u2014 regrave-os na Aba 3." : ""));
-        return;
-      }
-      mostrarCaixaCopia("Vis\u00e3o corporativa \u2022 " + sel.entram.length + " OS(s) validadas, " + pr.qtdTextos +
-        " resumo(s) \u2022 " + Math.round(pr.texto.length / 1000) + " mil caracteres \u2022 os 3 blocos voltam para os campos da Aba 4.",
-        pr.texto);
-    }
 
     // Aba 1 -- copia só os 23 pareceres do Setor de Performance (Máster) do MÊS ATUAL, para
     // colar numa IA externa e gerar a Síntese e Recomendações (tópico #24). Não tenta colar
@@ -8495,48 +8357,6 @@ function hydrateFromPowerBI() {
       return { textos: textos, revisar: falhas.map(function(tid) { return { tid: tid, motivos: motivos[tid] }; }), chamadas: chamadas, refeitos: refeitos, primeiraRodada: primeiraRodada };
     }
 
-    // Botao "Gerar com IA" da Aba 1: gera os pareceres da OS/mes selecionados e preenche as caixas.
-    // Nada vai para a ATA aqui -- o Salvar Comentarios continua sendo o passo que grava.
-    async function gerarPareceresComIA() {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster podem gerar pareceres."); return; }
-      var pp = new URLSearchParams(window.location.search);
-      var rawOS = pp.get("SelectedOS") || "";
-      var activeOS = extractPrimaryOSCode(rawOS);
-      if (!activeOS || rawOS === "TODAS_OS" || rawOS === "TODAS") { showToast("\u26a0\ufe0f Selecione uma OS específica no Power BI."); return; }
-      var monthNum = getMonthNumberFromParams(pp);
-      var monthName = pp.get("SelectedMes") || "";
-      if (!window.HISTORICO_PRONTO) {
-        showToast("\u23f3 Lendo as justificativas do Gestor...");
-        try { await historicoCarregado(); } catch (e) {}
-      }
-      if (!iaConfiguradaNesteNavegador()) {
-        var configurou = await configurarFluxosIA();
-        if (!configurou) return;
-      }
-      var segue = await confirmarNaPagina(
-        "\ud83e\udd16 Gerar pareceres com IA",
-        "OS <b>" + activeOS + "</b> \u2022 <b>" + (monthName || monthNum) + "</b>.\n\n" +
-        "O texto atual das caixas do <b>Parecer da Performance</b> será <b>substituído</b> (exceto indicadores já validados). " +
-        "Nada é gravado na ATA até você clicar em Salvar Comentários.",
-        "Gerar");
-      if (!segue) return;
-      showToast("\u23f3 Gerando os pareceres com IA... (alguns segundos)");
-      try {
-        var res = await gerarPareceresOS(activeOS, monthNum, monthName);
-        var ap = aplicarTextosNasCaixas(activeOS, monthNum, res.textos);
-        var preenchidos = ap.preenchidos, validados = ap.validados;
-        var msg = "\u2705 " + preenchidos + " parecer(es) preenchido(s)";
-        if (res.refeitos) msg += " \u2022 " + res.refeitos + " refeito(s) no modelo avançado";
-        if (validados.length) msg += " \u2022 validados, não alterados: " + validados.join(", ");
-        if (res.revisar.length) msg += " \u2022 REVISAR: " + res.revisar.map(function(x) { return "#" + x.tid; }).join(", ");
-        msg += ". Clique em Salvar Comentários para gravar.";
-        mostrarResultadoIA("Pareceres gerados", msg.replace(/^\u2705\s*/, ""), true);
-        try { console.log("Gerar com IA -- revisar:", JSON.stringify(res.revisar)); } catch (e2) {}
-      } catch (err) {
-        mostrarResultadoIA("Falha ao gerar os pareceres", (err && err.message ? err.message : "erro sem mensagem"), false);
-      }
-    }
-    window.gerarPareceresComIA = gerarPareceresComIA;
 
 
     // Poe os textos gerados nas caixas do Parecer da Performance, pulando indicador ja validado.
@@ -8976,11 +8796,7 @@ function hydrateFromPowerBI() {
       return (lista || []).map(function(m) { return (MESES_PT[m - 1] || m).slice(0, 3).toLowerCase(); }).join(", ");
     }
 
-    function iaConfiguradaNesteNavegador() {
-      return String(lerConfigIA("npe_claude_api_key", "") || "").trim().length >= 20 ||
-        String(lerConfigIA("npe_gemini_api_key", "") || "").trim().length >= 20 ||
-        String(lerConfigIA("npe_flow_gerar_texto_gpt41_url", "")).indexOf("http") === 0;
-    }
+
 
     // Aba 3: quais OSs ja tem o resumo anual gravado (SNAPSHOT ano 9996) e quais faltam.
     async function situacaoResumosAnuais() {
@@ -9016,52 +8832,8 @@ function hydrateFromPowerBI() {
       } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir.")); }
     }
 
-    // Aba 3: gera o resumo anual da OS selecionada (janeiro ate o ultimo mes fechado) e grava.
-    async function gerarResumoAnualComIA() {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
-      var pp = new URLSearchParams(window.location.search);
-      var rawOS = pp.get("SelectedOS") || "";
-      var os = extractPrimaryOSCode(rawOS);
-      var ano = parseInt(pp.get("SelectedAno"), 10);
-      if (!os || rawOS === "TODAS_OS" || rawOS === "TODAS" || !ano) { showToast("\u26a0\ufe0f Selecione uma OS específica e o ano no Power BI."); return; }
-      var ultimo = ultimoMesFechado(ano);
-      var mesRef = Math.min(getMonthNumberFromParams(pp), ultimo);
-      if (mesRef < 1) { showToast("\u26a0\ufe0f Nenhum mês fechado em " + ano + " ainda."); return; }
-      if (!iaConfiguradaNesteNavegador()) {
-        var configurou = await configurarFluxosIA();
-        if (!configurou) return;
-      }
-      var segue = await confirmarNaPagina(
-        "\ud83e\udd16 Gerar resumo anual com IA",
-        "OS <b>" + os + "</b> \u2022 janeiro até <b>" + (MONTH_NAMES_FULL_PT[mesRef] || mesRef) + "</b> (último mês fechado; o mês corrente não entra).\n\n" +
-        "O resumo anual de cada indicador gerado <b>substitui</b> o que estava gravado e fica visível para todos. " +
-        "Indicadores que a IA não devolver mantêm o texto atual.",
-        "Gerar e gravar");
-      if (!segue) return;
-      showToast("\u23f3 Gerando o resumo anual com IA... (de 30 s a 2 min)");
-      try {
-        var res = await processarResumoAnualAtual({ gravar: true, devolverTextos: true });
-        if (res.aviso) { mostrarResultadoIA("Resumo anual não gerado", "OS " + os + ": " + res.aviso + ".", false); return; }
-        if (!res.textos) {
-          mostrarResultadoIA("A IA respondeu, mas nenhum indicador foi reconhecido",
-            "OS " + os + ". Nada foi gravado. Início da resposta recebida:\n\n" + String(window.NPE_ULTIMA_SAIDA_IA || "(sem texto)").slice(0, 1500), false);
-          return;
-        }
-        if (res.gravado === false) { mostrarResultadoIA("Textos gerados, mas não gravados", "OS " + os + ": gerei " + res.textos + " texto(s) e NÃO consegui gravar no SharePoint. Tente de novo.", false); return; }
-        // O que o Master digitou/gerou neste navegador tem prioridade na tela: atualiza para nao mostrar o texto antigo.
-        Object.keys(res.resumos || {}).forEach(function(k) { safeSetStorage("resumo_ia_" + os + "_" + k, res.resumos[k]); });
-        window.RESUMOS_ANUAIS = null; window._RESUMOS_CARREGANDO = false;
-        await carregarResumosAnuais();
-        if (typeof refreshAllScoreViews === "function") refreshAllScoreViews();
-        var msg = "\u2705 Resumo anual da OS " + os + " gravado (" + res.textos + " indicadores, até " + (MONTH_NAMES_FULL_PT[res.mesRef] || res.mesRef) + ")";
-        if (res.refeitos) msg += " \u2022 " + res.refeitos + " refeito(s)";
-        if (res.revisar.length) msg += " \u2022 REVISAR: " + res.revisar.map(function(x) { return "#" + x.tid; }).join(", ");
-        mostrarResultadoIA("Resumo anual gravado", msg.replace(/^\u2705\s*/, "") + ".", true);
-      } catch (err) {
-        mostrarResultadoIA("Falha ao gerar o resumo anual", (err && err.message ? err.message : "erro sem mensagem") + "\n\n(OS " + os + ")", false);
-      }
-    }
-    window.gerarResumoAnualComIA = gerarResumoAnualComIA;
+
+
     window.situacaoResumosAnuais = situacaoResumosAnuais;
 
 
@@ -9156,71 +8928,6 @@ function hydrateFromPowerBI() {
     }
     window.situacaoPareceresMes = situacaoPareceresMes;
 
-    // Janela para colar a URL dos fluxos de IA. As URLs carregam a chave de acesso do fluxo, por isso
-    // NAO ficam no codigo (repositorio publico): so neste navegador. Campo em branco mantem o que ja existe.
-    function configurarFluxosIA() {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return Promise.resolve(false); }
-      return new Promise(function(resolve) {
-        var campos = [
-          { chave: "npe_flow_gerar_texto_mini_url", rotulo: "Fluxo NPE-Gerar-Texto-Mini (GPT-4.1 mini)" },
-          { chave: "npe_flow_gerar_texto_gpt41_url", rotulo: "Fluxo NPE-Gerar-Texto-GPT41 (GPT-4.1)" },
-          { chave: "npe_flow_ler_url_app_url", rotulo: "Fluxo NPE-Ler-Url-App (dados de cada OS, para o fechamento do mês)" },
-          { chave: "npe_flow_iniciar_agente_url", rotulo: "Fluxo NPE-Iniciar-Agente (bot\u00e3o Fechar o m\u00eas com IA)" },
-          { chave: "npe_gemini_api_key", rotulo: "Chave da API do Gemini (usada no lugar dos fluxos de IA, se preenchida)", gemini: true },
-          { chave: "npe_claude_api_key", rotulo: "Chave da API do Claude (Anthropic) \u2014 tem prioridade sobre o Gemini e os fluxos, se preenchida", gemini: true, prefixo: "sk-ant-", dica: "Cole aqui a chave da API da Anthropic (come\u00e7a com sk-ant-)" }
-        ];
-        var fundo = document.createElement("div");
-        fundo.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh;" +
-          "background:rgba(11,26,58,0.90); z-index:999999999; display:flex;" +
-          "justify-content:center; align-items:flex-start; padding:28px 20px; overflow-y:auto;";
-        fundo.addEventListener("keydown", function(ev) { if (ev.key === "Enter" && ev.target && ev.target.tagName === "INPUT") { var bs = fundo.querySelector('button[data-r="1"]'); if (bs) bs.click(); } });
-        var linhas = campos.map(function(c, i) {
-          var vAtual = String(safeGetStorage(c.chave, "") || "");
-          var ok = c.gemini ? vAtual.length >= 20 : vAtual.indexOf("http") === 0;
-          return '<div style="margin-bottom:14px;">' +
-            '<div style="font-weight:800; color:#0f2b5c; margin-bottom:4px;">' + c.rotulo + ' &mdash; ' +
-              (ok ? '<span style="color:#15803d;">configurado</span>' : '<span style="color:#b91c1c;">não configurado</span>') + '</div>' +
-            '<input type="password" autocomplete="off" data-i="' + i + '" placeholder="' + (ok ? 'Em branco mantém o valor atual' : (c.dica ? c.dica : (c.gemini ? 'Cole aqui a chave da API do Google AI Studio' : 'Cole aqui a URL HTTP POST do gatilho'))) + '" ' +
-              'style="width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid #94a3b8; border-radius:8px; font-size:0.9rem;">' +
-            '</div>';
-        }).join("");
-        fundo.innerHTML =
-          '<div style="background:#fff; border-radius:14px; width:100%; border:2.5px solid #7c3aed; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
-            '<div style="background:linear-gradient(135deg,#5b21b6,#7c3aed); padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">&#9881; IA do fechamento (chaves e fluxos)</div>' +
-            '<div style="padding:18px 20px; font-size:0.9rem; color:#334155; line-height:1.55; overflow-y:auto; flex:1 1 auto; min-height:0;">' +
-              '<div style="margin-bottom:14px;">A URL de cada fluxo e as chaves de API ficam guardadas <b>somente neste navegador</b> &mdash; não vão para o código nem para a ATA. ' +
-              'Copie-a no gatilho do fluxo (campo <b>URL HTTP POST</b>).</div>' + linhas +
-            '</div>' +
-            '<div style="padding:0 20px 18px; display:flex; gap:10px; justify-content:flex-end;">' +
-              '<button type="button" data-r="0" style="background:#e2e8f0; color:#475569; border:none; padding:9px 18px; border-radius:8px; font-weight:800; cursor:pointer;">Cancelar</button>' +
-              '<button type="button" data-r="1" style="background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; border:none; padding:9px 20px; border-radius:8px; font-weight:800; cursor:pointer;">Salvar</button>' +
-            '</div>' +
-          '</div>';
-        function fechar(v) { try { document.body.removeChild(fundo); } catch (e) {} resolve(v); }
-        fundo.addEventListener("click", function(ev) {
-          var b = ev.target.closest ? ev.target.closest("button[data-r]") : null;
-          if (b && b.getAttribute("data-r") === "1") {
-            var salvos = 0, invalidos = 0;
-            Array.prototype.forEach.call(fundo.querySelectorAll("input[data-i]"), function(inp) {
-              var v = String(inp.value || "").trim();
-              if (!v) return;
-              var campoSel = campos[parseInt(inp.getAttribute("data-i"), 10)];
-              if (campoSel.gemini ? (v.length < 20 || (campoSel.prefixo && v.indexOf(campoSel.prefixo) !== 0)) : v.indexOf("https://") !== 0) { invalidos++; return; }
-              safeSetStorage(campoSel.chave, v);
-              salvos++;
-            });
-            if (invalidos) { showToast("\u26a0\ufe0f Um valor não parece válido (URL sem https:// ou chave curta) e foi ignorado."); }
-            else if (salvos) { showToast("\u2705 " + salvos + " URL(s) guardada(s) neste navegador."); }
-            fechar(salvos > 0);
-          } else if (b) fechar(false);
-          else if (ev.target === fundo) fechar(false);
-        });
-        document.body.appendChild(fundo);
-        ajustarCaixaAoVisual(fundo);
-        try { window.scrollTo(0, 0); } catch (e) {}
-      });
-    }
-    window.configurarFluxosIA = configurarFluxosIA;
 
     // Fecha o mes com o agente na nuvem (GitHub Actions). O app so manda o pedido ao fluxo
     // NPE-Iniciar-Agente com login + token da sessao; o fluxo confere o perfil e dispara o agente.
@@ -9332,35 +9039,6 @@ function hydrateFromPowerBI() {
     window.abrirFecharMesIA = abrirFecharMesIA;
 
 
-    async function openCopyMonthPareceresModal() {
-      if (!window.isMaster) {
-        showToast("⚠️ Apenas usuários Máster podem exportar os pareceres.");
-        return;
-      }
-      var currentParams = new URLSearchParams(window.location.search);
-      var rawOS = currentParams.get("SelectedOS") || "";
-      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
-      var activeOS = extractPrimaryOSCode(rawOS);
-      if (isMultiOS || !activeOS) {
-        showToast("⚠️ Selecione uma OS específica no Power BI para exportar os pareceres.");
-        return;
-      }
-      var monthNum = getMonthNumberFromParams(currentParams);
-      var monthName = currentParams.get("SelectedMes") || "";
-
-      // Sem esperar a ATA, as caixas do Gestor ainda estao vazias e o texto sai dizendo
-      // "(sem justificativa)" em indicador que TEM justificativa gravada -- a IA entao
-      // escreve cobranca por cima de texto que existe.
-      if (!window.HISTORICO_PRONTO) {
-        showToast("\u23f3 Lendo as justificativas do Gestor...");
-        try { await historicoCarregado(); } catch (e) {}
-      }
-
-      var r = construirPromptPareceres(activeOS, monthNum, monthName);
-      mostrarCaixaCopia("OS " + activeOS + " • " + (monthName || monthNum) +
-        "/2026 • Indicadores e justificativas do Gestor. O resultado volta no Parecer de cada indicador.",
-        r.texto);
-    }
 
 
     // ---- importacao em lote dos pareceres ------------------------------------
@@ -9407,98 +9085,8 @@ function hydrateFromPowerBI() {
       return achados;
     }
 
-    // alvo: "PARECER" (caixas master_N da Aba 1) ou "RESUMO" (resumoIA_N da Aba 3)
-    async function importarEmLote(alvo) {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usu\u00e1rios M\u00e1ster podem importar."); return; }
-      var ta = document.getElementById("importaLoteTA");
-      var achados = separarPorIndicador(ta ? ta.value : "");
-      var ids = Object.keys(achados).map(Number).sort(function(a, b) { return a - b; });
-      if (!ids.length) {
-        showToast("\u26a0\ufe0f N\u00e3o reconheci nenhum indicador no texto. Cada bloco precisa come\u00e7ar com o n\u00famero do indicador.");
-        return;
-      }
 
-      var prefixo = (alvo === "RESUMO") ? "resumoIA_" : "master_";
-      var existem = ids.filter(function(n) { return document.getElementById(prefixo + n); });
-      var semCaixa = ids.filter(function(n) { return !document.getElementById(prefixo + n); });
-      if (!existem.length) {
-        showToast("\u26a0\ufe0f Os indicadores reconhecidos n\u00e3o t\u00eam caixa nesta aba.");
-        return;
-      }
 
-      // As caixas que a aba realmente tem -- a Aba 1 vai ate 23, a Aba 3 so ate 21. Um
-      // limite fixo faria a confirmacao acusar indicadores que nem existem ali.
-      var faltando = [];
-      for (var k = 1; k <= 24; k++) {
-        if (document.getElementById(prefixo + k) && existem.indexOf(k) === -1) faltando.push("#" + k);
-      }
-
-      var segue = await confirmarNaPagina(
-        "\ud83d\udce5 Importar " + existem.length + " texto(s)",
-        "Reconheci: <b>" + existem.map(function(n) { return "#" + n; }).join(", ") + "</b>\n\n" +
-        (faltando.length ? "Sem texto no que foi colado: " + faltando.join(", ") + " \u2014 essas caixas ficam <b>como est\u00e3o</b>.\n\n" : "") +
-        (semCaixa.length ? "Ignorados (n\u00e3o existem nesta aba): " + semCaixa.map(function(n) { return "#" + n; }).join(", ") + "\n\n" : "") +
-        "O conte\u00fado atual das caixas reconhecidas ser\u00e1 <b>substitu\u00eddo</b>.",
-        "Importar");
-      if (!segue) return;
-
-      // Pareceres: a primeira linha (valor | Mes | Tendencia) e escrita pelo codigo, nunca pelo
-      // modelo. Se o texto colado ainda trouxer uma linha de valores (prompt antigo), ela e trocada.
-      var baseImport = null;
-      if (alvo !== "RESUMO") {
-        try {
-          var ppImp = new URLSearchParams(window.location.search);
-          baseImport = coletarBaseParecer(extractPrimaryOSCode(ppImp.get("SelectedOS") || ""), getMonthNumberFromParams(ppImp));
-        } catch (eImp) { baseImport = null; }
-      }
-      existem.forEach(function(n) {
-        var el = document.getElementById(prefixo + n);
-        el.value = (alvo === "RESUMO") ? achados[String(n)] : montarParecerCompleto(n, achados[String(n)], baseImport);
-        // Sem isto o texto fica so na tela e o Salvar nao o enxerga.
-        if (alvo === "RESUMO") {
-          if (typeof saveResumoAnualInline === "function") saveResumoAnualInline(n);
-        } else if (typeof handleCommentInput === "function") {
-          handleCommentInput(n, "MASTER", el.value);
-        }
-      });
-
-      var m = document.getElementById("importaLoteModal");
-      if (m) m.style.display = "none";
-      showToast("\u2705 " + existem.length + " texto(s) importado(s)." +
-        (alvo === "RESUMO" ? "" : " Clique em Salvar Coment\u00e1rios para gravar na ATA."));
-    }
-    window.importarEmLote = importarEmLote;
-
-    function abrirImportaLote(alvo) {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usu\u00e1rios M\u00e1ster podem importar."); return; }
-      var m = document.getElementById("importaLoteModal");
-      if (!m) return;
-      var ta = document.getElementById("importaLoteTA");
-      if (ta) ta.value = "";
-      var btn = document.getElementById("importaLoteBtn");
-      if (btn) btn.setAttribute("onclick", "importarEmLote('" + (alvo === "RESUMO" ? "RESUMO" : "PARECER") + "')");
-      var sub = document.getElementById("importaLoteSub");
-      if (sub) sub.innerText = (alvo === "RESUMO")
-        ? "Cole a resposta da IA com os resumos anuais. Cada bloco precisa come\u00e7ar com o n\u00famero do indicador."
-        : "Cole a resposta da IA com os pareceres. Cada bloco precisa come\u00e7ar com o n\u00famero do indicador.";
-      m.style.display = "flex";
-      ajustarCaixaAoVisual(m);
-      try { window.scrollTo(0, 0); } catch (e) {}
-    }
-    window.abrirImportaLote = abrirImportaLote;
-
-    // Caixa unica das exportacoes -- antes cada funcao repetia estas cinco linhas.
-    function mostrarCaixaCopia(subtitulo, texto) {
-      var modal = document.getElementById("copyAllModal");
-      var sub = document.getElementById("copyAllModalSubtitle");
-      var ta = document.getElementById("copyAllTextarea");
-      if (sub) sub.innerText = subtitulo;
-      if (ta) ta.value = texto;
-      // display direto, pela mesma razao do abrirCaixaModal: no iframe do Power BI a caixa
-      // nasce no topo do conteudo inteiro, nao do que esta na tela.
-      if (modal) modal.style.display = "flex";
-      try { window.scrollTo(0, 0); } catch (e) {}
-    }
 
     // ---- botao 2: so os pareceres ja escritos, para a Sintese do mes ----------
     // Monta o prompt da Sintese do mes (topico #24) de UMA OS/mes, lendo os pareceres que estao nas caixas.
@@ -9621,68 +9209,9 @@ function hydrateFromPowerBI() {
       return { texto: lines.join("\n"), comParecer: comParecer };
     }
 
-    function openCopyPareceresPerfModal() {
-      if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster podem exportar."); return; }
-      var p = new URLSearchParams(window.location.search);
-      var rawOS = p.get("SelectedOS") || "";
-      var multi = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
-      var os = extractPrimaryOSCode(rawOS);
-      if (multi || !os) { showToast("\u26a0\ufe0f Selecione uma OS específica no Power BI."); return; }
-      var mNum = getMonthNumberFromParams(p);
-      var mName = p.get("SelectedMes") || "";
-      var r = construirPromptSintese(os, mNum, mName);
-      if (!r.comParecer) { showToast("\u26a0\ufe0f Nenhum parecer da Performance escrito neste mês ainda."); return; }
-      mostrarCaixaCopia("OS " + os + " \u2022 " + (mName || mNum) + "/2026 \u2022 " + r.comParecer +
-        " parecer(es) já escritos. O resultado vai colado à mão na Síntese do mês (tópico #24).", r.texto);
-    }
-    window.openCopyPareceresPerfModal = openCopyPareceresPerfModal;
 
-    async function openCopyAllModal() {
-      if (!window.isMaster) {
-        showToast("⚠️ Apenas usuários Máster podem exportar os comentários.");
-        return;
-      }
-      var currentParams = new URLSearchParams(window.location.search);
-      var rawOS = currentParams.get("SelectedOS") || "";
-      var isMultiOS = (rawOS === "TODAS_OS" || rawOS === "TODAS" || !rawOS);
-      var activeOS = extractPrimaryOSCode(rawOS);
-      if (isMultiOS || !activeOS) {
-        showToast("⚠️ Selecione uma OS específica no Power BI para exportar os comentários.");
-        return;
-      }
-      var selMonthNum = getMonthNumberFromParams(currentParams);
 
-      // Os pareceres dos meses anteriores nao vem na URL: vem do SharePoint. Sem esperar a
-      // leitura, o texto sairia com os meses vazios e ninguem perceberia.
-      if (!window.HISTORICO_PRONTO) {
-        showToast("\u23f3 Lendo os pareceres do ano...");
-        try { await historicoCarregado(); } catch (e) {}
-      }
 
-      mostrarCaixaCopia("OS " + activeOS + " \u2022 Pareceres do ano por indicador. O resultado volta pelo bot\u00e3o Importar Resumos.",
-        buildFullYearExportText(activeOS, selMonthNum));
-    }
-
-    function closeCopyAllModal() {
-      var modal = document.getElementById("copyAllModal");
-      if (modal) modal.style.display = "none";
-    }
-
-    function copyAllModalText() {
-      var ta = document.getElementById("copyAllTextarea");
-      if (!ta) return;
-      ta.focus();
-      ta.select();
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(ta.value).then(function() {
-          showToast("✅ Copiado para a área de transferência!");
-        }).catch(function() {
-          showToast("⚠️ Não deu para copiar automaticamente -- selecione o texto e use Ctrl+C.");
-        });
-      } else {
-        showToast("⚠️ Selecione o texto (já selecionado) e use Ctrl+C.");
-      }
-    }
 
         // =========================================================================
     // 12. REAL PERSISTENT SAVE ALL COMMENTS (CLOUD WEBHOOK & SHAREPOINT SYNC)
@@ -9848,31 +9377,6 @@ function hydrateFromPowerBI() {
       });
     }
 
-    // Resultado de uma geracao com IA: fica na tela ate o Master fechar (o toast some em 3,5 s). Texto puro.
-    function mostrarResultadoIA(titulo, texto, ok) {
-      window.NPE_ULTIMO_RESULTADO_IA = { titulo: titulo, texto: texto, ok: !!ok, em: new Date().toISOString() };
-      var fundo = document.createElement("div");
-      fundo.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh;" +
-        "background:rgba(11,26,58,0.90); z-index:999999999; display:flex;" +
-        "justify-content:center; align-items:flex-start; padding:28px 20px; overflow-y:auto;";
-      var cor = ok ? "#15803d" : "#b91c1c";
-      fundo.innerHTML =
-        '<div data-larg-frac="0.6" style="background:#fff; border-radius:14px; width:100%; border:2.5px solid ' + cor + '; overflow:hidden; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
-          '<div style="background:' + cor + '; padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">' + (ok ? "\u2705 " : "\u26a0\ufe0f ") + escH(titulo) + '</div>' +
-          '<div style="padding:18px 20px; font-size:0.92rem; color:#334155; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere;">' + escH(texto) + '</div>' +
-          '<div style="padding:0 20px 18px; display:flex; gap:10px; justify-content:flex-end;">' +
-            '<button type="button" data-fechar style="background:#e2e8f0; color:#475569; border:none; padding:9px 20px; border-radius:8px; font-weight:800; cursor:pointer;">Fechar</button>' +
-          '</div>' +
-        '</div>';
-      fundo.addEventListener("click", function(ev) {
-        var t = ev.target;
-        if (t === fundo || (t.closest && t.closest("[data-fechar]"))) { try { document.body.removeChild(fundo); } catch (e) {} }
-      });
-      document.body.appendChild(fundo);
-      try { ajustarCaixaAoVisual(fundo); } catch (e) {}
-      try { window.scrollTo(0, 0); } catch (e) {}
-    }
-    window.mostrarResultadoIA = mostrarResultadoIA;
 
     function confirmarNaPagina(titulo, texto, rotuloOk) {
       return new Promise(function(resolve) {
@@ -11593,12 +11097,7 @@ function hydrateFromPowerBI() {
     window.saveAllComments = saveAllComments;
     window.setSlaPeriodStatusInline = setSlaPeriodStatusInline;
     window.saveResumoAnualInline = saveResumoAnualInline;
-    window.openCopyAllModal = openCopyAllModal;
-    window.openCopyMonthPareceresModal = openCopyMonthPareceresModal;
-    window.openCopyLicoesModal = openCopyLicoesModal;
     window.saveLicoesResumoInline = saveLicoesResumoInline;
-    window.closeCopyAllModal = closeCopyAllModal;
-    window.copyAllModalText = copyAllModalText;
     window.saveInlinePrazoDeadline = saveInlinePrazoDeadline;
     window.getSlaPeriodStatus = getSlaPeriodStatus;
     window.getOSCompletionStatus = getOSCompletionStatus;
