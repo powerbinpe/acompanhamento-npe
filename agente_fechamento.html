@@ -208,6 +208,7 @@
         if (i >= lista.length) return;
         var os = lista[i];
         var prev = res[os];
+        if (cfg.pular && cfg.pular.indexOf(nome + "|" + os) !== -1) continue;   // travou a pagina nesta rodada
         // So conta como concluida a OS ja GRAVADA de verdade (modo "real"). Resultado de teste nunca vira progresso.
         if (prev && prev.estado === "ok" && prev.modo === "real" && !cfg.refazer && cfg.gravar !== false) continue;
         log(nome + ": OS " + os + " (" + (i + 1) + " de " + lista.length + ")...");
