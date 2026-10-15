@@ -9051,6 +9051,11 @@ function hydrateFromPowerBI() {
             var rp = await consultarFluxo("progresso", token);
             var pj = null;
             try { pj = rp.json && rp.json.content ? JSON.parse(decodeURIComponent(escape(atob(String(rp.json.content).replace(/\n/g, ""))))) : null; } catch (e) {}
+            var iniRun = new Date(runs[0].run_started_at || runs[0].created_at).getTime();
+            if (pj && new Date(pj.atualizadoEm).getTime() < iniRun) {
+              html += '<div style="margin-top:6px; padding-top:6px; border-top:1px dashed #99f6e4;">Aguardando o primeiro registro de progresso desta execução (sai a cada ~5 min).</div>';
+              pj = null;
+            }
             if (pj) {
               var grupos = {};
               Object.keys(pj.porChave || {}).forEach(function(k) {
@@ -9087,6 +9092,11 @@ function hydrateFromPowerBI() {
         var senha = String(el("fmSenha").value || "");
         if (!senha) { msg("Digite sua senha para confirmar.", "#b91c1c"); return; }
         var gravar = el("fmGravar").checked;
+        var listaOs = String(el("fmOs").value || "").split(/[\s,;]+/).filter(Boolean);
+        if (!gravar && (listaOs.length < 1 || listaOs.length > 3)) {
+          msg("Teste (sem gravar): informe de 1 a 3 OSs em \"Só estas OSs\" (ex.: M05900). Sem isso o agente repassa todas as OSs e gasta créditos da IA.", "#b91c1c");
+          return;
+        }
         var botao = el("fmIniciar");
         botao.disabled = true; msg("Conferindo seu acesso...");
         try {
