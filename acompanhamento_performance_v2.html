@@ -8954,7 +8954,7 @@ function hydrateFromPowerBI() {
         showToast("\u26a0\ufe0f Falta a URL do fluxo NPE-Iniciar-Agente. Cole em \u2699 IA.");
         return;
       }
-      var urlStatus = String(safeGetStorage("npe_flow_status_agente_url", "__URL_STATUS__") || "");
+      var urlStatus = String(safeGetStorage("npe_flow_status_agente_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/01/workflows/6a46af20fdd04de4a5f89a15ba11e311/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=MOx955C1i2qkm221mZQ8XIoruJ8f2hbLUPifqStz0kY") || "");
       var login = loginLogado();
       if (!login) { showToast("\u26a0\ufe0f Entre com seu usu\u00e1rio para disparar o agente."); return; }
       var fundo = document.createElement("div");
