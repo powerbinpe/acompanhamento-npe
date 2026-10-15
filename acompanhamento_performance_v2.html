@@ -245,33 +245,14 @@
       <!-- Os tres passos da esteira, na ordem em que se usam. Antes os nomes eram quase
            iguais ("Copiar Pareceres" / "Copiar Pareceres do Mes") para acoes opostas, e o
            Importar aparecia antes do Gerar. -->
-      <button type="button" id="btnCopyMonthPareceres" data-action="openCopyMonthPareceresModal" title="Passo 1: monta o texto com os indicadores e as justificativas do Gestor para a IA escrever os 25 pareceres." style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-        📋 1 &middot; Gerar Pareceres
-      </button>
-
-      <button type="button" id="btnGerarPareceresIA" data-action="gerarPareceresComIA" title="Gera os pareceres desta OS e mês com a IA corporativa (AI Builder) e preenche as caixas. Nada é gravado na ATA até você clicar em Salvar Comentários." style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:9px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; align-items:center; gap:6px;">
-        &#129302; Gerar com IA
-      </button>
-
       <button type="button" id="btnSituacaoPareceres" data-action="situacaoPareceresMes" title="Mostra, para o mes selecionado, quais OSs ja tem os pareceres escritos e quantos estao validados." style="display:none; background:#ede9fe; color:#5b21b6; border:1.5px solid #c4b5fd; padding:8px 12px; border-radius:8px; font-weight:800; font-size:0.84rem; cursor:pointer; align-items:center; gap:6px;">
         &#128203; Situa&ccedil;&atilde;o das OSs
-      </button>
-
-      <button type="button" id="btnConfigFluxoIA" data-action="configurarFluxosIA" title="Cole aqui a URL dos fluxos de IA (ficam só neste navegador, nunca no código)." style="display:none; background:#ede9fe; color:#5b21b6; border:1.5px solid #c4b5fd; padding:8px 12px; border-radius:8px; font-weight:800; font-size:0.84rem; cursor:pointer; align-items:center; gap:6px;">
-        &#9881; IA
       </button>
 
       <button type="button" id="btnFecharMesIA" data-action="abrirFecharMesIA" title="Dispara o agente na nuvem: ele gera pareceres, notas, resumos e li\u00e7\u00f5es com a IA e grava. Pede sua senha para confirmar." style="display:none; background:linear-gradient(135deg,#0f766e,#115e59); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; align-items:center; gap:6px;">
         &#129302; Fechar o m&ecirc;s com IA
       </button>
 
-      <button type="button" id="btnImportarPareceres" data-action="abrirImportaLote" data-arg="PARECER" title="Passo 2: cole aqui a resposta da IA e o app distribui cada parecer na caixa do seu indicador." style="display:none; background:linear-gradient(135deg,#059669,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-        &#128229; 2 &middot; Importar Pareceres
-      </button>
-
-      <button type="button" id="btnCopyPareceresPerf" data-action="openCopyPareceresPerfModal" title="Passo 3: junta os pareceres ja escritos para a IA produzir a Sintese do mes (topico #24)." style="display:none; background:linear-gradient(135deg,#0e7490,#155e75); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.90rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-        &#128203; 3 &middot; Gerar S&iacute;ntese do M&ecirc;s
-      </button>
     </div>
   </div>
 
@@ -429,16 +410,6 @@
       <button type="button" id="btnSituacaoResumos" data-action="situacaoResumosAnuais" title="Mostra quais OSs ja tem o resumo anual gravado e quais faltam." style="display:none; background:#ede9fe; color:#5b21b6; border:1.5px solid #c4b5fd; padding:9px 14px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
         &#128203; Situação das OSs
       </button>
-      <button type="button" id="btnGerarResumoIA" data-action="gerarResumoAnualComIA" title="Gera com a IA o resumo anual desta OS (janeiro ate o ultimo mes fechado) e grava." style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
-        &#129302; Gerar com IA
-      </button>
-      <button type="button" id="btnImportarResumos" data-action="abrirImportaLote" data-arg="RESUMO" style="display:none; background:linear-gradient(135deg,#059669,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
-        &#128229; Importar Resumos
-      </button>
-
-      <button type="button" id="btnCopyAllForAI" data-action="openCopyAllModal" style="display:none; background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
-        📋 Copiar Tudo
-      </button>
     </div>
 
     <!-- Cards de Resumo Corporativo Anual -->
@@ -461,12 +432,6 @@
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <button type="button" id="btnSituacaoLicoes" data-action="situacaoLicoes" title="Mostra quais OSs entram na analise da Aba 4 (ultimo mes fechado validado e resumo anual gravado) e quais ficam de fora." style="display:none; background:#ecfdf5; color:#047857; border:1.5px solid #6ee7b7; padding:9px 14px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
           &#128203; Situa&ccedil;&atilde;o das OSs
-        </button>
-        <button type="button" id="btnGerarLicoesIA" data-action="gerarLicoesComIA" title="Gera com a IA os tres quadros (o que deu certo, o que nao deu, gestao de risco) a partir dos resumos anuais das OSs validadas." style="display:none; background:linear-gradient(135deg,#10b981,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
-          &#129302; Gerar com IA
-        </button>
-        <button type="button" id="btnCopyLicoes" data-action="openCopyLicoesModal" style="display:none; background:linear-gradient(135deg,#10b981,#047857); color:#ffffff; border:none; padding:10px 16px; border-radius:8px; font-weight:800; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
-          📋 Copiar p/ IA (Lições & Riscos)
         </button>
       </div>
     </div>
@@ -1438,9 +1403,9 @@ function hydrateFromPowerBI() {
 
     // Botoes que so o Setor de Performance usa. Exportar pareceres alimenta a analise da
     // Performance, entao acompanha o Cadastro de Metas: sem sessao, nem aparecem.
-    var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas", "btnCopyMonthPareceres", "btnCopyPareceresPerf",
-                                    "btnImportarPareceres", "btnGerarPareceresIA", "btnConfigFluxoIA", "btnFecharMesIA", "btnImportarResumos", "btnGerarResumoIA", "btnSituacaoResumos", "btnSituacaoNotas", "btnSituacaoPareceres", "btnSituacaoLicoes", "btnGerarLicoesIA",
-                                    "btnCopyAllForAI", "btnCopyLicoes", "btnGravarNotasAno",
+    var BOTOES_EXCLUSIVOS_MASTER = ["btnCadastroMetas",
+                                    "btnFecharMesIA", "btnSituacaoResumos", "btnSituacaoNotas", "btnSituacaoPareceres", "btnSituacaoLicoes",
+                                    "btnGravarNotasAno",
                                     "btnCongelarSnapshot", "btnArmarRegravacao"];
     function aplicarVisibilidadeMaster(liberado) {
       BOTOES_EXCLUSIVOS_MASTER.forEach(function(id) {
