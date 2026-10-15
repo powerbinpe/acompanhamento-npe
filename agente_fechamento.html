@@ -89,6 +89,8 @@
     w.gravarSessaoAcesso({ login: r.login, nome: r.nome, perfil: r.perfil, id: r.id, ts: Date.now() });
     await w.acaoSessaoServidor("abrir", r.hash);
     w.isMaster = true;
+    w.currentRoleSimulated = "MASTER";
+    try { w.safeSetStorage("npe_active_role", "MASTER"); } catch (e) {}
     return r;
   }
 
