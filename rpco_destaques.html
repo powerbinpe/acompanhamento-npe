@@ -1959,6 +1959,11 @@
   // Edicao
   // ===========================================================================
   function porUid(uid) { return linhas.filter(function (r) { return r.uid === uid; })[0]; }
+  // Executivo do ano (o valor em cinza): vale como faturamento quando o campo esta em branco
+  function sugestaoOS(r) {
+    var x = montarOS().filter(function (y) { return y.r.uid === r.uid; })[0];
+    return x && !definida(x) && !foraDaMeta(x) && temReal(x.ctt) ? x.ctt : null;
+  }
   function recalcular(r) {
     // Resultado e sempre Faturamento x Margem (a margem e o que se digita)
     r.EntradaPor = "MARGEM";
@@ -1976,8 +1981,10 @@
       var n = lerNumero(el.value);
       if (isNaN(n)) { msgStatus = "Valor inválido: use números, por exemplo 844.354.000"; corStatus = "erro"; atualizarNoLugar(r); return; }
       if (campo === "ResMeta") { atualizarNoLugar(r); return; }   // travado: so muda pelo faturamento e pela margem
-      if (campo === "MargemMeta") r.MargemMeta = n == null ? null : n / 100;
-      else r.FatMeta = n;
+      if (campo === "MargemMeta") {
+        r.MargemMeta = n == null ? null : n / 100;
+        if (n != null && r.Nivel === "OS" && r.FatMeta == null) { var oS = sugestaoOS(r); if (oS && oS.fatAno) r.FatMeta = oS.fatAno; }
+      } else r.FatMeta = n;
       recalcular(r);
     } else if (campo === "Justificativa") {
       r[campo] = el.value.replace(/\s+$/, "");
@@ -2145,7 +2152,15 @@
     var x = montarOS().filter(function (y) { return y.ctt.cod === rapidoOS; })[0];
     if (!x) return;
     if (foraOS && foraOS === rapidoOS) { await confirmarFora(); return; }
-    if (!(x.r.FatMeta > 0) || x.r.MargemMeta == null) { msgStatus = "Informe o faturamento e a margem da OS antes de gravar (o resultado e calculado)."; corStatus = "erro"; render(); return; }
+    var oE = sugestaoOS(x.r);
+    if (oE && oE.fatAno && x.r.FatMeta == null) {
+      // faturamento em branco = o do Executivo; se tambem nao digitou margem, aceita a do Executivo (o que esta em cinza)
+      x.r.FatMeta = oE.fatAno;
+      if (x.r.MargemMeta == null) x.r.MargemMeta = oE.resAno / oE.fatAno;
+      recalcular(x.r);
+    }
+    if (!(x.r.FatMeta > 0)) { msgStatus = "Informe o faturamento da OS antes de gravar."; corStatus = "erro"; render(); return; }
+    if (x.r.MargemMeta == null) { msgStatus = "Informe a margem da OS antes de gravar (o resultado e calculado: faturamento x margem)."; corStatus = "erro"; render(); return; }
     var ok = await salvar("Meta gravada: " + x.ctt.desc + ".");
     if (ok) { rapidoOS = ""; render(); }
   }
