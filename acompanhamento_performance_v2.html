@@ -8974,29 +8974,32 @@ function hydrateFromPowerBI() {
         '<div style="background:#fff; border-radius:14px; width:100%; border:2.5px solid #0f766e; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 12px 36px rgba(0,0,0,0.45);">' +
           '<div style="background:linear-gradient(135deg,#115e59,#0f766e); padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">&#129302; Fechar o m\u00eas com IA (agente na nuvem)</div>' +
           '<div style="padding:16px 20px; font-size:0.9rem; color:#334155; line-height:1.5; overflow-y:auto; flex:1 1 auto; min-height:0;">' +
+            '<div style="border:1.5px solid #cbd5e1; background:#f8fafc; border-radius:10px; padding:10px 12px; margin-bottom:12px;">' +
+              '<div style="font-weight:800; color:#0f2b5c; margin-bottom:4px;">Sua senha (usu\u00e1rio ' + login + ')</div>' +
+              '<input type="password" id="fmSenha" autocomplete="off" placeholder="Digite e tecle Enter para carregar os meses e o andamento" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #94a3b8; border-radius:8px; font-size:0.9rem;">' +
+            '</div>' +
+            '<div style="border:1.5px solid #fde68a; background:#fffbeb; border-radius:10px; padding:10px 12px; margin-bottom:12px;">' +
+              '<b style="color:#92400e;">1. Meses liberados para a IA (Aba 1)</b>' +
+              '<div style="font-size:0.8rem; color:#78350f; margin:4px 0 6px;">Marque os meses cujo per\u00edodo est\u00e1 conclu\u00eddo. O agente s\u00f3 processa a Aba 1 de um m\u00eas marcado aqui; desmarque para bloquear.</div>' +
+              '<div id="fmLiberacao" style="display:flex; flex-wrap:wrap; gap:6px 14px; font-size:0.86rem; color:#334155;">Digite sua senha acima para carregar.</div>' +
+            '</div>' +
             '<div style="border:1.5px solid #99f6e4; background:#f0fdfa; border-radius:10px; padding:10px 12px; margin-bottom:12px;">' +
               '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><b style="color:#115e59;">Andamento do agente</b>' +
               '<button type="button" data-r="2" style="background:#0f766e; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-weight:800; cursor:pointer;">Atualizar</button></div>' +
-              '<div id="fmAndamento" style="margin-top:6px; font-size:0.84rem; color:#334155;">Digite sua senha abaixo e clique em Atualizar para ver a \u00faltima execu\u00e7\u00e3o.</div>' +
+              '<div id="fmAndamento" style="margin-top:6px; font-size:0.84rem; color:#334155;">Digite sua senha acima para ver a \u00faltima execu\u00e7\u00e3o.</div>' +
             '</div>' +
-            '<div style="border:1.5px solid #fde68a; background:#fffbeb; border-radius:10px; padding:10px 12px; margin-bottom:12px;">' +
-              '<b style="color:#92400e;">Meses liberados para a IA (Aba 1)</b>' +
-              '<div style="font-size:0.8rem; color:#78350f; margin:4px 0 6px;">O agente s\u00f3 processa a Aba 1 de um m\u00eas marcado aqui. Marque quando o per\u00edodo estiver conclu\u00eddo; desmarque para bloquear.</div>' +
-              '<div id="fmLiberacao" style="display:flex; flex-wrap:wrap; gap:6px 14px; font-size:0.86rem; color:#334155;">Digite sua senha e clique em Atualizar para carregar.</div>' +
-            '</div>' +
-            '<div style="font-weight:800; color:#0f2b5c;">Etapas</div>' +
+            '<div style="font-weight:800; color:#0f2b5c;">2. Etapas</div>' +
             chk("fmEtAba1", "Aba 1 \u2014 pareceres e s\u00edntese de cada OS (informe os meses abaixo)", false) +
             chk("fmEtAba5", "Aba 5 \u2014 notas das OSs", true) +
             chk("fmEtAba3", "Aba 3 \u2014 resumo anual das OSs", true) +
             chk("fmEtAba4", "Aba 4 \u2014 li\u00e7\u00f5es do ano", true) +
             txt("fmAno", "Ano", String(new Date().getFullYear())) +
             txt("fmMes", "Meses da Aba 1", "", "ex.: 1-8, ou 9, ou 1,2,5 (deixe vazio se n\u00e3o usar a Aba 1)") +
-            txt("fmOs", "S\u00f3 estas OSs (opcional)", "", "c\u00f3digos separados por v\u00edrgula") +
+            txt("fmOs", "S\u00f3 estas OSs (opcional)", "", "vazio = todas as OSs eleg\u00edveis (ao gravar); no teste, informe 1 a 3") +
             chk("fmGravar", "<b>Gravar de verdade</b> (desmarcado = s\u00f3 testa e n\u00e3o escreve nada)", false) +
             chk("fmRefazer", "Refazer OSs j\u00e1 conclu\u00eddas", false) +
             chk("fmPermitir", "Permitir a Aba 1 em m\u00eas j\u00e1 fechado", false) +
-            '<div style="margin:12px 0 4px; font-weight:800; color:#0f2b5c;">Confirme sua senha (usu\u00e1rio ' + login + ')</div>' +
-            '<input type="password" id="fmSenha" autocomplete="off" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #94a3b8; border-radius:8px; font-size:0.9rem;">' +
+            '<div id="fmDica" style="margin-top:10px; font-size:0.82rem; color:#92400e;"></div>' +
             '<div id="fmMsg" style="margin-top:10px; font-weight:700; min-height:1.2em;"></div>' +
           '</div>' +
           '<div style="padding:0 20px 18px; display:flex; gap:10px; justify-content:flex-end;">' +
@@ -9046,6 +9049,7 @@ function hydrateFromPowerBI() {
           return '<label title="' + dica + '" style="display:inline-flex; align-items:center; gap:4px; cursor:pointer;">' +
             '<input type="checkbox" data-mes="' + m + '"' + (ok ? " checked" : "") + '> ' + n + '</label>';
         }).join("");
+        atualizarBotaoIniciar();
       }
       async function carregarLiberacao(token) {
         var box = el("fmLiberacao");
@@ -9085,7 +9089,7 @@ function hydrateFromPowerBI() {
         if (!box) return;
         if (urlStatus.indexOf("https://") !== 0) { box.textContent = "O painel de andamento ainda n\u00e3o foi configurado."; return; }
         var token = await tokenAgente();
-        if (!token) { if (mostrarErro) box.textContent = "Digite sua senha abaixo e clique em Atualizar."; return; }
+        if (!token) { if (mostrarErro) box.textContent = "Digite sua senha acima e tecle Enter."; return; }
         try {
           if (liberacao === null || mostrarErro) carregarLiberacao(token);
           var rs = await consultarFluxo("status", token);
@@ -9133,6 +9137,35 @@ function hydrateFromPowerBI() {
           box.textContent = "N\u00e3o foi poss\u00edvel consultar o andamento agora.";
         }
       }
+      function pedidosMes(txt) {
+        var out = [];
+        String(txt || "").split(/[\s,;]+/).filter(Boolean).forEach(function(p) {
+          var r = /^(\d{1,2})-(\d{1,2})$/.exec(p);
+          if (r) { for (var k = parseInt(r[1], 10); k <= parseInt(r[2], 10); k++) out.push(k); }
+          else if (/^\d{1,2}$/.test(p)) out.push(parseInt(p, 10));
+        });
+        return out;
+      }
+      function atualizarBotaoIniciar() {
+        var b = el("fmIniciar"), dica = el("fmDica");
+        if (!b || !dica) return;
+        var motivo = "";
+        if (el("fmEtAba1").checked) {
+          if (liberacao === null) motivo = "Aba 1: digite sua senha no topo para carregar os meses liberados.";
+          else {
+            var mapa = liberacao[String(el("fmAno").value || "").trim()] || {};
+            var libs = Object.keys(mapa).filter(function(k) { return mapa[k] && mapa[k].liberado === true; });
+            var pedidos = pedidosMes(el("fmMes").value);
+            var bloq = pedidos.filter(function(k) { return !(mapa[String(k)] && mapa[String(k)].liberado === true); });
+            if (!libs.length) motivo = "Aba 1: nenhum m\u00eas liberado. Marque os meses fechados na lista acima.";
+            else if (bloq.length) motivo = "Aba 1: o(s) m\u00eas(es) " + bloq.join(", ") + " n\u00e3o est\u00e3o liberados.";
+          }
+        }
+        b.disabled = !!motivo;
+        b.style.opacity = motivo ? "0.5" : "1";
+        b.style.cursor = motivo ? "not-allowed" : "pointer";
+        dica.textContent = motivo;
+      }
       async function iniciar() {
         var etapas = [];
         if (el("fmEtAba1").checked) etapas.push("aba1");
@@ -9142,8 +9175,6 @@ function hydrateFromPowerBI() {
         var mes = String(el("fmMes").value || "").trim();
         if (!etapas.length) { msg("Marque ao menos uma etapa.", "#b91c1c"); return; }
         if (etapas.indexOf("aba1") !== -1 && !mes) { msg("Informe os meses da Aba 1 (ex.: 1-8).", "#b91c1c"); return; }
-        var senha = String(el("fmSenha").value || "");
-        if (!senha) { msg("Digite sua senha para confirmar.", "#b91c1c"); return; }
         var gravar = el("fmGravar").checked;
         if (etapas.indexOf("aba1") !== -1 && liberacao !== null) {
           var anoSel = String(el("fmAno").value || "").trim(), mapaLib = liberacao[anoSel] || {}, pedidos = [];
@@ -9163,15 +9194,13 @@ function hydrateFromPowerBI() {
         var botao = el("fmIniciar");
         botao.disabled = true; msg("Conferindo seu acesso...");
         try {
-          var a = await autenticarAcesso(login, senha);
-          if (!a.ok) { msg(a.erro || "Acesso n\u00e3o confirmado.", "#b91c1c"); return; }
-          if (a.token.length !== 64) { msg("O servidor n\u00e3o devolveu o token de acesso. Tente de novo.", "#b91c1c"); return; }
-          window._NPE_TOKEN_AGENTE = { login: login, token: a.token, ts: Date.now() };
+          var token = await tokenAgente();
+          if (!token) { if (!String(el("fmSenha").value || "")) msg("Digite sua senha no topo da janela.", "#b91c1c"); return; }
           msg("Disparando o agente...");
           var resp = await fetch(url, {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              login: login, token: a.token, etapas: etapas.join(","),
+              login: login, token: token, etapas: etapas.join(","),
               ano: String(el("fmAno").value || "").trim(), mes: mes,
               gravar: gravar, refazer: el("fmRefazer").checked,
               permitir_mes_fechado: el("fmPermitir").checked, os: String(el("fmOs").value || "").trim()
@@ -9191,13 +9220,18 @@ function hydrateFromPowerBI() {
         } catch (err) {
           msg("N\u00e3o foi poss\u00edvel falar com o fluxo agora.", "#b91c1c");
         } finally {
-          var b2 = el("fmIniciar"); if (b2) b2.disabled = false;
+          atualizarBotaoIniciar();
         }
       }
       fundo.addEventListener("change", function(ev) {
         var t = ev.target;
         if (t && t.getAttribute && t.getAttribute("data-mes")) alterarLiberacao(parseInt(t.getAttribute("data-mes"), 10), !!t.checked, t);
         else if (t && t.id === "fmAno") desenharLiberacao();
+        else if (t && t.id === "fmSenha" && t.value) atualizarAndamento(true);
+        else if (t && t.id && t.id.indexOf("fmEt") === 0) atualizarBotaoIniciar();
+      });
+      fundo.addEventListener("input", function(ev) {
+        if (ev.target && ev.target.id === "fmMes") atualizarBotaoIniciar();
       });
       fundo.addEventListener("click", function(ev) {
         var b = ev.target.closest ? ev.target.closest("button[data-r]") : null;
@@ -9209,6 +9243,9 @@ function hydrateFromPowerBI() {
       document.body.appendChild(fundo);
       ajustarCaixaAoVisual(fundo);
       try { window.scrollTo(0, 0); } catch (e) {}
+      atualizarBotaoIniciar();
+      var c0 = window._NPE_TOKEN_AGENTE;
+      if (c0 && c0.login === login && (Date.now() - c0.ts) < 3 * 3600 * 1000) atualizarAndamento(false);
     }
     window.abrirFecharMesIA = abrirFecharMesIA;
 
