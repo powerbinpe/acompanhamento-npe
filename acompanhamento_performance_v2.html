@@ -8979,6 +8979,11 @@ function hydrateFromPowerBI() {
               '<button type="button" data-r="2" style="background:#0f766e; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-weight:800; cursor:pointer;">Atualizar</button></div>' +
               '<div id="fmAndamento" style="margin-top:6px; font-size:0.84rem; color:#334155;">Digite sua senha abaixo e clique em Atualizar para ver a \u00faltima execu\u00e7\u00e3o.</div>' +
             '</div>' +
+            '<div style="border:1.5px solid #fde68a; background:#fffbeb; border-radius:10px; padding:10px 12px; margin-bottom:12px;">' +
+              '<b style="color:#92400e;">Meses liberados para a IA (Aba 1)</b>' +
+              '<div style="font-size:0.8rem; color:#78350f; margin:4px 0 6px;">O agente s\u00f3 processa a Aba 1 de um m\u00eas marcado aqui. Marque quando o per\u00edodo estiver conclu\u00eddo; desmarque para bloquear.</div>' +
+              '<div id="fmLiberacao" style="display:flex; flex-wrap:wrap; gap:6px 14px; font-size:0.86rem; color:#334155;">Digite sua senha e clique em Atualizar para carregar.</div>' +
+            '</div>' +
             '<div style="font-weight:800; color:#0f2b5c;">Etapas</div>' +
             chk("fmEtAba1", "Aba 1 \u2014 pareceres e s\u00edntese de cada OS (informe os meses abaixo)", false) +
             chk("fmEtAba5", "Aba 5 \u2014 notas das OSs", true) +
@@ -9028,6 +9033,53 @@ function hydrateFromPowerBI() {
         var j = null; try { j = await r.json(); } catch (e) {}
         return { status: r.status, json: j };
       }
+      var liberacao = null;
+      var NOMES_MES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+      function desenharLiberacao() {
+        var box = el("fmLiberacao");
+        if (!box || liberacao === null) return;
+        var ano = String(el("fmAno").value || new Date().getFullYear()).trim();
+        var mapa = liberacao[ano] || {};
+        box.innerHTML = NOMES_MES.map(function(n, i) {
+          var m = i + 1, v = mapa[String(m)], ok = !!(v && v.liberado === true);
+          var dica = v ? esc((v.por || "") + (v.em ? " em " + fmtData(v.em) : "")) : "bloqueado";
+          return '<label title="' + dica + '" style="display:inline-flex; align-items:center; gap:4px; cursor:pointer;">' +
+            '<input type="checkbox" data-mes="' + m + '"' + (ok ? " checked" : "") + '> ' + n + '</label>';
+        }).join("");
+      }
+      async function carregarLiberacao(token) {
+        var box = el("fmLiberacao");
+        if (!box) return;
+        try {
+          var r = await consultarFluxo("liberacao", token);
+          if (r.naoAutorizado) return;
+          var c = r.json && r.json.content;
+          liberacao = c ? JSON.parse(decodeURIComponent(escape(atob(String(c).replace(/\n/g, ""))))) : {};
+          desenharLiberacao();
+        } catch (e) { liberacao = null; box.textContent = "N\u00e3o consegui ler as libera\u00e7\u00f5es agora."; }
+      }
+      async function alterarLiberacao(mes, marcado, caixa) {
+        var nome = NOMES_MES[mes - 1], ano = String(el("fmAno").value || new Date().getFullYear()).trim();
+        var token = await tokenAgente();
+        if (!token) { caixa.checked = !marcado; msg("Digite sua senha para alterar a libera\u00e7\u00e3o.", "#b91c1c"); return; }
+        var segue = await confirmarNaPagina(
+          marcado ? "Liberar " + nome + "/" + ano + " para a IA?" : "Bloquear " + nome + "/" + ano + "?",
+          marcado ? "Confirma que o <b>per\u00edodo de " + nome + "/" + ano + " est\u00e1 conclu\u00eddo</b>? Depois disso o agente poder\u00e1 gerar e gravar os pareceres da Aba 1 desse m\u00eas."
+                  : "O agente deixar\u00e1 de processar a Aba 1 de " + nome + "/" + ano + ".",
+          marcado ? "Liberar" : "Bloquear");
+        if (!segue) { caixa.checked = !marcado; return; }
+        msg("Gravando a marca\u00e7\u00e3o...");
+        try {
+          var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ login: login, token: token, etapas: "aba5", ano: ano, mes: "", gravar: false,
+                                   liberar_mes: String(mes), liberar_valor: marcado }) });
+          var j = null; try { j = await r.json(); } catch (e) {}
+          if (r.ok && j && j.ok === true) {
+            msg("\u2705 " + nome + "/" + ano + (marcado ? " liberado" : " bloqueado") + ". O registro aparece em at\u00e9 1 minuto.", "#15803d");
+            setTimeout(function() { carregarLiberacao(token); }, 45000);
+          } else { caixa.checked = !marcado; msg("N\u00e3o consegui gravar a marca\u00e7\u00e3o (c\u00f3digo " + ((j && j.status) || r.status) + ").", "#b91c1c"); }
+        } catch (e) { caixa.checked = !marcado; msg("N\u00e3o foi poss\u00edvel falar com o fluxo agora.", "#b91c1c"); }
+      }
       async function atualizarAndamento(mostrarErro) {
         var box = el("fmAndamento");
         if (!box) return;
@@ -9035,6 +9087,7 @@ function hydrateFromPowerBI() {
         var token = await tokenAgente();
         if (!token) { if (mostrarErro) box.textContent = "Digite sua senha abaixo e clique em Atualizar."; return; }
         try {
+          if (liberacao === null || mostrarErro) carregarLiberacao(token);
           var rs = await consultarFluxo("status", token);
           if (rs.naoAutorizado) { box.textContent = "Sess\u00e3o expirada: digite a senha de novo e clique em Atualizar."; return; }
           var runs = rs.json && rs.json.workflow_runs;
@@ -9092,6 +9145,16 @@ function hydrateFromPowerBI() {
         var senha = String(el("fmSenha").value || "");
         if (!senha) { msg("Digite sua senha para confirmar.", "#b91c1c"); return; }
         var gravar = el("fmGravar").checked;
+        if (etapas.indexOf("aba1") !== -1 && liberacao !== null) {
+          var anoSel = String(el("fmAno").value || "").trim(), mapaLib = liberacao[anoSel] || {}, pedidos = [];
+          mes.split(/[\s,;]+/).filter(Boolean).forEach(function(p) {
+            var r = /^(\d{1,2})-(\d{1,2})$/.exec(p);
+            if (r) { for (var k = parseInt(r[1], 10); k <= parseInt(r[2], 10); k++) pedidos.push(k); }
+            else if (/^\d{1,2}$/.test(p)) pedidos.push(parseInt(p, 10));
+          });
+          var bloq = pedidos.filter(function(k) { return !(mapaLib[String(k)] && mapaLib[String(k)].liberado === true); });
+          if (bloq.length) { msg("Aba 1: o(s) m\u00eas(es) " + bloq.join(", ") + " n\u00e3o est\u00e3o liberados. Marque na lista acima quando o per\u00edodo estiver conclu\u00eddo.", "#b91c1c"); return; }
+        }
         var listaOs = String(el("fmOs").value || "").split(/[\s,;]+/).filter(Boolean);
         if (!gravar && (listaOs.length < 1 || listaOs.length > 3)) {
           msg("Teste (sem gravar): informe de 1 a 3 OSs em \"Só estas OSs\" (ex.: M05900). Sem isso o agente repassa todas as OSs e gasta créditos da IA.", "#b91c1c");
@@ -9131,6 +9194,11 @@ function hydrateFromPowerBI() {
           var b2 = el("fmIniciar"); if (b2) b2.disabled = false;
         }
       }
+      fundo.addEventListener("change", function(ev) {
+        var t = ev.target;
+        if (t && t.getAttribute && t.getAttribute("data-mes")) alterarLiberacao(parseInt(t.getAttribute("data-mes"), 10), !!t.checked, t);
+        else if (t && t.id === "fmAno") desenharLiberacao();
+      });
       fundo.addEventListener("click", function(ev) {
         var b = ev.target.closest ? ev.target.closest("button[data-r]") : null;
         if (b && b.getAttribute("data-r") === "1") iniciar();
