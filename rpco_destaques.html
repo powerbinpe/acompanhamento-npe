@@ -395,8 +395,10 @@
       fatAno: n36(f[7]), resAno: n36(f[8]),
       // atual do ano (realizado + projetado) da OS, para o Acompanhamento
       fatAtual: n36(f[9]) || 0, resAtual: n36(f[10]) || 0,
-      // no modo Locacoes vem tambem a OS relacionada normal do centro
-      rel: f[11] || ""
+      // no modo Locacoes vem tambem a OS relacionada normal do centro; a margem orcada (so leitura) vem
+      // como "~" + pontos-base em base 36 (8,25% = 825), em qualquer posicao depois do campo 10
+      rel: f.slice(11).filter(function (t) { return t && t.charAt(0) !== "~"; })[0] || "",
+      margemOrc: (function () { var t = f.slice(11).filter(function (u) { return u && u.charAt(0) === "~"; })[0]; var v = t ? n36(t.slice(1)) : null; return v == null ? null : v / 10000; })()
     };
   });
   // Regra da CTT: ATIVO so em EXECUCAO/DEMOBILIZACAO/NOVA; ATUAL e ENCERRADO sempre FINALIZADA.
@@ -528,6 +530,8 @@
     CAMPOS_TXT.forEach(function (c) { r[c] = it[c] == null ? "" : String(it[c]); });
     ["FatMeta", "ResMeta", "MargemMeta", "OrdemRanking"].forEach(function (c) { r[c] = it[c] == null || it[c] === "" ? null : Number(it[c]); });
     r.Ano = Number(it.Ano) || 0;
+    // margem sempre visivel: linhas antigas gravadas so com resultado ganham a margem calculada (sem contar como alteracao)
+    if (r.MargemMeta == null && r.FatMeta > 0 && r.ResMeta != null) r.MargemMeta = Math.round(r.ResMeta / r.FatMeta * 1e6) / 1e6;
     snapshot(r);
     return r;
   }
@@ -538,7 +542,7 @@
   function linhaVazia(nivelNovo) {
     var r = { uid: "n" + (++seq), id: 0, Ano: ANO, FatMeta: null, ResMeta: null, MargemMeta: null, OrdemRanking: null };
     CAMPOS_TXT.forEach(function (c) { r[c] = ""; });
-    r.Nivel = nivelNovo; r.EntradaPor = "RESULTADO"; r.Ativo = "Sim";
+    r.Nivel = nivelNovo; r.EntradaPor = "MARGEM"; r.Ativo = "Sim";
     snapshot(r);
     return r;
   }
@@ -643,7 +647,7 @@
   function usarReal(cod) {
     var x = montarOS().filter(function (y) { return y.ctt.cod === cod; })[0];
     if (!x || !temReal(x.ctt)) return;
-    x.r.FatMeta = x.ctt.fatAno || 0; x.r.ResMeta = x.ctt.resAno || 0; x.r.EntradaPor = "RESULTADO";
+    x.r.FatMeta = x.ctt.fatAno || 0; x.r.MargemMeta = x.ctt.fatAno ? x.ctt.resAno / x.ctt.fatAno : null; x.r.EntradaPor = "MARGEM";
     recalcular(x.r);
     // o campo com o cursor nao e reescrito por atualizarNoLugar
     var ativo = document.activeElement; if (ativo && ativo.matches && ativo.matches("input[data-f]")) ativo.blur();
@@ -966,9 +970,11 @@
       '<span class="dir"><button type="button" class="btn ok peq" data-acao="gravarRapido"' + (gravando ? " disabled" : "") + ">" + (gravando ? "Gravando..." : "Gravar meta") + "</button>" +
       '<button type="button" class="btn sec peq" data-acao="abrirFora"' + (gravando || foraOS === o.cod ? " disabled" : "") + ">Deixar fora da meta</button>" +
       '<button type="button" class="btn sec peq" data-acao="fecharRapido">Fechar</button></span></div>' +
+      (msgStatus && corStatus === "erro" ? '<div class="status erro" role="alert" style="padding:6px 12px; color:var(--danger); font-weight:700;">' + esc(msgStatus) + "</div>" : "") +
       '<div class="rolagem"><table><thead><tr><th>Gerente</th><th>Superintendente</th><th>Negócio</th><th>Classificação</th><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th></tr></thead><tbody>' +
       "<tr" + atributosLinha(r) + "><td>" + esc(nomeGer(o.codGer)) + "</td><td>" + esc(nomeSup(o.codSup)) + "</td><td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td>" +
-      numerosOS(x, true) + "</tr></tbody></table></div>" + '<div class="rapido-real">' + (temReal(o) ? htmlReal(o, true) : '<span class="chip sem">SEM EXECUTIVO NO ANO</span>') + "</div>" +
+      numerosOS(x, true) + "</tr></tbody></table></div>" + '<div class="rapido-real">' + (temReal(o) ? htmlReal(o, true) : '<span class="chip sem">SEM EXECUTIVO NO ANO</span>') +
+      (o.margemOrc != null ? '<span class="real">Margem orçada (CTT): ' + fmtPct(o.margemOrc) + "</span>" : "") + "</div>" +
       (foraOS === o.cod ? '<div class="form-fora"><label for="motivoFora">Motivo para deixar ' + esc(o.desc) + " fora da meta de " + ANO + ' <b>(obrigatório)</b></label>' +
         '<textarea id="motivoFora" rows="3">' + esc(motivoRascunho) + "</textarea>" +
         '<span class="dir"><button type="button" class="btn ok peq" data-acao="confirmarFora"' + (gravando ? " disabled" : "") + ">Confirmar fora da meta</button>" +
@@ -1005,8 +1011,8 @@
     return '<tr class="ref' + (classe ? " " + classe : "") + '"><td colspan="4">' + rotuloHtml + (extra || "") + '</td><td class="n">' + celTotal(base, "f") + '</td><td class="n">' + celTotal(base, "r") + '</td><td class="n">' + celTotal(base, "p") + "</td><td></td></tr>";
   }
   function valoresLinha(r, edita) {
-    return numero(r, "FatMeta", edita, "Faturamento", false) + numero(r, "ResMeta", edita, "Resultado", r.EntradaPor === "MARGEM") +
-      numero(r, "MargemMeta", edita, "Margem", r.EntradaPor !== "MARGEM") + (edita ? botaoRemover(r) : "<td></td>");
+    return numero(r, "FatMeta", edita, "Faturamento", false) + numero(r, "ResMeta", edita, "Resultado", true) +
+      numero(r, "MargemMeta", edita, "Margem", false) + (edita ? botaoRemover(r) : "<td></td>");
   }
   function linhasMeta(rs, edita, vazio, todas) {
     var vis = todas ? rs : rs.filter(function (r) { return casa(textoLinha(r)); });
@@ -1228,7 +1234,7 @@
   }
   function linhaOSHtml(x, edita) {
     var r = x.r, o = x.ctt, hist = textoHistorico(o.cod);
-    var h = "<tr" + atributosLinha(r, "folha") + ' data-os="' + esc(o.cod) + '"><td colspan="2"><div class="os">' + esc(o.desc) + "</div>" + (hist ? '<div class="desc">' + esc(hist) + "</div>" : "") + (o.rel ? '<div class="desc">OS relacionada: ' + esc(o.rel) + "</div>" : "") + '<div class="sit">' + chipsItem(x) + "</div>" + (foraDaMeta(x) ? '<div class="desc">Motivo: ' + esc(r._orig.Justificativa) + "</div>" : definida(x) ? "" : '<div class="sugestao">' + htmlReal(o, edita) + "</div>") + "</td>" +
+    var h = "<tr" + atributosLinha(r, "folha") + ' data-os="' + esc(o.cod) + '"><td colspan="2"><div class="os">' + esc(o.desc) + "</div>" + (hist ? '<div class="desc">' + esc(hist) + "</div>" : "") + (o.margemOrc != null ? '<div class="desc">Margem orçada (CTT): ' + fmtPct(o.margemOrc) + "</div>" : "") + (o.rel ? '<div class="desc">OS relacionada: ' + esc(o.rel) + "</div>" : "") + '<div class="sit">' + chipsItem(x) + "</div>" + (foraDaMeta(x) ? '<div class="desc">Motivo: ' + esc(r._orig.Justificativa) + "</div>" : definida(x) ? "" : '<div class="sugestao">' + htmlReal(o, edita) + "</div>") + "</td>" +
       "<td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td>" +
       numerosOS(x, edita && !foraDaMeta(x) && !MODO_LOC) + "<td></td></tr>";
     // Observacao da CTT fica na propria OS, destacada logo abaixo dela
@@ -1238,8 +1244,8 @@
   function numerosOS(x, edita) {
     var r = x.r, o = x.ctt, sug = !definida(x) && !foraDaMeta(x) && temReal(o);
     return numero(r, "FatMeta", edita, "Faturamento", false, sug ? fmtVal(o.fatAno) : "") +
-      numero(r, "ResMeta", edita, "Resultado", r.EntradaPor === "MARGEM", sug ? fmtVal(o.resAno) : "") +
-      numero(r, "MargemMeta", edita, "Margem", r.EntradaPor !== "MARGEM", sug && o.fatAno ? fmtPct(o.resAno / o.fatAno) : "");
+      numero(r, "ResMeta", edita, "Resultado", true, sug ? fmtVal(o.resAno) : "") +
+      numero(r, "MargemMeta", edita, "Margem", false, sug && o.fatAno ? fmtPct(o.resAno / o.fatAno) : "");
   }
   function chipsItem(x) {
     var r = x.r, o = x.ctt, chips = [];
@@ -1889,7 +1895,7 @@
     var v = campo === "MargemMeta" ? fmtPct(r[campo]) : fmtVal(r[campo]);
     if (!edita && !v && sugestao) return '<td class="n"><span class="sug">' + esc(sugestao) + "</span></td>";
     if (!edita) return '<td class="n">' + v + "</td>";
-    return '<td class="n"><input class="v' + (calculado ? " calc" : "") + (alterado(r, campo) ? " alterado" : "") + '" data-f="' + campo + '" value="' + esc(v) + '" inputmode="decimal" aria-label="' + esc(rotulo) + '"' + (sugestao ? ' placeholder="' + esc(sugestao) + '"' : "") + (calculado ? ' title="Calculado; digite aqui para inverter o cálculo"' : "") + "></td>";
+    return '<td class="n"><input class="v' + (calculado ? " calc" : "") + (alterado(r, campo) ? " alterado" : "") + '" data-f="' + campo + '" value="' + esc(v) + '" inputmode="decimal" aria-label="' + esc(rotulo) + '"' + (sugestao ? ' placeholder="' + esc(sugestao) + '"' : "") + (calculado ? ' readonly tabindex="-1" title="Travado: Resultado = Faturamento × Margem. Digite o faturamento e a margem."' : "") + "></td>";
   }
 
   // ===========================================================================
@@ -1952,10 +1958,10 @@
   // ===========================================================================
   function porUid(uid) { return linhas.filter(function (r) { return r.uid === uid; })[0]; }
   function recalcular(r) {
-    if (!r.FatMeta) { if (r.EntradaPor !== "MARGEM") r.MargemMeta = null; return; }
-    if (r.EntradaPor === "MARGEM") { if (r.MargemMeta != null) r.ResMeta = Math.round(r.FatMeta * r.MargemMeta); }
-    else if (r.ResMeta != null) r.MargemMeta = Math.round(r.ResMeta / r.FatMeta * 1e6) / 1e6;
-    else r.MargemMeta = null;
+    // Resultado e sempre Faturamento x Margem (a margem e o que se digita)
+    r.EntradaPor = "MARGEM";
+    if (!r.FatMeta) { r.ResMeta = null; return; }
+    if (r.MargemMeta != null) r.ResMeta = Math.round(r.FatMeta * r.MargemMeta); else r.ResMeta = null;
   }
   function editar(el) {
     var tr = el.closest("tr[data-uid]");
@@ -1967,10 +1973,9 @@
     if (campo === "FatMeta" || campo === "ResMeta" || campo === "MargemMeta") {
       var n = lerNumero(el.value);
       if (isNaN(n)) { msgStatus = "Valor inválido: use números, por exemplo 844.354.000"; corStatus = "erro"; atualizarNoLugar(r); return; }
-      if (campo === "MargemMeta") { r.MargemMeta = n == null ? null : n / 100; r.EntradaPor = "MARGEM"; }
-      else if (campo === "ResMeta") { r.ResMeta = n; r.EntradaPor = "RESULTADO"; }
+      if (campo === "ResMeta") { atualizarNoLugar(r); return; }   // travado: so muda pelo faturamento e pela margem
+      if (campo === "MargemMeta") r.MargemMeta = n == null ? null : n / 100;
       else r.FatMeta = n;
-      if (!r.EntradaPor) r.EntradaPor = "RESULTADO";
       recalcular(r);
     } else if (campo === "Justificativa") {
       r[campo] = el.value.replace(/\s+$/, "");
@@ -1989,7 +1994,7 @@
           if (numerico) i.value = c === "MargemMeta" ? fmtPct(r[c]) : fmtVal(r[c]);
           else i.value = r[c] || "";
         }
-        if (numerico) i.classList.toggle("calc", (c === "ResMeta" && r.EntradaPor === "MARGEM") || (c === "MargemMeta" && r.EntradaPor !== "MARGEM"));
+        if (numerico) i.classList.toggle("calc", c === "ResMeta");
         i.classList.toggle("alterado", numerico ? alterado(r, c) : !!(r.id && alterado(r, c)));
       });
       var sit = tr.querySelector(".sit");
@@ -2061,6 +2066,7 @@
   function validar(lista) {
     for (var i = 0; i < lista.length; i++) {
       var r = lista[i].r;
+      if (r.Ativo !== "Nao" && !(r.Nivel === "OS" && r.Situacao === FORA) && r.FatMeta > 0 && r.MargemMeta == null) return "Informe a margem" + (r.Nome ? " de " + r.Nome : "") + ": o resultado e calculado (faturamento x margem).";
       if (r.Nivel === "OS" && r.Situacao === FORA && !String(r.Justificativa || "").trim()) return "Informe o motivo para deixar a OS fora da meta.";
       if (r.Nivel === "OS" || r.Ativo === "Nao") continue;
       if (r.Nivel === "EMPRESA" && grupoEmpresa(r) === "N" && !r.Negocio) return "Linha da Empresa por negócio precisa do negócio.";
@@ -2136,7 +2142,8 @@
   async function gravarRapido() {
     var x = montarOS().filter(function (y) { return y.ctt.cod === rapidoOS; })[0];
     if (!x) return;
-    if (!(x.r.FatMeta > 0)) { msgStatus = "Informe o faturamento da OS antes de gravar."; corStatus = "erro"; render(); return; }
+    if (foraOS && foraOS === rapidoOS) { await confirmarFora(); return; }
+    if (!(x.r.FatMeta > 0) || x.r.MargemMeta == null) { msgStatus = "Informe o faturamento e a margem da OS antes de gravar (o resultado e calculado)."; corStatus = "erro"; render(); return; }
     var ok = await salvar("Meta gravada: " + x.ctt.desc + ".");
     if (ok) { rapidoOS = ""; render(); }
   }
