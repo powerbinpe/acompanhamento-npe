@@ -259,13 +259,6 @@
             var soPlano = (et === "aba1plano");
             var meses = mesesPedidos;
             if (!meses.length) throw new Error("Informe o mes da Aba 1 (um mes, uma lista ou um intervalo, ex.: 1-8).");
-            // Periodo ainda em aberto (depois do ultimo mes fechado) NAO se apura: so depois que o periodo fecha.
-            var abertos = meses.filter(function (m) { return m > ultimo; });
-            if (abertos.length) {
-              relatorio.etapas.aba1 = { aviso: "Os meses " + abertos.join(", ") + " ainda estao em aberto (ultimo mes fechado: " + ultimo + "). A Aba 1 so roda depois que o periodo fecha; nada foi processado." };
-              log(relatorio.etapas.aba1.aviso);
-              continue;
-            }
             var jaFechados = meses.filter(function (m) { return m <= ultimo; });
             if (jaFechados.length && !cfg.permitirMesFechado) {
               relatorio.etapas.aba1 = { aviso: "Os meses " + jaFechados.join(", ") + " ja estao fechados (ultimo fechado: " + ultimo + "). Aba 1 nao foi executada; marque permitir_mes_fechado se for proposital." };
@@ -400,12 +393,6 @@
 
     if (et === "aba1") {
       if (!meses.length) { plano.aviso = "Informe o mes da Aba 1 (um mes, uma lista ou um intervalo, ex.: 1-8)."; return plano; }
-      // Periodo ainda em aberto (depois do ultimo mes fechado) NAO se apura: so depois que o periodo fecha.
-      var abertos = meses.filter(function (m) { return m > ultimo; });
-      if (abertos.length) {
-        plano.aviso = "Os meses " + abertos.join(", ") + " ainda estao em aberto (ultimo mes fechado: " + ultimo + "). A Aba 1 so roda depois que o periodo fecha; nada foi processado.";
-        return plano;
-      }
       var jaFechados = meses.filter(function (m) { return m <= ultimo; });
       if (jaFechados.length && !cfg.permitirMesFechado) {
         plano.aviso = "Os meses " + jaFechados.join(", ") + " ja estao fechados (ultimo fechado: " + ultimo + "). Marque permitir_mes_fechado se for proposital.";
