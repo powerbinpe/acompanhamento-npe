@@ -519,6 +519,36 @@
   var linhas = [];
   var carregando = false, erroCarga = "", filtro = "", msgStatus = "", corStatus = "";
   var confirmando = false, gravando = false, focoAlvo = "", rapidoOS = "";
+  // Sessao retomada do servidor (sem digitar senha neste navegador) nao tem o hash: o fluxo de gravacao recusa (403).
+  // Antes de gravar, pede a senha aqui mesmo (na tela, nunca janela do navegador: ela some no visual do Power BI).
+  var pedindoSenha = false, senhaResolve = null;
+  function htmlPedirSenha() {
+    if (!pedindoSenha) return "";
+    return '<div class="confirma" role="alert"><b>Confirme sua senha para gravar</b><span>Sua sessão foi retomada sem senha neste navegador.</span>' +
+      '<input type="password" id="senhaGravar" autocomplete="current-password" aria-label="Senha" style="padding:6px 8px; border:1px solid #94a3b8; border-radius:6px;">' +
+      '<button type="button" class="btn ok" data-acao="confirmarSenha">Confirmar</button><button type="button" class="btn sec" data-acao="cancelarSenha">Cancelar</button></div>';
+  }
+  function pedirSenha() {
+    return new Promise(function (resolve) {
+      senhaResolve = resolve; pedindoSenha = true; render();
+      var i = document.getElementById("senhaGravar"); if (i) i.focus();
+    });
+  }
+  async function confirmarSenha() {
+    var i = document.getElementById("senhaGravar"), senha = i ? i.value : "";
+    if (!senha) { msgStatus = "Digite a senha para gravar."; corStatus = "erro"; render(); var j = document.getElementById("senhaGravar"); if (j) j.focus(); return; }
+    try {
+      var h = await derivarHash(sessao.login, senha);
+      var r = await postar(FLOW.login, { login: sessao.login, hash: h });
+      if (r.status === 200 && r.json && r.json.ok === true) {
+        sessao.hash = h; gravarSessao(sessao); pedindoSenha = false; msgStatus = ""; corStatus = "";
+        var f = senhaResolve; senhaResolve = null; render(); if (f) f(true); return;
+      }
+      msgStatus = "Senha incorreta."; corStatus = "erro";
+    } catch (e) { msgStatus = "Não foi possível validar a senha agora."; corStatus = "erro"; }
+    render(); var k = document.getElementById("senhaGravar"); if (k) k.focus();
+  }
+  function cancelarSenha() { pedindoSenha = false; var f = senhaResolve; senhaResolve = null; render(); if (f) f(false); }
   var foraOS = "", motivoRascunho = "";   // OS com o formulario "fora da meta" aberto
   var abertos = {};   // superintendentes com os gerentes abertos
   var abertosG = {}, abertosOS = {};   // gerentes abertos; nos abertos da arvore de OS
@@ -972,6 +1002,7 @@
       '<span class="dir"><button type="button" class="btn ok peq" data-acao="gravarRapido"' + (gravando ? " disabled" : "") + ">" + (gravando ? "Gravando..." : "Gravar meta") + "</button>" +
       '<button type="button" class="btn sec peq" data-acao="abrirFora"' + (gravando || foraOS === o.cod ? " disabled" : "") + ">Deixar fora da meta</button>" +
       '<button type="button" class="btn sec peq" data-acao="fecharRapido">Fechar</button></span></div>' +
+      htmlPedirSenha() +
       (msgStatus && corStatus === "erro" ? '<div class="status erro" role="alert" style="padding:6px 12px; color:var(--danger); font-weight:700;">' + esc(msgStatus) + "</div>" : "") +
       '<div class="rolagem"><table><thead><tr><th>Gerente</th><th>Superintendente</th><th>Negócio</th><th>Classificação</th><th class="n">Faturamento</th><th class="n">Resultado</th><th class="n">% Margem</th></tr></thead><tbody>' +
       "<tr" + atributosLinha(r) + "><td>" + esc(nomeGer(o.codGer)) + "</td><td>" + esc(nomeSup(o.codSup)) + "</td><td>" + esc(o.negocio) + "</td><td>" + esc(o.classificacao) + "</td>" +
@@ -994,6 +1025,7 @@
         '<button type="button" class="btn sec" data-acao="recarregar"' + (gravando ? " disabled" : "") + ">Recarregar</button>" +
         '<button type="button" class="btn ok" data-acao="salvar"' + (pend.total && !gravando ? "" : " disabled") + ">" + (gravando ? "Gravando..." : "Salvar alterações") + "</button>"
       : '<span class="chip fora">Consulta · só o proprietário altera metas</span><button type="button" class="btn sec" data-acao="recarregar">Recarregar</button>') + "</div></div>";
+    h += htmlPedirSenha();
     if (confirmando) {
       h += '<div class="confirma"><b>Gravar ' + pend.total + (pend.total === 1 ? " linha" : " linhas") + " na META_FINANCEIRA?</b><span>" +
         [pend.novas ? pend.novas + " nova(s)" : "", pend.alteradas ? pend.alteradas + " alterada(s)" : "", pend.ctt ? pend.ctt + " atualizada(s) pela CTT" : ""].filter(Boolean).join(" · ") +
@@ -2125,6 +2157,11 @@
     return { total: lista.length, lista: lista };
   }
   async function salvar(mensagemOk, soRanking) {
+    if (sessao && !sessao.hash) {
+      confirmando = false;
+      var okSenha = await pedirSenha();
+      if (!okSenha) { msgStatus = "Gravação cancelada: sem a senha não dá para gravar."; corStatus = "erro"; render(); return false; }
+    }
     var p = soRanking ? pendenciasRanking() : pendencias();
     var erro = validar(p.lista);
     confirmando = false;
@@ -2136,7 +2173,7 @@
       for (var i = 0; i < itens.length; i += LOTE) {
         var res = await postar(FLOW.gravar, { login: sessao.login, hash: sessao.hash, itens: itens.slice(i, i + LOTE) });
         if (res.status !== 200) {
-          falha = res.status === 403 ? "Somente o proprietário pode gravar metas." : "Falha ao gravar no SharePoint (HTTP " + res.status + "). " + (i ? i + " linhas já tinham sido gravadas." : "Nada foi gravado.");
+          falha = res.status === 403 ? "O servidor recusou a gravação (403): confira a senha ou se o seu perfil é Proprietário. Nada foi gravado." : "Falha ao gravar no SharePoint (HTTP " + res.status + "). " + (i ? i + " linhas já tinham sido gravadas." : "Nada foi gravado.");
           break;
         }
       }
@@ -2266,6 +2303,8 @@
     else if (a === "cancelarSalvar") { confirmando = false; render(); }
     else if (a === "confirmarSalvar") salvar();
     else if (a === "gravarRapido") gravarRapido();
+    else if (a === "confirmarSenha") confirmarSenha();
+    else if (a === "cancelarSenha") cancelarSenha();
     else if (a === "fecharRapido") { rapidoOS = ""; foraOS = ""; motivoRascunho = ""; render(); }
     else if (a === "abrirFora") { foraOS = rapidoOS; motivoRascunho = ""; render(); var mt = document.getElementById("motivoFora"); if (mt) mt.focus(); }
     else if (a === "cancelarFora") { foraOS = ""; motivoRascunho = ""; render(); }
@@ -2290,6 +2329,7 @@
     }
   });
   document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter" && ev.target && ev.target.id === "senhaGravar") { ev.preventDefault(); confirmarSenha(); return; }
     if (comboAtual) {
       var c = comboAtual;
       if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
