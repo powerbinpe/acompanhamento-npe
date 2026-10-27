@@ -1168,7 +1168,7 @@ function hydrateFromPowerBI() {
       if (sessaoAcesso() || !semFiltroPortal() || !fluxoSessaoPronto(window.FLOW_LER_SESSAO_URL)) return false;
       try {
         var r = await postarSessao(window.FLOW_LER_SESSAO_URL, { escopo: "ACOMP" });
-        if (r.status === 200 && r.json && r.json.aberta === true && Date.parse(r.json.validade) > Date.now()) {
+        if (r.status === 200 && r.json && r.json.aberta === true && Date.parse(r.json.validade) > Date.now() && perfilDoAcompanhamento(r.json.perfil || "MASTER")) {
           gravarSessaoAcesso({ login: r.json.login, nome: r.json.nome || r.json.login, perfil: r.json.perfil || "MASTER",
                                id: parseInt(r.json.id, 10) || 0, validade: r.json.validade, ts: Date.now(), servidor: true });
           return true;
@@ -1200,6 +1200,13 @@ function hydrateFromPowerBI() {
       if (validadeSessaoMs() <= Date.now()) { encerrarSessaoAcesso(true); return; }
       renderFaixaSessao();
     }, 30000);
+
+    // Perfis que entram no Acompanhamento. A lista PARAM_ACESSO também tem o perfil AUDITORIA (Cristiana e Taires, que só
+    // editam a tela de OS elegíveis da auditoria FO-113); ele não pode abrir sessão aqui, porque toda sessão aqui vira Master.
+    function perfilDoAcompanhamento(perfil) {
+      var p = String(perfil || "").toUpperCase().trim();
+      return p === "MASTER" || p === "PROPRIETARIO";
+    }
 
     async function autenticarAcesso(login, senha) {
       login = String(login || "").toLowerCase().trim();
@@ -11203,6 +11210,7 @@ function hydrateFromPowerBI() {
       var r = await autenticarAcesso(login, senha);
       if (btn) { btn.disabled = false; btn.innerHTML = "Entrar"; }
       if (!r.ok) { renderAcessoModal(r.erro || "N\u00e3o foi poss\u00edvel entrar.", "erro"); return; }
+      if (!perfilDoAcompanhamento(r.perfil)) { renderAcessoModal("Este usu\u00e1rio n\u00e3o tem acesso ao Acompanhamento de Performance.", "erro"); return; }
       gravarSessaoAcesso({ login: r.login, nome: r.nome, perfil: r.perfil, id: r.id, ts: Date.now() });
       await acaoSessaoServidor("abrir", r.hash);
       renderFaixaSessao();
