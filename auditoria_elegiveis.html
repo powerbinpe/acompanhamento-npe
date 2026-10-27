@@ -8,7 +8,9 @@
   :root { --navy:#14204A; --navy2:#22367A; --blue:#1F6FD1; --teal:#12A594; --red:#E5484D; --orange:#F39C12; --purple:#7C5CFC;
           --gray:#8A94A6; --muted:#64748B; --line:#E3E8F2; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Segoe UI', Arial, sans-serif; background:transparent; color:#0F172A; font-size:13px; }
+  html, body { overflow-x:hidden; }
+  /* margem à direita e embaixo: as sombras dos cartões não encostam na borda do visual */
+  body { font-family:'Segoe UI', Arial, sans-serif; background:transparent; color:#0F172A; font-size:13px; padding:2px 12px 6px 2px; }
   .card { background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 4px 14px rgba(20,32,74,.08); }
   label { display:block; font-size:11px; font-weight:700; letter-spacing:1px; color:var(--muted); margin:0 0 4px; white-space:nowrap; }
   input[type=text], input[type=password] { width:100%; border:1px solid #CBD5E1; border-radius:8px; padding:8px 10px; font:inherit; color:#0F172A; background:#fff; }
@@ -49,7 +51,7 @@
   .dd.aberto .dd-lista { display:block; }
   .dd-item { padding:7px 12px; cursor:pointer; white-space:nowrap; }
   .dd-item:hover { background:#EEF3FC; } .dd-item.sel { font-weight:700; color:var(--navy2); }
-  .tabela { overflow:auto; height:318px; margin-bottom:10px; }
+  .tabela { overflow:auto; height:292px; margin-bottom:10px; }
   table { width:100%; border-collapse:collapse; }
   th { position:sticky; top:0; background:var(--navy); color:#fff; font-size:11px; letter-spacing:.6px; text-align:left; padding:7px 10px; white-space:nowrap; z-index:1; }
   td { padding:4px 9px; border-bottom:1px solid var(--line); white-space:nowrap; font-size:11.5px; }
@@ -68,7 +70,7 @@
   .pb { display:inline-block; width:70px; height:8px; background:#EEF1F6; border-radius:4px; vertical-align:middle; margin-right:6px; overflow:hidden; }
   .pb i { display:block; height:8px; border-radius:4px; }
   .t-conc { background:#E6F6F3; color:#0B7D6F; } .t-prazo { background:#E8F0FC; color:#1F5FB8; } .t-atr { background:#FDECEC; color:#C0343A; } .t-semd { background:#EEF1F6; color:#475569; }
-  .planos { padding:10px 14px; overflow:auto; height:330px; }
+  .planos { padding:10px 14px; overflow:auto; height:318px; }
   .planos h2 { font-size:13px; color:var(--navy); letter-spacing:.8px; margin-bottom:6px; white-space:nowrap; }
   .pl { display:grid; grid-template-columns:62px 1fr 58px; gap:6px; align-items:center; padding:3px 0; white-space:nowrap; }
   .pl .os { font-weight:700; color:var(--navy); font-size:12px; }
@@ -76,7 +78,7 @@
   .pl .trilho i { display:block; height:14px; }
   .pl .v { font-size:11.5px; font-weight:700; text-align:right; }
   .pl small { grid-column:2 / span 2; color:var(--muted); font-size:10.5px; margin-top:-3px; }
-  .cal { padding:10px 14px; }
+  .cal { padding:10px 14px; height:318px; overflow:hidden; }
   .cal .cab { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
   .cal .cab h2 { font-size:13px; color:var(--navy); letter-spacing:.8px; white-space:nowrap; }
   .cal .cab .mes { font-weight:700; color:var(--navy); min-width:120px; text-align:center; white-space:nowrap; }
@@ -85,12 +87,12 @@
   .leg i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
   .grade { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
   .dsem { font-size:10px; font-weight:700; letter-spacing:1px; color:var(--muted); text-align:center; padding:2px 0; }
-  .dia { height:46px; border:1px solid var(--line); border-radius:6px; padding:2px 4px; overflow:hidden; background:#fff; }
+  .dia { height:40px; border:1px solid var(--line); border-radius:6px; padding:2px 4px; overflow:hidden; background:#fff; }
   .dia.fora { background:#F8FAFC; color:#CBD5E1; }
   .dia.hoje { border-color:var(--orange); box-shadow:inset 0 0 0 1px var(--orange); }
   .dia .n { font-size:10px; font-weight:700; color:var(--muted); }
   .chip { display:inline-block; font-size:10px; font-weight:700; color:#fff; border-radius:4px; padding:0 4px; margin:1px 2px 0 0; white-space:nowrap; }
-  .lista { padding:10px 14px; overflow:auto; height:330px; }
+  .lista { padding:10px 14px; overflow:auto; height:318px; }
   .lista h2 { font-size:13px; color:var(--navy); letter-spacing:.8px; margin-bottom:6px; white-space:nowrap; }
   .item { display:flex; gap:8px; align-items:center; padding:5px 0; border-bottom:1px solid var(--line); white-space:nowrap; overflow:hidden; }
   .item .dt { font-weight:700; color:var(--navy); width:46px; }
