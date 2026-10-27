@@ -419,11 +419,17 @@
   // ===========================================================================
   var PREFIXO = "NPERPCO1:";
   var sessao = null;
+  // Perfis que entram no RPCO. A lista PARAM_ACESSO também tem o perfil AUDITORIA (Cristiana e Taires, que só editam a
+  // tela de OS elegíveis da auditoria FO-113); ele não abre sessão aqui.
+  function perfilDoRpco(perfil) {
+    var p = String(perfil || "").toUpperCase().trim();
+    return p === "MASTER" || p === "PROPRIETARIO";
+  }
   function lerSessao() {
     try {
       if (String(window.name).indexOf(PREFIXO) === 0) {
         var s = JSON.parse(window.name.slice(PREFIXO.length));
-        if (s && s.login && s.hash && Date.now() - s.ts < 8 * 3600 * 1000) return s;
+        if (s && s.login && s.hash && Date.now() - s.ts < 8 * 3600 * 1000 && perfilDoRpco(s.perfil || "MASTER")) return s;
       }
     } catch (e) {}
     return null;
@@ -439,7 +445,7 @@
     if (sessao || !SEM_FILTRO_PORTAL || /^__URL_/.test(FLOW.sessaoLer)) return;
     try {
       var r = await postar(FLOW.sessaoLer, { escopo: "RPCO" });
-      if (r.status === 200 && r.json && r.json.aberta === true && Date.parse(r.json.validade) > Date.now()) {
+      if (r.status === 200 && r.json && r.json.aberta === true && Date.parse(r.json.validade) > Date.now() && perfilDoRpco(r.json.perfil || "MASTER")) {
         sessao = { login: r.json.login, nome: r.json.nome || r.json.login, perfil: r.json.perfil || "MASTER", hash: "", validade: r.json.validade, ts: Date.now() };
         gravarSessao(sessao);
       }
@@ -941,6 +947,7 @@
         avisoLogin(res.status === 200 ? "Usuário ou senha incorretos." : "Falha ao consultar o servidor (HTTP " + res.status + ").", login);
         return;
       }
+      if (!perfilDoRpco(res.json.perfil || "MASTER")) { avisoLogin("Este usuário não tem acesso ao RPCO Destaques.", login); return; }
       sessao = { login: login, nome: res.json.nome || login, perfil: res.json.perfil || "MASTER", hash: hash, ts: Date.now(), token: String(res.json.token || "") };
       await acaoSessao("abrir");
       if (abaAtiva === "login") abaAtiva = "metas";
