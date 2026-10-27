@@ -83,7 +83,7 @@
   .cal .cab h2 { font-size:13px; color:var(--navy); letter-spacing:.8px; white-space:nowrap; }
   .cal .cab .mes { font-weight:700; color:var(--navy); min-width:120px; text-align:center; white-space:nowrap; }
   .cal .cab .nav { padding:4px 10px; }
-  .leg { margin-left:auto; display:flex; gap:12px; font-size:11px; color:var(--muted); white-space:nowrap; }
+  .leg { margin-left:auto; display:flex; gap:10px; font-size:11px; color:var(--muted); white-space:nowrap; cursor:help; }
   .leg i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
   .grade { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
   .dsem { font-size:10px; font-weight:700; letter-spacing:1px; color:var(--muted); text-align:center; padding:2px 0; }
@@ -160,8 +160,8 @@
       <h2>CRONOGRAMA DAS AUDITORIAS</h2>
       <button class="btn sec nav" onclick="mudarMes(-1)">◀</button><div class="mes" id="mesCal"></div><button class="btn sec nav" onclick="mudarMes(1)">▶</button>
       <button class="btn sec nav" onclick="irHoje()">Hoje</button>
-      <div class="leg"><span><i style="background:#1F6FD1"></i>com auditoria no Qualiex</span><span><i style="background:#F39C12"></i>a realizar</span>
-        <span><i style="background:#E5484D"></i>data passou, sem auditoria no Qualiex</span></div>
+      <div class="leg" title="Azul: a OS tem auditoria no arquivo do Qualiex. Laranja: data de hoje em diante. Vermelho: a data já passou e a OS não tem auditoria no Qualiex.">
+        <span><i style="background:#1F6FD1"></i>no Qualiex</span><span><i style="background:#F39C12"></i>a realizar</span><span><i style="background:#E5484D"></i>vencida</span></div>
     </div>
     <div class="grade" id="grade"></div>
   </div>
