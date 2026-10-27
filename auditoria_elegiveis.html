@@ -114,6 +114,7 @@
     <button class="btn lar" id="btnEntrarTopo" onclick="mostrarLogin()">🔒 Entrar para editar</button>
     <button class="btn sec" id="btnNova" style="display:none" onclick="mostrarNova()">+ OS fora da regra</button>
     <button class="btn pri" id="btnSalvar" style="display:none" onclick="salvar()">💾 Salvar alterações</button>
+    <button class="btn sec" id="btnSenha" style="display:none" onclick="mostrarSenha()">🔑 Trocar minha senha</button>
     <button class="btn sec" id="btnSair" style="display:none" onclick="sair()">Sair</button>
   </div>
 </div>
@@ -127,6 +128,17 @@
     <button class="btn sec" onclick="esconderLogin()">Cancelar</button>
   </div>
   <div class="msg" id="msgLogin"></div>
+</div>
+
+<div class="card" id="senha" style="display:none; padding:14px 18px; margin-bottom:10px; border-left:5px solid var(--navy2);">
+  <div class="linha" style="display:flex; gap:12px; align-items:end;">
+    <div style="width:220px"><label for="snAtual">SENHA ATUAL</label><input type="password" id="snAtual" autocomplete="current-password"></div>
+    <div style="width:220px"><label for="snNova">NOVA SENHA (MÍNIMO 8 CARACTERES)</label><input type="password" id="snNova" autocomplete="new-password"></div>
+    <div style="width:220px"><label for="snNova2">REPITA A NOVA SENHA</label><input type="password" id="snNova2" autocomplete="new-password"></div>
+    <button class="btn pri" id="btnSalvarSenha" onclick="trocarSenha()">Salvar nova senha</button>
+    <button class="btn sec" onclick="esconderSenha()">Cancelar</button>
+  </div>
+  <div class="msg" id="msgSenha"></div>
 </div>
 
 <div class="card" id="novaOS">
@@ -175,6 +187,7 @@
 // Fluxos do Power Automate já usados pela tela de OS elegíveis do Receita Ideal (mesmo login Master, mesma lista PARAM_ELEGIBILIDADE).
 var FLOW_LOGIN_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/bcf1295963df418f91a48dd71ea02e60/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VfbYQC2H12f_6GZCSMmrctJBKF1B8ns4TalVByCO688";
 var FLOW_GRAVAR_PARAM_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/017d29a73ac64c64a99d1876e0c75add/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nTziWux6_lh6cIcY7dHHkkWoM6-oOA770twzP0NZicQ";
+var FLOW_ACESSO_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/21/workflows/3e1e9c88eb3346be925d6c2f56220ecb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=W8wHZ3CVXRuiCgKHGwSuieHdMHqGIIwIJYqZM5oROS4";   // NPE-Gravar-Acesso: o mesmo do "Trocar minha senha" do Acompanhamento
 var TIPO = "AUD_OS";          // Valor = "OS|SIM ou NAO|data da auditoria|avanço do plano em centésimos de %|data limite"; vale o maior ID de cada OS
 var PERFIS_EDICAO = ["PROPRIETARIO", "AUDITORIA"];   // perfil AUDITORIA = Cristiana e Taires (lista PARAM_ACESSO), pedido do usuário em 27/10/2026
 var META = 0.9;               // meta da nota da auditoria FO-113
@@ -227,7 +240,7 @@ async function entrar() {
     if (!j || j.ok !== true) { msg.className = "msg erro"; msg.textContent = "Usuário ou senha incorretos."; return; }
     var perfil = String(j.perfil || "").toUpperCase();
     if (PERFIS_EDICAO.indexOf(perfil) < 0) { msg.className = "msg erro"; msg.textContent = "Edição restrita ao perfil AUDITORIA e aos proprietários do BI."; return; }
-    sessao = { login: login, nome: j.nome || login, perfil: perfil };
+    sessao = { login: login, nome: j.nome || login, perfil: perfil, id: parseInt(j.id, 10) || 0 };
     document.getElementById("sn").value = "";
     esconderLogin(); modoEdicao();
   } catch (e) {
@@ -238,14 +251,51 @@ function modoEdicao() {
   var ed = !!sessao;
   document.getElementById("quem").textContent = ed ? "Editando: " + sessao.nome : "";
   document.getElementById("btnEntrarTopo").style.display = ed ? "none" : "";
-  ["btnNova", "btnSalvar", "btnSair"].forEach(function (id) { document.getElementById(id).style.display = ed ? "" : "none"; });
-  if (!ed) esconderNova();
+  ["btnNova", "btnSalvar", "btnSenha", "btnSair"].forEach(function (id) { document.getElementById(id).style.display = ed ? "" : "none"; });
+  if (!ed) { esconderNova(); esconderSenha(); }
   render();
 }
 function sair() {
   if (linhas.some(function (l) { return l.sujo; })) { toast("Há alterações não salvas: salve antes de sair."); return; }
   sessao = null; modoEdicao();
 }
+
+// ---- trocar a própria senha (mesmo esquema do Acompanhamento: confere a atual pelo login e grava só o hash novo) ----
+function mostrarSenha() { esconderNova(); document.getElementById("senha").style.display = "block"; window.scrollTo(0, 0); document.getElementById("snAtual").focus(); }
+function esconderSenha() {
+  document.getElementById("senha").style.display = "none";
+  ["snAtual", "snNova", "snNova2"].forEach(function (id) { document.getElementById(id).value = ""; });
+  document.getElementById("msgSenha").textContent = "";
+}
+async function trocarSenha() {
+  var msg = document.getElementById("msgSenha"), btn = document.getElementById("btnSalvarSenha");
+  var atual = document.getElementById("snAtual").value, nova = document.getElementById("snNova").value, nova2 = document.getElementById("snNova2").value;
+  function erro(t) { msg.className = "msg erro"; msg.textContent = t; }
+  if (!sessao) { erro("Entre novamente."); return; }
+  if (!atual || !nova) { erro("Informe a senha atual e a nova."); return; }
+  if (nova.length < 8) { erro("A nova senha precisa de pelo menos 8 caracteres."); return; }
+  if (nova !== nova2) { erro("A nova senha e a repetição não conferem."); return; }
+  if (nova === atual) { erro("A nova senha precisa ser diferente da atual."); return; }
+  btn.disabled = true; btn.textContent = "Gravando...";
+  try {
+    var hAtual = await derivarHash(sessao.login, atual);
+    var r = await fetch(FLOW_LOGIN_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: sessao.login, hash: hAtual }) });
+    var j = r.ok ? await r.json() : null;
+    if (!j || j.ok !== true) { erro("Senha atual incorreta."); return; }
+    // id > 0 faz o fluxo ATUALIZAR o cadastro; com id 0 ele criaria outra linha e a senha antiga continuaria valendo
+    var id = parseInt(j.id, 10) || sessao.id || 0;
+    if (!id) { erro("Não foi possível identificar o seu cadastro. Entre novamente."); return; }
+    var hNova = await derivarHash(sessao.login, nova);
+    var g = await fetch(FLOW_ACESSO_URL, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuarios: [{ id: id, login: sessao.login, nome: sessao.nome, hash: hNova, perfil: sessao.perfil, ativo: "Sim" }] }) });
+    if (!g.ok) { erro("Falha ao gravar (" + g.status + "). A senha atual continua valendo."); return; }
+    esconderSenha();
+    toast("✅ Senha alterada. Use a nova senha a partir do próximo login.");
+  } catch (e) {
+    erro("Não foi possível gravar agora. A senha atual continua valendo.");
+  } finally { btn.disabled = false; btn.textContent = "Salvar nova senha"; }
+}
+document.getElementById("snNova2").addEventListener("keydown", function (e) { if (e.key === "Enter") trocarSenha(); });
 
 // ---- datas: digitadas como dd/mm/aaaa (sem calendário nativo), guardadas como aaaa-mm-dd -------------
 function isoParaBr(s) { return s ? s.slice(8, 10) + "/" + s.slice(5, 7) + "/" + s.slice(0, 4) : ""; }
