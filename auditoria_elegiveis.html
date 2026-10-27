@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OS Elegíveis · Auditoria do FO-113</title>
+<style>
+  :root { --navy:#14204A; --navy2:#22367A; --blue:#1F6FD1; --teal:#12A594; --red:#E5484D; --orange:#F39C12; --purple:#7C5CFC;
+          --gray:#8A94A6; --muted:#64748B; --line:#E3E8F2; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI', Arial, sans-serif; background:transparent; color:#0F172A; font-size:13px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 4px 14px rgba(20,32,74,.08); }
+  label { display:block; font-size:11px; font-weight:700; letter-spacing:1px; color:var(--muted); margin:0 0 4px; white-space:nowrap; }
+  input[type=text], input[type=password] { width:100%; border:1px solid #CBD5E1; border-radius:8px; padding:8px 10px; font:inherit; color:#0F172A; background:#fff; }
+  .btn { border:none; border-radius:8px; padding:8px 14px; font:inherit; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .btn.pri { background:linear-gradient(135deg, var(--navy2), var(--navy)); color:#fff; }
+  .btn.sec { background:#E2E8F0; color:#334155; }
+  .btn.lar { background:var(--orange); color:#fff; }
+  .btn:disabled { opacity:.6; cursor:default; }
+  .msg { margin-top:10px; font-size:12px; min-height:16px; }
+  .msg.erro { color:var(--red); }
+  .top { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .top h1 { font-size:15px; color:var(--navy); letter-spacing:.6px; white-space:nowrap; }
+  .top .info { color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .top .dir { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  .top .quem { color:var(--muted); font-size:12px; white-space:nowrap; }
+  #login { display:none; padding:18px 22px; margin-bottom:10px; border-left:5px solid var(--orange); }
+  #login .linha { display:flex; gap:12px; align-items:end; }
+  #login .linha > div { width:240px; }
+  #login p { color:var(--muted); margin-bottom:10px; }
+  #novaOS { display:none; padding:12px 16px; margin-bottom:10px; border-left:5px solid var(--blue); }
+  #novaOS .linha { display:flex; gap:12px; align-items:end; }
+  #novaOS .linha > div { width:220px; }
+  .kg { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:10px; }
+  .kb { padding:7px 14px; border-left:5px solid var(--blue); min-width:0; }
+  .kl { font-size:10px; letter-spacing:1px; color:var(--muted); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .kv { font-size:21px; font-weight:700; margin-top:1px; white-space:nowrap; }
+  .ks { font-size:10.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .barra { display:flex; gap:10px; align-items:end; padding:9px 14px; margin-bottom:10px; }
+  .barra > div { flex:0 0 auto; }
+  .barra .grow { flex:1 1 auto; }
+  /* lista suspensa própria: abre logo abaixo do botão (a nativa do navegador abre deslocada dentro do Power BI) */
+  .dd { position:relative; }
+  .dd-btn { min-width:170px; border:1px solid #CBD5E1; border-radius:8px; padding:7px 30px 7px 10px; background:#fff; font:inherit; color:#0F172A;
+            cursor:pointer; text-align:left; white-space:nowrap; position:relative; }
+  .dd-btn:after { content:""; position:absolute; right:11px; top:50%; margin-top:-3px; border:5px solid transparent; border-top-color:#64748B; }
+  .dd-lista { display:none; position:absolute; top:100%; left:0; margin-top:4px; min-width:100%; max-height:260px; overflow:auto; background:#fff;
+              border:1px solid #CBD5E1; border-radius:8px; box-shadow:0 10px 24px rgba(20,32,74,.18); z-index:50; }
+  .dd.aberto .dd-lista { display:block; }
+  .dd-item { padding:7px 12px; cursor:pointer; white-space:nowrap; }
+  .dd-item:hover { background:#EEF3FC; } .dd-item.sel { font-weight:700; color:var(--navy2); }
+  .tabela { overflow:auto; height:318px; margin-bottom:10px; }
+  table { width:100%; border-collapse:collapse; }
+  th { position:sticky; top:0; background:var(--navy); color:#fff; font-size:11px; letter-spacing:.6px; text-align:left; padding:7px 10px; white-space:nowrap; z-index:1; }
+  td { padding:4px 9px; border-bottom:1px solid var(--line); white-space:nowrap; font-size:11.5px; }
+  tr:nth-child(even) td { background:#F8FAFE; }
+  tr.sujo td { background:#FFF7E6 !important; }
+  td input.data { width:104px; padding:3px 6px; font-size:12px; }
+  td input.data.invalida { border-color:var(--red); background:#FDECEC; }
+  td input[type=checkbox] { width:16px; height:16px; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+  .t-sim { background:#E8F0FC; color:#1F5FB8; } .t-nao { background:#EEF1F6; color:#475569; }
+  .t-rot { background:#EEF3FC; color:var(--navy2); } .t-esc { background:#FFF4E0; color:#B26A00; } .t-cad { background:#F1E9FB; color:#6B3FC4; }
+  .nota { font-weight:700; }
+  .cron { display:grid; grid-template-columns:1.45fr 1fr 1fr; gap:12px; }
+  td input.av { width:64px; padding:3px 6px; font-size:12px; text-align:right; }
+  td input.av.invalida { border-color:var(--red); background:#FDECEC; }
+  .pb { display:inline-block; width:70px; height:8px; background:#EEF1F6; border-radius:4px; vertical-align:middle; margin-right:6px; overflow:hidden; }
+  .pb i { display:block; height:8px; border-radius:4px; }
+  .t-conc { background:#E6F6F3; color:#0B7D6F; } .t-prazo { background:#E8F0FC; color:#1F5FB8; } .t-atr { background:#FDECEC; color:#C0343A; } .t-semd { background:#EEF1F6; color:#475569; }
+  .planos { padding:10px 14px; overflow:auto; height:330px; }
+  .planos h2 { font-size:13px; color:var(--navy); letter-spacing:.8px; margin-bottom:6px; white-space:nowrap; }
+  .pl { display:grid; grid-template-columns:62px 1fr 58px; gap:6px; align-items:center; padding:3px 0; white-space:nowrap; }
+  .pl .os { font-weight:700; color:var(--navy); font-size:12px; }
+  .pl .trilho { height:14px; background:#EEF1F6; border-radius:4px; overflow:hidden; }
+  .pl .trilho i { display:block; height:14px; }
+  .pl .v { font-size:11.5px; font-weight:700; text-align:right; }
+  .pl small { grid-column:2 / span 2; color:var(--muted); font-size:10.5px; margin-top:-3px; }
+  .cal { padding:10px 14px; }
+  .cal .cab { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .cal .cab h2 { font-size:13px; color:var(--navy); letter-spacing:.8px; white-space:nowrap; }
+  .cal .cab .mes { font-weight:700; color:var(--navy); min-width:120px; text-align:center; white-space:nowrap; }
+  .cal .cab .nav { padding:4px 10px; }
+  .leg { margin-left:auto; display:flex; gap:12px; font-size:11px; color:var(--muted); white-space:nowrap; }
+  .leg i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
+  .grade { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .dsem { font-size:10px; font-weight:700; letter-spacing:1px; color:var(--muted); text-align:center; padding:2px 0; }
+  .dia { height:46px; border:1px solid var(--line); border-radius:6px; padding:2px 4px; overflow:hidden; background:#fff; }
+  .dia.fora { background:#F8FAFC; color:#CBD5E1; }
+  .dia.hoje { border-color:var(--orange); box-shadow:inset 0 0 0 1px var(--orange); }
+  .dia .n { font-size:10px; font-weight:700; color:var(--muted); }
+  .chip { display:inline-block; font-size:10px; font-weight:700; color:#fff; border-radius:4px; padding:0 4px; margin:1px 2px 0 0; white-space:nowrap; }
+  .lista { padding:10px 14px; overflow:auto; height:330px; }
+  .lista h2 { font-size:13px; color:var(--navy); letter-spacing:.8px; margin-bottom:6px; white-space:nowrap; }
+  .item { display:flex; gap:8px; align-items:center; padding:5px 0; border-bottom:1px solid var(--line); white-space:nowrap; overflow:hidden; }
+  .item .dt { font-weight:700; color:var(--navy); width:46px; }
+  .item .bar { width:4px; height:28px; border-radius:2px; flex:0 0 auto; }
+  .item .tx { overflow:hidden; text-overflow:ellipsis; }
+  .item .tx small { color:var(--muted); }
+  .vazio { color:var(--muted); padding:12px 0; }
+  .rodape { color:var(--muted); font-size:11px; margin-top:8px; line-height:1.45; }
+  #toast { position:absolute; right:18px; top:8px; background:var(--navy); color:#fff; padding:9px 16px; border-radius:10px; display:none; z-index:60; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>OS ELEGÍVEIS · AUDITORIA DO FO-113</h1>
+  <div class="info" id="info"></div>
+  <div class="dir">
+    <span class="quem" id="quem"></span>
+    <button class="btn lar" id="btnEntrarTopo" onclick="mostrarLogin()">🔒 Entrar para editar</button>
+    <button class="btn sec" id="btnNova" style="display:none" onclick="mostrarNova()">+ OS fora da regra</button>
+    <button class="btn pri" id="btnSalvar" style="display:none" onclick="salvar()">💾 Salvar alterações</button>
+    <button class="btn sec" id="btnSair" style="display:none" onclick="sair()">Sair</button>
+  </div>
+</div>
+
+<div class="card" id="login">
+  <p>Edição restrita a Cristiana Gomes Gonsaga, Taires Maria Moreira Dias (perfil AUDITORIA) e aos proprietários do BI. Entre com o seu usuário e senha.</p>
+  <div class="linha">
+    <div><label for="lg">USUÁRIO</label><input type="text" id="lg" autocomplete="username"></div>
+    <div><label for="sn">SENHA</label><input type="password" id="sn" autocomplete="current-password"></div>
+    <button class="btn pri" id="btnEntrar" onclick="entrar()">Entrar</button>
+    <button class="btn sec" onclick="esconderLogin()">Cancelar</button>
+  </div>
+  <div class="msg" id="msgLogin"></div>
+</div>
+
+<div class="card" id="novaOS">
+  <div class="linha">
+    <div><label for="codNova">CÓDIGO DA OS (OS RELACIONADA 2)</label><input type="text" id="codNova" maxlength="8" placeholder="ex.: M00100"></div>
+    <button class="btn pri" onclick="adicionar()">Incluir na lista</button>
+    <button class="btn sec" onclick="esconderNova()">Cancelar</button>
+  </div>
+  <div class="msg" id="msgNova"></div>
+</div>
+
+<div class="kg" id="kpis"></div>
+<div class="card barra">
+  <div><label>SUPERINTENDÊNCIA</label><div class="dd" id="ddSup"></div></div>
+  <div><label>GERÊNCIA</label><div class="dd" id="ddGr"></div></div>
+  <div><label>ORIGEM</label><div class="dd" id="ddOri"></div></div>
+  <div><label>ELEGÍVEL</label><div class="dd" id="ddEl"></div></div>
+  <div><label>PRAZO DO PLANO</label><div class="dd" id="ddPz"></div></div>
+  <div class="grow"><label>BUSCAR OS</label><input type="text" id="fBusca" placeholder="código ou descrição" oninput="render()"></div>
+</div>
+<div class="card tabela">
+  <table>
+    <thead><tr><th>OS</th><th>DESCRIÇÃO</th><th>SUPERINTENDÊNCIA</th><th>GERÊNCIA</th><th>ORIGEM</th><th>ELEGÍVEL</th>
+      <th>DATA DA AUDITORIA</th><th>ÚLTIMA AUDITORIA NO QUALIEX</th><th>AVANÇO DO PLANO</th><th>DATA LIMITE</th><th>PRAZO</th></tr></thead>
+    <tbody id="corpo"></tbody>
+  </table>
+</div>
+<div class="cron">
+  <div class="card cal">
+    <div class="cab">
+      <h2>CRONOGRAMA DAS AUDITORIAS</h2>
+      <button class="btn sec nav" onclick="mudarMes(-1)">◀</button><div class="mes" id="mesCal"></div><button class="btn sec nav" onclick="mudarMes(1)">▶</button>
+      <button class="btn sec nav" onclick="irHoje()">Hoje</button>
+      <div class="leg"><span><i style="background:#1F6FD1"></i>com auditoria no Qualiex</span><span><i style="background:#F39C12"></i>a realizar</span>
+        <span><i style="background:#E5484D"></i>data passou, sem auditoria no Qualiex</span></div>
+    </div>
+    <div class="grade" id="grade"></div>
+  </div>
+  <div class="card lista"><h2 id="tituloLista">AUDITORIAS DO MÊS</h2><div id="listaMes"></div></div>
+  <div class="card planos"><h2 id="tituloPlanos">PLANOS DE AÇÃO · AVANÇO E PRAZO</h2><div id="graficoPlanos"></div></div>
+</div>
+<div class="rodape" id="rodape"></div>
+<div id="toast"></div>
+
+<script>
+// Fluxos do Power Automate já usados pela tela de OS elegíveis do Receita Ideal (mesmo login Master, mesma lista PARAM_ELEGIBILIDADE).
+var FLOW_LOGIN_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/bcf1295963df418f91a48dd71ea02e60/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VfbYQC2H12f_6GZCSMmrctJBKF1B8ns4TalVByCO688";
+var FLOW_GRAVAR_PARAM_URL = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/017d29a73ac64c64a99d1876e0c75add/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nTziWux6_lh6cIcY7dHHkkWoM6-oOA770twzP0NZicQ";
+var TIPO = "AUD_OS";          // Valor = "OS|SIM ou NAO|data da auditoria|avanço do plano em centésimos de %|data limite"; vale o maior ID de cada OS
+var PERFIS_EDICAO = ["PROPRIETARIO", "AUDITORIA"];   // perfil AUDITORIA = Cristiana e Taires (lista PARAM_ACESSO), pedido do usuário em 27/10/2026
+var META = 0.9;               // meta da nota da auditoria FO-113
+var sessao = null;            // só em memória: dentro do Power BI não há armazenamento
+var linhas = [];              // {os, desc, gr, sup, ori, id, el, data, qd, qn, qc, av (0..100), dl, sujo}
+var geradoEm = "";
+var filtro = { sup: "", gr: "", ori: "", el: "", pz: "" };
+var cal = { ano: 0, mes: 0 };
+var MESES = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+var ORIGEM = { R: "ROTINA", E: "ESCRITÓRIO", C: "CADASTRADA" };
+
+// ---- dados vindos do modelo (fragmento da URL: não vai para servidor nenhum) --------------------
+function dec(x) { try { return decodeURIComponent(x); } catch (e) { return x; } }
+function ymdParaIso(s) { return /^\d{8}$/.test(s || "") ? s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8) : ""; }
+function lerModelo() {
+  var h = window.location.hash.replace(/^#/, ""), p = {};
+  h.split("&").forEach(function (kv) { var i = kv.indexOf("="); if (i > 0) p[kv.slice(0, i)] = kv.slice(i + 1); });
+  geradoEm = p.g ? dec(p.g) : "";
+  var gl = (p.gl || "").split("~").map(dec), sl = (p.sl || "").split("~").map(dec), out = [];
+  (p.d || "").split(";").forEach(function (reg) {
+    if (!reg) return;
+    var c = reg.split("~").map(dec);
+    out.push({ os: c[0], desc: c[1] || "", gr: c[2] !== "" && c[2] != null ? (gl[+c[2]] || "") : "", sup: c[3] !== "" && c[3] != null ? (sl[+c[3]] || "") : "",
+               ori: c[4] || "", id: parseInt(c[5], 10) || 0, el: c[6] !== "N", data: ymdParaIso(c[7]), qd: ymdParaIso(c[8]),
+               qn: c[9] ? parseInt(c[9], 10) / 10000 : null, qc: c[10] || "",
+               av: c[11] ? parseInt(c[11], 10) / 100 : null, dl: ymdParaIso(c[12]), sujo: false });
+  });
+  return out;
+}
+
+// ---- login (mesmo esquema do Acompanhamento: PBKDF2-SHA256, 200.000 iterações, salt = login) -------
+async function derivarHash(login, senha) {
+  var enc = new TextEncoder();
+  var chave = await crypto.subtle.importKey("raw", enc.encode(senha), "PBKDF2", false, ["deriveBits"]);
+  var bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(login), iterations: 200000, hash: "SHA-256" }, chave, 256);
+  return Array.from(new Uint8Array(bits)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+}
+function mostrarLogin() { document.getElementById("login").style.display = "block"; window.scrollTo(0, 0); document.getElementById("lg").focus(); }
+function esconderLogin() { document.getElementById("login").style.display = "none"; document.getElementById("msgLogin").textContent = ""; }
+async function entrar() {
+  var login = document.getElementById("lg").value.toLowerCase().trim();
+  var senha = document.getElementById("sn").value;
+  var msg = document.getElementById("msgLogin"), btn = document.getElementById("btnEntrar");
+  if (!login || !senha) { msg.className = "msg erro"; msg.textContent = "Informe usuário e senha."; return; }
+  btn.disabled = true; btn.textContent = "Verificando...";
+  try {
+    var hash = await derivarHash(login, senha);
+    var r = await fetch(FLOW_LOGIN_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: login, hash: hash }) });
+    var j = r.ok ? await r.json() : null;
+    if (!j || j.ok !== true) { msg.className = "msg erro"; msg.textContent = "Usuário ou senha incorretos."; return; }
+    var perfil = String(j.perfil || "").toUpperCase();
+    if (PERFIS_EDICAO.indexOf(perfil) < 0) { msg.className = "msg erro"; msg.textContent = "Edição restrita ao perfil AUDITORIA e aos proprietários do BI."; return; }
+    sessao = { login: login, nome: j.nome || login, perfil: perfil };
+    document.getElementById("sn").value = "";
+    esconderLogin(); modoEdicao();
+  } catch (e) {
+    msg.className = "msg erro"; msg.textContent = "Não foi possível validar o acesso agora.";
+  } finally { btn.disabled = false; btn.textContent = "Entrar"; }
+}
+function modoEdicao() {
+  var ed = !!sessao;
+  document.getElementById("quem").textContent = ed ? "Editando: " + sessao.nome : "";
+  document.getElementById("btnEntrarTopo").style.display = ed ? "none" : "";
+  ["btnNova", "btnSalvar", "btnSair"].forEach(function (id) { document.getElementById(id).style.display = ed ? "" : "none"; });
+  if (!ed) esconderNova();
+  render();
+}
+function sair() {
+  if (linhas.some(function (l) { return l.sujo; })) { toast("Há alterações não salvas: salve antes de sair."); return; }
+  sessao = null; modoEdicao();
+}
+
+// ---- datas: digitadas como dd/mm/aaaa (sem calendário nativo), guardadas como aaaa-mm-dd -------------
+function isoParaBr(s) { return s ? s.slice(8, 10) + "/" + s.slice(5, 7) + "/" + s.slice(0, 4) : ""; }
+function brParaIso(s) {
+  s = String(s || "").trim();
+  if (!s) return "";
+  var m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  var d = new Date(+m[3], +m[2] - 1, +m[1]);
+  if (d.getFullYear() !== +m[3] || d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[1]) return null;
+  return m[3] + "-" + m[2] + "-" + m[1];
+}
+function mascara(el) {
+  var v = el.value.replace(/\D/g, "").slice(0, 8);
+  el.value = v.length > 4 ? v.slice(0, 2) + "/" + v.slice(2, 4) + "/" + v.slice(4) : v.length > 2 ? v.slice(0, 2) + "/" + v.slice(2) : v;
+}
+function hojeIso() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function mudarData(i, el) {
+  var iso = brParaIso(el.value);
+  if (iso === null) { el.classList.add("invalida"); toast("Data inválida: use dd/mm/aaaa."); return; }
+  el.classList.remove("invalida");
+  mudar(i, "data", iso);
+  if (iso) { cal.ano = +iso.slice(0, 4); cal.mes = +iso.slice(5, 7) - 1; render(); }
+}
+
+// ---- situação no cronograma ------------------------------------------------------------------------
+// com auditoria no Qualiex = a OS tem auditoria no arquivo do Qualiex; a realizar = data de hoje em diante; senão a data já passou
+function situacao(l) {
+  if (l.qd) return { cor: "#1F6FD1", txt: "com auditoria no Qualiex" };
+  if (l.data >= hojeIso()) return { cor: "#F39C12", txt: "a realizar" };
+  return { cor: "#E5484D", txt: "data passou, sem auditoria no Qualiex" };
+}
+
+// ---- prazo do plano de ação (regra do usuário, 27/10/2026) -----------------------------------------
+function prazo(l) {
+  if (l.av == null && !l.dl) return null;
+  if (l.av != null && l.av >= 100) return { k: "CONCLUÍDO", cls: "t-conc", cor: "#12A594" };
+  if (!l.dl) return { k: "SEM DATA LIMITE", cls: "t-semd", cor: "#8A94A6" };
+  return hojeIso() <= l.dl ? { k: "NO PRAZO", cls: "t-prazo", cor: "#1F6FD1" } : { k: "ATRASADO", cls: "t-atr", cor: "#E5484D" };
+}
+function mudarAv(i, el) {
+  var s = String(el.value || "").trim().replace("%", "").replace(",", ".");
+  if (s === "") { el.classList.remove("invalida"); mudar(i, "av", null); return; }
+  var v = Number(s);
+  if (!isFinite(v) || v < 0 || v > 100) { el.classList.add("invalida"); toast("Avanço: número de 0 a 100."); return; }
+  el.classList.remove("invalida"); mudar(i, "av", Math.round(v * 100) / 100);
+}
+function mudarLimite(i, el) {
+  var iso = brParaIso(el.value);
+  if (iso === null) { el.classList.add("invalida"); toast("Data inválida: use dd/mm/aaaa."); return; }
+  el.classList.remove("invalida"); mudar(i, "dl", iso);
+}
+
+// ---- lista suspensa própria ------------------------------------------------------------------------
+function montarDD(id, opcoes, valor, aoEscolher) {
+  var box = document.getElementById(id);
+  var atual = opcoes.find(function (o) { return o[0] === valor; }) || opcoes[0];
+  box.innerHTML = "<button type='button' class='dd-btn'>" + esc(atual[1]) + "</button><div class='dd-lista'>" +
+    opcoes.map(function (o) { return "<div class='dd-item" + (o[0] === valor ? " sel" : "") + "' data-v='" + esc(o[0]) + "'>" + esc(o[1]) + "</div>"; }).join("") + "</div>";
+  box.querySelector(".dd-btn").onclick = function (ev) {
+    ev.stopPropagation();
+    var aberto = box.classList.contains("aberto");
+    fecharDDs();
+    if (!aberto) box.classList.add("aberto");
+  };
+  Array.prototype.forEach.call(box.querySelectorAll(".dd-item"), function (it) {
+    it.onclick = function (ev) { ev.stopPropagation(); fecharDDs(); aoEscolher(it.getAttribute("data-v")); };
+  });
+}
+function fecharDDs() { Array.prototype.forEach.call(document.querySelectorAll(".dd.aberto"), function (d) { d.classList.remove("aberto"); }); }
+document.addEventListener("click", fecharDDs);
+function montarFiltros() {
+  function opcoes(campo, cond) { var s = {}; linhas.forEach(function (l) { if (cond(l) && l[campo]) s[l[campo]] = 1; }); return [["", "Todas"]].concat(Object.keys(s).sort().map(function (v) { return [v, v]; })); }
+  montarDD("ddSup", opcoes("sup", function () { return true; }), filtro.sup, function (v) { filtro.sup = v; filtro.gr = ""; montarFiltros(); render(); });
+  montarDD("ddGr", opcoes("gr", function (l) { return !filtro.sup || l.sup === filtro.sup; }), filtro.gr, function (v) { filtro.gr = v; montarFiltros(); render(); });
+  montarDD("ddOri", [["", "Todas"], ["R", "ROTINA"], ["E", "ESCRITÓRIO"], ["C", "CADASTRADA"]], filtro.ori, function (v) { filtro.ori = v; montarFiltros(); render(); });
+  montarDD("ddEl", [["", "Todas"], ["S", "SIM"], ["N", "NÃO"]], filtro.el, function (v) { filtro.el = v; montarFiltros(); render(); });
+  montarDD("ddPz", [["", "Todos"], ["CONCLUÍDO", "CONCLUÍDO"], ["NO PRAZO", "NO PRAZO"], ["ATRASADO", "ATRASADO"], ["SEM DATA LIMITE", "SEM DATA LIMITE"], ["-", "SEM PLANO"]],
+           filtro.pz, function (v) { filtro.pz = v; montarFiltros(); render(); });
+}
+
+// ---- tela ------------------------------------------------------------------------------------------
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+function pct(v) { return (v * 100).toFixed(2).replace(".", ",") + "%"; }
+function visiveis() {
+  var b = document.getElementById("fBusca").value.toUpperCase().trim();
+  return linhas.map(function (l, i) { return { l: l, i: i }; }).filter(function (x) {
+    var l = x.l;
+    if (filtro.sup && l.sup !== filtro.sup) return false;
+    if (filtro.gr && l.gr !== filtro.gr) return false;
+    if (filtro.ori && l.ori !== filtro.ori) return false;
+    if (filtro.el && (filtro.el === "S") !== l.el) return false;
+    if (filtro.pz) { var p = prazo(l); if ((p ? p.k : "-") !== filtro.pz) return false; }
+    if (b && (l.os + " " + l.desc).toUpperCase().indexOf(b) < 0) return false;
+    return true;
+  });
+}
+var CLASSE_ORI = { R: "t-rot", E: "t-esc", C: "t-cad" };
+function linhaOS(x) {
+  var l = x.l, i = x.i, ed = !!sessao;
+  var qual = l.qd ? esc(l.qc) + " · " + isoParaBr(l.qd) + (l.qn != null ? " · <span class='nota' style='color:" + (l.qn < META ? "#E5484D" : "#1F6FD1") + "'>" + pct(l.qn) + "</span>" : "") : "—";
+  var el = ed ? "<input type='checkbox' " + (l.el ? "checked" : "") + " onchange='mudar(" + i + ",\"el\",this.checked)'>"
+              : "<span class='tag " + (l.el ? "t-sim" : "t-nao") + "'>" + (l.el ? "SIM" : "NÃO") + "</span>";
+  var dt = ed ? "<input type='text' class='data' maxlength='10' placeholder='dd/mm/aaaa' value='" + isoParaBr(l.data) + "' oninput='mascara(this)' onchange='mudarData(" + i + ",this)'>"
+              : (l.data ? isoParaBr(l.data) : "—");
+  var p = prazo(l);
+  var av = ed ? "<input type='text' class='av' maxlength='6' placeholder='0 a 100' value='" + (l.av != null ? String(l.av).replace(".", ",") : "") + "' onchange='mudarAv(" + i + ",this)'> %"
+              : (l.av != null ? "<span class='pb'><i style='width:" + Math.min(100, l.av) + "%;background:" + (p ? p.cor : "#8A94A6") + "'></i></span>" + l.av.toFixed(2).replace(".", ",") + "%" : "—");
+  var dl = ed ? "<input type='text' class='data' maxlength='10' placeholder='dd/mm/aaaa' value='" + isoParaBr(l.dl) + "' oninput='mascara(this)' onchange='mudarLimite(" + i + ",this)'>"
+              : (l.dl ? isoParaBr(l.dl) : "—");
+  var pzTxt = p ? "<span class='tag " + p.cls + "'>" + p.k + "</span>" : "—";
+  return "<tr class='" + (l.sujo ? "sujo" : "") + "'><td><b>" + esc(l.os) + "</b></td><td>" + esc(l.desc) + "</td><td>" + esc(l.sup || "—") + "</td><td>" + esc(l.gr || "—") +
+    "</td><td><span class='tag " + (CLASSE_ORI[l.ori] || "t-cad") + "'>" + (ORIGEM[l.ori] || "CADASTRADA") + "</span></td><td style='text-align:center'>" + el +
+    "</td><td>" + dt + "</td><td>" + qual + "</td><td>" + av + "</td><td>" + dl + "</td><td>" + pzTxt + "</td></tr>";
+}
+function render() {
+  var itens = visiveis();
+  document.getElementById("corpo").innerHTML = itens.map(linhaOS).join("") || "<tr><td colspan='11' style='color:#64748B;padding:14px'>Nenhuma OS no filtro.</td></tr>";
+  kpis(itens);
+  calendario(itens);
+  planos(itens);
+  var sujos = linhas.filter(function (l) { return l.sujo; }).length;
+  document.getElementById("btnSalvar").textContent = sujos ? "💾 Salvar alterações (" + sujos + ")" : "💾 Salvar alterações";
+  document.getElementById("info").textContent = "Dados da última atualização do painel" + (geradoEm ? " · " + geradoEm : "");
+  document.getElementById("rodape").innerHTML =
+    "Lista: contratos de <b>ROTINA</b> pela regra do Receita Ideal (estágio e setores excluídos da lista PARAM_ELEGIBILIDADE), os escritórios e as OS incluídas aqui fora da regra. " +
+    "Sem marcação, a OS é elegível. Só as OS elegíveis com data entram no cronograma. " +
+    "<b>Prazo do plano:</b> 100% = concluído; abaixo de 100% = no prazo até a data limite e atrasado depois dela. " +
+    "Gravação: lista PARAM_ELEGIBILIDADE, tipo AUD_OS (perfil AUDITORIA ou proprietário). As alterações valem no painel após a próxima atualização do conjunto de dados.";
+}
+function kpis(itens) {
+  var c = { tot: itens.length, el: 0, dt: 0, ql: 0, nao: 0, ok: 0, atr: 0, pl: 0 };
+  itens.forEach(function (x) {
+    var l = x.l, p = prazo(l);
+    if (l.el) { c.el++; if (l.data) c.dt++; } else c.nao++;
+    if (l.qd) c.ql++;
+    if (p) { c.pl++; if (p.k === "ATRASADO") c.atr++; else if (p.k === "CONCLUÍDO" || p.k === "NO PRAZO") c.ok++; }
+  });
+  var k = [["OS NA LISTA", c.tot, c.nao + " não elegíveis", "#14204A"],
+           ["ELEGÍVEIS", c.el, "participam da auditoria", "#1F6FD1"],
+           ["COM DATA DE AUDITORIA", c.dt, "elegíveis no cronograma", "#F39C12"],
+           ["AUDITADAS NO QUALIEX", c.ql, "com auditoria no arquivo", "#12A594"],
+           ["PLANOS EM DIA", c.ok, "concluídos ou no prazo · de " + c.pl + " planos", "#1F6FD1"],
+           ["PLANOS ATRASADOS", c.atr, "data limite vencida, abaixo de 100%", "#E5484D"]];
+  document.getElementById("kpis").innerHTML = k.map(function (x) {
+    return "<div class='card kb' style='border-left-color:" + x[3] + "'><div class='kl'>" + x[0] + "</div><div class='kv' style='color:" + x[3] + "'>" + x[1] + "</div><div class='ks'>" + x[2] + "</div></div>";
+  }).join("");
+}
+
+// ---- calendário ------------------------------------------------------------------------------------
+function mudarMes(d) { cal.mes += d; if (cal.mes < 0) { cal.mes = 11; cal.ano--; } if (cal.mes > 11) { cal.mes = 0; cal.ano++; } render(); }
+function irHoje() { var d = new Date(); cal.ano = d.getFullYear(); cal.mes = d.getMonth(); render(); }
+function calendario(itens) {
+  var pref = cal.ano + "-" + String(cal.mes + 1).padStart(2, "0") + "-";
+  var doMes = itens.map(function (x) { return x.l; }).filter(function (l) { return l.el && l.data && l.data.slice(0, 8) === pref; })
+                   .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : (a.os < b.os ? -1 : 1); });
+  document.getElementById("mesCal").textContent = MESES[cal.mes] + " " + cal.ano;
+  document.getElementById("tituloLista").textContent = "AUDITORIAS DE " + MESES[cal.mes] + " · " + doMes.length;
+  var h = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"].map(function (d) { return "<div class='dsem'>" + d + "</div>"; });
+  var ini = new Date(cal.ano, cal.mes, 1).getDay(), ult = new Date(cal.ano, cal.mes + 1, 0).getDate(), hoje = hojeIso();
+  for (var v = 0; v < ini; v++) h.push("<div class='dia fora'></div>");
+  for (var d = 1; d <= ult; d++) {
+    var iso = pref + String(d).padStart(2, "0");
+    var chips = doMes.filter(function (l) { return l.data === iso; }).map(function (l) {
+      var s = situacao(l); return "<span class='chip' style='background:" + s.cor + "' title='" + esc(l.os + " · " + l.desc + " · " + s.txt) + "'>" + esc(l.os) + "</span>";
+    }).join("");
+    h.push("<div class='dia" + (iso === hoje ? " hoje" : "") + "'><div class='n'>" + d + "</div>" + chips + "</div>");
+  }
+  while ((h.length - 7) % 7) h.push("<div class='dia fora'></div>");
+  document.getElementById("grade").innerHTML = h.join("");
+  document.getElementById("listaMes").innerHTML = doMes.length ? doMes.map(function (l) {
+    var s = situacao(l);
+    return "<div class='item'><div class='bar' style='background:" + s.cor + "'></div><div class='dt'>" + isoParaBr(l.data).slice(0, 5) + "</div>" +
+      "<div class='tx'><b>" + esc(l.os) + "</b> · " + esc(l.desc) + "<br><small>" + esc(l.gr || "—") + " · " + s.txt + "</small></div></div>";
+  }).join("") : "<div class='vazio'>Nenhuma auditoria com data neste mês.</div>";
+}
+
+function planos(itens) {
+  // menor avanço primeiro; a cor é o prazo (concluído, no prazo, atrasado, sem data limite)
+  var ls = itens.map(function (x) { return x.l; }).filter(function (l) { return prazo(l); })
+                .sort(function (a, b) { return (a.av || 0) - (b.av || 0) || (a.os < b.os ? -1 : 1); });
+  document.getElementById("tituloPlanos").textContent = "PLANOS DE AÇÃO · AVANÇO E PRAZO · " + ls.length;
+  document.getElementById("graficoPlanos").innerHTML = ls.length ? ls.map(function (l) {
+    var p = prazo(l), v = l.av || 0;
+    return "<div class='pl' title='" + esc(l.os + " · " + l.desc) + "'><div class='os'>" + esc(l.os) + "</div><div class='trilho'><i style='width:" + Math.min(100, v) + "%;background:" + p.cor + "'></i></div>" +
+      "<div class='v' style='color:" + p.cor + "'>" + v.toFixed(2).replace(".", ",") + "%</div><small>" + p.k + (l.dl ? " · limite " + isoParaBr(l.dl) : "") + "</small></div>";
+  }).join("") : "<div class='vazio'>Nenhum plano de ação informado.</div>";
+}
+
+// ---- edição ----------------------------------------------------------------------------------------
+function mudar(i, campo, v) { if (!sessao) return; linhas[i][campo] = v; linhas[i].sujo = true; render(); }
+function mostrarNova() { document.getElementById("novaOS").style.display = "block"; document.getElementById("codNova").focus(); }
+function esconderNova() { document.getElementById("novaOS").style.display = "none"; document.getElementById("msgNova").textContent = ""; document.getElementById("codNova").value = ""; }
+function adicionar() {
+  var msg = document.getElementById("msgNova");
+  var os = document.getElementById("codNova").value.toUpperCase().trim();
+  if (!/^([A-Z]\d{5}|\d{8})$/.test(os)) { msg.className = "msg erro"; msg.textContent = "Use o código da OS Relacionada 2: 1 letra + 5 números (ex.: M00100) ou os 8 números do escritório."; return; }
+  if (linhas.some(function (l) { return l.os === os; })) { msg.className = "msg erro"; msg.textContent = "Essa OS já está na lista."; return; }
+  linhas.push({ os: os, desc: "(nova · a descrição da CTT aparece após a atualização do painel)", gr: "", sup: "", ori: "C", id: 0, el: true, data: "",
+                qd: "", qn: null, qc: "", av: null, dl: "", sujo: true });
+  linhas.sort(function (a, b) { return a.os < b.os ? -1 : 1; });
+  esconderNova(); filtro = { sup: "", gr: "", ori: "", el: "", pz: "" }; document.getElementById("fBusca").value = os; montarFiltros(); render();
+}
+async function salvar() {
+  var sujos = linhas.filter(function (l) { return l.sujo; });
+  if (!sujos.length) { toast("Nenhuma alteração para salvar."); return; }
+  if (document.querySelector("input.invalida")) { toast("Corrija os campos em vermelho."); return; }
+  var pars = sujos.map(function (l) {
+    var valor = l.os + "|" + (l.el ? "SIM" : "NAO") + "|" + (l.el ? (l.data || "") : "") + "|" +
+                (l.av != null ? String(Math.round(l.av * 100)) : "") + "|" + (l.dl || "");
+    var vig = l.data ? parseInt(l.data.slice(0, 4) + l.data.slice(5, 7), 10) : parseInt(hojeIso().slice(0, 4) + hojeIso().slice(5, 7), 10);
+    return { id: l.id > 0 ? l.id : 0, tipo: TIPO, valor: valor, ativo: "Sim", vigencia: vig };
+  });
+  var btn = document.getElementById("btnSalvar"); btn.disabled = true; btn.textContent = "⏳ Salvando...";
+  try {
+    var r = await fetch(FLOW_GRAVAR_PARAM_URL, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario: sessao.login, parametros: pars }) });
+    if (!r.ok) throw new Error(r.status);
+    linhas.forEach(function (l) { l.sujo = false; });
+    toast("✅ Gravado (" + sujos.length + " OS). O painel mostra após a próxima atualização do conjunto de dados.");
+  } catch (e) {
+    toast("❌ Falha ao gravar. Nada foi perdido: tente novamente.");
+  } finally { btn.disabled = false; render(); }
+}
+function toast(t) { var el = document.getElementById("toast"); el.textContent = t; el.style.display = "block"; clearTimeout(el._t); el._t = setTimeout(function () { el.style.display = "none"; }, 4500); }
+document.getElementById("sn").addEventListener("keydown", function (e) { if (e.key === "Enter") entrar(); });
+
+// ---- início: leitura aberta a todos; edição só com login Master ----------------------------------
+linhas = lerModelo();
+linhas.sort(function (a, b) { return a.os < b.os ? -1 : 1; });
+(function () {
+  // abre no mês da próxima auditoria com data; sem nenhuma, no mês atual
+  var h = hojeIso(), prox = linhas.filter(function (l) { return l.el && l.data >= h; }).map(function (l) { return l.data; }).sort()[0];
+  var d = prox ? new Date(+prox.slice(0, 4), +prox.slice(5, 7) - 1, 1) : new Date();
+  cal.ano = d.getFullYear(); cal.mes = d.getMonth();
+})();
+montarFiltros(); modoEdicao();
+</script>
+</body>
+</html>
