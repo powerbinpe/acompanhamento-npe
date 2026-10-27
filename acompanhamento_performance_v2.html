@@ -10561,6 +10561,10 @@ function hydrateFromPowerBI() {
 
     // ---- gerenciamento de usuarios (apenas PROPRIETARIO) ----------------
     window.ACESSO_USUARIOS = [];
+    // MASTER entra aqui e no RPCO; AUDITORIA só edita a tela de OS elegíveis da auditoria FO-113 (não entra aqui nem no RPCO).
+    var PERFIS_CADASTRAVEIS = ["MASTER", "AUDITORIA"];
+    var TEXTO_PERFIS = "MASTER: entra no Acompanhamento de Performance e no RPCO (metas, elegibilidade, pareceres).\n" +
+      "AUDITORIA: s\u00f3 edita a tela de OS eleg\u00edveis da auditoria FO-113; n\u00e3o entra aqui nem no RPCO.";
     async function carregarUsuariosAcesso() {
       try {
         var r = await fetch(window.FLOW_LER_ACESSO_URL, {
@@ -10601,12 +10605,14 @@ function hydrateFromPowerBI() {
         showToast("\u26a0\ufe0f Esse usu\u00e1rio j\u00e1 existe."); return;
       }
       var nome = await promptNaPagina("\ud83d\udc65 Nome de exibi\u00e7\u00e3o",
-        "Como o nome aparece no painel.", login.toUpperCase().replace(".", " "), "Criar");
+        "Como o nome aparece no painel.", login.toUpperCase().replace(".", " "), "Continuar");
       if (!nome) return;
+      var perfil = await promptSelecaoNaPagina("\ud83d\udc65 Perfil de " + nome, TEXTO_PERFIS, "MASTER", "Criar", PERFIS_CADASTRAVEIS);
+      if (!perfil) return;
       var senha = _senhaAleatoria();
       var hash = await derivarHashSenha(login, senha);
       var ok = await gravarUsuarioAcesso({ id: 0, login: login, nome: nome, hash: hash,
-                                           perfil: "MASTER", ativo: "Sim" });
+                                           perfil: perfil, ativo: "Sim" });
       if (!ok) { showToast("\u274c Falha ao cadastrar."); return; }
       await carregarUsuariosAcesso();
       renderMetasPanel();
@@ -10632,6 +10638,39 @@ function hydrateFromPowerBI() {
       await avisarNaPagina("\ud83d\udd11 Nova senha de " + u.nome,
         "<b style=\"font-size:1.15rem; letter-spacing:0.5px;\">" + senha + "</b>\n\n" +
         "Anote e entregue <b>agora</b> \u2014 n\u00e3o pode ser consultada depois.");
+    }
+
+    // Trocar o perfil de quem já está cadastrado. O fluxo de gravação reescreve todos os campos e a leitura não devolve
+    // o hash, então a senha não pode ser preservada: ativo recebe senha provisória nova (mostrada uma vez); inativo segue
+    // com senha inválida. Proprietário não muda por aqui.
+    async function alterarPerfilUsuario(login) {
+      if (!ehProprietario()) return;
+      var u = window.ACESSO_USUARIOS.filter(function(x) { return x.login === login; })[0];
+      if (!u) return;
+      if (String(u.perfil) === "PROPRIETARIO") { showToast("\u26d4 O perfil do propriet\u00e1rio n\u00e3o muda por aqui."); return; }
+      var perfil = await promptSelecaoNaPagina("\ud83d\udc65 Perfil de " + u.nome, TEXTO_PERFIS + "\n\nPerfil atual: <b>" + u.perfil + "</b>",
+                                               String(u.perfil), "Continuar", PERFIS_CADASTRAVEIS);
+      if (!perfil || perfil === String(u.perfil)) return;
+      var ativo = String(u.ativo) === "Sim";
+      if (!await confirmarNaPagina("\ud83d\udc65 Trocar perfil",
+            "Mudar <b>" + u.nome + "</b> de <b>" + u.perfil + "</b> para <b>" + perfil + "</b>?\n\n" +
+            (ativo ? "A senha atual deixa de funcionar e uma senha provis\u00f3ria nova aparece uma \u00fanica vez na tela."
+                   : "O usu\u00e1rio continua inativo."),
+            "Trocar perfil")) return;
+      var senha = _senhaAleatoria();
+      var hash = await derivarHashSenha(login, ativo ? senha : _senhaAleatoria());
+      var ok = await gravarUsuarioAcesso({ id: parseInt(u.id, 10), login: u.login, nome: u.nome,
+                                           hash: hash, perfil: perfil, ativo: u.ativo });
+      if (!ok) { showToast("\u274c Falha ao trocar o perfil."); return; }
+      await carregarUsuariosAcesso();
+      renderMetasPanel();
+      if (ativo) {
+        await avisarNaPagina("\u2705 " + u.nome + " agora \u00e9 " + perfil,
+          "Nova senha provis\u00f3ria: <b style=\"font-size:1.15rem; letter-spacing:0.5px;\">" + senha + "</b>\n\n" +
+          "Anote e entregue <b>agora</b> \u2014 n\u00e3o pode ser consultada depois.");
+      } else {
+        showToast("\u2705 " + u.nome + " agora \u00e9 " + perfil + ".");
+      }
     }
 
     // O fluxo de gravacao reescreve todos os campos e o de leitura nao devolve o hash (de
@@ -10713,6 +10752,7 @@ function hydrateFromPowerBI() {
             '<div style="font-size:0.74rem; color:#64748b;">' + u.login + ' &middot; ' + u.perfil + (inativo ? ' &middot; <b>inativo</b>' : "") + '</div>' +
           '</td>' +
           '<td style="padding:8px; text-align:right; white-space:nowrap;">' +
+            (dono ? '' : '<button type="button" onclick="alterarPerfilUsuario(\'' + u.login + '\')" style="background:#ede9fe; color:#5b21b6; border:none; padding:6px 12px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer; margin-right:6px;">Perfil</button>') +
             '<button type="button" onclick="redefinirSenhaUsuario(\'' + u.login + '\')" style="background:#e0f2fe; color:#075985; border:none; padding:6px 12px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer; margin-right:6px;">Redefinir senha</button>' +
             (dono ? '<span style="font-size:0.74rem; color:#94a3b8;">propriet\u00e1rio</span>'
                   : '<button type="button" onclick="alternarAtivoUsuario(\'' + u.login + '\')" style="background:' + (inativo ? "#dcfce7" : "#fee2e2") + '; color:' + (inativo ? "#166534" : "#991b1b") + '; border:none; padding:6px 12px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer;">' + (inativo ? "Reativar" : "Desativar") + '</button>') +
@@ -11511,6 +11551,7 @@ function hydrateFromPowerBI() {
     window.mesAtualDoFiltro = mesAtualDoFiltro;
     window.novoUsuarioAcesso = novoUsuarioAcesso;
     window.redefinirSenhaUsuario = redefinirSenhaUsuario;
+    window.alterarPerfilUsuario = alterarPerfilUsuario;
     window.alternarAtivoUsuario = alternarAtivoUsuario;
     window.carregarUsuariosAcesso = carregarUsuariosAcesso;
     window.decidirCandidato = decidirCandidato;
