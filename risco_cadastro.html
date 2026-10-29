@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Cadastro do Diagnóstico de Risco Psicossocial</title>
+<style>
+  :root { --marinho: #14204A; --laranja: #F39C12; --fundo: #F3F5FA; --linha: #E2E8F0; --cinza: #64748B; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; color: #1F2937; background: #FFFFFF; font-size: 14px; }
+  .topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 3px solid var(--laranja); }
+  .topo h1 { margin: 0; font-size: 19px; color: var(--marinho); }
+  .topo .quem { font-size: 13px; color: var(--cinza); }
+  .btn { border: none; border-radius: 9px; padding: 8px 16px; font: inherit; font-weight: 700; cursor: pointer; background: var(--marinho); color: #FFFFFF; }
+  .btn.sec { background: #FFFFFF; color: var(--marinho); box-shadow: inset 0 0 0 1px #CBD5E1; }
+  .btn.lar { background: var(--laranja); }
+  .btn:disabled { background: #CBD5E1; color: #FFFFFF; cursor: default; box-shadow: none; }
+  main { padding: 16px 18px; }
+  .aviso { background: var(--fundo); border-left: 4px solid var(--marinho); border-radius: 8px; padding: 10px 14px; color: #374151; margin-bottom: 14px; }
+  .login { max-width: 380px; margin: 30px auto; background: var(--fundo); border: 1px solid var(--linha); border-radius: 14px; padding: 20px; }
+  .login h2 { margin: 0 0 6px; color: var(--marinho); font-size: 17px; }
+  .login p { margin: 0 0 14px; color: var(--cinza); font-size: 13px; }
+  label.campo { display: block; font-size: 12px; font-weight: 600; color: var(--cinza); margin: 10px 0 4px; }
+  input[type=text], input[type=password], input[type=number], textarea { width: 100%; padding: 8px 10px; border: 1px solid #CBD5E1; border-radius: 8px; font: inherit; }
+  textarea { resize: vertical; }
+  .erro { color: #B42318; font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .abas { display: flex; gap: 6px; margin-bottom: 12px; }
+  .aba { padding: 8px 14px; border-radius: 9px; background: var(--fundo); color: var(--marinho); font-weight: 700; cursor: pointer; border: 1px solid var(--linha); }
+  .aba.ativa { background: var(--marinho); color: #FFFFFF; border-color: var(--marinho); }
+  .barra { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .barra .pendentes { color: #8A4B00; font-weight: 600; font-size: 13px; }
+  .ges { display: grid; grid-template-columns: 360px 1fr; gap: 14px; }
+  .lista-ges { border: 1px solid var(--linha); border-radius: 12px; max-height: 640px; overflow-y: auto; }
+  .item-ges { padding: 8px 12px; border-bottom: 1px solid var(--linha); cursor: pointer; }
+  .item-ges:hover { background: var(--fundo); }
+  .item-ges.sel { background: #E8EEF9; }
+  .item-ges .n { font-size: 11.5px; color: var(--cinza); }
+  .item-ges.sujo .t::after { content: " ●"; color: var(--laranja); }
+  .editor { border: 1px solid var(--linha); border-radius: 12px; padding: 14px; }
+  .editor h3 { margin: 0 0 4px; color: var(--marinho); font-size: 16px; }
+  .meta { font-size: 12px; color: var(--cinza); margin-bottom: 8px; }
+  table.par { width: 100%; border-collapse: collapse; }
+  table.par th { text-align: left; background: var(--marinho); color: #FFFFFF; font-size: 12px; padding: 7px 8px; }
+  table.par td { border-top: 1px solid var(--linha); padding: 6px 8px; vertical-align: top; font-size: 13px; }
+  table.par tr.grupo td { background: var(--fundo); font-weight: 700; color: var(--marinho); }
+  table.par tr.sujo td:first-child { box-shadow: inset 4px 0 0 var(--laranja); }
+  table.par .desc { color: #374151; font-size: 12.5px; }
+  table.par .num { width: 110px; }
+  table.par textarea { min-height: 38px; }
+  .cor { display: flex; gap: 6px; align-items: center; }
+  .cor input[type=color] { width: 36px; height: 30px; padding: 0; border: 1px solid #CBD5E1; border-radius: 6px; }
+  .cor input[type=text] { width: 100px; }
+  .alt { font-size: 11.5px; color: var(--cinza); }
+  .toast { position: fixed; right: 16px; bottom: 16px; background: var(--marinho); color: #FFFFFF; padding: 10px 14px; border-radius: 10px; display: none; max-width: 520px; }
+  .invalida { border-color: #B42318 !important; background: #FEF3F2; }
+</style>
+</head>
+<body>
+<div class="topo">
+  <h1>Cadastro do Diagnóstico de Risco Psicossocial</h1>
+  <div id="topoDir"></div>
+</div>
+<main id="app"></main>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+// ============================================================================================
+// Tela de cadastro do relatório RISCO PSICOSOCIAL (cargos por GES e lista Parametros, site SSMA).
+// Edição só com login da PARAM_ACESSO, perfil PROPRIETARIO, MASTER ou AUDITORIA (pedido do usuário, 28/10/2026).
+//  - NPE-Login: senha -> hash PBKDF2 (200.000 iterações, salt = login) -> token de 64 caracteres, válido por 4 h.
+//  - NPE-Risco-Cadastro: confere login + token + validade + conta ativa + perfil NO SERVIDOR antes de ler ou gravar;
+//    responde 401 a qualquer outro caso. O token fica só na memória desta página.
+// ============================================================================================
+var FLOW = { login: "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/bcf1295963df418f91a48dd71ea02e60/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VfbYQC2H12f_6GZCSMmrctJBKF1B8ns4TalVByCO688", cadastro: "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/17/workflows/65ecd7d97e504e699982eaf44f8ac56e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=MD6ZbTcWrYjo6oTBRCkFywtsly8qEjNvghFg56yUVrw" };
+var PERFIS = ["PROPRIETARIO", "MASTER", "AUDITORIA"];
+var ITERACOES = 200000;
+
+var sessao = null, dados = null, aba = "ges", gesSel = null, filtroGes = "", erroLogin = "", salvando = false;
+var alteracoes = { ges: {}, par: {} };   // id -> campos alterados (só o que mudou vai para o fluxo)
+
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+function el(id) { return document.getElementById(id); }
+function toast(t) { var e = el("toast"); e.textContent = t; e.style.display = "block"; clearTimeout(e._t); e._t = setTimeout(function () { e.style.display = "none"; }, 6000); }
+function dataBr(iso) { if (!iso) return ""; var d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); }
+
+async function derivarHash(login, senha) {
+  var enc = new TextEncoder();
+  var chave = await crypto.subtle.importKey("raw", enc.encode(senha), "PBKDF2", false, ["deriveBits"]);
+  var bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(String(login).toLowerCase().trim()), iterations: ITERACOES, hash: "SHA-256" }, chave, 256);
+  return Array.from(new Uint8Array(bits)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+}
+async function postar(url, corpo) {
+  var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+  var t = await r.text(), j = null;
+  try { j = t ? JSON.parse(t) : null; } catch (e) {}
+  return { status: r.status, json: j };
+}
+
+// ---------------------------------------------------------------- login e sessão
+async function entrar() {
+  var login = String(el("lg").value || "").toLowerCase().trim(), senha = el("sn").value;
+  if (!login || !senha) { erroLogin = "Informe usuário e senha."; render(); return; }
+  erroLogin = ""; el("btnEntrar").disabled = true; el("btnEntrar").textContent = "Verificando...";
+  try {
+    var r = await postar(FLOW.login, { login: login, hash: await derivarHash(login, senha) });
+    var j = r.json || {};
+    if (r.status !== 200 || j.ok !== true) { erroLogin = "Usuário ou senha incorretos."; render(); return; }
+    var perfil = String(j.perfil || "").toUpperCase();
+    if (PERFIS.indexOf(perfil) < 0) { erroLogin = "Edição restrita aos perfis Proprietário, Master e Auditoria."; render(); return; }
+    if (String(j.token || "").length !== 64) { erroLogin = "O servidor não devolveu o token de acesso. Tente de novo."; render(); return; }
+    sessao = { login: login, nome: j.nome || login, perfil: perfil, token: j.token };
+    await chamar("ler");
+  } catch (e) {
+    erroLogin = "Não foi possível validar o acesso agora."; render();
+  }
+}
+function sair() {
+  if (Object.keys(alteracoes.ges).length + Object.keys(alteracoes.par).length && !confirm("Há alterações não salvas. Sair mesmo assim?")) return;
+  sessao = null; dados = null; alteracoes = { ges: {}, par: {} }; gesSel = null; render();
+}
+function sessaoCaiu() { sessao = null; dados = null; alteracoes = { ges: {}, par: {} }; erroLogin = "Sua sessão terminou (4 h) ou o acesso não é permitido. Entre novamente."; render(); }
+
+async function chamar(acao, extra) {
+  var corpo = Object.assign({ login: sessao.login, token: sessao.token, acao: acao }, extra || {});
+  var r = await postar(FLOW.cadastro, corpo);
+  if (r.status === 401) { sessaoCaiu(); return false; }
+  if (r.status !== 200 || !r.json || r.json.ok !== true) { toast("❌ Não foi possível " + (acao === "gravar" ? "gravar" : "ler") + " agora. Nada foi perdido: tente novamente."); render(); return false; }
+  dados = r.json;
+  if (dados.nome) sessao.nome = dados.nome;
+  render();
+  return true;
+}
+
+// ---------------------------------------------------------------- edição
+function gesAtual(id) { return (dados.ges || []).filter(function (g) { return g.Id === id; })[0]; }
+function parAtual(id) { return (dados.parametros || []).filter(function (p) { return p.Id === id; })[0]; }
+function valorCargos(g) { return alteracoes.ges[g.Id] !== undefined ? alteracoes.ges[g.Id] : (g.Cargos || ""); }
+function alterarCargos(id, texto) {
+  var g = gesAtual(id);
+  // normaliza só o fim de linha (o SharePoint guarda \n); o texto de cada cargo fica como foi digitado
+  var t = texto.replace(/\r\n?/g, "\n");
+  if (t === (g.Cargos || "").replace(/\r\n?/g, "\n")) delete alteracoes.ges[id]; else alteracoes.ges[id] = t;
+  atualizarPendentes();
+  var it = document.querySelector('.item-ges[data-id="' + id + '"]');
+  if (it) { it.classList.toggle("sujo", alteracoes.ges[id] !== undefined); it.querySelector(".n").textContent = contar(t) + " cargo(s)"; }
+  var c = el("contaCargos"); if (c) c.textContent = contar(t) + " cargo(s)";
+}
+function contar(t) { return t.split("\n").filter(function (x) { return x.trim() !== ""; }).length; }
+function campoPar(p, campo) { var a = alteracoes.par[p.Id]; return a && a[campo] !== undefined ? a[campo] : p[campo]; }
+function alterarPar(id, campo, valor) {
+  var p = parAtual(id), a = alteracoes.par[id] || {};
+  var original = p[campo] == null ? (campo === "Valor" ? null : "") : p[campo];
+  if (valor === original) delete a[campo]; else a[campo] = valor;
+  if (Object.keys(a).length) alteracoes.par[id] = a; else delete alteracoes.par[id];
+  atualizarPendentes();
+  var tr = document.querySelector('tr[data-id="' + id + '"]'); if (tr) tr.classList.toggle("sujo", !!alteracoes.par[id]);
+}
+function numeroBr(s) { s = String(s || "").trim(); if (s === "") return null; var n = Number(s.replace(/\./g, "").replace(",", ".")); if (s.indexOf(",") < 0) n = Number(s); return isNaN(n) ? NaN : n; }
+function atualizarPendentes() {
+  var n = Object.keys(alteracoes.ges).length + Object.keys(alteracoes.par).length;
+  var e = el("pendentes"); if (e) e.textContent = n ? n + " alteração(ões) não salva(s)" : "";
+  var b = el("btnSalvar"); if (b) b.disabled = !n || salvando;
+}
+async function salvar() {
+  if (document.querySelector(".invalida")) { toast("Corrija os campos em vermelho antes de salvar."); return; }
+  var ges = Object.keys(alteracoes.ges).map(function (id) { return { id: +id, cargos: alteracoes.ges[id] }; });
+  var parametros = Object.keys(alteracoes.par).map(function (id) {
+    var p = parAtual(+id), a = alteracoes.par[id];
+    return { id: +id, valor: a.Valor !== undefined ? a.Valor : (p.Valor == null ? null : p.Valor),
+             texto: a.Texto !== undefined ? a.Texto : (p.Texto || ""), cor: a.Cor !== undefined ? a.Cor : (p.Cor || "") };
+  });
+  if (!ges.length && !parametros.length) return;
+  salvando = true; atualizarPendentes(); el("btnSalvar").textContent = "⏳ Salvando...";
+  var ok = await chamar("gravar", { ges: ges, parametros: parametros });
+  salvando = false;
+  if (ok) { alteracoes = { ges: {}, par: {} }; render(); toast("✅ Gravado (" + (ges.length + parametros.length) + " item(ns)). O relatório mostra os novos valores na próxima atualização (7h, 10h, 13h e 16h)."); }
+  else { atualizarPendentes(); var b = el("btnSalvar"); if (b) b.textContent = "Salvar alterações"; }
+}
+
+// ---------------------------------------------------------------- desenho
+function render() {
+  var top = el("topoDir");
+  if (!sessao) {
+    top.innerHTML = "";
+    el("app").innerHTML =
+      '<div class="aviso">Cargos que compõem cada GES (item 8 do PGR Report) e parâmetros do cálculo (limites, faixas, cores e textos padrão). ' +
+      'Somente os perfis <b>Proprietário</b>, <b>Master</b> e <b>Auditoria</b> da lista de acesso podem alterar.</div>' +
+      '<div class="login"><h2>Entrar</h2><p>Use o mesmo usuário e senha do Acompanhamento e da Auditoria.</p>' +
+      '<label class="campo" for="lg">Usuário</label><input type="text" id="lg" autocomplete="username">' +
+      '<label class="campo" for="sn">Senha</label><input type="password" id="sn" autocomplete="current-password">' +
+      '<div style="margin-top:14px"><button class="btn" id="btnEntrar">Entrar</button></div>' +
+      '<div class="erro">' + esc(erroLogin) + '</div></div>';
+    el("btnEntrar").onclick = entrar;
+    el("sn").addEventListener("keydown", function (e) { if (e.key === "Enter") entrar(); });
+    el("lg").focus();
+    return;
+  }
+  top.innerHTML = '<span class="quem">Editando: <b>' + esc(sessao.nome) + '</b> (' + esc(sessao.perfil) + ')</span> <button class="btn sec" id="btnSair">Sair</button>';
+  el("btnSair").onclick = sair;
+  if (!dados) { el("app").innerHTML = '<div class="aviso">Carregando...</div>'; return; }
+  var h = '<div class="abas"><div class="aba' + (aba === "ges" ? " ativa" : "") + '" data-aba="ges">Cargos por GES</div>' +
+          '<div class="aba' + (aba === "par" ? " ativa" : "") + '" data-aba="par">Parâmetros</div></div>' +
+          '<div class="barra"><button class="btn lar" id="btnSalvar">Salvar alterações</button><span class="pendentes" id="pendentes"></span>' +
+          '<span class="alt">As alterações aparecem no relatório na próxima atualização (7h, 10h, 13h e 16h).</span></div>';
+  h += aba === "ges" ? telaGes() : telaPar();
+  el("app").innerHTML = h;
+  Array.prototype.forEach.call(document.querySelectorAll(".aba"), function (a) { a.onclick = function () { aba = a.getAttribute("data-aba"); render(); }; });
+  el("btnSalvar").onclick = salvar;
+  if (aba === "ges") ligarGes(); else ligarPar();
+  atualizarPendentes();
+}
+function telaGes() {
+  var lista = (dados.ges || []).filter(function (g) { return !filtroGes || String(g.TextoCadastro).toLowerCase().indexOf(filtroGes.toLowerCase()) >= 0; });
+  if (gesSel == null && lista.length) gesSel = lista[0].Id;
+  var h = '<div class="ges"><div><input type="text" id="buscaGes" placeholder="Filtrar GES..." value="' + esc(filtroGes) + '" style="margin-bottom:8px"><div class="lista-ges">';
+  lista.forEach(function (g) {
+    h += '<div class="item-ges' + (g.Id === gesSel ? " sel" : "") + (alteracoes.ges[g.Id] !== undefined ? " sujo" : "") + '" data-id="' + g.Id + '">' +
+         '<div class="t">' + esc(g.TextoCadastro) + '</div><div class="n">' + contar(valorCargos(g)) + ' cargo(s)</div></div>';
+  });
+  h += '</div></div>';
+  var g = gesAtual(gesSel);
+  if (g) {
+    h += '<div class="editor"><h3>' + esc(g.TextoCadastro) + '</h3><div class="meta">Um cargo por linha, sem limite de quantidade. ' +
+         (g.AlteradoPorLogin ? "Última alteração pelo painel: " + esc(g.AlteradoPorLogin) + " · " : "") + "Modificado em " + esc(dataBr(g.Modified)) + '</div>' +
+         '<textarea id="txtCargos" rows="22">' + esc(valorCargos(g)) + '</textarea><div class="meta" id="contaCargos">' + contar(valorCargos(g)) + ' cargo(s)</div></div>';
+  }
+  return h + '</div>';
+}
+function ligarGes() {
+  el("buscaGes").oninput = function () { filtroGes = this.value; var pos = this.selectionStart; render(); var b = el("buscaGes"); b.focus(); b.setSelectionRange(pos, pos); };
+  Array.prototype.forEach.call(document.querySelectorAll(".item-ges"), function (it) { it.onclick = function () { gesSel = +it.getAttribute("data-id"); render(); }; });
+  var t = el("txtCargos"); if (t) t.oninput = function () { alterarCargos(gesSel, this.value); };
+}
+function telaPar() {
+  var h = '<table class="par"><thead><tr><th style="width:190px">Parâmetro</th><th>Descrição</th><th class="num">Valor</th><th style="width:300px">Texto</th><th style="width:160px">Cor</th></tr></thead><tbody>';
+  var grupo = null;
+  (dados.parametros || []).forEach(function (p) {
+    if (p.Grupo !== grupo) { grupo = p.Grupo; h += '<tr class="grupo"><td colspan="5">' + esc(grupo || "(sem grupo)") + '</td></tr>'; }
+    var v = campoPar(p, "Valor"), t = campoPar(p, "Texto"), c = campoPar(p, "Cor") || "";
+    var vTxt = v == null ? "" : (typeof v === "number" ? String(v).replace(".", ",") : String(v));
+    h += '<tr data-id="' + p.Id + '"' + (alteracoes.par[p.Id] ? ' class="sujo"' : '') + '><td><b>' + esc(p.Title) + '</b>' +
+         (p.AlteradoPorLogin ? '<div class="alt">alterado no painel por ' + esc(p.AlteradoPorLogin) + '</div>' : '') + '</td>' +
+         '<td class="desc">' + esc(p.Descricao) + '</td>' +
+         '<td><input type="text" class="num" data-campo="Valor" value="' + esc(vTxt) + '"></td>' +
+         '<td><textarea data-campo="Texto" rows="2">' + esc(t || "") + '</textarea></td>' +
+         '<td><div class="cor"><input type="color" data-campo="CorPick" value="' + (/^#[0-9A-Fa-f]{6}$/.test(c) ? esc(c) : "#FFFFFF") + '">' +
+         '<input type="text" data-campo="Cor" value="' + esc(c) + '" placeholder="#RRGGBB"></div></td></tr>';
+  });
+  return h + '</tbody></table>';
+}
+function ligarPar() {
+  Array.prototype.forEach.call(document.querySelectorAll("table.par tr[data-id]"), function (tr) {
+    var id = +tr.getAttribute("data-id");
+    var v = tr.querySelector('[data-campo="Valor"]'), t = tr.querySelector('[data-campo="Texto"]');
+    var c = tr.querySelector('[data-campo="Cor"]'), cp = tr.querySelector('[data-campo="CorPick"]');
+    v.oninput = function () { var n = numeroBr(v.value); v.classList.toggle("invalida", Number.isNaN(n)); if (!Number.isNaN(n)) alterarPar(id, "Valor", n); };
+    t.oninput = function () { alterarPar(id, "Texto", t.value.replace(/\r\n?/g, "\n")); };
+    c.oninput = function () { var ok = c.value === "" || /^#[0-9A-Fa-f]{6}$/.test(c.value); c.classList.toggle("invalida", !ok); if (ok) { alterarPar(id, "Cor", c.value.toUpperCase()); if (c.value) cp.value = c.value; } };
+    cp.oninput = function () { c.value = cp.value.toUpperCase(); c.classList.remove("invalida"); alterarPar(id, "Cor", c.value); };
+  });
+}
+
+window.addEventListener("beforeunload", function (e) { if (Object.keys(alteracoes.ges).length + Object.keys(alteracoes.par).length) { e.preventDefault(); e.returnValue = ""; } });
+if (/^__FLOW_/.test(FLOW.login) || /^__FLOW_/.test(FLOW.cadastro)) { document.body.innerHTML = "<p style='padding:20px'>Tela não configurada (endereços dos fluxos ausentes).</p>"; } else { render(); }
+</script>
+</body>
+</html>
