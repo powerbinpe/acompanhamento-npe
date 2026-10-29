@@ -37,6 +37,12 @@
   .item-ges.sel { background: #E8EEF9; }
   .item-ges .n { font-size: 11.5px; color: var(--cinza); }
   .item-ges.sujo .t::after { content: " ●"; color: var(--laranja); }
+  .item-ges.inativo .t { color: var(--cinza); text-decoration: line-through; }
+  .campos-ges { display: grid; grid-template-columns: 150px 1fr 90px; gap: 10px; margin-bottom: 6px; }
+  .chk { display: flex; align-items: center; gap: 6px; padding-top: 8px; font-weight: 600; color: var(--marinho); cursor: pointer; }
+  .erro-campo { color: #B42318; font-size: 12px; min-height: 16px; }
+  .alerta { background: #FFF7E6; border-left: 4px solid var(--laranja); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; color: #7A4B00; margin: 6px 0 10px; }
+  #btnDescartar { margin-top: 8px; }
   .editor { border: 1px solid var(--linha); border-radius: 12px; padding: 14px; }
   .editor h3 { margin: 0 0 4px; color: var(--marinho); font-size: 16px; }
   .meta { font-size: 12px; color: var(--cinza); margin-bottom: 8px; }
@@ -78,6 +84,10 @@ var ITERACOES = 200000;
 
 var sessao = null, dados = null, aba = "ges", gesSel = null, filtroGes = "", erroLogin = "", salvando = false;
 var alteracoes = { ges: {}, par: {} };   // id -> campos alterados (só o que mudou vai para o fluxo)
+var novos = [], proxNovo = -1;           // GES novos ainda não gravados (id provisório negativo)
+var CAMPOS_GES = ["Title", "TextoCadastro", "Ativo", "Cargos"];
+function pendencias() { return Object.keys(alteracoes.ges).length + Object.keys(alteracoes.par).length + novos.length; }
+function limparEdicao() { alteracoes = { ges: {}, par: {} }; novos = []; }
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 function el(id) { return document.getElementById(id); }
@@ -116,10 +126,10 @@ async function entrar() {
   }
 }
 function sair() {
-  if (Object.keys(alteracoes.ges).length + Object.keys(alteracoes.par).length && !confirm("Há alterações não salvas. Sair mesmo assim?")) return;
-  sessao = null; dados = null; alteracoes = { ges: {}, par: {} }; gesSel = null; render();
+  if (pendencias() && !confirm("Há alterações não salvas. Sair mesmo assim?")) return;
+  sessao = null; dados = null; limparEdicao(); gesSel = null; render();
 }
-function sessaoCaiu() { sessao = null; dados = null; alteracoes = { ges: {}, par: {} }; erroLogin = "Sua sessão terminou (4 h) ou o acesso não é permitido. Entre novamente."; render(); }
+function sessaoCaiu() { sessao = null; dados = null; limparEdicao(); erroLogin = "Sua sessão terminou (4 h) ou o acesso não é permitido. Entre novamente."; render(); }
 
 async function chamar(acao, extra) {
   var corpo = Object.assign({ login: sessao.login, token: sessao.token, acao: acao }, extra || {});
@@ -133,18 +143,70 @@ async function chamar(acao, extra) {
 }
 
 // ---------------------------------------------------------------- edição
-function gesAtual(id) { return (dados.ges || []).filter(function (g) { return g.Id === id; })[0]; }
+function todosGes() { return (dados.ges || []).concat(novos); }
+function gesAtual(id) { return todosGes().filter(function (g) { return g.Id === id; })[0]; }
 function parAtual(id) { return (dados.parametros || []).filter(function (p) { return p.Id === id; })[0]; }
-function valorCargos(g) { return alteracoes.ges[g.Id] !== undefined ? alteracoes.ges[g.Id] : (g.Cargos || ""); }
-function alterarCargos(id, texto) {
+function original(g, campo) {   // valor gravado na lista (Ativo vazio conta como ativo; fim de linha normalizado)
+  var v = g[campo];
+  if (campo === "Ativo") return v !== false;
+  return String(v == null ? "" : v).replace(/\r\n?/g, "\n");
+}
+function campoGes(g, campo) {
+  if (g.Id < 0) return g[campo];
+  var a = alteracoes.ges[g.Id];
+  return a && a[campo] !== undefined ? a[campo] : original(g, campo);
+}
+function valorCargos(g) { return campoGes(g, "Cargos"); }
+function alterarGes(id, campo, valor) {
   var g = gesAtual(id);
-  // normaliza só o fim de linha (o SharePoint guarda \n); o texto de cada cargo fica como foi digitado
-  var t = texto.replace(/\r\n?/g, "\n");
-  if (t === (g.Cargos || "").replace(/\r\n?/g, "\n")) delete alteracoes.ges[id]; else alteracoes.ges[id] = t;
+  // normaliza só o fim de linha (o SharePoint guarda \n); o texto fica como foi digitado
+  if (typeof valor === "string") valor = valor.replace(/\r\n?/g, "\n");
+  if (id < 0) { g[campo] = valor; }
+  else {
+    var a = alteracoes.ges[id] || {};
+    if (valor === original(g, campo)) delete a[campo]; else a[campo] = valor;
+    if (Object.keys(a).length) alteracoes.ges[id] = a; else delete alteracoes.ges[id];
+  }
   atualizarPendentes();
   var it = document.querySelector('.item-ges[data-id="' + id + '"]');
-  if (it) { it.classList.toggle("sujo", alteracoes.ges[id] !== undefined); it.querySelector(".n").textContent = contar(t) + " cargo(s)"; }
-  var c = el("contaCargos"); if (c) c.textContent = contar(t) + " cargo(s)";
+  if (it) {
+    it.classList.toggle("sujo", id < 0 || alteracoes.ges[id] !== undefined);
+    it.querySelector(".t").textContent = rotuloGes(g);
+    it.querySelector(".n").textContent = resumoGes(g);
+  }
+  var c = el("contaCargos"); if (c) c.textContent = contar(valorCargos(g)) + " cargo(s)";
+  validarGes(g);
+}
+function rotuloGes(g) { return campoGes(g, "TextoCadastro") || "(GES novo sem texto)"; }
+function resumoGes(g) { return contar(valorCargos(g)) + " cargo(s)" + (campoGes(g, "Ativo") ? "" : " · inativo") + (g.Id < 0 ? " · novo" : ""); }
+// texto obrigatório e sem repetir outro GES (o relatório liga o GES pelo texto exato); código obrigatório
+function errosGes(g) {
+  var e = {}, txt = String(campoGes(g, "TextoCadastro") || "").trim(), cod = String(campoGes(g, "Title") || "").trim();
+  if (!cod && (g.Id < 0 || original(g, "Title"))) e.Title = "Informe o código do GES.";
+  if (!txt) e.TextoCadastro = "Informe o texto do GES.";
+  else if (todosGes().some(function (o) { return o.Id !== g.Id && String(campoGes(o, "TextoCadastro") || "").trim().toLowerCase() === txt.toLowerCase(); }))
+    e.TextoCadastro = "Já existe outro GES com este texto.";
+  return e;
+}
+function validarGes(g) {
+  var e = errosGes(g);
+  ["Title", "TextoCadastro"].forEach(function (c) {
+    var i = el("ges" + c), m = el("erro" + c);
+    if (i) i.classList.toggle("invalida", !!e[c]);
+    if (m) m.textContent = e[c] || "";
+  });
+  var av = el("avisoTexto");
+  if (av) av.style.display = g.Id > 0 && campoGes(g, "TextoCadastro") !== original(g, "TextoCadastro") ? "block" : "none";
+}
+function novoGes() {
+  var g = { Id: proxNovo--, Title: "", TextoCadastro: "", Ativo: true, Cargos: "" };
+  novos.push(g); gesSel = g.Id; filtroGes = ""; render();
+  var lista = document.querySelector(".lista-ges"); if (lista) lista.scrollTop = lista.scrollHeight;
+  var c = el("gesTitle"); if (c) c.focus();
+}
+function descartarNovo(id) {
+  novos = novos.filter(function (g) { return g.Id !== id; });
+  gesSel = null; render();
 }
 function contar(t) { return t.split("\n").filter(function (x) { return x.trim() !== ""; }).length; }
 function campoPar(p, campo) { var a = alteracoes.par[p.Id]; return a && a[campo] !== undefined ? a[campo] : p[campo]; }
@@ -158,23 +220,35 @@ function alterarPar(id, campo, valor) {
 }
 function numeroBr(s) { s = String(s || "").trim(); if (s === "") return null; var n = Number(s.replace(/\./g, "").replace(",", ".")); if (s.indexOf(",") < 0) n = Number(s); return isNaN(n) ? NaN : n; }
 function atualizarPendentes() {
-  var n = Object.keys(alteracoes.ges).length + Object.keys(alteracoes.par).length;
+  var n = pendencias();
   var e = el("pendentes"); if (e) e.textContent = n ? n + " alteração(ões) não salva(s)" : "";
   var b = el("btnSalvar"); if (b) b.disabled = !n || salvando;
 }
 async function salvar() {
   if (document.querySelector(".invalida")) { toast("Corrija os campos em vermelho antes de salvar."); return; }
-  var ges = Object.keys(alteracoes.ges).map(function (id) { return { id: +id, cargos: alteracoes.ges[id] }; });
+  var comErro = Object.keys(alteracoes.ges).map(function (id) { return gesAtual(+id); }).concat(novos)
+    .filter(function (g) { return Object.keys(errosGes(g)).length; })[0];
+  if (comErro) { aba = "ges"; gesSel = comErro.Id; render(); toast("Corrija o GES marcado em vermelho antes de salvar."); return; }
+  // GES: vão todos os campos do item alterado (o fluxo grava código, texto, Ativo e cargos juntos)
+  function registro(g) { return { codigo: String(campoGes(g, "Title")).trim(), texto: String(campoGes(g, "TextoCadastro")).trim(),
+                                   ativo: !!campoGes(g, "Ativo"), cargos: valorCargos(g) }; }
+  var ges = Object.keys(alteracoes.ges).map(function (id) { return Object.assign({ id: +id }, registro(gesAtual(+id))); });
+  var criar = novos.map(registro);
   var parametros = Object.keys(alteracoes.par).map(function (id) {
     var p = parAtual(+id), a = alteracoes.par[id];
     return { id: +id, valor: a.Valor !== undefined ? a.Valor : (p.Valor == null ? null : p.Valor),
              texto: a.Texto !== undefined ? a.Texto : (p.Texto || ""), cor: a.Cor !== undefined ? a.Cor : (p.Cor || "") };
   });
-  if (!ges.length && !parametros.length) return;
+  if (!ges.length && !criar.length && !parametros.length) return;
   salvando = true; atualizarPendentes(); el("btnSalvar").textContent = "⏳ Salvando...";
-  var ok = await chamar("gravar", { ges: ges, parametros: parametros });
+  var ok = await chamar("gravar", { ges: ges, novos: criar, parametros: parametros });
   salvando = false;
-  if (ok) { alteracoes = { ges: {}, par: {} }; render(); toast("✅ Gravado (" + (ges.length + parametros.length) + " item(ns)). O relatório mostra os novos valores na próxima atualização (7h, 10h, 13h e 16h)."); }
+  if (ok) {
+    // GES novo selecionado: depois de gravado, seleciona o item criado (pelo texto)
+    var sel = gesSel < 0 ? (novos.filter(function (g) { return g.Id === gesSel; })[0] || {}).TextoCadastro : null;
+    limparEdicao();
+    if (sel != null) { var achou = (dados.ges || []).filter(function (g) { return String(g.TextoCadastro).trim() === String(sel).trim(); })[0]; gesSel = achou ? achou.Id : null; }
+    render(); toast("✅ Gravado (" + (ges.length + criar.length + parametros.length) + " item(ns)). O relatório mostra os novos valores na próxima atualização (7h, 10h, 13h e 16h)."); }
   else { atualizarPendentes(); var b = el("btnSalvar"); if (b) b.textContent = "Salvar alterações"; }
 }
 
@@ -204,33 +278,64 @@ function render() {
           '<div class="barra"><button class="btn lar" id="btnSalvar">Salvar alterações</button><span class="pendentes" id="pendentes"></span>' +
           '<span class="alt">As alterações aparecem no relatório na próxima atualização (7h, 10h, 13h e 16h).</span></div>';
   h += aba === "ges" ? telaGes() : telaPar();
+  // redesenhar não pode levar a lista de GES (nem a página) de volta ao topo
+  var lista = document.querySelector(".lista-ges"), rolagemLista = lista ? lista.scrollTop : 0, rolagemPagina = window.scrollY;
   el("app").innerHTML = h;
+  lista = document.querySelector(".lista-ges"); if (lista) lista.scrollTop = rolagemLista;
+  window.scrollTo(0, rolagemPagina);
   Array.prototype.forEach.call(document.querySelectorAll(".aba"), function (a) { a.onclick = function () { aba = a.getAttribute("data-aba"); render(); }; });
   el("btnSalvar").onclick = salvar;
   if (aba === "ges") ligarGes(); else ligarPar();
   atualizarPendentes();
 }
 function telaGes() {
-  var lista = (dados.ges || []).filter(function (g) { return !filtroGes || String(g.TextoCadastro).toLowerCase().indexOf(filtroGes.toLowerCase()) >= 0; });
+  var lista = todosGes().filter(function (g) { return !filtroGes || rotuloGes(g).toLowerCase().indexOf(filtroGes.toLowerCase()) >= 0 || g.Id === gesSel; });
   if (gesSel == null && lista.length) gesSel = lista[0].Id;
-  var h = '<div class="ges"><div><input type="text" id="buscaGes" placeholder="Filtrar GES..." value="' + esc(filtroGes) + '" style="margin-bottom:8px"><div class="lista-ges">';
+  var h = '<div class="aviso">Os cargos alimentam o item 8 do PGR Report. As opções do formulário (pergunta GES e a lista de funções de cada GES) ' +
+          'não mudam por aqui: um GES novo ou um texto alterado também precisa ser ajustado no formulário.</div>' +
+          '<div class="ges"><div><div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" id="buscaGes" placeholder="Filtrar GES..." value="' + esc(filtroGes) + '">' +
+          '<button class="btn" id="btnNovoGes" style="white-space:nowrap">+ Novo GES</button></div><div class="lista-ges">';
   lista.forEach(function (g) {
-    h += '<div class="item-ges' + (g.Id === gesSel ? " sel" : "") + (alteracoes.ges[g.Id] !== undefined ? " sujo" : "") + '" data-id="' + g.Id + '">' +
-         '<div class="t">' + esc(g.TextoCadastro) + '</div><div class="n">' + contar(valorCargos(g)) + ' cargo(s)</div></div>';
+    h += '<div class="item-ges' + (g.Id === gesSel ? " sel" : "") + (g.Id < 0 || alteracoes.ges[g.Id] !== undefined ? " sujo" : "") +
+         (campoGes(g, "Ativo") ? "" : " inativo") + '" data-id="' + g.Id + '">' +
+         '<div class="t">' + esc(rotuloGes(g)) + '</div><div class="n">' + esc(resumoGes(g)) + '</div></div>';
   });
   h += '</div></div>';
   var g = gesAtual(gesSel);
   if (g) {
-    h += '<div class="editor"><h3>' + esc(g.TextoCadastro) + '</h3><div class="meta">Um cargo por linha, sem limite de quantidade. ' +
-         (g.AlteradoPorLogin ? "Última alteração pelo painel: " + esc(g.AlteradoPorLogin) + " · " : "") + "Modificado em " + esc(dataBr(g.Modified)) + '</div>' +
-         '<textarea id="txtCargos" rows="22">' + esc(valorCargos(g)) + '</textarea><div class="meta" id="contaCargos">' + contar(valorCargos(g)) + ' cargo(s)</div></div>';
+    var novo = g.Id < 0;
+    h += '<div class="editor"><h3>' + (novo ? "Novo GES" : esc(g.TextoCadastro)) + '</h3><div class="meta">' +
+         (novo ? "Ainda não gravado: preencha e clique em Salvar alterações." :
+           (g.AlteradoPorLogin ? "Última alteração pelo painel: " + esc(g.AlteradoPorLogin) + " · " : "") + "Modificado em " + esc(dataBr(g.Modified))) + '</div>' +
+         '<div class="campos-ges"><div><label class="campo" for="gesTitle">Código</label><input type="text" id="gesTitle" value="' + esc(campoGes(g, "Title")) + '" placeholder="ex.: GES048">' +
+         '<div class="erro-campo" id="erroTitle"></div></div>' +
+         '<div><label class="campo" for="gesTextoCadastro">Texto do GES (igual à opção do formulário)</label><input type="text" id="gesTextoCadastro" value="' + esc(campoGes(g, "TextoCadastro")) + '">' +
+         '<div class="erro-campo" id="erroTextoCadastro"></div></div>' +
+         '<div><label class="campo">&nbsp;</label><label class="chk"><input type="checkbox" id="gesAtivo"' + (campoGes(g, "Ativo") ? " checked" : "") + '> Ativo</label></div></div>' +
+         '<div class="alerta" id="avisoTexto" style="display:none">Atenção: o relatório liga as respostas ao GES pelo texto exato. Respostas já gravadas com o texto antigo ' +
+         'deixam de mostrar os cargos deste GES no PGR Report, e o formulário continua com o texto antigo até ser ajustado.</div>' +
+         '<label class="campo" for="txtCargos">Cargos (um por linha, sem limite de quantidade)</label>' +
+         '<textarea id="txtCargos" rows="18">' + esc(valorCargos(g)) + '</textarea><div class="meta" id="contaCargos">' + contar(valorCargos(g)) + ' cargo(s)</div>' +
+         (novo ? '<button class="btn sec" id="btnDescartar">Descartar GES novo</button>' : '') + '</div>';
   }
   return h + '</div>';
 }
 function ligarGes() {
   el("buscaGes").oninput = function () { filtroGes = this.value; var pos = this.selectionStart; render(); var b = el("buscaGes"); b.focus(); b.setSelectionRange(pos, pos); };
-  Array.prototype.forEach.call(document.querySelectorAll(".item-ges"), function (it) { it.onclick = function () { gesSel = +it.getAttribute("data-id"); render(); }; });
-  var t = el("txtCargos"); if (t) t.oninput = function () { alterarCargos(gesSel, this.value); };
+  el("btnNovoGes").onclick = novoGes;
+  Array.prototype.forEach.call(document.querySelectorAll(".item-ges"), function (it) {
+    it.onclick = function () {
+      // troca só a seleção e o editor; a lista fica onde está
+      gesSel = +it.getAttribute("data-id"); render();
+    };
+  });
+  var g = gesAtual(gesSel); if (!g) return;
+  el("txtCargos").oninput = function () { alterarGes(g.Id, "Cargos", this.value); };
+  el("gesTitle").oninput = function () { alterarGes(g.Id, "Title", this.value); };
+  el("gesTextoCadastro").oninput = function () { alterarGes(g.Id, "TextoCadastro", this.value); var h3 = document.querySelector(".editor h3"); if (h3 && g.Id > 0) h3.textContent = this.value; };
+  el("gesAtivo").onchange = function () { alterarGes(g.Id, "Ativo", this.checked); };
+  var d = el("btnDescartar"); if (d) d.onclick = function () { descartarNovo(g.Id); };
+  validarGes(g);
 }
 function telaPar() {
   var h = '<table class="par"><thead><tr><th style="width:190px">Parâmetro</th><th>Descrição</th><th class="num">Valor</th><th style="width:300px">Texto</th><th style="width:160px">Cor</th></tr></thead><tbody>';
@@ -261,7 +366,7 @@ function ligarPar() {
   });
 }
 
-window.addEventListener("beforeunload", function (e) { if (Object.keys(alteracoes.ges).length + Object.keys(alteracoes.par).length) { e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("beforeunload", function (e) { if (pendencias()) { e.preventDefault(); e.returnValue = ""; } });
 if (/^__FLOW_/.test(FLOW.login) || /^__FLOW_/.test(FLOW.cadastro)) { document.body.innerHTML = "<p style='padding:20px'>Tela não configurada (endereços dos fluxos ausentes).</p>"; } else { render(); }
 </script>
 </body>
