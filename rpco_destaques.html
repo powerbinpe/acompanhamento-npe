@@ -1512,9 +1512,16 @@
   }
   var CAMPOS_D = ["fmes", "rmes", "facu", "racu", "fano", "rano", "fcon", "rcon", "f12", "r12", "efe"];
   function somaD(xs) {
-    var t = { metaF: 0, metaR: 0 };
+    // fanoMeta/ranoMeta: real do ano so das OSs com meta. O atingimento do cliente e do total e ponderado como a
+    // margem, soma sobre soma: soma do real das OSs com meta / soma das metas (OS sem meta fica fora do atingimento)
+    var t = { metaF: 0, metaR: 0, fanoMeta: 0, ranoMeta: 0 };
     CAMPOS_D.forEach(function (c) { t[c] = 0; });
-    xs.forEach(function (x) { CAMPOS_D.forEach(function (c) { t[c] += x.d[c] || 0; }); t.metaF += x.meta.f; t.metaR += x.meta.r; });
+    xs.forEach(function (x) {
+      CAMPOS_D.forEach(function (c) { t[c] += x.d[c] || 0; });
+      t.metaF += x.meta.f; t.metaR += x.meta.r;
+      if (x.meta.f) t.fanoMeta += x.d.fano || 0;
+      if (x.meta.r) t.ranoMeta += x.d.rano || 0;
+    });
     return t;
   }
   function pct(r, f) { return f ? fmtPct(r / f) : "—"; }
@@ -1549,8 +1556,8 @@
       if (c === "p12") { n("p12_f", "FAT PRÓX 12", function (t) { return t.f12; }); n("p12_r", "RES PRÓX 12", function (t) { return t.r12; }); p("p12_p", "% PRÓX 12", "r12", "f12"); }
       if (c === "cont") { n("cont_f", "FAT CONTRATO", function (t) { return t.fcon; }); n("cont_r", "RES CONTRATO", function (t) { return t.rcon; }); p("cont_p", "% CONTRATO", "rcon", "fcon"); }
       if (c === "atin") {
-        s.push({ k: "atin_f", lab: "ATIN. META FAT ANO", tipo: "c", v: function (t) { return atingimento(t.fano, t.metaF); } });
-        s.push({ k: "atin_r", lab: "ATIN. META RES ANO", tipo: "c", v: function (t) { return atingimento(t.rano, t.metaR); } });
+        s.push({ k: "atin_f", lab: "ATIN. META FAT ANO", tipo: "c", v: function (t) { return atingimento(t.fanoMeta, t.metaF); } });
+        s.push({ k: "atin_r", lab: "ATIN. META RES ANO", tipo: "c", v: function (t) { return atingimento(t.ranoMeta, t.metaR); } });
       }
       if (c === "efe") n("efe", "EFETIVO", function (t) { return t.efe; });
       if (c === "ult") n("ult", "ÚLTIMO FATURAMENTO", function (t) { return t.fmes; });
@@ -1778,7 +1785,7 @@
       ? ls.reduce(function (a, l) { return l.fixo ? a : a.concat(l.marcados); }, [])
       : ls.filter(function (l) { return !l.fixo && l.x.marcado; }).map(function (l) { return l.x; });
     var total = somaD(marcadosTot);
-    ls.forEach(function (l) { if (l.fixo) { CAMPOS_D.forEach(function (c) { total[c] += l.t[c] || 0; }); total.metaF += l.t.metaF || 0; total.metaR += l.t.metaR || 0; } });
+    ls.forEach(function (l) { if (l.fixo) { CAMPOS_D.forEach(function (c) { total[c] += l.t[c] || 0; }); total.metaF += l.t.metaF || 0; total.metaR += l.t.metaR || 0; total.fanoMeta += l.t.fanoMeta || 0; total.ranoMeta += l.t.ranoMeta || 0; } });
     var rotNome = modo === "C" ? (NIVEIS.os ? "CLIENTE · OS" : "CLIENTE") : "OS";
     return '<div class="rolagem"><table class="grade destaques"><thead><tr class="titulos"><th class="c rk">POSIÇÃO · RANKING</th><th class="cli">' + rotNome + "</th>" + cabCols(cols) + "</tr></thead><tbody>" +
       corpo + '<tr class="ref"><td class="rk"></td><td class="cli">TOTAL GERAL</td>' + celCols(cols, total) + "</tr></tbody></table></div>";
@@ -1834,7 +1841,7 @@
       htmlPainelColunas() + htmlCopiaExcel() +
       // Legenda do atingimento (regra do RPCO): o real do ano contra a meta do ano
       '<div class="legenda-atin"><b>ATIN. META FAT/RES ANO</b> · real do ano (' + ANO + ', realizado + projetado) sobre a meta do ano: ' +
-      '<span class="ok-mark">✔</span> atingiu 96% ou mais da meta · <span class="alerta-mark">⚠</span> entre 90% e 96% · <span class="nao-mark">✘</span> abaixo de 90% · em branco: sem meta cadastrada</div>';
+      '<span class="ok-mark">✔</span> atingiu 96% ou mais da meta · <span class="alerta-mark">⚠</span> entre 90% e 96% · <span class="nao-mark">✘</span> abaixo de 90% · em branco: sem meta cadastrada. Cliente e total são ponderados: soma do real das OSs com meta ÷ soma das metas das OSs; OS sem meta fica fora do atingimento.</div>';
     return '<div class="destaques-tela">' + barra +
       quadro("rotpos", "Rotina · destaques positivos", doNeg("R"), COLS.rotina, { sinal: pos("racu"), campo: "facu", vazio: "Nenhum destaque positivo de rotina." }, "faturamento acumulado") +
       quadro("rotneg", "Rotina · destaques negativos", doNeg("R"), COLS.rotina, { sinal: neg("racu"), campo: "facu", vazio: "Nenhum destaque negativo de rotina." }, "faturamento acumulado") +
