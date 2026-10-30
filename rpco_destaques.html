@@ -1479,7 +1479,7 @@
   }
 
   // ===========================================================================
-  // Destaques (so Master), tudo numa pagina: Rotina (positivos e negativos), Demais operacoes,
+  // Destaques (so Master), tudo numa pagina: Rotina, Demais operacoes,
   // Parada e Destaques do mes. A medida manda, por OS, o cliente da CTT, negocio, status/estagio
   // e os numeros do mes, acumulado, ano, contrato, proximos 12 e efetivo. A meta vem da lista.
   // Ranking: a medida ja manda so as OSs elegiveis (CTT, regra de 30/09/2026): Status ATIVO ou ATUAL,
@@ -1746,16 +1746,16 @@
       (aberto ? '<section class="caixa" data-sec="' + key + '">' + corpo + "</section>" : "");
   }
   // Quadro de destaques: por cliente (OSs ao abrir) ou so por OS, conforme os niveis escolhidos.
-  // o.sinal filtra positivos/negativos pelo total da linha; o.campo e o faturamento da ordem padrao.
+  // o.campo e o faturamento da ordem padrao. Resultado negativo fica na mesma lista, em vermelho.
   function tabelaQuadro(key, itens, cols, o) {
     var todos = !!todosD[key], modo = modoQuadro(), campo = o.campo || "facu";
     var ls;
     if (modo === "C") {
       ls = porClienteD(itens).map(function (g) { g.k = g.cliente; return g; })
-        .filter(function (g) { return (todos || g.marcados.length) && (!o.sinal || o.sinal(g.t)); });
+        .filter(function (g) { return todos || g.marcados.length; });
     } else {
       ls = itens.map(function (x) { return { k: x.d.cod, x: x, t: somaD([x]) }; })
-        .filter(function (l) { return (todos || l.x.marcado) && (!o.sinal || o.sinal(l.t)); });
+        .filter(function (l) { return todos || l.x.marcado; });
     }
     (o.fixos || []).forEach(function (f) { ls.push({ k: f.cliente, fixo: f.fixo, cliente: f.cliente, t: f.t }); });
     ls = aplicarOrdem(key, ls, function (a, b) { return (b.t[campo] || 0) - (a.t[campo] || 0); });
@@ -1799,7 +1799,7 @@
     var t = somar(nivel("EMPRESA").filter(function (r) { return r.Negocio === neg; }));
     return { f: t.f, r: t.r };
   }
-  var SECOES_D = ["rotpos", "rotneg", "locofi", "parada", "mespos", "mesneg", "gerenciais"];
+  var SECOES_D = ["rotina", "locofi", "parada", "mes", "gerenciais"];
   // A pagina tem largura fixa (a do visual): em vez de rolar para o lado, a fonte da tabela
   // diminui ate todo numero caber na coluna. Cliente/OS nunca quebra: corta com reticencias.
   var FONTE_D_MAX = 15, FONTE_D_MIN = 9;
@@ -1831,7 +1831,6 @@
       var sub = "ordem pelo maior " + subOrdem + " · " + n + (modoQuadro() === "C" ? " clientes" : " OSs") + " no ranking";
       return secaoD(key, titulo, sub, corpo, true, restaurar(key));
     };
-    var pos = function (c) { return function (t) { return t[c] >= 0; }; }, neg = function (c) { return function (t) { return t[c] < 0; }; };
     var barra = '<div class="barra"><span class="chip def">Fechamento ' + rotuloMes() + "</span>" +
       '<span class="status ' + corStatus + '" role="status">' + esc(msgStatus) + "</span>" +
       '<div class="dir">' + (pend.total ? '<span class="chip sem">' + pend.total + (pend.total === 1 ? " alteração não gravada" : " alterações não gravadas") + "</span>" : '<span class="chip def">ranking gravado</span>') +
@@ -1843,13 +1842,11 @@
       '<div class="legenda-atin"><b>ATIN. META FAT/RES ANO</b> · real do ano (' + ANO + ', realizado + projetado) sobre a meta do ano: ' +
       '<span class="ok-mark">✔</span> atingiu 96% ou mais da meta · <span class="alerta-mark">⚠</span> entre 90% e 96% · <span class="nao-mark">✘</span> abaixo de 90% · em branco: sem meta cadastrada. Cliente e total são ponderados: soma do real das OSs com meta ÷ soma das metas das OSs; OS sem meta fica fora do atingimento.</div>';
     return '<div class="destaques-tela">' + barra +
-      quadro("rotpos", "Rotina · destaques positivos", doNeg("R"), COLS.rotina, { sinal: pos("racu"), campo: "facu", vazio: "Nenhum destaque positivo de rotina." }, "faturamento acumulado") +
-      quadro("rotneg", "Rotina · destaques negativos", doNeg("R"), COLS.rotina, { sinal: neg("racu"), campo: "facu", vazio: "Nenhum destaque negativo de rotina." }, "faturamento acumulado") +
+      quadro("rotina", "Rotina", doNeg("R"), COLS.rotina, { campo: "facu", vazio: "Nenhum destaque de rotina." }, "faturamento acumulado") +
       quadro("locofi", "Locações e Oficina", doNeg("O"), COLS.demais, { campo: "facu", fixos: [{ cliente: "LOCACOES", fixo: "total do negócio", t: tLoc }], vazio: "Nenhum destaque de oficina." }, "faturamento acumulado") +
       quadro("parada", "Paradas", doNeg("P"), COLS.parada, { campo: "facu", vazio: "Nenhum destaque de parada." }, "faturamento acumulado") +
-      quadro("mespos", "Destaques positivos do mês", itens, COLS.mes, { sinal: pos("rmes"), campo: "fmes", vazio: "Nenhum destaque positivo no mês." }, "faturamento do mês") +
-      quadro("mesneg", "Destaques negativos do mês", itens, COLS.mes, { sinal: neg("rmes"), campo: "fmes", vazio: "Nenhum destaque negativo no mês." }, "faturamento do mês") +
-      secaoD("gerenciais", "Gerenciais", "por gerente · classificação pelo acumulado", htmlGerenciaisD(itens), false) + "</div>";
+      quadro("mes", "Destaques do mês", itens, COLS.mes, { campo: "fmes", vazio: "Nenhum destaque no mês." }, "faturamento do mês") +
+      secaoD("gerenciais", "Gerenciais", "por gerente · ordem pelo maior faturamento acumulado", htmlGerenciaisD(itens), false) + "</div>";
   }
   var gerSel = "";
   var COLS_GER = ["acm", "ano", "p12"];
@@ -1912,11 +1909,9 @@
       return '<button type="button" class="btn abre peq' + (k === gerSel ? " on" : "") + '" data-dger="' + esc(k) + '">' + esc(g.nome) + "</button>";
     }).join("") + "</div>";
     var doGer = itens.filter(function (x) { return x.d.ger && x.d.ger.cod + "|" + x.d.ger.nome === gerSel; });
-    var pos = doGer.filter(function (x) { return x.d.racu >= 0; }).sort(function (a, b) { return b.d.racu - a.d.racu; });
-    var neg = doGer.filter(function (x) { return x.d.racu < 0; }).sort(function (a, b) { return a.d.racu - b.d.racu; });
+    var ordenados = doGer.slice().sort(function (a, b) { return (b.d.facu || 0) - (a.d.facu || 0); });
     return '<div class="gerenciais">' + escolha +
-      '<h4 class="sub">Destaques positivos · ' + esc(gerSel.split("|")[1]) + "</h4>" + tabelaGer(pos, "Nenhuma OS com acumulado positivo.") +
-      '<h4 class="sub">Destaques negativos</h4>' + tabelaGer(neg, "Nenhuma OS com acumulado negativo.") +
+      '<h4 class="sub">Destaques · ' + esc(gerSel.split("|")[1]) + "</h4>" + tabelaGer(ordenados, "Nenhuma OS deste gerente.") +
       '<h4 class="sub">Ranking de resultado · positivos</h4>' + rankingGer(doGer, true) +
       '<h4 class="sub">Ranking de resultado · negativos</h4>' + rankingGer(doGer, false) +
       '<h4 class="sub">Classificação · meta x atual do ano</h4>' + classificacaoGer(doGer) + "</div>";
@@ -2285,7 +2280,7 @@
     }
     if (t.hasAttribute("data-rkcli")) {
       var pc = t.getAttribute("data-rkcli"), bar = pc.indexOf("|"), sec = pc.slice(0, bar), cl = pc.slice(bar + 1);
-      var negSec = (sec === "rotpos" || sec === "rotneg") ? "R" : sec === "locofi" ? "O" : sec === "parada" ? "P" : "";   // mes: todas
+      var negSec = sec === "rotina" ? "R" : sec === "locofi" ? "O" : sec === "parada" ? "P" : "";   // mes: todas
       var dc = DEST.filter(function (d) { return d.cliente === cl && (!negSec || negSec.indexOf(d.neg) >= 0); });
       alternarRanking(dc.map(function (d) { return d.cod; }), !dc.every(marcadoRanking));
       return;
