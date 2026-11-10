@@ -214,6 +214,7 @@
       <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabConsolidacao">📈 Aba 3: Consolidação Anual</button>
       <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabLicoes">💡 Aba 4: Lições &amp; Gestão de Risco</button>
       <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabVisaoGeral">🗂️ Aba 5: Visão Geral das OSs</button>
+      <button type="button" class="tab-btn" data-action="switchTab" data-tab="tabBook">&#128216; Aba 6: Book</button>
     </div>
 
     <div class="controls">
@@ -415,6 +416,10 @@
 
   <div id="tabVisaoGeral" class="tab-page">
     <div id="tab5Container"></div>
+  </div>
+
+  <div id="tabBook" class="tab-page">
+    <div id="tabBookContainer"></div>
   </div>
 
 
@@ -956,10 +961,10 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-10-15 11:43";
+    window.NPE_BUILD = "2026-11-10 18:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
-                               "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url",
+                               "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
                                "npe_gemini_api_key", "npe_claude_api_key", "npe_claude_modelo_rapido",
                                "npe_claude_modelo_forte", "npe_ia_provedor"];
     var PREFIXO_MOLDURA = "NPE1:";
@@ -2167,12 +2172,14 @@ function hydrateFromPowerBI() {
       var p3 = document.getElementById("tabLicoes");
       var p4 = document.getElementById("tabRanking");
       var p5 = document.getElementById("tabVisaoGeral");
+      var p6 = document.getElementById("tabBook");
 
       if (p1) { p1.style.display = "none"; p1.classList.remove("active"); }
       if (p2) { p2.style.display = "none"; p2.classList.remove("active"); }
       if (p3) { p3.style.display = "none"; p3.classList.remove("active"); }
       if (p4) { p4.style.display = "none"; p4.classList.remove("active"); }
       if (p5) { p5.style.display = "none"; p5.classList.remove("active"); }
+      if (p6) { p6.style.display = "none"; p6.classList.remove("active"); }
 
       // "Copiar Pareceres do Mês" é específico da OS filtrada (o único fluxo de cópia que
       // depende do filtro de OS do Power BI) -- só faz sentido na Aba 1.
@@ -2209,6 +2216,10 @@ function hydrateFromPowerBI() {
         if (p5) { p5.style.display = "block"; p5.classList.add("active"); }
         renderTab5();
         carregarTab5(false);
+      } else if (tabId === "tabBook") {
+        if (tabButtons[5]) tabButtons[5].classList.add("active");
+        if (p6) { p6.style.display = "block"; p6.classList.add("active"); }
+        if (window.BOOK) window.BOOK.render();
       }
     }
 
@@ -7155,6 +7166,7 @@ function hydrateFromPowerBI() {
       var el = ev.target.closest ? ev.target.closest("[data-action]") : null;
       if (!el) return;
       var acao = el.getAttribute("data-action");
+      if (acao && acao.indexOf("book:") === 0) { if (window.BOOK) window.BOOK.acao(acao.slice(5), el); return; }
       if (acao === "saveInlinePrazoDeadline") {
         saveInlinePrazoDeadline(parseInt(el.getAttribute("data-month"), 10));
       } else if (acao === "setSlaPeriodStatusInline") {
@@ -11572,8 +11584,19 @@ function hydrateFromPowerBI() {
     window.sessaoAcesso = sessaoAcesso;
     window.usuarioLogado = usuarioLogado;
     window.ehProprietario = ehProprietario;
+    // Funcoes do app usadas pela Aba 6 (book.js), que roda fora deste escopo.
+    try { window.NPE_APP = {
+      tab5Post: tab5Post, extractPrimaryOSCode: extractPrimaryOSCode, getMonthNumberFromParams: getMonthNumberFromParams,
+      ultimoMesFechado: ultimoMesFechado, primeiroMesPreenchido: primeiroMesPreenchido, mesesValidadosDaOS: mesesValidadosDaOS,
+      carregarHierarquiaOS: carregarHierarquiaOS, garantirHierarquia: garantirHierarquia, tab5OSDoUsuario: tab5OSDoUsuario,
+      tab5OSElegiveis: tab5OSElegiveis, chamarGerarTexto: chamarGerarTexto, autenticarAcesso: autenticarAcesso,
+      carregarResumosAnuais: carregarResumosAnuais, carregarHistoricoCompleto: carregarHistoricoCompleto,
+      lerConfigIA: lerConfigIA, gravarSegredoIA: gravarSegredoIA, showToast: showToast, sessaoAcesso: sessaoAcesso,
+      buildTopicDetailLine: buildTopicDetailLine
+    }; } catch (eBook) { try { console.warn("NPE_APP:", eBook); } catch (e2) {} }
 
   
     </script>
+  <script src="book.js?v=2026-11-10_1830"></script>
 </body>
 </html>
