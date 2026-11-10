@@ -158,7 +158,18 @@
   }
   function primeiraLinha(t) { return String(t || "").split("\n")[0].trim(); }
   var SCORE = { 1: "t1", 2: "t2", 4: "t4", 6: "t6", 7: "t7", 8: "t8", 9: "t9", 10: "t10", 11: "t11", 12: "t12", 13: "t13", 14: "t14", 15: "t15", 16: "t16", 17: "t17", 19: "t19", 20: "t20" };
-  function statusMes(contract, m, id) {
+  // A situacao do mes vem da CAIXA: a primeira linha do parecer gravado traz "Mes: ATENDEU / NAO ATENDEU /
+  // nao avaliado", escrita pelo codigo a partir dos valores da caixa. So sem parecer cai na nota calculada.
+  function statusCaixa(os, m, id) {
+    var l = primeiraLinha(ata(os, id, m));
+    var r = l.match(/M\u00eas:\s*(N\u00c3O ATENDEU|N\u00c3O atendeu|ATENDEU|n\u00e3o avaliado)/i);
+    if (!r) return "";
+    var t = r[1].toUpperCase();
+    return t.indexOf("N\u00c3O AT") === 0 ? "bad" : t.indexOf("ATENDEU") === 0 ? "ok" : "na";
+  }
+  function statusMes(contract, m, id, os) {
+    var cx = os ? statusCaixa(os, m, id) : "";
+    if (cx) return cx;
     var sc = SCORE[id]; if (!sc) return "";
     try {
       var tp = window.calculateOSScore(contract, m).topics[sc];
@@ -242,8 +253,8 @@
     CATS.forEach(function (c) {
       c.ids.forEach(function (id) {
         var strip = "", m;
-        for (m = 1; m <= mes; m++) strip += (m < p0) ? "-" : ({ ok: "A", bad: "N", na: "V" }[statusMes(contract, m, id)] || "-");
-        var s = statusMes(contract, mes, id);
+        for (m = 1; m <= mes; m++) strip += (m < p0) ? "-" : ({ ok: "A", bad: "N", na: "V" }[statusMes(contract, m, id, os)] || "-");
+        var s = statusMes(contract, mes, id, os);
         var caixa = primeiraLinha(ata(os, id, mes));
         inds.push({ id: id, nome: NOME[id], cat: c.cat, st: s || "na", strip: strip,
           pill: s === "ok" ? "ATENDEU" : s === "bad" ? "NÃO ATENDEU" : "NÃO AVALIADO",
