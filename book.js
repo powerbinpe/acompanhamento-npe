@@ -118,8 +118,8 @@
     return { login: s.login, token: a.token };
   }
   function urlFluxo() { return String((A.lerConfigIA ? A.lerConfigIA("npe_flow_ler_dados_book_url", "") : "") || "").trim(); }
-  async function lerDadosFluxo(rotulo, ano, mes, tk) {
-    var url = urlFluxo();
+  async function lerDadosFluxo(rotulo, ano, mes, tk, urlOpt) {
+    var url = String(urlOpt || urlFluxo() || "").trim();
     if (url.indexOf("http") !== 0) throw new Error("Cole a URL do fluxo NPE-Ler-Dados-Book (botão ⚙ Fluxo do Book).");
     var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ login: tk.login, token: tk.token, os: rotulo, ano: ano, mes: mes }) });
@@ -363,9 +363,16 @@
     if (!window.HISTORICO_PRONTO) throw new Error("O histórico da ATA não carregou. Tente de novo.");
     if (A.carregarResumosAnuais && !window.RESUMOS_ANUAIS) { try { await A.carregarResumosAnuais(); } catch (e) {} }
     var H = hier()[os] || {};
-    var tk = opts.token ? { login: opts.login, token: opts.token } : await obterToken();
+    // O agente do fechamento manda login e senha (ou o token) e a URL do fluxo; na tela, pede a senha.
+    var tk;
+    if (opts.token) tk = { login: opts.login, token: opts.token };
+    else if (opts.login && opts.senha) {
+      var aa = await A.autenticarAcesso(opts.login, opts.senha);
+      if (!aa.ok || String(aa.token || "").length !== 64) throw new Error(aa.erro || "O login do agente nao gerou token.");
+      tk = { login: String(opts.login).toLowerCase().trim(), token: aa.token };
+    } else tk = await obterToken();
     progresso("Lendo RH, Receita Ideal e histórico (NPE-Ler-Dados-Book)…");
-    var dados = await lerDadosFluxo(H.rotulo || os, ano, mes, tk);
+    var dados = await lerDadosFluxo(H.rotulo || os, ano, mes, tk, opts.urlFluxo);
     var C = coletarOS(os, ano, mes, dados);
     var prompt = promptOS(os, ano, mes, C);
     progresso("A IA está escrevendo o book (" + Math.round(prompt.length / 1000) + " mil caracteres de dados)…");

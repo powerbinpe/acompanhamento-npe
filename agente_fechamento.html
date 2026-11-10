@@ -453,6 +453,12 @@
       if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
       plano.tarefas.push({ etapa: "aba4", chave: "aba4_" + ano, os: todas[0], ano: ano, mes: ultimo });
       plano.log.push("Aba 4: uma tarefa (os tres quadros), aberta pela OS " + todas[0] + ".");
+    } else if (et === "aba6") {
+      // Book da OS: uma tarefa por OS, ate o ultimo mes fechado. Roda depois das outras etapas, porque le os
+      // pareceres e o resumo anual ja gravados. OS sem dado nenhum devolve erro curto, sem travar a fila.
+      if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
+      todas.forEach(function (cod) { plano.tarefas.push({ etapa: "aba6", chave: "aba6_" + ano + "_" + ultimo, os: cod, ano: ano, mes: ultimo }); });
+      plano.log.push("Aba 6: " + todas.length + " OSs, book ate " + (MESES[ultimo - 1] || ultimo) + ".");
     } else {
       plano.aviso = "Etapa desconhecida: " + et;
     }
