@@ -219,9 +219,20 @@
     var mesesVal = A.mesesValidadosDaOS ? A.mesesValidadosDaOS(os, mes) : [];
     var S = montarSeries(dados, mes);
     var md = contract.monthHistory[mes] || {};
+    // Valores das caixas: vem na URL so para o mes selecionado; fora dele, o historico mensal.
+    var P = params(), cx = (mes === mesAtivo());
+    function num(t) {
+      if (t == null) return null; t = String(t).trim(); if (!t || t === "-") return null;
+      var neg = /^\(.*\)$/.test(t) || t.charAt(0) === "-";
+      t = t.replace(/[()R$\s%a-zA-Z]/g, "").replace(/^-/, "").replace(/\./g, "").replace(",", ".");
+      var v = parseFloat(t); return isNaN(v) ? null : (neg ? -v : v);
+    }
     var kpi = {
-      fatAno: md.fatAnoRealV, fatMeta: md.fatAnoExecV, resAno: md.resAnoRealV, resMeta: md.resAnoExecV,
-      perdaAcum: md.perdaAcumV, perdaPct: md.perdaPctAcum, absAcum: md.absenteismoAcumPct, absMeta: md.absenteismoMetaPct,
+      fatAno: cx ? num(P.get("FatRealAno")) : md.fatAnoRealV, fatMeta: cx ? num(P.get("FatExecAno")) : md.fatAnoExecV,
+      resAno: cx ? num(P.get("ResRealAno")) : md.resAnoRealV, resMeta: cx ? num(P.get("ResExecAno")) : md.resAnoExecV,
+      margReal: cx && num(P.get("MargReal")) != null ? num(P.get("MargReal")) / 100 : null,
+      margMeta: cx && num(P.get("MargExec")) != null ? num(P.get("MargExec")) / 100 : null,
+      perdaAcum: cx && num(P.get("PerdaAcum")) != null ? num(P.get("PerdaAcum")) : md.perdaAcumV, perdaPct: md.perdaPctAcum, absAcum: md.absenteismoAcumPct, absMeta: md.absenteismoMetaPct,
       turnAcum: md.turnoverAcumPct, assertAcum: S.assert ? S.assert.acum[S.assert.acum.length - 1] : null,
       heMes: S.rh.he[S.rh.he.length - 1], heMedia: null
     };
@@ -267,7 +278,7 @@
     L.push("Contrato: " + os + " | " + (C.H.desc || "") + " | Negócio " + (C.H.neg || "–") + " | Gerente " + (C.H.ger || "–") + " | Superintendente " + (C.H.sup || "–"));
     L.push("Período: janeiro a " + MESF[mes] + "/" + ano + ". Primeiro mês com acompanhamento: " + (C.p0 <= 12 ? MESF[C.p0] : "nenhum") + ". Meses validados pelo Máster: " + (C.mesesVal.length ? C.mesesVal.map(function (x) { return MES[x]; }).join(", ") : "nenhum") + ".");
     L.push("Faturamento do ano (caixa #1): real " + brl(k.fatAno) + " | meta " + brl(k.fatMeta) + ". Resultado do ano (caixa #2): real " + brl(k.resAno) + " | meta " + brl(k.resMeta) +
-      (k.fatAno ? " | margem real " + pct(k.resAno / k.fatAno) : "") + (k.fatMeta ? " | margem meta " + pct(k.resMeta / k.fatMeta) : "") + ".");
+      " | margem real " + pct(k.margReal != null ? k.margReal : (k.fatAno ? k.resAno / k.fatAno : null)) + " | margem meta " + pct(k.margMeta != null ? k.margMeta : (k.fatMeta ? k.resMeta / k.fatMeta : null)) + ".");
     L.push("Perda de receita acumulada (PR): " + brl(k.perdaAcum) + " (" + pct(k.perdaPct) + "). Absenteísmo acumulado " + pct(k.absAcum) + " (referência " + pct(k.absMeta) + "). Turnover acumulado " + pct(k.turnAcum) + ".");
     L.push("");
     L.push("RH MÊS A MÊS (folha, ponto e cadastro):");
@@ -506,7 +517,7 @@
       [b.neg].filter(Boolean).map(function (c) { return '<span class="bk-chip">' + esc(c) + "</span>"; }).join("") + '</div><div class="bk-periodo">Período analisado: <b>jan a ' + MES[b.mes] + "/" + b.ano + "</b> (" + b.mes + " meses fechados) · Meses validados pelo Máster: <b>" + valid + " de " + Math.max(0, b.mes - (b.p0 > 1 ? b.p0 - 1 : 0)) + "</b>" +
       (valid ? "" : ", a leitura usa os pareceres ainda não validados") + '.</div></div><dl class="bk-ficha"><dt>Gerente</dt><dd>' + esc(b.ger || "–") + "</dd><dt>Superintendente</dt><dd>" + esc(b.sup || "–") + "</dd><dt>Gerado em</dt><dd>" +
       esc(new Date(b.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })) + "</dd><dt>Por</dt><dd>" + esc(b.por || "–") + "</dd></dl></header>");
-    var marg = k.fatAno ? k.resAno / k.fatAno : null, margMeta = k.fatMeta ? k.resMeta / k.fatMeta : null;
+    var marg = k.margReal != null ? k.margReal : (k.fatAno ? k.resAno / k.fatAno : null), margMeta = k.margMeta != null ? k.margMeta : (k.fatMeta ? k.resMeta / k.fatMeta : null);
     function kpi(cls, l, v, s, sp) { return '<div class="bk-kpi ' + cls + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s + "</span>" + (sp || "") + "</div>"; }
     h.push('<section class="bk-card bk-sec"><h2>A história até ' + MESF[b.mes] + ' <span class="sub">resumo executivo</span></h2><p class="bk-lead">' + rico(t.resumo) + '</p><div class="bk-kpis">' +
       kpi(k.fatAno >= k.fatMeta ? "ok" : "bad", "Faturamento ano", mi(k.fatAno), "meta " + mi(k.fatMeta) + (k.fatMeta ? " · " + (k.fatAno >= k.fatMeta ? "+" : "") + fmt((k.fatAno / k.fatMeta - 1) * 100, 2) + "%" : "")) +
