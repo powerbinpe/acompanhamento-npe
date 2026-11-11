@@ -325,6 +325,8 @@
   // ------------------------------------------------------------------ prompt da OS (relatório v2)
   function linhaSerie(arr, f) { return arr.map(function (v, i) { return MES[i + 1] + " " + (v == null ? "–" : (f ? f(v) : fmt(v))); }).join(" · "); }
   function rs(v) { return moeda(v); }
+  function cu(v) { return v == null ? "–" : moeda(Math.abs(v)); }
+  function dif(v) { return v == null ? "–" : moeda(Math.abs(v)) + (v < 0 ? " a mais" : " a menos"); }
   function promptOS(os, ano, mes, C) {
     var S = C.S, k = C.kpi, fi = S.fin, an = analisarCustos(fi), L = [];
     function pf(v) { return fi && fi.FR ? fmt(v / fi.FR * 100, 2) + "%" : "–"; }
@@ -348,6 +350,7 @@
     L.push("- Português do Brasil, tom executivo, frases curtas, sem listas dentro dos textos. Parágrafos separados por uma linha em branco. **Negrito** só para 1 ou 2 números-chave por texto.");
     L.push("- Meses não validados pelo Máster entram, mas o parecer desses meses não é definitivo.");
     L.push("- Não compare com orçado, PR ou meta um número que não tenha essa comparação nos DADOS.");
+    L.push("- Custos são sempre escritos positivos (Hospedagem R$ 308.361; custou R$ 582.396 a mais que a proporção). Parênteses só para resultado ou margem negativos.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
     L.push('{"sumario":"(3 parágrafos, 900 a 1500 caracteres: receita, custo e o que fazer)",' +
@@ -375,10 +378,10 @@
       L.push("");
       var pendT = Object.keys(fi.pend || {}).map(function (m) { return MES[m] + " (" + fi.pend[m].join(", ") + ")"; });
       if (pendT.length) L.push("ATENÇÃO: meses com receita em ajuste de emissão ou sem lançamento real em alguns grupos (o orçado/FCST tem valor): " + pendT.join("; ") + ". Os impostos sobre a receita, o IR e a despesa financeira desses meses entram com a nota fiscal no mês seguinte; o ganho desses grupos na ponte é provisório e não é mérito da gestão.");
-      L.push("PONTE DA MARGEM (pontos de margem por grupo; negativo = o grupo custou mais que a proporção do faturamento): " + an.grupos.map(function (g) { return g.nome + " " + (g.pp > 0 ? "+" : "") + fmt(g.pp, 2) + " p.p. (real " + rs(g.real) + ", orçado " + rs(g.exec) + ", na proporção " + rs(g.prop) + ")"; }).join("; ") + ".");
-      if (fi.recorrentes && fi.recorrentes.length) L.push("RECORRÊNCIA (contas de custo acima do executivo de forma padronizada; meses acima / meses com valor | real | executivo): " + fi.recorrentes.map(function (x) { return x[0] + " (" + x[1] + "): " + x[2] + " de " + x[3] + " meses | " + rs(x[4]) + " | " + rs(x[5]); }).join("; ") + ".");
-      L.push("CONTAS QUE MAIS DESCOLARAM (real | orçado | orçado na proporção | desvio; negativo = custou mais):");
-      an.contas.slice(0, 16).forEach(function (x) { L.push("  " + x.conta + ": " + rs(x.real) + " | " + (x.exec ? rs(x.exec) : "não orçado") + " | " + rs(x.prop) + " | " + rs(x.desvio)); });
+      L.push("PONTE DA MARGEM (pontos de margem por grupo; negativo = o grupo custou mais que a proporção do faturamento): " + an.grupos.map(function (g) { return g.nome + " " + (g.pp > 0 ? "+" : "") + fmt(g.pp, 2) + " p.p. (real " + cu(g.real) + ", orçado " + cu(g.exec) + ", na proporção " + cu(g.prop) + ")"; }).join("; ") + ".");
+      if (fi.recorrentes && fi.recorrentes.length) L.push("RECORRÊNCIA (contas de custo acima do executivo de forma padronizada; meses acima / meses com valor | real | executivo): " + fi.recorrentes.map(function (x) { return x[0] + " (" + x[1] + "): " + x[2] + " de " + x[3] + " meses | " + cu(x[4]) + " | " + (x[5] ? cu(x[5]) : "não orçado"); }).join("; ") + ".");
+      L.push("CONTAS QUE MAIS DESCOLARAM (custo real | orçado | orçado na proporção | quanto custou a mais ou a menos que a proporção):");
+      an.contas.slice(0, 16).forEach(function (x) { L.push("  " + x.conta + ": " + cu(x.real) + " | " + (x.exec ? cu(x.exec) : "não orçado") + " | " + cu(x.prop) + " | " + dif(x.desvio)); });
     }
     if (fi && fi.receita) {
       var rc = fi.receita, perda = rc.perdaRI != null ? rc.perdaRI : rc.perdaPR, pot = fi.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0) + (rc.dil || 0);
@@ -403,11 +406,11 @@
         if (o.resFc == null) { L.push("  " + MES[o.m] + ": sem FCST anterior | faturamento " + rs(o.fat) + " | resultado " + rs(o.res) + " | executivo do mês: faturamento " + rs(o.fatEx) + ", resultado " + rs(o.resEx)); return; }
         if (o.pend) L.push("  " + MES[o.m] + ": " + (o.ajuste ? "a receita do mês foi lançada como AJUSTE DE EMISSÃO (" + rs(o.ajuste) + "); a nota fiscal sai no mês seguinte e leva junto " : "sem lançamento real em ") + o.pend.join(", ") + ". O resultado real do mês está sem esses valores e esses grupos ficaram fora das causas; não trate isso como ganho.");
         L.push("  " + MES[o.m] + ": faturamento " + rs(o.fat) + " x FCST " + rs(o.fatFc) + " | resultado " + rs(o.res) + " x FCST " + rs(o.resFc) + " (diferença " + rs(o.res - o.resFc) + ") | executivo do mês " + rs(o.resEx) +
-          (o.causas && o.causas.length ? " | explicam: " + o.causas.map(function (x) { return x[0] + " " + rs(x[1]); }).join(", ") : ""));
+          (o.causas && o.causas.length ? " | explicam: " + o.causas.map(function (x) { return x[0] + (x[1] < 0 ? " piorou " : " melhorou ") + moeda(Math.abs(x[1])); }).join(", ") : ""));
       });
       var pr = fi.promessa;
       if (pr && pr.meses.length) L.push("NO ANO (" + MES[pr.meses[0]] + " a " + MES[pr.meses[pr.meses.length - 1]] + (pr.fora && pr.fora.length ? ", sem " + pr.fora.map(function (m) { return MES[m]; }).join(", ") + " que está incompleto" : "") + "): os FCSTs somados prometeram " + rs(pr.fc) + " de resultado e o realizado foi " + rs(pr.res) + " (diferença " + rs(pr.res - pr.fc) + "). Por grupo: " +
-        pr.grupos.slice().sort(function (a, b) { return a.v - b.v; }).map(function (x) { return x.nome + " " + rs(x.v); }).join("; ") + ".");
+        pr.grupos.slice().sort(function (a, b) { return a.v - b.v; }).map(function (x) { return x.nome + " " + (x.v < 0 ? "piorou " : "melhorou ") + moeda(Math.abs(x.v)); }).join("; ") + ".");
       if (S.assert) L.push("ASSERTIVIDADE (diferença de margem real x FCST anterior, em p.p.; assertivo se dentro de ±5): " + linhaSerie(S.assert.dmarg, function (v) { return fmt(v, 2); }) + " | % acumulada: " + linhaSerie(S.assert.acum, function (v) { return fmt(v, 2) + "%"; }));
     }
     if (fi && fi.folha) {
