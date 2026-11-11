@@ -130,12 +130,12 @@
     return c.trim().length >= 20 || g.trim().length >= 20;
   }
   // Sem chave de IA no navegador, o book e gerado pelo agente da nuvem (mesmo fluxo do "Fechar o mes com IA").
-  async function pedirAoAgente(os) {
+  async function pedirAoAgente(os, etapas) {
     var url = A.urlIniciarAgente ? A.urlIniciarAgente() : "";
     if (url.indexOf("https://") !== 0) throw new Error("O fluxo NPE-Iniciar-Agente nao esta configurado.");
     var tk = await obterToken();
     var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ login: tk.login, token: tk.token, etapas: "aba6", ano: String(anoAtivo()), mes: "", gravar: true, refazer: true, permitir_mes_fechado: false, os: os }) });
+      body: JSON.stringify({ login: tk.login, token: tk.token, etapas: etapas || "aba6", ano: String(anoAtivo()), mes: "", gravar: true, refazer: true, permitir_mes_fechado: false, os: os || "" }) });
     var j = null; try { j = await r.json(); } catch (e) {}
     if (r.status === 401) { window._NPE_TOKEN_BOOK = null; throw new Error("Sem permiss\u00e3o para acionar o agente."); }
     if (!(r.ok && j && j.ok === true)) throw new Error("O GitHub recusou o pedido (c\u00f3digo " + ((j && j.status) || r.status) + ").");
@@ -348,7 +348,6 @@
     L.push("REGRAS");
     L.push("- Use SOMENTE os números dos DADOS, escritos exatamente como neles: R$ 1.500.000 (sem centavos a partir de R$ 1.000), R$ 850,00 (com centavos abaixo de R$ 1.000), valores negativos entre parênteses, R$ (647.973), e percentuais sempre com duas casas, 10,00% e 1,00%. Nunca abrevie (nada de 'mi', 'mil' ou 'milhões'). Não invente valor, data, causa, nome ou evento; sem registro, diga que não há registro.");
     L.push("- Português do Brasil, tom executivo, frases curtas, sem listas dentro dos textos. Parágrafos separados por uma linha em branco. **Negrito** só para 1 ou 2 números-chave por texto.");
-    L.push("- Meses não validados pelo Máster entram, mas o parecer desses meses não é definitivo.");
     L.push("- Não compare com orçado, PR ou meta um número que não tenha essa comparação nos DADOS.");
     L.push("- Custos são sempre escritos positivos (Hospedagem R$ 308.361; custou R$ 582.396 a mais que a proporção). Parênteses só para resultado ou margem negativos.");
     L.push("");
@@ -368,7 +367,7 @@
     L.push("");
     L.push("DADOS");
     L.push("Contrato (CTT): " + (C.H.desc || os) + " | Negócio " + (C.H.neg || "–") + " | Gestor do contrato " + (C.H.gestor || "–") + " | Gerente " + (C.H.ger || "–") + " | Superintendente " + (C.H.sup || "–"));
-    L.push("Período: janeiro a " + MESF[mes] + "/" + ano + ". Primeiro mês com acompanhamento: " + (C.p0 <= 12 ? MESF[C.p0] : "nenhum") + ". Meses validados pelo Máster: " + (C.mesesVal.length ? C.mesesVal.map(function (x) { return MES[x]; }).join(", ") : "nenhum") + ".");
+    L.push("Período: janeiro a " + MESF[mes] + "/" + ano + ", analisado mês a mês. Todos os meses do período estão fechados; não comente fechamento, validação ou meses provisórios.");
     if (fi) {
       L.push("JAN A " + MES[mes].toUpperCase() + " (contábil): faturamento real " + rs(fi.FR) + " x executivo " + rs(fi.FE) + " | resultado real " + rs(fi.resReal) + " x executivo " + rs(fi.resExec) +
         " | margem real " + pct(fi.FR ? fi.resReal / fi.FR : null) + " x executivo " + pct(fi.FE ? fi.resExec / fi.FE : null) + ".");
@@ -376,8 +375,6 @@
     L.push("PROJEÇÃO DO ANO (caixas #1 e #2: real até o mês + FCST até dezembro): faturamento " + rs(k.fatAno) + " x meta " + rs(k.fatMeta) + " | resultado " + rs(k.resAno) + " x meta " + rs(k.resMeta) + ".");
     if (an) {
       L.push("");
-      var pendT = Object.keys(fi.pend || {}).map(function (m) { return MES[m] + " (" + fi.pend[m].join(", ") + ")"; });
-      if (pendT.length) L.push("ATENÇÃO: meses com receita em ajuste de emissão ou sem lançamento real em alguns grupos (o orçado/FCST tem valor): " + pendT.join("; ") + ". Os impostos sobre a receita, o IR e a despesa financeira desses meses entram com a nota fiscal no mês seguinte; o ganho desses grupos na ponte é provisório e não é mérito da gestão.");
       L.push("PONTE DA MARGEM (pontos de margem por grupo; negativo = o grupo custou mais que a proporção do faturamento): " + an.grupos.map(function (g) { return g.nome + " " + (g.pp > 0 ? "+" : "") + fmt(g.pp, 2) + " p.p. (real " + cu(g.real) + ", orçado " + cu(g.exec) + ", na proporção " + cu(g.prop) + ")"; }).join("; ") + ".");
       if (fi.recorrentes && fi.recorrentes.length) L.push("RECORRÊNCIA (contas de custo acima do executivo de forma padronizada; meses acima / meses com valor | real | executivo): " + fi.recorrentes.map(function (x) { return x[0] + " (" + x[1] + "): " + x[2] + " de " + x[3] + " meses | " + cu(x[4]) + " | " + (x[5] ? cu(x[5]) : "não orçado"); }).join("; ") + ".");
       L.push("CONTAS QUE MAIS DESCOLARAM (custo real | orçado | orçado na proporção | quanto custou a mais ou a menos que a proporção):");
@@ -404,12 +401,11 @@
       L.push("FCST DO MÊS ANTERIOR x REALIZADO (para explicar o ano; diferença por grupo = realizado − FCST, negativo piora o resultado):");
       fi.fc.forEach(function (o) {
         if (o.resFc == null) { L.push("  " + MES[o.m] + ": sem FCST anterior | faturamento " + rs(o.fat) + " | resultado " + rs(o.res) + " | executivo do mês: faturamento " + rs(o.fatEx) + ", resultado " + rs(o.resEx)); return; }
-        if (o.pend) L.push("  " + MES[o.m] + ": " + (o.ajuste ? "a receita do mês foi lançada como AJUSTE DE EMISSÃO (" + rs(o.ajuste) + "); a nota fiscal sai no mês seguinte e leva junto " : "sem lançamento real em ") + o.pend.join(", ") + ". O resultado real do mês está sem esses valores e esses grupos ficaram fora das causas; não trate isso como ganho.");
         L.push("  " + MES[o.m] + ": faturamento " + rs(o.fat) + " x FCST " + rs(o.fatFc) + " | resultado " + rs(o.res) + " x FCST " + rs(o.resFc) + " (diferença " + rs(o.res - o.resFc) + ") | executivo do mês " + rs(o.resEx) +
           (o.causas && o.causas.length ? " | explicam: " + o.causas.map(function (x) { return x[0] + (x[1] < 0 ? " piorou " : " melhorou ") + moeda(Math.abs(x[1])); }).join(", ") : ""));
       });
       var pr = fi.promessa;
-      if (pr && pr.meses.length) L.push("NO ANO (" + MES[pr.meses[0]] + " a " + MES[pr.meses[pr.meses.length - 1]] + (pr.fora && pr.fora.length ? ", sem " + pr.fora.map(function (m) { return MES[m]; }).join(", ") + " que está incompleto" : "") + "): os FCSTs somados prometeram " + rs(pr.fc) + " de resultado e o realizado foi " + rs(pr.res) + " (diferença " + rs(pr.res - pr.fc) + "). Por grupo: " +
+      if (pr && pr.meses.length) L.push("NO ANO (" + MES[pr.meses[0]] + " a " + MES[pr.meses[pr.meses.length - 1]] + "): os FCSTs somados prometeram " + rs(pr.fc) + " de resultado e o realizado foi " + rs(pr.res) + " (diferença " + rs(pr.res - pr.fc) + "). Por grupo: " +
         pr.grupos.slice().sort(function (a, b) { return a.v - b.v; }).map(function (x) { return x.nome + " " + (x.v < 0 ? "piorou " : "melhorou ") + moeda(Math.abs(x.v)); }).join("; ") + ".");
       if (S.assert) L.push("ASSERTIVIDADE (diferença de margem real x FCST anterior, em p.p.; assertivo se dentro de ±5): " + linhaSerie(S.assert.dmarg, function (v) { return fmt(v, 2); }) + " | % acumulada: " + linhaSerie(S.assert.acum, function (v) { return fmt(v, 2) + "%"; }));
     }
@@ -488,9 +484,9 @@
   async function gerarOS(opts) {
     opts = opts || {};
     var os = osAtiva(), ano = anoAtivo();
-    var mes = Math.min(mesAtivo() || 12, A.ultimoMesFechado ? A.ultimoMesFechado(ano) : 12);
+    var mes = opts.mes || mesAtivo() || (A.ultimoMesFechado ? A.ultimoMesFechado(ano) : 12);
     if (!os) throw new Error("Selecione uma única OS no Power BI.");
-    if (!(mes >= 1)) throw new Error("Nenhum mês fechado em " + ano + ".");
+    if (!(mes >= 1)) throw new Error("Selecione o mês no Power BI.");
     progresso("Carregando a ATA e a hierarquia…");
     if (A.garantirHierarquia) await A.garantirHierarquia();
     if (!window.HISTORICO_PRONTO && A.carregarHistoricoCompleto) await A.carregarHistoricoCompleto();
@@ -813,7 +809,7 @@
     var picosProv = picos(provR), picosEnc = picos(encR);
     var provTop = {}; picosProv.forEach(function (p) { provTop[p.m] = (provEv[p.m] || []).sort(function (a, b) { return Math.abs(b[2]) - Math.abs(a[2]); }).slice(0, 4); });
     // grupo sem lancamento real no mes, mas com valor no FCST: o mes ainda esta incompleto nesse grupo
-    var pend = {}; meses.forEach(function (m, i) { ordemG.forEach(function (g) { if (Math.abs(grpR[g][i]) < 1 && Math.abs(grpF[g][i]) >= 1000) (pend[m] = pend[m] || []).push(g); }); });
+    var pend = {};
     // FCST do mes anterior x realizado, mes a mes (alimenta a analise; o relatorio mostra so o ano)
     var fc = meses.map(function (m, i) {
       var r = mxm[m] || {}, o = { m: m, fat: rh.fat[i], fatFc: temFc[i] ? r.ff : null, res: rh.res[i], resFc: temFc[i] ? r.rf : null, fatEx: r.fe, resEx: r.re };
@@ -971,7 +967,7 @@
     // capa
     h.push('<header class="rl-capa"><div class="rl-capa-top"><span class="rl-tag">Relatório gerencial do contrato</span><span class="rl-per">janeiro a ' + mesN + " de " + b.ano + "</span></div>" +
       '<h1>' + (b.descCtt ? esc(b.desc) : esc(b.rotulo.replace("|", " + ")) + " · " + esc(b.desc)) + "</h1>" +
-      '<div class="rl-ficha"><span>' + esc(b.neg || "") + "</span><span>Gestor do contrato: <b>" + esc(b.gestor || "–") + "</b></span><span>Gerente: <b>" + esc(b.ger || "–") + "</b></span><span>Superintendente: <b>" + esc(b.sup || "–") + "</b></span><span>Meses validados pelo Máster: <b>" + valid + "</b></span></div>" +
+      '<div class="rl-ficha"><span>' + esc(b.neg || "") + "</span><span>Gestor do contrato: <b>" + esc(b.gestor || "–") + "</b></span><span>Gerente: <b>" + esc(b.ger || "–") + "</b></span><span>Superintendente: <b>" + esc(b.sup || "–") + "</b></span></div>" +
       "</header>");
     // numeros-chave: o que ja aconteceu x para onde o ano vai
     function cel(l, v, s, cls) { return '<div class="rl-num ' + (cls || "") + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s + "</span></div>"; }
@@ -1011,12 +1007,11 @@
           return "<tr><td>" + esc(String(x.conta).replace(/^\d+\s*-\s*/, "")) + "</td><td>" + moeda(Math.abs(x.real)) + "</td><td>" + (!x.exec ? "não orçado" : moeda(Math.abs(x.exec))) + "</td><td>" + moeda(Math.abs(x.prop)) +
             '</td><td class="' + (x.desvio < 0 ? "neg" : "pos") + '">' + moeda(x.desvio) + "</td></tr>";
         }).join("") + "</tbody></table><p class=\"rl-nota\">Orçado na proporção = executivo × (faturamento real ÷ faturamento executivo): o que a conta poderia ter custado com o volume que de fato foi faturado. Desvio negativo = custou mais que a proporção.</p></div>";
-      var ajx = {}; (c.fc || []).forEach(function (o) { if (o.ajuste) ajx[o.m] = 1; });
-      var pr = c.promessa, pendTxt = Object.keys(c.pend || {}).map(function (m) { return " · em " + MES[m] + ", " + c.pend[m].join(", ").toLowerCase() + (ajx[m] ? " ainda sem lançamento: a receita do mês entrou como ajuste de emissão e a NF, com os impostos, sai no mês seguinte" : " ainda sem lançamento real") + " (ganho provisório)"; }).join("");
+      var pr = c.promessa, pendTxt = "";
       h.push('<section class="rl-cap"><h2><span>3</span>Custos e margem: o custo acompanhou o faturamento?</h2>' + par(t.custos) +
         figura("Ponte da margem: do orçado ao realizado", "pontos percentuais de margem que cada grupo de custo tirou (vermelho) ou devolveu (verde), jan a " + MES[b.mes] + pendTxt, chPonte(an)) +
         figura("As contas que mais descolaram do faturamento", "", tab) +
-        (pr && pr.meses && pr.meses.length ? figura("O que os FCSTs prometeram e o que foi entregue no ano", "soma, de " + MES[pr.meses[0]] + " a " + MES[pr.meses[pr.meses.length - 1]] + (pr.fora && pr.fora.length ? " (" + pr.fora.map(function (m) { return MES[m]; }).join(", ") + " fora: receita em ajuste de emissão, impostos ainda não lançados)" : "") + ", do resultado previsto no FCST do mês anterior x o realizado, e quanto cada grupo explica da diferença", chPromessa(pr)) : "") + "</section>");
+        (pr && pr.meses && pr.meses.length ? figura("O que os FCSTs prometeram e o que foi entregue no ano", "soma, de " + MES[pr.meses[0]] + " a " + MES[pr.meses[pr.meses.length - 1]] + ", do resultado previsto no FCST do mês anterior x o realizado, e quanto cada grupo explica da diferença", chPromessa(pr)) : "") + "</section>");
     }
     // 4. pessoas e eventos de folha
     var fo = c.folha;
@@ -1048,6 +1043,217 @@
     return '<article class="rl">' + h.join("") + "</article>";
   }
 
+  // ------------------------------------------------------------------ books de Gerência e Superintendência
+  // Somam os books das OSs (v2) do mesmo mês: os números do grupo batem com os das OSs e cada impacto
+  // aponta as OSs que o causaram. Nomes de gerente e superintendente vêm da CTT gravada no book da OS.
+  function chaveGrupo(nivel, b) { return String((nivel === "ger" ? b.ger : b.sup) || "").trim().toUpperCase(); }
+  async function booksDoMes(ano, mes) {
+    var mapa = await lerNivel("os", true), lista = [];
+    Object.keys(mapa).forEach(function (k) { var d = mapa[k].d; if (d && d.v >= 2 && d.ano === ano && d.mes === mes && d.S && d.S.fin) lista.push(d); });
+    return lista;
+  }
+  async function listarGrupos(nivel, ano, mes) {
+    var bs = await booksDoMes(ano, mes), g = {};
+    bs.forEach(function (b) { var k = chaveGrupo(nivel, b); if (k) (g[k] = g[k] || []).push(b.os); });
+    return Object.keys(g).sort().map(function (k) { return { nome: k, oss: g[k] }; });
+  }
+  function maisComum(xs) { var c = {}, best = "", n = 0; xs.forEach(function (x) { if (!x) return; c[x] = (c[x] || 0) + 1; if (c[x] > n) { n = c[x]; best = x; } }); return best; }
+  function linhaOS(b) {
+    var f = b.S.fin, rc = f.receita || {}, an = analisarCustos(f), S = b.S, k = b.kpi || {}, n = S.meses.length - 1;
+    var perda = rc.perdaRI != null ? rc.perdaRI : rc.perdaPR, he = an ? an.contas.filter(function (x) { return /^41111002/.test(x.conta); })[0] : null;
+    var pot = f.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0) + (rc.dil || 0);
+    return { os: b.os, desc: b.desc, gestor: b.gestor || "", ger: b.ger || "", sup: b.sup || "", FR: f.FR, FE: f.FE, res: f.resReal, rex: f.resExec, gap: f.resReal - f.resExec,
+      perda: perda || 0, sla: rc.sla || 0, nf: rc.nf || 0, dil: rc.dil || 0, pot: pot, heDesvio: he ? Math.round(he.desvio) : 0,
+      rescTot: f.folha ? -soma(f.folha.rescTot) : 0, multa40: f.folha ? -soma(f.folha.multa40) : 0,
+      efet: S.rh.efet[n], adm: soma(S.rh.adm), dem: soma(S.rh.dem), he: S.rh.he[n], abs: k.absAcum, turn: k.turnAcum,
+      f30: S.rh.fer30, f45: S.rh.fer45, alerta: S.proj && S.proj.alerta ? S.proj.alerta.problemas : null,
+      fatAno: k.fatAno, fatMeta: k.fatMeta, resAno: k.resAno, resMeta: k.resMeta, diag: (b.txt && b.txt.diagnostico) || "" };
+  }
+  function agregarGrupo(books) {
+    var A2 = { FR: 0, FE: 0, resReal: 0, resExec: 0, linhas: [], contas: [], receita: { perda: 0, sla: 0, nf: 0, dil: 0, perdaPR: 0 }, promessa: { res: 0, fc: 0, grupos: [], n: 0 },
+      kpi: { fatAno: 0, fatMeta: 0, resAno: 0, resMeta: 0 }, f30: 0, f45: 0, saldo: 0, resc: 0, multa40: 0 };
+    var sub = {}, cont = {}, pg = {}, rec = {};
+    books.forEach(function (b) {
+      var f = b.S.fin, an = analisarCustos(f), rc = f.receita || {}, k = b.kpi || {};
+      A2.FR += f.FR; A2.FE += f.FE; A2.resReal += f.resReal; A2.resExec += f.resExec;
+      (f.linhas || []).forEach(function (l) { var key = l[0] + "|" + l[1]; var a = sub[key] = sub[key] || [l[0], l[1], 0, 0, null, null]; a[2] += l[2] || 0; a[3] += l[3] || 0; });
+      if (an) an.contas.forEach(function (x) { var c = cont[x.conta] = cont[x.conta] || { conta: x.conta, real: 0, exec: 0, desvio: 0, oss: [] }; c.real += x.real; c.exec += x.exec || 0; c.desvio += x.desvio; c.oss.push([b.os, Math.round(x.desvio)]); });
+      A2.receita.perda += rc.perdaRI != null ? rc.perdaRI : (rc.perdaPR || 0); A2.receita.perdaPR += rc.perdaPR || 0; A2.receita.sla += rc.sla || 0; A2.receita.nf += rc.nf || 0; A2.receita.dil += rc.dil || 0;
+      if (f.promessa && f.promessa.meses && f.promessa.meses.length) { A2.promessa.n++; A2.promessa.res += f.promessa.res; A2.promessa.fc += f.promessa.fc; f.promessa.grupos.forEach(function (x) { pg[x.nome] = (pg[x.nome] || 0) + x.v; }); }
+      ["fatAno", "fatMeta", "resAno", "resMeta"].forEach(function (q) { A2.kpi[q] += k[q] || 0; });
+      A2.f30 += b.S.rh.fer30 || 0; A2.f45 += b.S.rh.fer45 || 0; A2.saldo += b.S.rh.ferSaldo || 0;
+      if (f.folha) { A2.resc += -soma(f.folha.rescTot); A2.multa40 += -soma(f.folha.multa40); }
+      (f.recorrentes || []).forEach(function (x) { var r = rec[x[0]] = rec[x[0]] || { conta: x[0], oss: [], real: 0, exec: 0 }; r.oss.push(b.os); r.real += x[4]; r.exec += x[5]; });
+    });
+    A2.linhas = Object.keys(sub).map(function (k) { return sub[k]; });
+    A2.contas = Object.keys(cont).map(function (k) { var c = cont[k]; c.oss.sort(function (a, b) { return a[1] - b[1]; }); c.oss = c.oss.slice(0, 4); c.real = Math.round(c.real); c.exec = Math.round(c.exec); c.desvio = Math.round(c.desvio); return c; })
+      .sort(function (a, b) { return a.desvio - b.desvio; }).slice(0, 12);
+    A2.promessa.grupos = Object.keys(pg).map(function (k) { return { nome: k, v: Math.round(pg[k]) }; });
+    A2.promessa.meses = A2.promessa.n ? [1] : [];
+    A2.recorrentes = Object.keys(rec).map(function (k) { return rec[k]; }).sort(function (a, b) { return b.oss.length - a.oss.length || (a.real - a.exec) - (b.real - b.exec); }).slice(0, 10);
+    A2.linhasOS = books.map(linhaOS).sort(function (a, b) { return a.gap - b.gap; });
+    return A2;
+  }
+
+  function promptGrupo(nivel, nome, ano, mes, G, extra) {
+    var L = [], ger = nivel === "ger", an = analisarCustos(G), quem = ger ? "Gerência " + nome : "Superintendência " + nome;
+    function pf(v) { return G.FR ? fmt(v / G.FR * 100, 2) + "%" : "–"; }
+    L.push("Você é o controller sênior do Setor de Performance da NPE. Escreva o RELATÓRIO da " + quem + " de janeiro a " + MESF[mes] + "/" + ano + ", a partir dos relatórios das OSs.");
+    L.push(ger ? "É para o gerente: mais resumido que o da OS, por OS. Mostre os contratos piores e melhores, as alavancas (custo, faturamento, perda, absenteísmo, folha) e a solução, sempre dizendo quais OSs causam cada impacto."
+      : "É para o superintendente: estratégico e mais resumido que o da gerência, por gerência. Mostre onde estão os impactos globais, quais gerências e OSs os causam e as decisões que cabem a ele.");
+    L.push("");
+    L.push("REGRAS");
+    L.push("- Use SOMENTE os números dos DADOS, como estão: R$ 1.500.000 (sem centavos a partir de R$ 1.000), R$ 850,00 abaixo disso, negativos entre parênteses, R$ (647.973); percentuais com duas casas, 10,00%. Nunca abrevie (nada de 'mi' ou 'mil'). Custos sempre positivos.");
+    L.push("- Proporcionalidade: se o faturamento cresceu além do executivo, o custo pode crescer na mesma proporção; a margem cai quando algum custo cresce mais que o volume.");
+    L.push("- Toda afirmação de impacto cita as OSs (código) que o causam" + (ger ? "." : " e a gerência delas."));
+    L.push("- Acúmulo de férias (30 e 45 dias ou mais) é ponto de atenção: amplia o dissídio e a reoneração. Alertas de projeção (EFETIVO PR/HHT PR que não acompanham a movimentação) devem ser cobrados das OSs citadas.");
+    L.push("- Português do Brasil, tom executivo, frases curtas, sem listas dentro dos textos, parágrafos separados por linha em branco, **negrito** só para 1 ou 2 números por texto. Não invente nada; sem registro, diga que não há registro.");
+    L.push("");
+    L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
+    L.push(ger ? '{"sumario":"(2 ou 3 parágrafos, até 1200 caracteres)","ranking":"(até 900 caracteres: piores e melhores contratos, com números)","impactos":"(2 ou 3 parágrafos, até 1500 caracteres: custos acima da proporção, perdas, SLA, não faturáveis e diluídos, FCST prometido x entregue, rescisões; com as OSs que causaram)","pessoas":"(até 900 caracteres: efetivo, HE, absenteísmo, turnover, férias 30/45 e alertas de projeção, com as OSs)","alavancas":[{"alavanca":"(Custo, Faturamento, Perda, Absenteísmo, Folha ou Projeção)","valor":"(até 25 caracteres)","texto":"(até 260 caracteres)","oss":"(códigos)"}] (3 a 6 itens),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres)","acompanhar":"(até 90 caracteres)","oss":"(códigos)"}] (3 a 6 itens)}'
+      : '{"sumario":"(2 parágrafos, até 900 caracteres)","gerencias":"(até 900 caracteres: comparação entre as gerências, com números)","impactos":"(até 1200 caracteres: os impactos globais e quem causa, gerência e OSs)","pessoas":"(até 600 caracteres: férias, absenteísmo, turnover e alertas de projeção)","alavancas":[{"alavanca":"","valor":"","texto":"(até 220 caracteres)","oss":"(gerência e códigos)"}] (3 a 5 itens),"plano":[{"acao":"","efeito":"(até 180 caracteres)","acompanhar":"","oss":""}] (3 a 5 itens)}');
+    L.push("");
+    L.push("DADOS (" + quem + ", " + G.linhasOS.length + " OSs com relatório de " + MESF[mes] + (extra.semBook && extra.semBook.length ? "; sem relatório: " + extra.semBook.join(", ") : "") + ")");
+    L.push("JAN A " + MES[mes].toUpperCase() + ": faturamento real " + rs(G.FR) + " x executivo " + rs(G.FE) + " (" + (G.FE ? fmt((G.FR / G.FE - 1) * 100, 2) + "%" : "–") + ") | resultado real " + rs(G.resReal) + " x executivo " + rs(G.resExec) + " | margem real " + pct(G.FR ? G.resReal / G.FR : null) + " x executivo " + pct(G.FE ? G.resExec / G.FE : null) + ".");
+    L.push("PROJEÇÃO DO ANO (soma das caixas das OSs): faturamento " + rs(G.kpi.fatAno) + " x meta " + rs(G.kpi.fatMeta) + " | resultado " + rs(G.kpi.resAno) + " x meta " + rs(G.kpi.resMeta) + ".");
+    if (an) L.push("PONTE DA MARGEM DO GRUPO (p.p. por grupo de custo; negativo = custou mais que a proporção): " + an.grupos.map(function (g) { return g.nome + " " + (g.pp > 0 ? "+" : "") + fmt(g.pp, 2); }).join("; ") + ".");
+    L.push("CONTAS QUE MAIS PESARAM (quanto custaram a mais que a proporção, somando as OSs; e as OSs que mais contribuíram): " + G.contas.slice(0, 10).map(function (c) { return c.conta + " " + dif(c.desvio) + " (" + c.oss.filter(function (o) { return o[1] < 0; }).map(function (o) { return o[0] + " " + moeda(Math.abs(o[1])); }).join(", ") + ")"; }).join("; ") + ".");
+    if (G.recorrentes.length) L.push("CUSTOS ACIMA DO EXECUTIVO DE FORMA RECORRENTE (conta: OSs): " + G.recorrentes.map(function (r) { return r.conta + ": " + r.oss.join(", "); }).join("; ") + ".");
+    var rc = G.receita, pot = G.resReal + rc.perda + rc.sla + rc.nf + rc.dil;
+    L.push("RECEITA E CUSTO SEM FATURAMENTO: perdas " + rs(rc.perda) + " (" + pf(rc.perda) + ") | SLA " + rs(rc.sla) + " (" + pf(rc.sla) + ") | não faturáveis " + rs(rc.nf) + " (" + pf(rc.nf) + ") | diluídos " + rs(rc.dil) + " (" + pf(rc.dil) + ") | resultado potencial " + rs(pot) + ", margem " + pct(G.FR ? pot / G.FR : null) + ".");
+    if (G.promessa.n) L.push("FCST: somando as OSs, os FCSTs do mês anterior prometeram " + rs(G.promessa.fc) + " e o realizado foi " + rs(G.promessa.res) + " (diferença " + rs(G.promessa.res - G.promessa.fc) + "). Por grupo: " + G.promessa.grupos.slice().sort(function (a, b) { return a.v - b.v; }).map(function (x) { return x.nome + (x.v < 0 ? " piorou " : " melhorou ") + moeda(Math.abs(x.v)); }).join("; ") + ".");
+    L.push("FOLHA: rescisões e encargos rescisórios " + rs(G.resc) + ", dos quais multa de 40% do FGTS " + rs(G.multa40) + ". Férias: " + fmt(G.f30) + " pessoas com 30 dias ou mais e " + fmt(G.f45) + " com 45 dias ou mais (saldo " + fmt(G.saldo) + " dias).");
+    if (!ger && extra.porGer) {
+      L.push("");
+      L.push("POR GERÊNCIA (faturamento real x executivo | resultado real x executivo | margem real | perdas | férias 45+ | OSs com alerta de projeção):");
+      extra.porGer.forEach(function (g) { L.push("  " + g.nome + " (" + g.n + " OSs): " + rs(g.FR) + " x " + rs(g.FE) + " | " + rs(g.res) + " x " + rs(g.rex) + " | " + pct(g.FR ? g.res / g.FR : null) + " | " + rs(g.perda) + " | " + fmt(g.f45) + " | " + (g.alertas.length ? g.alertas.join(", ") : "nenhuma")); });
+    }
+    L.push("");
+    L.push("POR OS (do pior para o melhor resultado contra o executivo):");
+    G.linhasOS.forEach(function (o) {
+      L.push("  " + (String(o.desc).indexOf(o.os) === 0 ? o.desc : o.os + " " + o.desc) + (ger ? "" : " [" + o.ger + "]") + " | gestor " + (o.gestor || "–") + " | faturamento " + rs(o.FR) + " x " + rs(o.FE) + " | resultado " + rs(o.res) + " x " + rs(o.rex) + " (diferença " + rs(o.gap) + ") | margem " + pct(o.FR ? o.res / o.FR : null) + " x " + pct(o.FE ? o.rex / o.FE : null) +
+        " | perdas " + rs(o.perda) + " | SLA " + rs(o.sla) + " | diluídos " + rs(o.dil) + " | HE " + (o.heDesvio < 0 ? moeda(-o.heDesvio) + " acima da proporção" : "na proporção") + " | rescisões " + rs(o.rescTot) +
+        " | efetivo " + fmt(o.efet) + " (" + o.adm + " adm, " + o.dem + " dem no ano) | absenteísmo " + pct(o.abs) + " | turnover " + pct(o.turn) + " | férias 30+ " + fmt(o.f30) + ", 45+ " + fmt(o.f45) + (o.alerta ? " | ALERTA DE PROJEÇÃO: " + o.alerta.join("; ") : ""));
+      if (ger && o.diag) L.push("    diagnóstico da OS: " + String(o.diag).replace(/\s+/g, " ").slice(0, 420));
+    });
+    return L.join("\n");
+  }
+  function conferirGrupo(j, nivel) {
+    var falta = [];
+    if (!j || typeof j !== "object") return ["tudo"];
+    (nivel === "ger" ? ["sumario", "ranking", "impactos", "pessoas"] : ["sumario", "gerencias", "impactos", "pessoas"]).forEach(function (k) { if (!j[k] || String(j[k]).length < 60) falta.push(k); });
+    if (!Array.isArray(j.alavancas) || j.alavancas.length < 2) falta.push("alavancas");
+    if (!Array.isArray(j.plano) || j.plano.length < 2) falta.push("plano");
+    return falta;
+  }
+  function porGerencia(linhas) {
+    var g = {};
+    linhas.forEach(function (o) { var k = o.ger || "(sem gerente)"; var x = g[k] = g[k] || { nome: k, n: 0, FR: 0, FE: 0, res: 0, rex: 0, perda: 0, f45: 0, alertas: [] }; x.n++; x.FR += o.FR; x.FE += o.FE; x.res += o.res; x.rex += o.rex; x.perda += o.perda; x.f45 += o.f45 || 0; if (o.alerta) x.alertas.push(o.os); });
+    return Object.keys(g).map(function (k) { return g[k]; }).sort(function (a, b) { return (a.res - a.rex) - (b.res - b.rex); });
+  }
+  async function gerarGrupo(nivel, nome, opts) {
+    opts = opts || {};
+    var ano = opts.ano || anoAtivo(), mes = opts.mes || (A.ultimoMesFechado ? A.ultimoMesFechado(ano) : 0);
+    if (!(mes >= 1)) throw new Error("Nenhum mês fechado em " + ano + ".");
+    progresso("Lendo os relatórios das OSs de " + MESF[mes] + "…");
+    var todos = await booksDoMes(ano, mes), books = todos.filter(function (b) { return chaveGrupo(nivel, b) === String(nome).toUpperCase(); });
+    if (!books.length) throw new Error("Não há relatório de OS de " + MESF[mes] + " para " + nome + ". Gere primeiro os books das OSs.");
+    var semBook = [];
+    try { var hm = hier(), hn = maisComum(books.map(function (b) { var h = hm[b.os] || {}; return nivel === "ger" ? h.ger : h.sup; })); Object.keys(hm).forEach(function (os) { var h = hm[os]; if ((nivel === "ger" ? h.ger : h.sup) === hn && !books.some(function (b) { return b.os === os; })) semBook.push(os); }); } catch (e) {}
+    var G = agregarGrupo(books), extra = { semBook: semBook };
+    if (nivel === "sup") extra.porGer = porGerencia(G.linhasOS);
+    var prompt = promptGrupo(nivel, nome, ano, mes, G, extra);
+    progresso("A IA está escrevendo o relatório de " + nome + " (" + books.length + " OSs)…");
+    var j = null, falta = ["tudo"], tent = 0;
+    while (falta.length && tent < 2) {
+      var p = tent === 0 ? prompt : prompt + "\n\nATENÇÃO: na resposta anterior faltaram ou vieram vazios: " + falta.join(", ") + ". Devolva o JSON COMPLETO.";
+      var txt = await A.chamarGerarTexto("gpt41", p);
+      try { j = extrairJSON(txt); falta = conferirGrupo(j, nivel); } catch (e) { falta = ["JSON válido"]; }
+      tent++;
+    }
+    if (falta.length) throw new Error("A IA não completou o relatório (faltou: " + falta.join(", ") + ").");
+    var s = A.sessaoAcesso ? A.sessaoAcesso() : null;
+    var book = { v: 2, nivel: nivel, nome: nome, sup: nivel === "ger" ? maisComum(books.map(function (b) { return b.sup; })) : nome, ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "",
+      G: G, porGer: extra.porGer || null, semBook: semBook,
+      txt: { sumario: j.sumario, ranking: j.ranking || "", gerencias: j.gerencias || "", impactos: j.impactos, pessoas: j.pessoas, alavancas: j.alavancas.slice(0, 6), plano: j.plano.slice(0, 6) } };
+    if (opts.gravar === false) return book;
+    progresso("Gravando no SharePoint…");
+    await gravar(nivel, String(nome).toUpperCase(), book);
+    return book;
+  }
+  // Agente da nuvem: gera todos os grupos do nível (ou só os filtrados).
+  async function gerarGrupos(nivel, opts) {
+    opts = opts || {};
+    var ano = opts.ano || anoAtivo(), mes = opts.mes || (A.ultimoMesFechado ? A.ultimoMesFechado(ano) : 0);
+    if (A.garantirHierarquia) { try { await A.garantirHierarquia(); } catch (e) {} }
+    var gs = await listarGrupos(nivel, ano, mes), feitos = [], erros = [], amostra = null;
+    if (opts.nome) gs = gs.filter(function (g) { return g.nome === String(opts.nome).toUpperCase(); });
+    for (var i = 0; i < gs.length; i++) {
+      try { var b = await gerarGrupo(nivel, gs[i].nome, { ano: ano, mes: mes, gravar: opts.gravar }); feitos.push(gs[i].nome); if (!amostra) amostra = b; }
+      catch (e) { erros.push(gs[i].nome + ": " + (e.message || e)); }
+    }
+    return { nivel: nivel, mes: mes, grupos: gs.length, feitos: feitos, erros: erros, amostra: opts.gravar === false ? amostra : null };
+  }
+
+  function chGap(linhas) {
+    var xs = linhas.slice(0, 14), max = Math.max.apply(null, xs.map(function (o) { return Math.abs(o.gap); }).concat([1]));
+    var lh = 30, f = fr(1100, 20 + xs.length * lh, { l: 300, r: 150, t: 10, b: 10 }), mid = f.m.l + f.iw / 2, sc = function (v) { return Math.abs(v) / max * (f.iw / 2 - 10); };
+    var s = '<line x1="' + mid + '" x2="' + mid + '" y1="' + f.m.t + '" y2="' + (f.H - f.m.b) + '" stroke="' + COR.muted + '"/>';
+    xs.forEach(function (o, i) {
+      var y = f.m.t + i * lh, w = sc(o.gap), neg = o.gap < 0;
+      s += '<text x="' + (f.m.l - 10) + '" y="' + (y + 19) + '" text-anchor="end" font-size="12.5" fill="' + COR.ink + '">' + esc((o.os + " " + o.desc.replace(/^\S+\s*-\s*/, "")).slice(0, 40)) + "</text>";
+      s += '<rect x="' + (neg ? mid - w : mid) + '" y="' + (y + 6) + '" width="' + w + '" height="17" rx="2" fill="' + (neg ? COR.red : COR.teal) + '"/>';
+      s += '<text x="' + (f.W - 6) + '" y="' + (y + 19) + '" text-anchor="end" font-size="12" font-weight="700" fill="' + (neg ? COR.badfg : COR.okfg) + '">' + moeda(o.gap) + "</text>";
+    });
+    return svg(f, s, "Resultado contra o executivo por OS");
+  }
+  function renderRelatorioGrupo(b) {
+    var G = b.G, t = b.txt || {}, ger = b.nivel === "ger", an = analisarCustos(G), h = [], fig = 0, nc = 0;
+    function figura(titulo, cap, corpo) { fig++; return '<figure class="rl-fig"><figcaption><b>Figura ' + fig + ".</b> " + esc(titulo) + (cap ? '<span>' + esc(cap) + "</span>" : "") + "</figcaption>" + corpo + "</figure>"; }
+    function par(txt) { return String(txt || "").split(/\n\s*\n/).filter(Boolean).map(function (p) { return '<p>' + rico(p.trim()) + "</p>"; }).join(""); }
+    function cap(n, tit, corpo, cls) { return '<section class="rl-cap' + (cls ? " " + cls : "") + '"><h2><span>' + n + "</span>" + tit + "</h2>" + corpo + "</section>"; }
+    function cel(l, v, s2, cls) { return '<div class="rl-num ' + (cls || "") + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s2 + "</span></div>"; }
+    var margR = G.FR ? G.resReal / G.FR : null, margE = G.FE ? G.resExec / G.FE : null, k = G.kpi;
+    h.push('<header class="rl-capa"><div class="rl-capa-top"><span class="rl-tag">Relatório da ' + (ger ? "Gerência" : "Superintendência") + '</span><span class="rl-per">janeiro a ' + MESF[b.mes] + " de " + b.ano + "</span></div>" +
+      "<h1>" + esc(b.nome) + "</h1>" + '<div class="rl-ficha">' + (ger ? "<span>Superintendente: <b>" + esc(b.sup || "–") + "</b></span>" : "") + "<span>OSs no relatório: <b>" + G.linhasOS.length + "</b></span>" +
+      (b.porGer ? "<span>Gerências: <b>" + b.porGer.length + "</b></span>" : "") + (b.semBook && b.semBook.length ? "<span>Sem relatório no mês: <b>" + esc(b.semBook.join(", ")) + "</b></span>" : "") + "</div></header>");
+    h.push('<section class="rl-nums"><div class="rl-nums-g"><h3>Jan a ' + MES[b.mes] + " · realizado x executivo</h3>" +
+      cel("Faturamento", moeda(G.FR), "executivo " + moeda(G.FE), G.FR >= G.FE ? "ok" : "bad") + cel("Resultado", moeda(G.resReal), "executivo " + moeda(G.resExec), G.resReal >= G.resExec ? "ok" : "bad") + cel("Margem", pct(margR), "executivo " + pct(margE), margR >= margE ? "ok" : "bad") +
+      '</div><div class="rl-nums-g"><h3>Projeção do ano · soma das OSs</h3>' +
+      cel("Faturamento", moeda(k.fatAno), "meta " + moeda(k.fatMeta), k.fatAno >= k.fatMeta ? "ok" : "bad") + cel("Resultado", moeda(k.resAno), "meta " + moeda(k.resMeta), k.resAno >= k.resMeta ? "ok" : "bad") +
+      cel("Margem", pct(k.fatAno ? k.resAno / k.fatAno : null), "meta " + pct(k.fatMeta ? k.resMeta / k.fatMeta : null), (k.fatAno && k.fatMeta && k.resAno / k.fatAno >= k.resMeta / k.fatMeta) ? "ok" : "bad") + "</div></section>");
+    h.push(cap(++nc, "Sumário executivo", par(t.sumario)));
+    // ranking / gerencias
+    var tabOS = '<div class="rl-tab"><table><thead><tr><th>OS</th>' + (ger ? "<th>Gestor</th>" : "<th>Gerente</th>") + "<th>Faturamento</th><th>x executivo</th><th>Resultado</th><th>Executivo</th><th>Margem</th><th>Perdas</th><th>Potencial</th></tr></thead><tbody>" +
+      G.linhasOS.map(function (o) {
+        return "<tr><td>" + esc(o.os) + "</td><td>" + esc(ger ? o.gestor : o.ger) + "</td><td>" + moeda(o.FR) + "</td><td>" + (o.FE ? (o.FR >= o.FE ? "+" : "") + fmt((o.FR / o.FE - 1) * 100, 2) + "%" : "–") + '</td><td class="' + (o.res < o.rex ? "neg" : "pos") + '">' + moeda(o.res) + "</td><td>" + moeda(o.rex) + "</td><td>" + pct(o.FR ? o.res / o.FR : null) + "</td><td>" + moeda(o.perda) + "</td><td>" + moeda(o.pot) + "</td></tr>";
+      }).join("") + "</tbody></table></div>";
+    if (ger) h.push(cap(++nc, "Contratos: onde está o resultado", par(t.ranking) + figura("Resultado contra o executivo, por OS", "jan a " + MES[b.mes] + " · vermelho = abaixo do executivo", chGap(G.linhasOS)) + figura("As OSs da gerência", "do pior para o melhor resultado contra o executivo", tabOS)));
+    else {
+      var tabG = '<div class="rl-tab"><table><thead><tr><th>Gerência</th><th>OSs</th><th>Faturamento</th><th>x executivo</th><th>Resultado</th><th>Executivo</th><th>Margem</th><th>Perdas</th><th>Férias 45+</th><th>Alertas de projeção</th></tr></thead><tbody>' +
+        (b.porGer || []).map(function (g) { return "<tr><td>" + esc(g.nome) + "</td><td>" + g.n + "</td><td>" + moeda(g.FR) + "</td><td>" + (g.FE ? (g.FR >= g.FE ? "+" : "") + fmt((g.FR / g.FE - 1) * 100, 2) + "%" : "–") + '</td><td class="' + (g.res < g.rex ? "neg" : "pos") + '">' + moeda(g.res) + "</td><td>" + moeda(g.rex) + "</td><td>" + pct(g.FR ? g.res / g.FR : null) + "</td><td>" + moeda(g.perda) + "</td><td>" + fmt(g.f45) + "</td><td>" + esc(g.alertas.join(", ") || "–") + "</td></tr>"; }).join("") + "</tbody></table></div>";
+      h.push(cap(++nc, "Gerências: onde está o resultado", par(t.gerencias) + figura("As gerências", "da pior para a melhor contra o executivo", tabG) + figura("As OSs que mais pesam", "as 14 piores contra o executivo", chGap(G.linhasOS))));
+    }
+    // impactos
+    var rc = G.receita, pot = G.resReal + rc.perda + rc.sla + rc.nf + rc.dil;
+    var tabC = '<div class="rl-tab"><table><thead><tr><th>Conta</th><th>Custou a mais que a proporção</th><th>OSs que mais contribuíram</th></tr></thead><tbody>' +
+      G.contas.filter(function (c) { return c.desvio < 0; }).slice(0, 8).map(function (c) { return "<tr><td>" + esc(String(c.conta).replace(/^\d+\s*-\s*/, "")) + '</td><td class="neg">' + moeda(-c.desvio) + '</td><td class="rl-cx">' + esc(c.oss.filter(function (o) { return o[1] < 0; }).map(function (o) { return o[0] + " " + moeda(-o[1]); }).join(" · ")) + "</td></tr>"; }).join("") + "</tbody></table></div>";
+    h.push(cap(++nc, "Impactos: o que tirou resultado e quem causou", par(t.impactos) +
+      (an ? figura("Ponte da margem do grupo", "pontos percentuais de margem por grupo de custo, somando as OSs", chPonte(an)) : "") +
+      figura("As contas que mais pesaram", "", tabC) +
+      figura("Resultado potencial do grupo", "sem perdas, SLA, não faturáveis e diluídos · margem real " + pct(margR) + " → potencial " + pct(G.FR ? pot / G.FR : null), chPotencial({ res: G.resReal, perda: rc.perda, sla: rc.sla, nf: rc.nf, dil: rc.dil }))));
+    // pessoas
+    var tabP = '<div class="rl-tab"><table><thead><tr><th>OS</th><th>Efetivo</th><th>Adm./dem. no ano</th><th>HE no mês</th><th>Absenteísmo</th><th>Turnover</th><th>Férias 30+</th><th>Férias 45+</th><th>Projeção</th></tr></thead><tbody>' +
+      G.linhasOS.map(function (o) { return "<tr><td>" + esc(o.os) + "</td><td>" + fmt(o.efet) + "</td><td>" + o.adm + " / " + o.dem + "</td><td>" + (o.he == null ? "–" : fmt(o.he, 2) + "%") + "</td><td>" + pct(o.abs) + "</td><td>" + pct(o.turn) + "</td><td>" + fmt(o.f30) + '</td><td class="' + ((o.f45 || 0) > 0 ? "neg" : "") + '">' + fmt(o.f45) + '</td><td class="' + (o.alerta ? "neg" : "") + '">' + (o.alerta ? "corrigir" : "ok") + "</td></tr>"; }).join("") + "</tbody></table></div>";
+    var al = G.linhasOS.filter(function (o) { return o.alerta; });
+    h.push(cap(++nc, "Pessoas, férias e projeção", (al.length ? '<div class="rl-alerta"><b>Projeção a corrigir em ' + al.length + (al.length > 1 ? " OSs" : " OS") + "</b>" + esc(al.map(function (o) { return o.os + ": " + o.alerta[0]; }).join(" · ")) + "</div>" : "") + par(t.pessoas) + figura("Pessoas por OS", "férias: pessoas com 30 dias ou mais de saldo (já têm direito) e com 45 dias ou mais (ponto de atenção)", tabP)));
+    // alavancas e plano
+    h.push(cap(++nc, "Alavancas", '<div class="bk-orcgrid">' + (t.alavancas || []).map(function (o) { return '<div class="bk-orci"><h4>' + esc(o.alavanca || "") + "<span>" + esc(o.valor || "") + "</span></h4><p>" + rico(o.texto || "") + "</p>" + (o.oss ? '<p class="rl-nota">' + esc(o.oss) + "</p>" : "") + "</div>"; }).join("") + "</div>"));
+    h.push(cap(++nc, "Plano de ação", '<ol class="rl-plano">' + (t.plano || []).map(function (p) { return "<li><b>" + esc(p.acao || "") + "</b>" + (p.efeito ? "<span>" + rico(p.efeito) + "</span>" : "") + (p.acompanhar || p.oss ? '<em>' + (p.acompanhar ? "Acompanhar: " + esc(p.acompanhar) : "") + (p.oss ? " · " + esc(p.oss) : "") + "</em>" : "") + "</li>"; }).join("") + "</ol>"));
+    h.push('<div class="bk-fontes">Somado a partir dos relatórios das OSs de ' + MESF[b.mes] + " (RESULTADOS, RECEITA IDEAL e ATA_COMENTARIO). Textos escritos por IA. Gerado em " + esc(new Date(b.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })) + (b.por ? " por " + esc(b.por) : "") + ".</div>");
+    return '<article class="rl">' + h.join("") + "</article>";
+  }
+
   // ------------------------------------------------------------------ tela
   var _prog = "";
   function progresso(t) { _prog = t; var p = el("bkProgresso"); if (p) { p.style.display = t ? "block" : "none"; p.textContent = t; } }
@@ -1056,9 +1262,37 @@
     try { lista = master() ? A.tab5OSElegiveis() : A.tab5OSDoUsuario(); } catch (e) { lista = []; }
     return lista || [];
   }
+  function abas() {
+    return '<div class="bk-tabs"><button type="button" class="' + (st.nivel === "os" ? "on" : "") + '" data-action="book:nivel:os">OS</button><button type="button" class="' + (st.nivel === "ger" ? "on" : "") + '" data-action="book:nivel:ger">Gerência</button><button type="button" class="' + (st.nivel === "sup" ? "on" : "") + '" data-action="book:nivel:sup">Superintendência</button></div>';
+  }
+  async function renderGrupo(box) {
+    var nivel = st.nivel, ano = anoAtivo(), mes = A.ultimoMesFechado ? A.ultimoMesFechado(ano) : 0, rot = nivel === "ger" ? "Gerência" : "Superintendência";
+    box.innerHTML = '<div class="bk-wrap"><div class="bk-nav"><span class="bk-marca">BOOK</span>' + abas() + '</div><div id="bkConteudo"><p class="bk-vazio">Carregando…</p></div></div>';
+    var gs = [], mapa = {};
+    try { gs = mes >= 1 ? await listarGrupos(nivel, ano, mes) : []; mapa = await lerNivel(nivel); } catch (e) { var c0 = el("bkConteudo"); if (c0) c0.innerHTML = '<p class="bk-vazio">Não consegui ler os books: ' + esc(e.message || e) + "</p>"; return; }
+    // acesso pela hierarquia: Master ve todos; os demais, os grupos das suas OSs
+    if (!master()) { var minhas = osPermitidas().map(function (o) { return o.codigo; }); gs = gs.filter(function (g) { return g.oss.some(function (os) { return minhas.indexOf(os) >= 0; }); }); }
+    Object.keys(mapa).forEach(function (k) { if (!gs.some(function (g) { return g.nome === k; }) && (master() || false)) gs.push({ nome: k, oss: [] }); });
+    var sel = st.sel[nivel] && gs.some(function (g) { return g.nome === st.sel[nivel]; }) ? st.sel[nivel] : (gs[0] ? gs[0].nome : "");
+    st.sel[nivel] = sel;
+    var itens = gs.map(function (g) { return '<button type="button" class="bk-dd-it' + (g.nome === sel ? " on" : "") + '" data-action="book:grp:' + esc(g.nome) + '" data-busca="' + esc(g.nome) + '">' + esc(g.nome) + (g.oss.length ? " · " + g.oss.length + " OSs" : "") + "</button>"; }).join("");
+    box.innerHTML = '<div class="bk-wrap"><div class="bk-nav"><span class="bk-marca">BOOK</span>' + abas() +
+      '<div class="bk-dd"><span class="bk-dd-rot">' + rot + '</span><button type="button" class="bk-dd-btn" data-action="book:dd" aria-haspopup="listbox">' + esc(sel || "Nenhum relatório de OS no mês") + '</button>' +
+      '<div class="bk-dd-pan" id="bkDdPan" style="display:none"><input type="text" id="bkDdBusca" placeholder="Buscar…" autocomplete="off"><div class="bk-dd-lista" id="bkDdLista" role="listbox">' + (itens || '<p class="bk-dd-vazio">Nenhum grupo com relatório de OS no mês.</p>') + "</div></div></div>" +
+      (master() ? '<span class="bk-acoes">' + (temChaveIA() ? '<button type="button" class="bk-bt sec" data-action="book:gerargrp"' + (sel ? "" : " disabled") + ">🤖 Gerar agora (neste navegador)</button>" : "") +
+        '<button type="button" class="bk-bt" data-action="book:nuvemgrp" title="O agente da nuvem gera e grava os relatórios de todas as ' + (nivel === "ger" ? "gerências" : "superintendências") + ' a partir dos books das OSs">☁ Gerar pela nuvem</button></span>' : "") +
+      '</div><div id="bkProgresso" class="bk-prog" style="display:none"></div><div class="bk-dica">O relatório da ' + rot.toLowerCase() + " soma os books das OSs de " + (mes >= 1 ? MESF[mes] : "–") + "; gere primeiro os books das OSs.</div>" + '<div id="bkConteudo"></div></div>';
+    var busca = el("bkDdBusca");
+    if (busca) busca.oninput = function () { var q = String(busca.value || "").toUpperCase().trim(); Array.prototype.forEach.call(document.querySelectorAll("#bkDdLista .bk-dd-it"), function (b) { b.style.display = (!q || b.getAttribute("data-busca").indexOf(q) >= 0) ? "" : "none"; }); };
+    if (_prog) progresso(_prog);
+    var c = el("bkConteudo"); if (!c) return;
+    var reg = sel ? mapa[sel] : null;
+    c.innerHTML = !sel ? '<p class="bk-vazio">Ainda não há books de OS de ' + (mes >= 1 ? MESF[mes] : "–") + " para montar este nível.</p>" : (reg && reg.d ? renderRelatorioGrupo(reg.d) : '<p class="bk-vazio">Ainda não há relatório gravado para ' + esc(sel) + ".</p>");
+  }
   async function render() {
     var box = el("tabBookContainer"); if (!box) return;
     if (A.garantirHierarquia) { try { await A.garantirHierarquia(); } catch (e) {} }
+    if (st.nivel !== "os") return renderGrupo(box);
     var lista = osPermitidas();
     var os = st.sel.os || osAtiva();
     st.sel.os = os;
@@ -1070,8 +1304,7 @@
     var osSlicer = osAtiva();
     var podeGerar = master() && osSlicer && os === osSlicer;
     var dica = !temChaveIA() ? "" : (!osSlicer ? "Para gerar neste navegador, filtre uma única OS no Power BI (ou use Gerar pela nuvem)" : (os !== osSlicer ? "Para gerar neste navegador, selecione esta OS no filtro do Power BI (ou use Gerar pela nuvem)" : ""));
-    box.innerHTML = '<div class="bk-wrap"><div class="bk-nav"><span class="bk-marca">BOOK</span><div class="bk-tabs">' +
-      '<button type="button" class="' + (st.nivel === "os" ? "on" : "") + '" data-action="book:nivel:os">OS</button><button type="button" disabled title="Em construção">Gerência</button><button type="button" disabled title="Em construção">Superintendência</button></div>' +
+    box.innerHTML = '<div class="bk-wrap"><div class="bk-nav"><span class="bk-marca">BOOK</span>' + abas() +
       '<div class="bk-dd"><span class="bk-dd-rot">OS</span><button type="button" class="bk-dd-btn" data-action="book:dd" aria-haspopup="listbox">' + rotSel + '</button>' +
       '<div class="bk-dd-pan" id="bkDdPan" style="display:none"><input type="text" id="bkDdBusca" placeholder="Buscar por código ou nome…" autocomplete="off"><div class="bk-dd-lista" id="bkDdLista" role="listbox">' + (itens || '<p class="bk-dd-vazio">Nenhuma OS disponível.</p>') + "</div></div></div>" +
       (master() ? '<span class="bk-acoes">' + (temChaveIA() ? '<button type="button" class="bk-bt sec" data-action="book:gerar"' + (podeGerar ? "" : ' disabled title="' + esc(dica) + '"') + ">🤖 Gerar agora (neste navegador)</button>" : "") +
@@ -1108,7 +1341,24 @@
   });
   document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") abrirLista(false); });
   async function acao(nome, alvo) {
-    if (nome === "nivel:os") { st.nivel = "os"; render(); return; }
+    if (nome === "nivel:os" || nome === "nivel:ger" || nome === "nivel:sup") { st.nivel = nome.slice(6); render(); return; }
+    if (nome.indexOf("grp:") === 0) { st.sel[st.nivel] = nome.slice(4); abrirLista(false); render(); return; }
+    if (nome === "gerargrp") {
+      if (st.carregando || !st.sel[st.nivel]) return;
+      st.carregando = true;
+      try { await gerarGrupo(st.nivel, st.sel[st.nivel], {}); progresso(""); toast("✅ Relatório gravado."); }
+      catch (e) { progresso("⚠ " + (e.message || e)); }
+      finally { st.carregando = false; render(); }
+      return;
+    }
+    if (nome === "nuvemgrp") {
+      if (st.carregando) return;
+      st.carregando = true;
+      try { progresso("Pedindo ao agente da nuvem os relatórios de " + (st.nivel === "ger" ? "gerência" : "superintendência") + "…"); await pedirAoAgente("", st.nivel === "ger" ? "aba6g" : "aba6s"); progresso("☁ Pedido enviado. O agente monta e grava os relatórios em alguns minutos; depois é só abrir esta aba de novo."); }
+      catch (e) { progresso("⚠ " + (e.message || e)); }
+      finally { st.carregando = false; }
+      return;
+    }
     if (nome === "dd") { abrirLista(); return; }
     if (nome.indexOf("os:") === 0) { st.sel.os = nome.slice(3); abrirLista(false); render(); return; }
     if (nome === "fluxo") { configurarFluxo(); return; }
@@ -1129,5 +1379,5 @@
     }
   }
 
-  window.BOOK = { render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao };
+  window.BOOK = { render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao, gerarGrupo: gerarGrupo, gerarGrupos: gerarGrupos, listarGrupos: listarGrupos, _agregarGrupo: agregarGrupo, _promptGrupo: promptGrupo, _renderRelatorioGrupo: renderRelatorioGrupo };
 })();
