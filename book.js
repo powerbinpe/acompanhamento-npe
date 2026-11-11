@@ -191,7 +191,7 @@
       else if (x.tipo === "P") proj.push({ m: x.mes, efet: x.r, hht: x.e, fat: x.f, res: x.g });
       else if (x.tipo === "Q") projx.push({ m: x.mes, fe: x.r, re: x.e });
       else if (x.tipo === "R") { var partes = String(x.c || "").split("|"); resp.push({ tipo: x.a, os: String(x.b || "").toUpperCase(), nome: partes[partes.length - 1], vig: parseInt(x.mes, 10) || 0 }); }
-      else if (x.tipo === "F") fer = { f30: x.r, f45: x.e, saldo: x.f };
+      else if (x.tipo === "F") fer = { f30: x.r, f45: x.e, saldo: x.f, tot: x.g };
       else if (x.tipo === "H") { var cc = String(x.b || "").toUpperCase(); ctt[cc] = ctt[cc] || {}; if (ctt[cc][x.a] == null) ctt[cc][x.a] = x.c == null ? "" : String(x.c); }
     });
     return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, proj: proj, projx: projx, fer: fer, ctt: ctt, resp: resp, ri2: norm(j.ri2), dir: norm(j.dir) };
@@ -319,7 +319,7 @@
     var mesesVal = A.mesesValidadosDaOS ? A.mesesValidadosDaOS(os, mes) : [];
     var S = montarSeries(dados, mes);
     S.fin = montarFin(dados, mes, S);
-    if (dados.fer) { S.rh.fer30 = dados.fer.f30; S.rh.fer45 = dados.fer.f45; S.rh.ferSaldo = dados.fer.saldo; }
+    if (dados.fer) { S.rh.fer30 = dados.fer.f30; S.rh.fer45 = dados.fer.f45; S.rh.ferSaldo = dados.fer.saldo; S.rh.ferTot = dados.fer.tot; }
     S.proj = conferirProjecao(S, (dados.proj || []).slice().sort(function (a, b) { return a.m - b.m; }));
     var md = contract.monthHistory[mes] || {};
     // Valores das caixas: vem na URL so para o mes selecionado; fora dele, o historico mensal.
@@ -373,7 +373,7 @@
     L.push("3. FCST mês a mês. Use a linha do tempo para explicar o ANO: o que os FCSTs do mês anterior prometeram de resultado, o que foi entregue e quais grupos explicam a diferença. Não descreva mês a mês; cite no máximo os 2 ou 3 meses decisivos.");
     L.push("4. Movimentação de efetivo. Admissão traz custo imediato (exames, EPIs, consumíveis) e o faturamento do recurso novo normalmente só aparece no mês seguinte (HHT e faturamento sobem). Se o HHT ou o faturamento não subiram depois das admissões, aponte. Demissão traz custo rescisório.");
     L.push("5. Encargos. Seguem o salário. Separe o que é automático do que foi provocado por demissão: rescisões, aviso prévio indenizado, multa de 40% do FGTS e FGTS de rescisão (tabela FOLHA e EVENTOS). Esses itens não são proporcionais ao salário.");
-    L.push("6. Acúmulo de férias. Pessoas com 30 dias ou mais de saldo já têm direito a sair; as com 45 dias ou mais são o ponto de atenção. O acúmulo é o que amplia o custo do dissídio (o saldo de férias e 13º é recalculado retroativamente com o salário novo, no primeiro mês do dissídio) e da reoneração (retroativo dos encargos sobre as férias acumuladas). Use os sinais dos DADOS (verbas de dissídio no contábil, pico das provisões sobre o salário); quando for inferência, escreva 'provável'.");
+    L.push("6. Acúmulo de férias, sempre em PESSOAS: quantas pessoas o contrato tem, quantas já têm 30 dias ou mais de saldo (direito a sair) e quantas passam de 45 dias (ponto de atenção), com o % das pessoas no contrato. Nunca cite o saldo total de dias de férias. O acúmulo é o que amplia o custo do dissídio (o saldo de férias e 13º é recalculado retroativamente com o salário novo, no primeiro mês do dissídio) e da reoneração (retroativo dos encargos sobre as férias acumuladas). Use os sinais dos DADOS (verbas de dissídio no contábil, pico das provisões sobre o salário); quando for inferência, escreva 'provável'.");
     L.push("7. Dissídio e reoneração da folha (janeiro/" + (ano + 1) + ") são premissas básicas do orçamento: NÃO os trate como premissa a rever nem como item para o Orçamento. O que o orçamento não consegue prever é o tamanho do ACÚMULO DE FÉRIAS, que multiplica esses dois efeitos; é isso que deve ser apontado, com as pessoas com 30 e com 45 dias ou mais. Não estime valor que não esteja nos DADOS.");
     L.push("8. Para o ORÇAMENTO, as observações que importam são: absenteísmo e turnover altos (realidade do contrato e da região), custos que ficam acima do executivo de forma padronizada, mês após mês (use RECORRÊNCIA), e acúmulo de férias (30 e 45 dias ou mais). Cada observação com o número que a sustenta.");
     L.push("10. Projeção dos próximos meses. Faça a análise futura com os números que o contrato projetou (EFETIVO PR, HHT PR, faturamento e resultado projetados). Se houver ALERTA DE PROJEÇÃO, diga com clareza que a projeção não acompanha a movimentação do último mês e peça a correção: quem admitiu tem que projetar mais efetivo e HHT (e o faturamento correspondente); quem desligou, menos.");
@@ -485,7 +485,7 @@
       if (S.proj.alerta) L.push("ALERTA DE PROJEÇÃO (calculado): " + S.proj.alerta.problemas.join("; ") + ". Chame a atenção do gestor para corrigir a projeção (efetivo, HHT e o faturamento que vem com eles); sem isso a comparação do próximo mês fica errada.");
       else if (S.proj.base) L.push("CONFERÊNCIA DA PROJEÇÃO (calculado): a projeção de " + MES[S.proj.base.prox] + " está coerente com a movimentação de " + MES[S.proj.base.mes] + " (" + S.proj.base.adm + " admissões, " + S.proj.base.dem + " demissões).");
     }
-    L.push("ACÚMULO DE FÉRIAS (posição de hoje): saldo " + fmt(S.rh.ferSaldo) + " dias | pessoas com 30 dias ou mais de saldo (já têm direito a sair de férias): " + fmt(S.rh.fer30) + " | pessoas com 45 dias ou mais (ponto de atenção): " + fmt(S.rh.fer45) + " | efetivo da folha no último mês: " + fmt(S.rh.efet[S.rh.efet.length - 1]) + ".");
+    L.push("ACÚMULO DE FÉRIAS (posição de hoje, em pessoas): " + feriasTxt(S.rh.ferTot, S.rh.fer30, S.rh.fer45) + ".");
     L.push("Perda PR acumulada " + rs(k.perdaAcum) + " (" + pct(k.perdaPct) + "). Absenteísmo acumulado " + pct(k.absAcum) + " (referência " + pct(k.absMeta) + "). Turnover acumulado " + pct(k.turnAcum) + ".");
     L.push("SATISFAÇÃO DO CLIENTE (todos os anos): " + (S.sat.length ? S.sat.map(function (s) { return s[0] + " " + pct(s[1], 1) + " (meta " + pct(s[2], 1) + ")"; }).join("; ") : "nenhuma pesquisa registrada") + ". Meta do ano: " + pct(S.satMeta, 1) + ".");
     L.push("");
@@ -747,7 +747,7 @@
       '<div class="bk-leg"><span><i style="background:' + COR.navy + '"></i>Efetivo folha</span><span><i style="background:' + COR.teal + '"></i>Admissões</span><span><i style="background:' + COR.red + '"></i>Demissões</span></div></div><div class="bk-chart"><h4>Horas trabalhadas e hora extra</h4><div class="cap">Em cima: % de HE sobre as horas normais · embaixo: HHT realizado (mil h)</div>' + chHHT(S.meses, S.rh) +
       '<div class="bk-leg"><span><i style="background:' + COR.orange + '"></i>% HE</span><span><i style="background:' + COR.hht + '"></i>HHT realizado</span></div></div></div><p class="bk-texto">' + rico(t.pessoas) + "</p>");
     var tin = S.rh.tIn.reduce(function (a, v) { return a + (v || 0); }, 0), tout = S.rh.tOut.reduce(function (a, v) { return a + (v || 0); }, 0);
-    h.push('<div class="bk-ferias"><div><b>' + (S.rh.ferSaldo == null ? "–" : fmt(S.rh.ferSaldo) + " dias") + "</b><span>saldo de férias hoje, posição atual (sem histórico mensal)</span></div><div><b>" + (S.rh.fer45 == null ? "–" : fmt(S.rh.fer45) + " pessoas") + "</b><span>com 45 dias ou mais de saldo de férias</span></div><div><b>" + tin + " entradas · " + tout + " saídas</b><span>transferências entre OSs no ano</span></div></div></section>");
+    h.push('<div class="bk-ferias"><div><b>' + (S.rh.fer30 == null ? "–" : fmt(S.rh.fer30) + " de " + fmt(S.rh.ferTot) + " pessoas") + "</b><span>com 30 dias ou mais de saldo de férias (já têm direito), posição de hoje</span></div><div><b>" + (S.rh.fer45 == null ? "–" : fmt(S.rh.fer45) + " pessoas") + "</b><span>com 45 dias ou mais de saldo de férias</span></div><div><b>" + tin + " entradas · " + tout + " saídas</b><span>transferências entre OSs no ano</span></div></div></section>");
     // indicadores
     var cards = CATS.map(function (c) {
       var its = b.inds.filter(function (x) { return x.cat === c.cat; });
@@ -1060,7 +1060,7 @@
     h.push('<section class="rl-cap"><h2><span>4</span>Pessoas: quadro, horas e o que a folha custou</h2>' + projBox + par(t.pessoas) +
       '<div class="rl-duas">' + figura("Efetivo e movimentação", "efetivo da folha; admissões e demissões do mês", chMov(S.meses, S.rh)) + figura("Horas e hora extra", "% de HE e HHT realizado (mil h)", chHHT(S.meses, S.rh)) + "</div>" +
       (fo ? par(t.eventos) + figura("Custo provocado por demissão", "por mês · azul = conta de rescisões (aviso indenizado, 13º e férias de rescisão) · laranja = encargos rescisórios (multa de 40% e FGTS de rescisão) · acima, as demissões do mês", chResc(S.meses, fo, S.rh)) : "") +
-      '<p class="rl-nota">Acúmulo de férias (posição de hoje): ' + (S.rh.fer30 == null ? "" : fmt(S.rh.fer30) + " pessoas com 30 dias ou mais de saldo (já têm direito), ") + (S.rh.fer45 == null ? "" : "<b>" + fmt(S.rh.fer45) + " com 45 dias ou mais</b> (ponto de atenção), ") + (S.rh.ferSaldo == null ? "–" : fmt(S.rh.ferSaldo) + " dias de saldo no total") + ". Transferências no ano: " + S.rh.tIn.reduce(function (a, v) { return a + (v || 0); }, 0) + " entradas e " + S.rh.tOut.reduce(function (a, v) { return a + (v || 0); }, 0) + " saídas.</p></section>");
+      '<p class="rl-nota">Acúmulo de férias (posição de hoje, em pessoas): ' + esc(feriasTxt(S.rh.ferTot, S.rh.fer30, S.rh.fer45)) + ". Transferências no ano: " + S.rh.tIn.reduce(function (a, v) { return a + (v || 0); }, 0) + " entradas e " + S.rh.tOut.reduce(function (a, v) { return a + (v || 0); }, 0) + " saídas.</p></section>");
     // 5. ssma, cliente e contrato
     var g5 = (S.sat && (S.sat.length || S.satMeta != null)) ? '<div class="rl-lado">' + figura("Satisfação do cliente por pesquisa", "barra = resultado · traço = meta do ano", chSat(S.sat, S.satMeta, b.ano)) + "</div>" : "";
     h.push('<section class="rl-cap"><h2><span>5</span>Segurança, cliente e contrato</h2><div class="rl-flex">' + g5 + '<div class="rl-txt">' + par(t.ssma) + "</div></div></section>");
@@ -1099,7 +1099,7 @@
     var S = montarSeries(dados, mes);
     S.fin = montarFin(dados, mes, S);
     if (!S.fin) throw new Error("sem dados contábeis");
-    if (dados.fer) { S.rh.fer30 = dados.fer.f30; S.rh.fer45 = dados.fer.f45; S.rh.ferSaldo = dados.fer.saldo; }
+    if (dados.fer) { S.rh.fer30 = dados.fer.f30; S.rh.fer45 = dados.fer.f45; S.rh.ferSaldo = dados.fer.saldo; S.rh.ferTot = dados.fer.tot; }
     var proj = (dados.proj || []).slice().sort(function (x, y) { return x.m - y.m; });
     S.proj = conferirProjecao(S, proj.slice(0, 3));
     var ct = (dados.ctt || {})[o.codigo] || {}, f = S.fin, hist = historicoOS(dados, o.codigo, ano, mes), blocoCod = codigosBloco(o.rotulo || o.codigo);
@@ -1108,6 +1108,12 @@
       fatMeta: f.FE + soma((dados.projx || []).map(function (x) { return x.fe; })), resMeta: f.resExec + soma((dados.projx || []).map(function (x) { return x.re; })),
       absAcum: med(S.rh.abs), turnAcum: null };
     return { v: 2, os: o.codigo, rotulo: o.rotulo || o.codigo, hist: hist, desc: (blocoCod.indexOf("|") > 0 && ct.grupo) ? ct.grupo : (ct.desc || o.desc || o.codigo), gestor: ct.gestor || "", ger: ct.gerente || "", sup: ct.sup || "", neg: ct.neg || "", ano: ano, mes: mes, S: S, kpi: kpi };
+  }
+  // Ferias contadas em pessoas: efetivo, quantas com 30+ dias (ja tem direito) e, dentro delas, quantas com 45+ (atencao).
+  function feriasTxt(efet, f30, f45) {
+    function pp(v) { return efet ? " (" + fmt(v / efet * 100, 2) + "% das pessoas)" : ""; }
+    if (f30 == null && f45 == null) return "sem registro de férias";
+    return (efet ? fmt(efet) + " pessoas no contrato (ativos e em férias; afastados e demitidos fora); " : "") + fmt(f30 || 0) + " com 30 dias ou mais de saldo, já com direito a sair" + pp(f30 || 0) + ", das quais " + fmt(f45 || 0) + " com 45 dias ou mais, ponto de atenção" + pp(f45 || 0);
   }
   function maisComum(xs) { var c = {}, best = "", n = 0; xs.forEach(function (x) { if (!x) return; c[x] = (c[x] || 0) + 1; if (c[x] > n) { n = c[x]; best = x; } }); return best; }
   function linhaOS(b) {
@@ -1118,13 +1124,13 @@
       perda: perda || 0, sla: rc.sla || 0, nf: rc.nf || 0, dil: rc.dil || 0, pot: pot, heDesvio: he ? Math.round(he.desvio) : 0,
       rescTot: f.folha ? -soma(f.folha.rescTot) : 0, multa40: f.folha ? -soma(f.folha.multa40) : 0,
       efet: S.rh.efet[n], adm: soma(S.rh.adm), dem: soma(S.rh.dem), he: S.rh.he[n], abs: k.absAcum, turn: k.turnAcum, demTurn: soma(S.rh.demTurn || []),
-      f30: S.rh.fer30, f45: S.rh.fer45, alerta: S.proj && S.proj.alerta ? S.proj.alerta.problemas : null,
+      f30: S.rh.fer30, f45: S.rh.fer45, ferTot: S.rh.ferTot, alerta: S.proj && S.proj.alerta ? S.proj.alerta.problemas : null,
       fatAno: k.fatAno, fatMeta: k.fatMeta, resAno: k.resAno, resMeta: k.resMeta, diag: (b.txt && b.txt.diagnostico) || "", trocas: trocasTxt(b.hist),
       mm: (f.fc || []).map(function (o) { return [o.m, o.fat, o.res, o.fatEx, o.resEx, o.resFc]; }), efetM: S.rh.efet.slice() };
   }
   function agregarGrupo(books) {
     var A2 = { FR: 0, FE: 0, resReal: 0, resExec: 0, linhas: [], contas: [], receita: { perda: 0, sla: 0, nf: 0, dil: 0, perdaPR: 0 }, promessa: { res: 0, fc: 0, grupos: [], n: 0 },
-      kpi: { fatAno: 0, fatMeta: 0, resAno: 0, resMeta: 0 }, f30: 0, f45: 0, saldo: 0, resc: 0, multa40: 0 };
+      kpi: { fatAno: 0, fatMeta: 0, resAno: 0, resMeta: 0 }, f30: 0, f45: 0, efet: 0, resc: 0, multa40: 0 };
     var sub = {}, cont = {}, pg = {}, rec = {};
     books.forEach(function (b) {
       var f = b.S.fin, an = analisarCustos(f), rc = f.receita || {}, k = b.kpi || {};
@@ -1134,7 +1140,7 @@
       A2.receita.perda += rc.perdaRI != null ? rc.perdaRI : (rc.perdaPR || 0); A2.receita.perdaPR += rc.perdaPR || 0; A2.receita.sla += rc.sla || 0; A2.receita.nf += rc.nf || 0; A2.receita.dil += rc.dil || 0;
       if (f.promessa && f.promessa.meses && f.promessa.meses.length) { A2.promessa.n++; A2.promessa.res += f.promessa.res; A2.promessa.fc += f.promessa.fc; f.promessa.grupos.forEach(function (x) { pg[x.nome] = (pg[x.nome] || 0) + x.v; }); }
       ["fatAno", "fatMeta", "resAno", "resMeta"].forEach(function (q) { A2.kpi[q] += k[q] || 0; });
-      A2.f30 += b.S.rh.fer30 || 0; A2.f45 += b.S.rh.fer45 || 0; A2.saldo += b.S.rh.ferSaldo || 0;
+      A2.f30 += b.S.rh.fer30 || 0; A2.f45 += b.S.rh.fer45 || 0; A2.efet += b.S.rh.ferTot || 0;
       if (f.folha) { A2.resc += -soma(f.folha.rescTot); A2.multa40 += -soma(f.folha.multa40); }
       (f.recorrentes || []).forEach(function (x) { var r = rec[x[0]] = rec[x[0]] || { conta: x[0], oss: [], real: 0, exec: 0 }; r.oss.push(b.os); r.real += x[4]; r.exec += x[5]; });
     });
@@ -1166,11 +1172,12 @@
     L.push("- Pessoas (gerentes, gestores, superintendentes) são citadas só pelo nome como está nos DADOS; nunca presuma gênero (não use ele/ela, dele/dela, o gerente/a gerente): escreva 'a gerência de NOME' ou 'as OSs de NOME'.");
     L.push("- Toda afirmação de impacto cita as OSs (código) que o causam" + (ger ? "." : " e a gerência delas."));
     L.push("- Ao falar de contratos, um contrato por linha: cada linha começa com o código e a descrição da OS (ex.: 'M03100 - NEXA - TRES MARIAS: ...') e termina antes do próximo contrato; quebre a linha (\\n) a cada contrato. Nunca deixe o código de um contrato no fim da linha de outro." + (ger ? "" : " O mesmo vale para as gerências: uma gerência por linha, começando pelo nome."));
+    L.push("- Férias sempre em PESSOAS, por contrato: quantas pessoas o contrato tem, quantas já têm 30 dias ou mais de saldo (direito a sair) e quantas passam de 45 dias (ponto de atenção), com o % das pessoas no contrato. Nunca cite saldo total de dias de férias: esse número não orienta o gestor.");
     L.push("- Acúmulo de férias (30 e 45 dias ou mais) é ponto de atenção: amplia o dissídio e a reoneração. Alertas de projeção (EFETIVO PR/HHT PR que não acompanham a movimentação) devem ser cobrados das OSs citadas.");
     L.push("- Português do Brasil, tom executivo, frases curtas, sem listas dentro dos textos, parágrafos separados por linha em branco, **negrito** só para 1 ou 2 números por texto. Não invente nada; sem registro, diga que não há registro.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
-    L.push(ger ? '{"sumario":"(2 ou 3 parágrafos, até 1200 caracteres)","ranking":"(uma linha por contrato, do pior para o melhor, cada linha começando pelo código e descrição da OS, com os números dele; até 1200 caracteres)","impactos":"(2 ou 3 parágrafos, até 1500 caracteres: custos acima da proporção, perdas, SLA, não faturáveis e diluídos, FCST prometido x entregue, rescisões; com as OSs que causaram)","pessoas":"(até 900 caracteres: efetivo, HE, absenteísmo, turnover, férias 30/45 e alertas de projeção, com as OSs)","alavancas":[{"alavanca":"(Custo, Faturamento, Perda, Absenteísmo, Folha ou Projeção)","valor":"(até 25 caracteres)","texto":"(até 260 caracteres)","oss":"(códigos)"}] (3 a 6 itens),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres)","acompanhar":"(até 90 caracteres)","oss":"(códigos)"}] (3 a 6 itens)}'
+    L.push(ger ? '{"sumario":"(2 ou 3 parágrafos, até 1200 caracteres)","ranking":"(uma linha por contrato, do pior para o melhor, cada linha começando pelo código e descrição da OS, com os números dele; até 1200 caracteres)","impactos":"(2 ou 3 parágrafos, até 1500 caracteres: custos acima da proporção, perdas, SLA, não faturáveis e diluídos, FCST prometido x entregue, rescisões; com as OSs que causaram)","pessoas":"(até 900 caracteres: efetivo, HE, absenteísmo, turnover, férias em pessoas por contrato (efetivo, 30 dias ou mais, 45 dias ou mais) e alertas de projeção, com as OSs)","alavancas":[{"alavanca":"(Custo, Faturamento, Perda, Absenteísmo, Folha ou Projeção)","valor":"(até 25 caracteres)","texto":"(até 260 caracteres)","oss":"(códigos)"}] (3 a 6 itens),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres)","acompanhar":"(até 90 caracteres)","oss":"(códigos)"}] (3 a 6 itens)}'
       : '{"sumario":"(2 parágrafos, até 900 caracteres)","gerencias":"(uma linha por gerência, começando pelo nome, com os números e as OSs que mais pesam; até 1100 caracteres)","impactos":"(até 1200 caracteres: os impactos globais e quem causa, gerência e OSs)","pessoas":"(até 600 caracteres: férias, absenteísmo, turnover e alertas de projeção)","alavancas":[{"alavanca":"","valor":"","texto":"(até 220 caracteres)","oss":"(gerência e códigos)"}] (3 a 5 itens),"plano":[{"acao":"","efeito":"(até 180 caracteres)","acompanhar":"","oss":""}] (3 a 5 itens)}');
     L.push("");
     L.push("DADOS (" + quem + ", " + G.linhasOS.length + " OSs elegíveis" + (extra.semBook && extra.semBook.length ? "; sem dados no painel: " + extra.semBook.join(", ") : "") + ")");
@@ -1183,18 +1190,18 @@
     var rc = G.receita, pot = G.resReal + rc.perda + rc.sla + rc.nf;
     L.push("RECEITA E CUSTO SEM FATURAMENTO: perdas " + rs(rc.perda) + " (" + pf(rc.perda) + ") | SLA " + rs(rc.sla) + " (" + pf(rc.sla) + ") | não faturáveis " + rs(rc.nf) + " (" + pf(rc.nf) + ") | resultado potencial (real + perdas + SLA + não faturáveis) " + rs(pot) + ", margem " + pct(G.FR ? pot / G.FR : null) + ". Diluídos, apenas informativo e fora de qualquer conta: " + rs(rc.dil) + ".");
     if (G.promessa.n) L.push("FCST: somando as OSs, os FCSTs do mês anterior prometeram " + rs(G.promessa.fc) + " e o realizado foi " + rs(G.promessa.res) + " (diferença " + rs(G.promessa.res - G.promessa.fc) + "). Por grupo: " + G.promessa.grupos.slice().sort(function (a, b) { return a.v - b.v; }).map(function (x) { return x.nome + (x.v < 0 ? " piorou " : " melhorou ") + moeda(Math.abs(x.v)); }).join("; ") + ".");
-    L.push("FOLHA: rescisões e encargos rescisórios " + rs(G.resc) + ", dos quais multa de 40% do FGTS " + rs(G.multa40) + ". Férias: " + fmt(G.f30) + " pessoas com 30 dias ou mais e " + fmt(G.f45) + " com 45 dias ou mais (saldo " + fmt(G.saldo) + " dias).");
+    L.push("FOLHA: rescisões e encargos rescisórios " + rs(G.resc) + ", dos quais multa de 40% do FGTS " + rs(G.multa40) + ". FÉRIAS (somando as OSs): " + feriasTxt(G.efet, G.f30, G.f45) + ".");
     if (!ger && extra.porGer) {
       L.push("");
-      L.push("POR GERÊNCIA (faturamento real x executivo | resultado real x executivo | margem real | perdas | férias 45+ | OSs com alerta de projeção):");
-      extra.porGer.forEach(function (g) { L.push("  " + g.nome + " (" + g.n + " OSs): " + rs(g.FR) + " x " + rs(g.FE) + " | " + rs(g.res) + " x " + rs(g.rex) + " | " + pct(g.FR ? g.res / g.FR : null) + " | " + rs(g.perda) + " | " + fmt(g.f45) + " | " + (g.alertas.length ? g.alertas.join(", ") : "nenhuma")); });
+      L.push("POR GERÊNCIA (faturamento real x executivo | resultado real x executivo | margem real | perdas | férias | OSs com alerta de projeção):");
+      extra.porGer.forEach(function (g) { L.push("  " + g.nome + " (" + g.n + " OSs): " + rs(g.FR) + " x " + rs(g.FE) + " | " + rs(g.res) + " x " + rs(g.rex) + " | " + pct(g.FR ? g.res / g.FR : null) + " | " + rs(g.perda) + " | " + feriasTxt(g.efet, g.f30, g.f45) + " | " + (g.alertas.length ? g.alertas.join(", ") : "nenhuma")); });
     }
     L.push("");
     L.push("POR OS (do pior para o melhor resultado contra o executivo):");
     G.linhasOS.forEach(function (o) {
       L.push("  " + (String(o.desc).indexOf(o.os) === 0 ? o.desc : o.os + " " + o.desc) + (ger ? "" : " [" + o.ger + "]") + " | gestor " + (o.gestor || "–") + " | faturamento " + rs(o.FR) + " x " + rs(o.FE) + " | resultado " + rs(o.res) + " x " + rs(o.rex) + " (diferença " + rs(o.gap) + ") | margem " + pct(o.FR ? o.res / o.FR : null) + " x " + pct(o.FE ? o.rex / o.FE : null) +
         " | perdas " + rs(o.perda) + " | SLA " + rs(o.sla) + " | não faturáveis " + rs(o.nf) + " | diluídos (informativo) " + rs(o.dil) + " | HE " + (o.heDesvio < 0 ? moeda(-o.heDesvio) + " acima da proporção" : "na proporção") + " | rescisões " + rs(o.rescTot) +
-        " | efetivo " + fmt(o.efet) + " (" + o.adm + " admissões, " + o.dem + " demissões no ano, " + o.demTurn + " contam no turnover) | absenteísmo médio mensal " + pct(o.abs) + " | férias 30+ " + fmt(o.f30) + ", 45+ " + fmt(o.f45) + (o.alerta ? " | ALERTA DE PROJEÇÃO: " + o.alerta.join("; ") : "") + (o.trocas && o.trocas.length ? " | TROCA DE RESPONSÁVEIS NO ANO: " + o.trocas.join("; ") : ""));
+        " | efetivo " + fmt(o.efet) + " (" + o.adm + " admissões, " + o.dem + " demissões no ano, " + o.demTurn + " contam no turnover) | absenteísmo médio mensal " + pct(o.abs) + " | férias: " + feriasTxt(o.ferTot, o.f30, o.f45) + (o.alerta ? " | ALERTA DE PROJEÇÃO: " + o.alerta.join("; ") : "") + (o.trocas && o.trocas.length ? " | TROCA DE RESPONSÁVEIS NO ANO: " + o.trocas.join("; ") : ""));
       L.push("    resultado mês a mês (real x executivo): " + o.mm.map(function (x) { return MES[x[0]] + " " + rs(x[2]) + " x " + rs(x[4]); }).join(" · "));
       if (ger && o.diag) L.push("    diagnóstico da OS: " + String(o.diag).replace(/\s+/g, " ").slice(0, 420));
     });
@@ -1210,7 +1217,7 @@
   }
   function porGerencia(linhas) {
     var g = {};
-    linhas.forEach(function (o) { var k = o.ger || "(sem gerente)"; var x = g[k] = g[k] || { nome: k, n: 0, FR: 0, FE: 0, res: 0, rex: 0, perda: 0, f45: 0, alertas: [] }; x.n++; x.FR += o.FR; x.FE += o.FE; x.res += o.res; x.rex += o.rex; x.perda += o.perda; x.f45 += o.f45 || 0; if (o.alerta) x.alertas.push(o.os); });
+    linhas.forEach(function (o) { var k = o.ger || "(sem gerente)"; var x = g[k] = g[k] || { nome: k, n: 0, FR: 0, FE: 0, res: 0, rex: 0, perda: 0, f30: 0, f45: 0, efet: 0, alertas: [] }; x.n++; x.FR += o.FR; x.FE += o.FE; x.res += o.res; x.rex += o.rex; x.perda += o.perda; x.f30 += o.f30 || 0; x.f45 += o.f45 || 0; x.efet += o.ferTot || 0; if (o.alerta) x.alertas.push(o.os); });
     return Object.keys(g).map(function (k) { return g[k]; }).sort(function (a, b) { return (a.res - a.rex) - (b.res - b.rex); });
   }
   async function gerarGrupo(nivel, nome, opts) {
@@ -1332,9 +1339,9 @@
       figura("Resultado potencial do grupo", "sem perdas, SLA e não faturáveis · margem real " + pct(margR) + " → potencial " + pct(G.FR ? pot / G.FR : null), chPotencial({ res: G.resReal, perda: rc.perda, sla: rc.sla, nf: rc.nf }))));
     // pessoas
     var tabP = '<div class="rl-tab"><table><thead><tr><th>OS</th><th>Efetivo</th><th>Adm./dem. no ano</th><th>HE no mês</th><th>Absenteísmo médio</th><th>Demissões (turnover)</th><th>Férias 30+</th><th>Férias 45+</th><th>Projeção</th></tr></thead><tbody>' +
-      G.linhasOS.map(function (o) { return "<tr><td>" + esc(o.os) + "</td><td>" + fmt(o.efet) + "</td><td>" + o.adm + " / " + o.dem + "</td><td>" + (o.he == null ? "–" : fmt(o.he, 2) + "%") + "</td><td>" + pct(o.abs) + "</td><td>" + o.demTurn + "</td><td>" + fmt(o.f30) + '</td><td class="' + ((o.f45 || 0) > 0 ? "neg" : "") + '">' + fmt(o.f45) + '</td><td class="' + (o.alerta ? "neg" : "") + '">' + (o.alerta ? "corrigir" : "ok") + "</td></tr>"; }).join("") + "</tbody></table></div>";
+      G.linhasOS.map(function (o) { return "<tr><td>" + esc(o.os) + "</td><td>" + fmt(o.efet) + "</td><td>" + o.adm + " / " + o.dem + "</td><td>" + (o.he == null ? "–" : fmt(o.he, 2) + "%") + "</td><td>" + pct(o.abs) + "</td><td>" + o.demTurn + "</td><td>" + fmt(o.f30) + (o.ferTot && o.f30 != null ? " (" + fmt(o.f30 / o.ferTot * 100, 2) + "%)" : "") + '</td><td class="' + ((o.f45 || 0) > 0 ? "neg" : "") + '">' + fmt(o.f45) + (o.ferTot && o.f45 != null ? " (" + fmt(o.f45 / o.ferTot * 100, 2) + "%)" : "") + '</td><td class="' + (o.alerta ? "neg" : "") + '">' + (o.alerta ? "corrigir" : "ok") + "</td></tr>"; }).join("") + "</tbody></table></div>";
     var al = G.linhasOS.filter(function (o) { return o.alerta; });
-    h.push(cap(++nc, "Pessoas, férias e projeção", (al.length ? '<div class="rl-alerta"><b>Projeção a corrigir em ' + al.length + (al.length > 1 ? " OSs" : " OS") + "</b>" + esc(al.map(function (o) { return o.os + ": " + o.alerta[0]; }).join(" · ")) + "</div>" : "") + par(t.pessoas) + figura("Pessoas por OS", "férias: pessoas com 30 dias ou mais de saldo (já têm direito) e com 45 dias ou mais (ponto de atenção)", tabP)));
+    h.push(cap(++nc, "Pessoas, férias e projeção", (al.length ? '<div class="rl-alerta"><b>Projeção a corrigir em ' + al.length + (al.length > 1 ? " OSs" : " OS") + "</b>" + esc(al.map(function (o) { return o.os + ": " + o.alerta[0]; }).join(" · ")) + "</div>" : "") + par(t.pessoas) + figura("Pessoas por OS", "férias em pessoas: com 30 dias ou mais de saldo (já têm direito) e com 45 dias ou mais (ponto de atenção), entre parênteses o % das pessoas no contrato (ativos e em férias; afastados e demitidos fora)", tabP)));
     // alavancas e plano
     h.push(cap(++nc, "Alavancas", '<div class="bk-orcgrid">' + (t.alavancas || []).map(function (o) { return '<div class="bk-orci"><h4>' + esc(o.alavanca || "") + "<span>" + esc(o.valor || "") + "</span></h4><p>" + rico(o.texto || "") + "</p>" + (o.oss ? '<p class="rl-nota">' + esc(o.oss) + "</p>" : "") + "</div>"; }).join("") + "</div>"));
     h.push(cap(++nc, "Plano de ação", '<ol class="rl-plano">' + (t.plano || []).map(function (p) { return "<li><b>" + esc(p.acao || "") + "</b>" + (p.efeito ? "<span>" + rico(p.efeito) + "</span>" : "") + (p.acompanhar || p.oss ? '<em>' + (p.acompanhar ? "Acompanhar: " + esc(p.acompanhar) : "") + (p.oss ? " · " + esc(p.oss) : "") + "</em>" : "") + "</li>"; }).join("") + "</ol>"));
