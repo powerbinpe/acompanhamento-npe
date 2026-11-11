@@ -957,7 +957,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-10 20:30";
+    window.NPE_BUILD = "2026-11-11 09:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -11414,11 +11414,12 @@ function hydrateFromPowerBI() {
       tab5OSElegiveis: tab5OSElegiveis, chamarGerarTexto: chamarGerarTexto, autenticarAcesso: autenticarAcesso,
       carregarResumosAnuais: carregarResumosAnuais, carregarHistoricoCompleto: carregarHistoricoCompleto,
       lerConfigIA: lerConfigIA, gravarSegredoIA: gravarSegredoIA, showToast: showToast, sessaoAcesso: sessaoAcesso,
-      buildTopicDetailLine: buildTopicDetailLine
+      buildTopicDetailLine: buildTopicDetailLine,
+      urlIniciarAgente: function () { return String(safeGetStorage("npe_flow_iniciar_agente_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/15/workflows/0c3c4372cc7144c5a86f8996ff8cd732/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lpOJZksnp3DkRTmvuy_pzzGVTuG6jCGB4i4kyAwTIcA") || ""); }
     }; } catch (eBook) { try { console.warn("NPE_APP:", eBook); } catch (e2) {} }
 
   
     </script>
-  <script src="book.js?v=2026-11-10_2030"></script>
+  <script src="book.js?v=2026-11-11_0930"></script>
 </body>
 </html>

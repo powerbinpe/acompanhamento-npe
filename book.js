@@ -117,7 +117,26 @@
     window._NPE_TOKEN_BOOK = { login: s.login, token: a.token, ts: Date.now() };
     return { login: s.login, token: a.token };
   }
-  function urlFluxo() { return String((A.lerConfigIA ? A.lerConfigIA("npe_flow_ler_dados_book_url", "") : "") || "").trim(); }
+  // URL do NPE-Ler-Dados-Book: padrao no codigo (o fluxo so responde com o token de sessao de Master/Proprietario);
+  // a gravada no navegador, se houver, tem prioridade.
+  var URL_FLUXO_PADRAO = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/09/workflows/a6f581cd6acb433f94e2ac3155fc0665/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4Y51GJvXSLzYC0O-GMj_Ni9zwIc1F01sTImr61VOHS4";
+  function urlFluxo() { return String((A.lerConfigIA ? A.lerConfigIA("npe_flow_ler_dados_book_url", "") : "") || URL_FLUXO_PADRAO).trim(); }
+  function temChaveIA() {
+    var c = String((A.lerConfigIA && A.lerConfigIA("npe_claude_api_key", "")) || ""), g = String((A.lerConfigIA && A.lerConfigIA("npe_gemini_api_key", "")) || "");
+    return c.trim().length >= 20 || g.trim().length >= 20;
+  }
+  // Sem chave de IA no navegador, o book e gerado pelo agente da nuvem (mesmo fluxo do "Fechar o mes com IA").
+  async function pedirAoAgente(os) {
+    var url = A.urlIniciarAgente ? A.urlIniciarAgente() : "";
+    if (url.indexOf("https://") !== 0) throw new Error("O fluxo NPE-Iniciar-Agente nao esta configurado.");
+    var tk = await obterToken();
+    var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login: tk.login, token: tk.token, etapas: "aba6", ano: String(anoAtivo()), mes: "", gravar: true, refazer: true, permitir_mes_fechado: false, os: os }) });
+    var j = null; try { j = await r.json(); } catch (e) {}
+    if (r.status === 401) { window._NPE_TOKEN_BOOK = null; throw new Error("Sem permiss\u00e3o para acionar o agente."); }
+    if (!(r.ok && j && j.ok === true)) throw new Error("O GitHub recusou o pedido (c\u00f3digo " + ((j && j.status) || r.status) + ").");
+    return true;
+  }
   async function lerDadosFluxo(rotulo, ano, mes, tk, urlOpt) {
     var url = String(urlOpt || urlFluxo() || "").trim();
     if (url.indexOf("http") !== 0) throw new Error("Cole a URL do fluxo NPE-Ler-Dados-Book (botão ⚙ Fluxo do Book).");
@@ -610,12 +629,13 @@
     }).join("");
     var osSlicer = osAtiva();
     var podeGerar = master() && osSlicer && os === osSlicer;
-    var dica = !osSlicer ? "Filtre uma única OS no Power BI para gerar o book dela" : (os !== osSlicer ? "Para gerar, selecione esta OS no filtro do Power BI" : "");
+    var dica = !temChaveIA() ? "" : (!osSlicer ? "Para gerar neste navegador, filtre uma única OS no Power BI (ou use Gerar pela nuvem)" : (os !== osSlicer ? "Para gerar neste navegador, selecione esta OS no filtro do Power BI (ou use Gerar pela nuvem)" : ""));
     box.innerHTML = '<div class="bk-wrap"><div class="bk-nav"><span class="bk-marca">BOOK</span><div class="bk-tabs">' +
       '<button type="button" class="' + (st.nivel === "os" ? "on" : "") + '" data-action="book:nivel:os">OS</button><button type="button" disabled title="Em construção">Gerência</button><button type="button" disabled title="Em construção">Superintendência</button></div>' +
       '<div class="bk-dd"><span class="bk-dd-rot">OS</span><button type="button" class="bk-dd-btn" data-action="book:dd" aria-haspopup="listbox">' + rotSel + '</button>' +
       '<div class="bk-dd-pan" id="bkDdPan" style="display:none"><input type="text" id="bkDdBusca" placeholder="Buscar por código ou nome…" autocomplete="off"><div class="bk-dd-lista" id="bkDdLista" role="listbox">' + (itens || '<p class="bk-dd-vazio">Nenhuma OS disponível.</p>') + "</div></div></div>" +
-      (master() ? '<span class="bk-acoes"><button type="button" class="bk-bt sec" data-action="book:fluxo">⚙ Fluxo do Book</button><button type="button" class="bk-bt" data-action="book:gerar"' + (podeGerar ? "" : ' disabled title="' + esc(dica) + '"') + ">🤖 Gerar / atualizar book desta OS</button></span>" : "") +
+      (master() ? '<span class="bk-acoes">' + (temChaveIA() ? '<button type="button" class="bk-bt sec" data-action="book:gerar"' + (podeGerar ? "" : ' disabled title="' + esc(dica) + '"') + ">🤖 Gerar agora (neste navegador)</button>" : "") +
+        '<button type="button" class="bk-bt" data-action="book:nuvem"' + (os ? "" : ' disabled title="Escolha uma OS na lista"') + ' title="O agente da nuvem gera e grava o book desta OS em alguns minutos">☁ Gerar pela nuvem</button></span>' : "") +
       '</div><div id="bkProgresso" class="bk-prog" style="display:none"></div>' + (master() && dica ? '<div class="bk-dica">' + esc(dica) + ".</div>" : "") + '<div id="bkConteudo"><p class="bk-vazio">Carregando os books gravados…</p></div></div>';
     var busca = el("bkDdBusca");
     if (busca) busca.oninput = function () {
@@ -652,6 +672,14 @@
     if (nome === "dd") { abrirLista(); return; }
     if (nome.indexOf("os:") === 0) { st.sel.os = nome.slice(3); abrirLista(false); render(); return; }
     if (nome === "fluxo") { configurarFluxo(); return; }
+    if (nome === "nuvem") {
+      if (st.carregando || !st.sel.os) return;
+      st.carregando = true;
+      try { progresso("Pedindo ao agente da nuvem o book de " + st.sel.os + "…"); await pedirAoAgente(st.sel.os); progresso("☁ Pedido enviado. O agente gera e grava o book de " + st.sel.os + " em alguns minutos; depois é só abrir esta aba de novo."); }
+      catch (e) { progresso("⚠ " + (e.message || e)); }
+      finally { st.carregando = false; }
+      return;
+    }
     if (nome === "gerar") {
       if (st.carregando) return;
       st.carregando = true;
