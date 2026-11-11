@@ -24,6 +24,7 @@
 
   var CSS = "#tabBook{background:#F3F5FA;padding:16px;color:#0F172A}\n.bk-wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:14px;font-family:'Segoe UI',system-ui,Arial,sans-serif;font-size:13.5px;line-height:1.5}\n.bk-wrap svg{width:100%;height:auto;display:block}\n.bk-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap}\n.bk-marca{font-weight:800;letter-spacing:3px;color:#14204A;font-size:13px}\n.bk-tabs{display:flex;background:#fff;border:1px solid #E3E8F2;border-radius:10px;padding:3px}\n.bk-tabs button{border:0;background:none;padding:6px 14px;border-radius:8px;font:inherit;font-weight:600;color:#5B6B82;cursor:pointer}\n.bk-tabs button.on{background:#14204A;color:#fff}.bk-tabs button:disabled{opacity:.5;cursor:default}\n.bk-sel{display:flex;gap:6px;align-items:center;color:#5B6B82;font-size:12px}\n.bk-sel select{border:1px solid #E3E8F2;border-radius:8px;padding:6px 10px;font:inherit;font-weight:600;color:#0F172A;background:#fff;max-width:420px}\n.bk-acoes{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}\n.bk-bt{border:0;border-radius:8px;padding:7px 14px;font:inherit;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#22367A,#14204A);color:#fff}\n.bk-bt.sec{background:#E2E8F0;color:#334155}.bk-bt:disabled{opacity:.55;cursor:default}\n.bk-bt:focus-visible,.bk-tabs button:focus-visible,.bk-sel select:focus-visible{outline:2px solid #1F6FD1;outline-offset:2px}\n.bk-prog{background:#FFF8E6;border:1px solid #E0B24A;color:#7A5300;border-radius:10px;padding:8px 14px;font-weight:600}\n.bk-vazio{background:#fff;border:1px dashed #C5CEDC;border-radius:12px;padding:18px;color:#5B6B82}\n.bk-capa{background:linear-gradient(120deg,#14204A 0%,#22367A 100%);color:#fff;border-radius:16px;padding:22px 26px;display:grid;grid-template-columns:1.4fr 1fr;gap:22px}\n.bk-eyebrow{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;opacity:.75}\n.bk-capa h1{font-size:26px;line-height:1.15;margin:4px 0 10px;color:#fff;text-wrap:balance}\n.bk-chips{display:flex;flex-wrap:wrap;gap:6px}.bk-chip{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:2px 10px;font-size:11.5px}\n.bk-periodo{margin-top:12px;font-size:12px;background:rgba(255,255,255,.1);border-radius:8px;padding:6px 10px}\n.bk-ficha{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:12.5px;align-content:start;margin:0}.bk-ficha dt{opacity:.7}.bk-ficha dd{font-weight:600;margin:0}\n.bk-card{background:#fff;border:1px solid #E3E8F2;border-radius:14px}.bk-sec{padding:18px 20px}\n.bk-sec h2{font-size:16px;color:#14204A;display:flex;align-items:baseline;gap:10px;margin:0 0 10px}.bk-sec h2 .sub{font-size:12px;color:#5B6B82;font-weight:500}\n.bk-lead{font-size:14.5px;line-height:1.65;margin:0}.bk-lead b,.bk-texto b{color:#14204A}\n.bk-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:14px}\n.bk-kpi{border:1px solid #E3E8F2;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}\n.bk-kpi .l{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:#5B6B82;font-weight:700}.bk-kpi .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}.bk-kpi .s{font-size:11.5px;color:#5B6B82}\n.bk-kpi.bad .v{color:#B42318}.bk-kpi.ok .v{color:#0B7A6C}.bk-kpi.warn .v{color:#9A5B00}.bk-spark{max-width:140px;margin-top:4px}\n.bk-prior{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.bk-prior>div{border-radius:12px;padding:12px 14px;background:#EEF2FA}\n.bk-prior h3{font-size:13px;color:#14204A;margin:0 0 4px}.bk-prior p{font-size:12.5px;color:#334155;margin:0}.bk-prior .rank{font-size:11px;font-weight:700;color:#E5484D;letter-spacing:1px}\n.bk-g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.bk-g3{display:grid;grid-template-columns:1.5fr 1fr;gap:14px}\n.bk-chart{border:1px solid #E3E8F2;border-radius:12px;padding:12px 14px}.bk-chart h4{font-size:12.5px;color:#14204A;margin:0 0 2px}.bk-chart .cap{font-size:11.5px;color:#5B6B82;margin-bottom:6px}\n.bk-leg{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:#5B6B82;margin-top:4px}.bk-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}\n.bk-texto{font-size:13.5px;line-height:1.65;color:#1E293B;margin:12px 0 0}\n.bk-acum{display:flex;flex-direction:column;gap:10px}.bk-acum div{background:#EEF2FA;border-radius:12px;padding:12px 14px}\n.bk-acum .l{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:#5B6B82;font-weight:700;display:block}.bk-acum b{display:block;font-size:22px;color:#B42318;font-variant-numeric:tabular-nums}.bk-acum span{font-size:12px;color:#334155}\n.bk-ferias{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}.bk-ferias div{background:#EEF2FA;border-radius:10px;padding:10px 12px}\n.bk-ferias b{font-size:18px;color:#14204A;display:block}.bk-ferias span{font-size:11.5px;color:#5B6B82}\n.bk-cat h3{font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:#5B6B82;margin:14px 0 8px}\n.bk-inds{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}\n.bk-ind{border:1px solid #E3E8F2;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;border-left:4px solid #E3E8F2}\n.bk-ind.wide{grid-column:1/-1}.bk-ind.ok{border-left-color:#12A594}.bk-ind.bad{border-left-color:#E5484D}.bk-ind.na{border-left-color:#C5CEDC}\n.bk-ind .top{display:flex;align-items:center;gap:8px}.bk-ind .nome{font-weight:700;color:#14204A;font-size:13.5px}.bk-ind .id{font-size:11px;color:#5B6B82;font-weight:600}\n.bk-pill{margin-left:auto;font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 9px;letter-spacing:.4px;white-space:nowrap}\n.bk-pill.ok{background:#E3F6F2;color:#0B7A6C}.bk-pill.bad{background:#FDE8E8;color:#B42318}.bk-pill.na{background:#EEF1F6;color:#5B6B82}\n.bk-ind .val{font-size:12.5px;color:#334155;font-variant-numeric:tabular-nums}\n.bk-strip{display:flex;gap:3px;align-items:center}.bk-strip span{width:20px;height:8px;border-radius:2px;background:#E6EAF1}\n.bk-strip span.ok{background:#12A594}.bk-strip span.bad{background:#E5484D}.bk-strip span.na{background:#CBD3E0}.bk-strip em{font-style:normal;font-size:10.5px;color:#5B6B82;margin-left:6px}\n.bk-ind .bl{font-size:12.5px;line-height:1.55;color:#1E293B}.bk-ind .bl strong{color:#14204A;font-size:11px;letter-spacing:.8px;text-transform:uppercase;display:block;margin-bottom:1px}\n.bk-ind .bl.cam strong{color:#12A594}.bk-ind.bad .bl.cam strong{color:#E5484D}\n.bk-ind .duo{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;align-items:start}.bk-ind .duo .txts{display:flex;flex-direction:column;gap:8px}\n.bk-orc{border:2px solid #14204A;border-radius:14px;background:linear-gradient(180deg,#F5F7FD,#FFFFFF)}\n.bk-orc .tag{display:inline-block;background:#14204A;color:#fff;font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;border-radius:999px;padding:2px 10px;margin-bottom:6px}\n.bk-orcgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}.bk-orci{border:1px solid #E3E8F2;border-radius:10px;padding:10px 12px;background:#fff}\n.bk-orci h4{font-size:12.5px;color:#14204A;display:flex;justify-content:space-between;gap:8px;margin:0}.bk-orci h4 span{font-variant-numeric:tabular-nums;color:#B42318;text-align:right}.bk-orci p{font-size:12.5px;color:#334155;margin:3px 0 0}\n.bk-fontes{font-size:11px;color:#5B6B82;padding:4px}\n.bk-modal{position:fixed;inset:0;background:rgba(11,26,58,.6);z-index:99999999;display:flex;align-items:flex-start;justify-content:center;padding-top:80px}\n.bk-modal-box{background:#fff;border-radius:14px;padding:20px 22px;width:420px;max-width:92vw;font-family:'Segoe UI',Arial,sans-serif}\n.bk-modal-box h3{margin:0 0 6px;color:#14204A}.bk-modal-box p{margin:0 0 12px;color:#334155;font-size:13px}\n.bk-modal-box input{width:100%;box-sizing:border-box;border:1px solid #CBD5E1;border-radius:8px;padding:8px 10px;font:inherit}\n.bk-modal-bt{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}\n@media (max-width:900px){.bk-capa,.bk-g2,.bk-g3,.bk-inds,.bk-orcgrid,.bk-prior,.bk-ind .duo{grid-template-columns:1fr}.bk-kpis{grid-template-columns:repeat(2,1fr)}.bk-ferias{grid-template-columns:1fr}}";
   CSS += "\n.bk-dd{position:relative;display:flex;align-items:center;gap:6px}\n.bk-dd-rot{color:#5B6B82;font-size:12px}\n.bk-dd-btn{min-width:340px;max-width:460px;text-align:left;border:1px solid #CBD5E1;border-radius:8px;padding:7px 30px 7px 10px;background:#fff;font:inherit;font-weight:600;color:#0F172A;cursor:pointer;position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n.bk-dd-btn:after{content:'';position:absolute;right:11px;top:50%;margin-top:-2px;border:5px solid transparent;border-top-color:#5B6B82}\n.bk-dd-btn:focus-visible{outline:2px solid #1F6FD1;outline-offset:2px}\n.bk-dd-pan{position:absolute;top:100%;left:22px;margin-top:4px;z-index:2000;background:#fff;border:1px solid #CBD5E1;border-radius:10px;box-shadow:0 10px 28px rgba(20,32,74,.18);width:440px;max-width:90vw;max-height:380px;flex-direction:column;overflow:hidden}\n.bk-dd-pan input{border:0;border-bottom:1px solid #E3E8F2;padding:9px 12px;font:inherit;outline:none}\n.bk-dd-lista{overflow:auto;padding:4px}\n.bk-dd-it{display:block;width:100%;text-align:left;border:0;background:none;padding:6px 10px;border-radius:6px;font:inherit;color:#0F172A;cursor:pointer}\n.bk-dd-it:hover,.bk-dd-it:focus-visible{background:#EEF2FA;outline:none}.bk-dd-it.on{background:#14204A;color:#fff}\n.bk-dd-vazio{padding:10px;color:#5B6B82;margin:0}\n.bk-dica{font-size:12px;color:#5B6B82;margin-top:-6px}";
+  CSS += "\n.rl{background:#fff;border:1px solid #E3E8F2;border-radius:14px;padding:34px 44px;max-width:1080px;margin:0 auto;color:#1E293B;width:100%;box-sizing:border-box}\n.rl-capa{border-bottom:3px solid #14204A;padding-bottom:18px;margin-bottom:18px}\n.rl-capa-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#5B6B82}\n.rl-tag{color:#14204A;font-weight:700}\n.rl-capa h1{font-size:30px;color:#14204A;margin:8px 0 10px;line-height:1.15;text-wrap:balance}\n.rl-ficha{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:#334155}\n.rl-manchete{font-size:19px!important;line-height:1.45!important;color:#0F172A;margin:16px 0 0!important;font-weight:600;border-left:4px solid #E5484D;padding-left:14px}\n.rl-nums{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:4px 0 8px}\n.rl-nums-g{background:#F5F7FD;border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}\n.rl-nums-g h3{grid-column:1/-1;margin:0;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#5B6B82}\n.rl-num .l{display:block;font-size:11px;color:#5B6B82;font-weight:700}.rl-num .v{display:block;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}.rl-num .s{font-size:11.5px;color:#5B6B82}\n.rl-num.ok .v{color:#0B7A6C}.rl-num.bad .v{color:#B42318}\n.rl-cap{margin-top:26px}\n.rl-cap h2{font-size:19px;color:#14204A;display:flex;align-items:center;gap:10px;margin:0 0 12px;border-bottom:1px solid #E3E8F2;padding-bottom:8px}\n.rl-cap h2 span{display:inline-flex;width:28px;height:28px;border-radius:50%;background:#14204A;color:#fff;font-size:13px;align-items:center;justify-content:center;flex:none}\n.rl p{font-size:14.5px;line-height:1.75;margin:0 0 12px}\n.rl p b{color:#14204A}\n.rl-fig{margin:14px 0 18px;border:1px solid #E3E8F2;border-radius:12px;padding:12px 14px}\n.rl-fig figcaption{font-size:12.5px;color:#14204A;margin-bottom:6px}.rl-fig figcaption span{display:block;color:#5B6B82;font-size:11.5px}\n.rl-duas{display:grid;grid-template-columns:1fr 1fr;gap:14px}.rl-duas .rl-fig{margin:6px 0}\n.rl-flex{display:flex;gap:16px;align-items:flex-start}.rl-lado{flex:0 0 380px}.rl-txt{flex:1;min-width:0}\n.rl-tab{overflow-x:auto}.rl-tab table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}\n.rl-tab th{text-align:right;font-size:11px;color:#5B6B82;text-transform:uppercase;letter-spacing:.4px;padding:6px 8px;border-bottom:2px solid #E3E8F2;vertical-align:bottom}\n.rl-tab th:first-child,.rl-tab td:first-child{text-align:left}\n.rl-tab td{text-align:right;padding:6px 8px;border-bottom:1px solid #EEF1F6}\n.rl-tab td.neg{color:#B42318;font-weight:700}.rl-tab td.pos{color:#0B7A6C;font-weight:700}\n.rl .rl-nota{font-size:12px;color:#5B6B82;line-height:1.5;margin-top:8px}\n.rl-diag{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}\n.rl-diag-c{border-radius:12px;padding:12px 14px}.rl-diag-c.ges{background:#FDF2F2;border:1px solid #F5C2C2}.rl-diag-c.orc{background:#F0F4FF;border:1px solid #C7D3F3}\n.rl-diag-c h4{margin:0 0 8px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#14204A}\n.rl-diag-c ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}\n.rl-diag-c li{font-size:13px;line-height:1.55;color:#334155}\n.rl-li-t{display:flex;justify-content:space-between;gap:8px}.rl-li-t b{color:#14204A}.rl-li-t span{font-weight:700;color:#B42318;white-space:nowrap}\n.rl-plano{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px}\n.rl-plano li{font-size:14px;line-height:1.6}.rl-plano li b{color:#14204A;display:block}.rl-plano li span{display:block;color:#334155}.rl-plano li em{font-style:normal;font-size:12px;color:#5B6B82}\n.rl-orc{border:2px solid #14204A;border-radius:14px;padding:16px 18px;background:linear-gradient(180deg,#F5F7FD,#fff)}\n.rl .rl-veredito{font-size:15px;font-weight:600;color:#14204A;border-left:4px solid #14204A;padding-left:12px}\n.rl-anexo .bk-strip em{display:none}.rl-anexo td{vertical-align:middle}.rl-cx{text-align:left!important;font-size:11.5px;color:#334155;max-width:420px}\n@media (max-width:900px){.rl{padding:18px}.rl-nums,.rl-duas,.rl-diag{grid-template-columns:1fr}.rl-nums-g{grid-template-columns:1fr 1fr}.rl-flex{flex-direction:column}.rl-lado{flex:none;width:100%}}";
   (function () { var s = document.createElement("style"); s.id = "bkCss"; s.textContent = CSS; document.head.appendChild(s); })();
 
   var st = { nivel: "os", sel: { os: "", ger: "", sup: "" }, linhas: { os: null, ger: null, sup: null }, carregando: false, msg: "" };
@@ -146,7 +147,14 @@
     if (!r.ok) throw new Error("O fluxo NPE-Ler-Dados-Book respondeu " + r.status + ".");
     var j = await r.json();
     if (!j || j.ok !== true) throw new Error("O fluxo não devolveu os dados.");
-    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist) };
+    // fin = contabil numa tabela so: C = conta x mes (real, executivo, FCST anterior), E = eventos da folha (CT2), M = executivo/FCST do mes
+    var custos = [], evt = [], mesx = [];
+    norm(j.fin).forEach(function (x) {
+      if (x.tipo === "C") custos.push({ "Nível": x.a, "Sub Nível I": x.b, "C.Contabil - Descricao": x.c, MesNo: x.mes, r: x.r, e: x.e, f: x.f });
+      else if (x.tipo === "E") evt.push({ "C.Contábil": x.a, "Histórico de Lançamento": x.c, MesNo: x.mes, v: x.r });
+      else if (x.tipo === "M") mesx.push({ MesNo: x.mes, fe: x.r, re: x.e, ff: x.f, rf: x.g });
+    });
+    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, ri2: norm(j.ri2) };
   }
   function configurarFluxo() {
     var f = document.createElement("div");
@@ -252,6 +260,7 @@
     var p0 = A.primeiroMesPreenchido ? A.primeiroMesPreenchido(os) : 1;
     var mesesVal = A.mesesValidadosDaOS ? A.mesesValidadosDaOS(os, mes) : [];
     var S = montarSeries(dados, mes);
+    S.fin = montarFin(dados, mes, S);
     var md = contract.monthHistory[mes] || {};
     // Valores das caixas: vem na URL so para o mes selecionado; fora dele, o historico mensal.
     var P = params(), cx = (mes === mesAtivo());
@@ -287,68 +296,125 @@
     return { contract: contract, H: H, p0: p0, mesesVal: mesesVal, S: S, kpi: kpi, inds: inds };
   }
 
-  // ------------------------------------------------------------------ prompt da OS
+  // ------------------------------------------------------------------ prompt da OS (relatório v2)
   function linhaSerie(arr, f) { return arr.map(function (v, i) { return MES[i + 1] + " " + (v == null ? "–" : (f ? f(v) : fmt(v))); }).join(" · "); }
+  function rs(v) { return v == null ? "–" : (v < 0 ? "−R$ " + fmt(-v) : "R$ " + fmt(v)); }
   function promptOS(os, ano, mes, C) {
-    var S = C.S, k = C.kpi, L = [];
-    L.push("Você é o analista sênior do Setor de Performance da NPE. Escreva o BOOK da OS " + os + " (" + (C.H.desc || "") + "): um relatório gerencial que conta a história do contrato de janeiro a " + MESF[mes] + "/" + ano + ", passando por todos os indicadores, com leitura estratégica.");
+    var S = C.S, k = C.kpi, fi = S.fin, an = analisarCustos(fi), L = [];
+    function pf(v) { return fi && fi.FR ? fmt(v / fi.FR * 100, 2) + "%" : "–"; }
+    L.push("Você é o controller sênior do Setor de Performance da NPE. Escreva o RELATÓRIO GERENCIAL da OS " + os + " (" + (C.H.desc || "") + ") de janeiro a " + MESF[mes] + "/" + ano + ".");
+    L.push("É um relatório executivo em forma de narrativa: cada capítulo conta uma parte da mesma história e liga causa e efeito entre faturamento, custos, pessoas e contrato. Não é uma lista de indicadores.");
+    L.push("");
+    L.push("COMO ANALISAR");
+    L.push("1. Proporcionalidade. O faturamento real ficou " + (an ? fmt((an.ratio - 1) * 100, 1) + "% " + (an.ratio >= 1 ? "acima" : "abaixo") : "–") + " do executivo. Se o volume cresce, o custo deve crescer na mesma proporção; a margem só cai se algum custo cresceu mais que o volume. Use a PONTE DA MARGEM (pontos que cada grupo tirou ou devolveu) e as CONTAS para dizer exatamente o que descolou e por quê.");
+    L.push("2. Receita e custo sem faturamento em quatro efeitos, sempre em R$ e em % do faturamento: PERDAS (faturamento que não entrou por recurso indisponível, por motivo), SLA (desconto contratual direto no faturamento, por item e parâmetro) e NÃO FATURÁVEIS (custo de recursos que não geram faturamento, por função) e DILUÍDOS (custo de recursos diluídos nos serviços, sem item próprio de faturamento). Feche com o RESULTADO POTENCIAL: quanto seria o resultado e a margem sem esses efeitos. A comparação Receita Ideal x PR é só conferência: cite em no máximo uma frase, sem destaque.");
+    L.push("3. FCST mês a mês. Use a linha do tempo para explicar o ANO: o que os FCSTs do mês anterior prometeram de resultado, o que foi entregue e quais grupos explicam a diferença. Não descreva mês a mês; cite no máximo os 2 ou 3 meses decisivos.");
+    L.push("4. Movimentação de efetivo. Admissão traz custo imediato (exames, EPIs, consumíveis) e o faturamento do recurso novo normalmente só aparece no mês seguinte (HHT e faturamento sobem). Se o HHT ou o faturamento não subiram depois das admissões, aponte. Demissão traz custo rescisório.");
+    L.push("5. Encargos. Seguem o salário. Separe o que é automático do que foi provocado por demissão: rescisões, aviso prévio indenizado, multa de 40% do FGTS e FGTS de rescisão (tabela FOLHA e EVENTOS). Esses itens não são proporcionais ao salário.");
+    L.push("6. Férias acumuladas e dissídio. No primeiro mês do dissídio, o saldo de férias e de 13º acumulado é recalculado retroativamente com o salário novo e entra de uma vez nas provisões. Use os sinais dos DADOS (verbas de dissídio ou diferença salarial no contábil, pico das provisões sobre o salário). Quando for inferência, escreva 'provável'. Diga se o FCST do mês previa.");
+    L.push("7. Reoneração da folha em janeiro/" + (ano + 1) + ". O cálculo normal entra automático na PR, mas o retroativo dos encargos sobre as férias acumuladas é recalculado e cobrado. Com o saldo de férias de hoje, alerte se isso precisa estar no Executivo e no FCST. Não estime valor que não esteja nos DADOS.");
+    L.push("8. Gestão ou orçamento. Para cada causa, decida: é GESTÃO (o contrato controla: hora extra, absenteísmo, demissões evitáveis, perdas por falta de mão de obra, SLA, recursos sem faturar) ou é PREMISSA DE ORÇAMENTO (o preço não previu: custo estrutural não orçado, dissídio, reoneração, encargos). Seja assertivo. Se o problema é de gestão, o parecer ao Orçamento diz isso com todas as letras.");
     L.push("");
     L.push("REGRAS");
-    L.push("1. Use SOMENTE os números e fatos dos DADOS. Não invente valor, percentual, data, nome, causa ou evento. Sem registro, diga que não há registro.");
-    L.push("2. Escreva os números como estão nos DADOS (R$ 1.234.567; 12,81%). Valores em R$ podem ser arredondados para mil ou milhão (R$ 1,82 mi; R$ 160,8 mil).");
-    L.push("3. Indicador bom: diga o que sustenta o resultado e recomende manter a mesma gestão. Indicador ruim: os principais problemas, com números, e um caminho concreto e mensurável para melhorar.");
-    L.push("4. Relacione os indicadores entre si: movimentação de efetivo (admissões, demissões, transferências), horas extras, absenteísmo, férias acumuladas, perda de receita (Receita Ideal por motivo x PR) e resultado. Mesmo com margem boa, aponte onde ainda há ganho.");
-    L.push("5. Meses não validados pelo Máster entram na análise; não trate o parecer desses meses como definitivo.");
-    L.push("6. Português do Brasil, tom executivo e direto, frases curtas. Sem listas dentro dos textos; **negrito** só para 1 ou 2 números-chave por texto.");
-    L.push("7. 'orcamento' é para o Setor de Orçamento revisar o orçamento na renovação do contrato: traga tudo o que os indicadores mostram que o preço precisa considerar (absenteísmo, turnover, HE, perdas por motivo, treinamento, férias, efetivo, satisfação, assertividade, pendências contratuais), cada item com o número que o sustenta.");
+    L.push("- Use SOMENTE os números dos DADOS, como estão (R$ 1.234.567; 12,81%). Pode arredondar R$ para mil ou milhão (R$ 1,82 mi; R$ 160,8 mil). Não invente valor, data, causa, nome ou evento; sem registro, diga que não há registro.");
+    L.push("- Português do Brasil, tom executivo, frases curtas, sem listas dentro dos textos. Parágrafos separados por uma linha em branco. **Negrito** só para 1 ou 2 números-chave por texto.");
+    L.push("- Meses não validados pelo Máster entram, mas o parecer desses meses não é definitivo.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
-    L.push('{"resumo":"(600 a 1000 caracteres: a história do contrato até o mês)","prioridades":[{"rank":"AGIR PRIMEIRO","titulo":"(até 60 caracteres)","texto":"(até 300 caracteres)"},{"rank":"EM SEGUIDA","titulo":"","texto":""},{"rank":"EM SEGUIDA","titulo":"","texto":""}],' +
-      '"receita":"(até 900 caracteres: onde a receita se perde, por ano e por motivo, Receita Ideal x PR)","pessoas":"(até 900 caracteres: efetivo, movimentação, horas, HE, absenteísmo, férias)",' +
-      '"indicadores":{' + C.inds.map(function (x) { return '"' + x.id + '":{"leitura":"(até 450 caracteres)","caminho":"(até 350 caracteres)"}'; }).join(",") + '},' +
-      '"orcamento":[{"titulo":"(até 40 caracteres)","valor":"(até 30 caracteres, o número)","texto":"(até 300 caracteres)"}  (de 6 a 10 itens)]}');
+    L.push('{"manchete":"(até 220 caracteres: a frase que resume o contrato no período)",' +
+      '"sumario":"(3 parágrafos, 900 a 1500 caracteres: receita, custo e o que fazer)",' +
+      '"receita":"(2 parágrafos, até 1400 caracteres: perdas por motivo, SLA, não faturáveis, diluídos, % do faturamento e resultado potencial)",' +
+      '"custos":"(2 ou 3 parágrafos, até 1700 caracteres: proporcionalidade, ponte da margem, contas, o que o FCST prometeu e não entregou)",' +
+      '"pessoas":"(2 parágrafos, até 1200 caracteres: efetivo, admissões/demissões e seus custos, HHT, HE, absenteísmo, faturamento do recurso novo)",' +
+      '"eventos":"(até 1000 caracteres: rescisões e multa de 40%, encargos fora do padrão, dissídio e férias acumuladas, reoneração ' + (ano + 1) + ')",' +
+      '"ssma":"(até 700 caracteres: segurança, satisfação do cliente, boas práticas e renovação)",' +
+      '"diagnostico":"(até 600 caracteres: a conclusão: quanto é gestão e quanto é orçamento)",' +
+      '"gestao":[{"titulo":"(até 45 caracteres)","valor":"(até 25 caracteres, o número)","texto":"(até 260 caracteres)"}] (3 a 5 itens),' +
+      '"premissas":[{"titulo":"","valor":"","texto":""}] (2 a 5 itens),' +
+      '"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres, com o ganho esperado se houver número nos DADOS)","acompanhar":"(até 90 caracteres)"}] (4 a 6 itens),' +
+      '"parecerOrcamento":"(até 450 caracteres: o veredito para a renovação: reajustar o quê, ou corrigir a gestão antes)",' +
+      '"orcamento":[{"titulo":"(até 40 caracteres)","valor":"(até 30 caracteres)","texto":"(até 300 caracteres)"}] (6 a 10 itens)}');
     L.push("");
     L.push("DADOS");
     L.push("Contrato: " + os + " | " + (C.H.desc || "") + " | Negócio " + (C.H.neg || "–") + " | Gerente " + (C.H.ger || "–") + " | Superintendente " + (C.H.sup || "–"));
     L.push("Período: janeiro a " + MESF[mes] + "/" + ano + ". Primeiro mês com acompanhamento: " + (C.p0 <= 12 ? MESF[C.p0] : "nenhum") + ". Meses validados pelo Máster: " + (C.mesesVal.length ? C.mesesVal.map(function (x) { return MES[x]; }).join(", ") : "nenhum") + ".");
-    L.push("Faturamento do ano (caixa #1): real " + brl(k.fatAno) + " | meta " + brl(k.fatMeta) + ". Resultado do ano (caixa #2): real " + brl(k.resAno) + " | meta " + brl(k.resMeta) +
-      " | margem real " + pct(k.margReal != null ? k.margReal : (k.fatAno ? k.resAno / k.fatAno : null)) + " | margem meta " + pct(k.margMeta != null ? k.margMeta : (k.fatMeta ? k.resMeta / k.fatMeta : null)) + ".");
-    L.push("Perda de receita acumulada (PR): " + brl(k.perdaAcum) + " (" + pct(k.perdaPct) + "). Absenteísmo acumulado " + pct(k.absAcum) + " (referência " + pct(k.absMeta) + "). Turnover acumulado " + pct(k.turnAcum) + ".");
-    L.push("");
-    L.push("RH MÊS A MÊS (folha, ponto e cadastro):");
-    L.push("Efetivo da folha: " + linhaSerie(S.rh.efet));
-    L.push("Admissões: " + linhaSerie(S.rh.adm) + " | Demissões: " + linhaSerie(S.rh.dem) + " | Demissões que contam no turnover: " + linhaSerie(S.rh.demTurn));
-    L.push("Transferências de entrada: " + linhaSerie(S.rh.tIn) + " | de saída: " + linhaSerie(S.rh.tOut));
-    L.push("Ativos no fim do mês (cadastro): " + linhaSerie(S.rh.ativos));
-    L.push("HHT realizado (h): " + linhaSerie(S.rh.hht) + " | % HE: " + linhaSerie(S.rh.he, function (v) { return fmt(v, 1) + "%"; }) + " | % absenteísmo: " + linhaSerie(S.rh.abs, function (v) { return fmt(v, 1) + "%"; }));
-    L.push("Faturamento do mês: " + linhaSerie(S.rh.fat, function (v) { return "R$ " + fmt(v); }) + " | Perda PR do mês: " + linhaSerie(S.rh.perdaPR, function (v) { return "R$ " + fmt(v); }));
-    L.push("Férias (posição de hoje, sem histórico): saldo " + fmt(S.rh.ferSaldo) + " dias | pessoas com 45 dias ou mais: " + fmt(S.rh.fer45) + ".");
-    if (S.ri) {
+    if (fi) {
+      L.push("JAN A " + MES[mes].toUpperCase() + " (contábil): faturamento real " + rs(fi.FR) + " x executivo " + rs(fi.FE) + " | resultado real " + rs(fi.resReal) + " x executivo " + rs(fi.resExec) +
+        " | margem real " + pct(fi.FR ? fi.resReal / fi.FR : null) + " x executivo " + pct(fi.FE ? fi.resExec / fi.FE : null) + ".");
+    }
+    L.push("PROJEÇÃO DO ANO (caixas #1 e #2: real até o mês + FCST até dezembro): faturamento " + rs(k.fatAno) + " x meta " + rs(k.fatMeta) + " | resultado " + rs(k.resAno) + " x meta " + rs(k.resMeta) + ".");
+    if (an) {
       L.push("");
-      L.push("RECEITA IDEAL (detalhe da perda de receita, por mês):");
-      L.push("Receita ideal: " + linhaSerie(S.ri.ideal, function (v) { return "R$ " + fmt(v); }));
-      L.push("Perda: " + linhaSerie(S.ri.perda, function (v) { return "R$ " + fmt(v); }) + " | % sobre o ideal: " + S.ri.perda.map(function (p, i) { return MES[i + 1] + " " + (S.ri.ideal[i] ? fmt(p / S.ri.ideal[i] * 100, 1) + "%" : "–"); }).join(" · ") + " (referência 4%)");
-      L.push("Perda por motivo no período: " + S.ri.todos.map(function (x) { return x[0] + " R$ " + fmt(x[1]); }).join("; "));
-      S.ri.top.forEach(function (x) { L.push("  " + x[0] + " por mês: " + linhaSerie(x[1], function (v) { return "R$ " + fmt(v); })); });
-    } else { L.push(""); L.push("RECEITA IDEAL: sem registro para esta OS no período."); }
-    if (S.anos.length) { L.push(""); L.push("PERDA DE RECEITA POR ANO (PR): " + S.anos.map(function (a) { return a[0] + " R$ " + fmt(a[1]) + " (" + (a[2] ? fmt(a[1] / a[2] * 100, 1) + "% do faturamento" : "–") + ", " + a[3] + " meses com perda)"; }).join("; ")); }
-    if (S.assert) { L.push("ASSERTIVIDADE (diferença de margem real x FCST anterior, em p.p.; assertivo se dentro de ±5): " + linhaSerie(S.assert.dmarg, function (v) { return fmt(v, 2); }) + " | % assertividade acumulada: " + linhaSerie(S.assert.acum, function (v) { return fmt(v, 1) + "%"; })); }
-    L.push("SATISFAÇÃO DO CLIENTE (pesquisas, todos os anos): " + (S.sat.length ? S.sat.map(function (s) { return s[0] + " " + pct(s[1], 1) + " (meta " + pct(s[2], 1) + ")"; }).join("; ") : "nenhuma pesquisa registrada") + ". Meta do ano atual: " + pct(S.satMeta, 1) + ".");
+      var pendT = Object.keys(fi.pend || {}).map(function (m) { return MES[m] + " (" + fi.pend[m].join(", ") + ")"; });
+      if (pendT.length) L.push("ATENÇÃO: meses com receita em ajuste de emissão ou sem lançamento real em alguns grupos (o orçado/FCST tem valor): " + pendT.join("; ") + ". Os impostos sobre a receita, o IR e a despesa financeira desses meses entram com a nota fiscal no mês seguinte; o ganho desses grupos na ponte é provisório e não é mérito da gestão.");
+      L.push("PONTE DA MARGEM (pontos de margem por grupo; negativo = o grupo custou mais que a proporção do faturamento): " + an.grupos.map(function (g) { return g.nome + " " + (g.pp > 0 ? "+" : "") + fmt(g.pp, 2) + " p.p. (real " + rs(g.real) + ", orçado " + rs(g.exec) + ", na proporção " + rs(g.prop) + ")"; }).join("; ") + ".");
+      L.push("CONTAS QUE MAIS DESCOLARAM (real | orçado | orçado na proporção | desvio; negativo = custou mais):");
+      an.contas.slice(0, 16).forEach(function (x) { L.push("  " + x.conta + ": " + rs(x.real) + " | " + (x.exec ? rs(x.exec) : "não orçado") + " | " + rs(x.prop) + " | " + rs(x.desvio)); });
+    }
+    if (fi && fi.receita) {
+      var rc = fi.receita, perda = rc.perdaRI != null ? rc.perdaRI : rc.perdaPR, pot = fi.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0) + (rc.dil || 0);
+      L.push("");
+      L.push("RECEITA E CUSTO SEM FATURAMENTO (jan a " + MES[mes] + "):");
+      L.push("Perdas de receita " + (rc.perdaRI != null ? "(Receita Ideal) " : "(PR) ") + rs(perda) + " = " + pf(perda) + " do faturamento" + (rc.perdaRI != null ? " | conferência pela PR: " + rs(rc.perdaPR) : "") + ".");
+      L.push("Descontos de SLA " + rs(rc.sla) + " = " + pf(rc.sla) + " do faturamento. Por mês: " + linhaSerie(rc.slaM, rs) + ". Itens: " + (rc.slaItens.length ? rc.slaItens.map(function (x) { return x[0] + " (" + x[1] + ", " + (x[4] != null ? fmt(x[4] * 100, 2) + "% de desconto, " : "") + x[3] + " meses) " + rs(x[2]); }).join("; ") : "nenhum") + ".");
+      L.push("Recursos não faturáveis (custo) " + rs(rc.nf) + " = " + pf(rc.nf) + " do faturamento. Por mês: " + linhaSerie(rc.nfM, rs) + ". Funções: " + (rc.nfItens.length ? rc.nfItens.map(function (x) { return x[0] + " (" + x[1] + ", " + x[3] + " pessoa-mês) " + rs(x[2]); }).join("; ") : "nenhuma") + ".");
+      if (rc.dil != null) L.push("Recursos diluídos (custo de quem fica diluído nos serviços, sem item próprio de faturamento) " + rs(rc.dil) + " = " + pf(rc.dil) + " do faturamento. Por mês: " + linhaSerie(rc.dilM, rs) + ". Funções: " + (rc.dilItens.length ? rc.dilItens.map(function (x) { return x[0] + " (" + x[1] + ", " + x[3] + " pessoa-mês) " + rs(x[2]); }).join("; ") : "nenhuma") + ".");
+      L.push("RESULTADO POTENCIAL (real + perdas + SLA + não faturáveis + diluídos): " + rs(pot) + ", margem " + pct(fi.FR ? pot / fi.FR : null) + " (real " + pct(fi.FR ? fi.resReal / fi.FR : null) + ").");
+    }
+    if (S.ri) {
+      L.push("Perda (Receita Ideal) por mês: " + linhaSerie(S.ri.perda, rs) + " | % sobre o ideal: " + S.ri.perda.map(function (p, i) { return MES[i + 1] + " " + (S.ri.ideal[i] ? fmt(p / S.ri.ideal[i] * 100, 1) + "%" : "–"); }).join(" · ") + " (referência 4%).");
+      L.push("Perda por motivo no período: " + S.ri.todos.map(function (x) { return x[0] + " " + rs(x[1]); }).join("; ") + ".");
+      S.ri.top.forEach(function (x) { L.push("  " + x[0] + " por mês: " + linhaSerie(x[1], rs)); });
+    }
+    if (S.anos.length) L.push("PERDA DE RECEITA POR ANO (PR): " + S.anos.map(function (a) { return a[0] + " " + rs(a[1]) + " (" + (a[2] ? fmt(a[1] / a[2] * 100, 1) + "% do faturamento" : "–") + ", " + a[3] + " meses com perda)"; }).join("; ") + ".");
+    if (fi && fi.fc) {
+      L.push("");
+      L.push("FCST DO MÊS ANTERIOR x REALIZADO (para explicar o ano; diferença por grupo = realizado − FCST, negativo piora o resultado):");
+      fi.fc.forEach(function (o) {
+        if (o.resFc == null) { L.push("  " + MES[o.m] + ": sem FCST anterior | faturamento " + rs(o.fat) + " | resultado " + rs(o.res) + " | executivo do mês: faturamento " + rs(o.fatEx) + ", resultado " + rs(o.resEx)); return; }
+        if (o.pend) L.push("  " + MES[o.m] + ": " + (o.ajuste ? "a receita do mês foi lançada como AJUSTE DE EMISSÃO (" + rs(o.ajuste) + "); a nota fiscal sai no mês seguinte e leva junto " : "sem lançamento real em ") + o.pend.join(", ") + ". O resultado real do mês está sem esses valores e esses grupos ficaram fora das causas; não trate isso como ganho.");
+        L.push("  " + MES[o.m] + ": faturamento " + rs(o.fat) + " x FCST " + rs(o.fatFc) + " | resultado " + rs(o.res) + " x FCST " + rs(o.resFc) + " (diferença " + rs(o.res - o.resFc) + ") | executivo do mês " + rs(o.resEx) +
+          (o.causas && o.causas.length ? " | explicam: " + o.causas.map(function (x) { return x[0] + " " + rs(x[1]); }).join(", ") : ""));
+      });
+      var pr = fi.promessa;
+      if (pr && pr.meses.length) L.push("NO ANO (" + MES[pr.meses[0]] + " a " + MES[pr.meses[pr.meses.length - 1]] + (pr.fora && pr.fora.length ? ", sem " + pr.fora.map(function (m) { return MES[m]; }).join(", ") + " que está incompleto" : "") + "): os FCSTs somados prometeram " + rs(pr.fc) + " de resultado e o realizado foi " + rs(pr.res) + " (diferença " + rs(pr.res - pr.fc) + "). Por grupo: " +
+        pr.grupos.slice().sort(function (a, b) { return a.v - b.v; }).map(function (x) { return x.nome + " " + rs(x.v); }).join("; ") + ".");
+      if (S.assert) L.push("ASSERTIVIDADE (diferença de margem real x FCST anterior, em p.p.; assertivo se dentro de ±5): " + linhaSerie(S.assert.dmarg, function (v) { return fmt(v, 2); }) + " | % acumulada: " + linhaSerie(S.assert.acum, function (v) { return fmt(v, 1) + "%"; }));
+    }
+    if (fi && fi.folha) {
+      var fo = fi.folha;
+      L.push("");
+      L.push("FOLHA NO CONTÁBIL, MÊS A MÊS (R$; custo em valor absoluto):");
+      function ab(v) { return v == null ? "–" : fmt(Math.abs(v)); }
+      L.push("Salário base (conta Salários): " + linhaSerie(fo.base, ab));
+      L.push("Horas extras: " + linhaSerie(fo.he, ab));
+      L.push("Conta Rescisões: " + linhaSerie(fo.resc, ab) + " | encargos e ajustes rescisórios em outras contas: " + linhaSerie(fo.rescOutras, function (v) { return fmt(-v); }) + " | dos quais multa de 40% do FGTS: " + linhaSerie(fo.multa40, ab));
+      L.push("Encargos (total): " + linhaSerie(fo.enc, ab) + " | encargos sem os rescisórios ÷ salário base: " + linhaSerie(fo.encR, function (v) { return fmt(v * 100, 1) + "%"; }));
+      L.push("Provisões (férias, 13º e encargos): " + linhaSerie(fo.prov, ab) + " | provisão de férias: " + linhaSerie(fo.provFer, ab) + " | provisão de 13º: " + linhaSerie(fo.prov13, ab) + " | provisões ÷ salário base: " + linhaSerie(fo.provR, function (v) { return fmt(v * 100, 1) + "%"; }));
+      L.push("Picos de provisão sobre o salário (acima de 12% da mediana do ano): " + (fo.picosProv.length ? fo.picosProv.map(function (p) { return MES[p.m] + " " + fmt(p.ratio * 100, 1) + "% (mediana " + fmt(p.mediana * 100, 1) + "%, excesso " + rs(-p.excesso) + ")" + ((fo.provTop[p.m] || []).length ? ": " + fo.provTop[p.m].map(function (e) { return e[1] + " " + rs(e[2]); }).join("; ") : ""); }).join(" | ") : "nenhum") + ".");
+      L.push("Picos de encargos sem rescisórios sobre o salário: " + (fo.picosEnc.length ? fo.picosEnc.map(function (p) { return MES[p.m] + " " + fmt(p.ratio * 100, 1) + "% (mediana " + fmt(p.mediana * 100, 1) + "%)"; }).join(" | ") : "nenhum") + ".");
+      L.push("Lançamentos de dissídio ou diferença salarial no contábil: " + (fo.diss.length ? fo.diss.map(function (d) { return MES[d[0]] + " conta " + d[1] + " '" + d[2] + "' " + rs(d[3]); }).join("; ") : "nenhum") + ".");
+      L.push("Exames médicos: " + linhaSerie(fo.exa, ab) + " | EPIs e uniformes: " + linhaSerie(fo.epi, ab) + " | materiais consumíveis: " + linhaSerie(fo.con, ab));
+    }
     L.push("");
-    L.push("INDICADORES (situação mês a mês: A=atendeu, N=não atendeu, V=não avaliado, -=sem apuração; caixa = valores do último mês; pareceres dos últimos meses):");
+    L.push("PESSOAS MÊS A MÊS (folha, ponto e cadastro):");
+    L.push("Efetivo da folha: " + linhaSerie(S.rh.efet) + " | ativos no fim do mês: " + linhaSerie(S.rh.ativos));
+    L.push("Admissões: " + linhaSerie(S.rh.adm) + " | Demissões: " + linhaSerie(S.rh.dem) + " | que contam no turnover: " + linhaSerie(S.rh.demTurn) + " | transferências entrada/saída: " + linhaSerie(S.rh.tIn) + " / " + linhaSerie(S.rh.tOut));
+    L.push("HHT realizado (h): " + linhaSerie(S.rh.hht) + " | % HE: " + linhaSerie(S.rh.he, function (v) { return fmt(v, 1) + "%"; }) + " | % absenteísmo: " + linhaSerie(S.rh.abs, function (v) { return fmt(v, 1) + "%"; }));
+    L.push("Faturamento do mês: " + linhaSerie(S.rh.fat, rs));
+    L.push("Férias (posição de hoje): saldo " + fmt(S.rh.ferSaldo) + " dias | pessoas com 45 dias ou mais: " + fmt(S.rh.fer45) + ".");
+    L.push("Perda PR acumulada " + rs(k.perdaAcum) + " (" + pct(k.perdaPct) + "). Absenteísmo acumulado " + pct(k.absAcum) + " (referência " + pct(k.absMeta) + "). Turnover acumulado " + pct(k.turnAcum) + ".");
+    L.push("SATISFAÇÃO DO CLIENTE (todos os anos): " + (S.sat.length ? S.sat.map(function (s) { return s[0] + " " + pct(s[1], 1) + " (meta " + pct(s[2], 1) + ")"; }).join("; ") : "nenhuma pesquisa registrada") + ". Meta do ano: " + pct(S.satMeta, 1) + ".");
+    L.push("");
+    L.push("INDICADORES (A=atendeu, N=não atendeu, V=não avaliado, -=sem apuração; caixa = valores do último mês; parecer do último mês):");
     C.inds.forEach(function (x) {
-      L.push("#" + x.id + " " + x.nome + " | situação " + x.strip.split("").map(function (c, i) { return MES[i + 1] + ":" + c; }).join(" ") + " | caixa: " + (x.val || "–"));
-      for (var m = Math.max(1, mes - 2); m <= mes; m++) {
-        var p = ata(os, x.id, m); if (p) L.push("  parecer " + MES[m] + ": " + p.replace(/\s+/g, " ").slice(0, 700));
-      }
-      var g = ata(os, x.id, mes, "GESTOR"); if (g) L.push("  justificativa do gestor em " + MES[mes] + ": " + g.replace(/\s+/g, " ").slice(0, 400));
-      var ra = window.RESUMOS_ANUAIS && window.RESUMOS_ANUAIS[os] && window.RESUMOS_ANUAIS[os].resumos && window.RESUMOS_ANUAIS[os].resumos[String(x.id)];
-      if (ra && (ra.t || typeof ra === "string")) L.push("  resumo anual (Aba 3): " + String(ra.t || ra).replace(/\s+/g, " ").slice(0, 500));
+      L.push("#" + x.id + " " + x.nome + " | " + x.strip.split("").map(function (ch, i) { return MES[i + 1] + ":" + ch; }).join(" ") + " | caixa: " + (x.val || "–"));
+      var p = ata(os, x.id, mes); if (p) L.push("  parecer " + MES[mes] + ": " + p.replace(/\s+/g, " ").slice(0, 500));
+      var g = ata(os, x.id, mes, "GESTOR"); if (g) L.push("  justificativa do gestor: " + g.replace(/\s+/g, " ").slice(0, 300));
     });
-    var obs = ata(os, 23, mes); if (obs) L.push("#23 Observações gerais (" + MES[mes] + "): " + obs.replace(/\s+/g, " ").slice(0, 800));
-    L.push("");
-    L.push("SÍNTESE DO MÊS (#24), mês a mês:");
-    for (var m2 = 1; m2 <= mes; m2++) { var s24 = ata(os, 24, m2); if (s24) L.push("[" + MESF[m2] + "] " + s24.replace(/\s+/g, " ").slice(0, 1800)); }
+    var obs = ata(os, 23, mes); if (obs) L.push("#23 Observações gerais (" + MES[mes] + "): " + obs.replace(/\s+/g, " ").slice(0, 700));
+    L.push("SÍNTESE DO MÊS (#24), últimos meses:");
+    for (var m2 = Math.max(1, mes - 3); m2 <= mes; m2++) { var s24 = ata(os, 24, m2); if (s24) L.push("[" + MESF[m2] + "] " + s24.replace(/\s+/g, " ").slice(0, 1200)); }
     return L.join("\n");
   }
 
@@ -358,15 +424,15 @@
     if (a < 0 || b <= a) throw new Error("A IA não devolveu um JSON.");
     return JSON.parse(t.slice(a, b + 1));
   }
-  function conferirOS(j, inds) {
+  function conferirOS(j) {
     var falta = [];
     if (!j || typeof j !== "object") return ["tudo"];
-    if (!j.resumo || String(j.resumo).length < 200) falta.push("resumo");
-    if (!Array.isArray(j.prioridades) || j.prioridades.length < 3) falta.push("prioridades");
-    if (!j.receita) falta.push("receita");
-    if (!j.pessoas) falta.push("pessoas");
+    ["manchete", "receita", "custos", "pessoas", "eventos", "ssma", "diagnostico", "parecerOrcamento"].forEach(function (k) { if (!j[k] || String(j[k]).length < 40) falta.push(k); });
+    if (!j.sumario || String(j.sumario).length < 400) falta.push("sumario");
+    if (!Array.isArray(j.gestao) || j.gestao.length < 2) falta.push("gestao");
+    if (!Array.isArray(j.premissas) || j.premissas.length < 1) falta.push("premissas");
+    if (!Array.isArray(j.plano) || j.plano.length < 3) falta.push("plano");
     if (!Array.isArray(j.orcamento) || j.orcamento.length < 4) falta.push("orcamento");
-    inds.forEach(function (x) { var o = j.indicadores && j.indicadores[String(x.id)]; if (!o || !o.leitura || !o.caminho) falta.push("indicador #" + x.id); });
     return falta;
   }
 
@@ -390,7 +456,7 @@
       if (!aa.ok || String(aa.token || "").length !== 64) throw new Error(aa.erro || "O login do agente nao gerou token.");
       tk = { login: String(opts.login).toLowerCase().trim(), token: aa.token };
     } else tk = await obterToken();
-    progresso("Lendo RH, Receita Ideal e histórico (NPE-Ler-Dados-Book)…");
+    progresso("Lendo contábil, RH, Receita Ideal e histórico (NPE-Ler-Dados-Book)…");
     var dados = await lerDadosFluxo(H.rotulo || os, ano, mes, tk, opts.urlFluxo);
     var C = coletarOS(os, ano, mes, dados);
     var prompt = promptOS(os, ano, mes, C);
@@ -399,16 +465,18 @@
     while (falta.length && tent < 2) {
       var p = tent === 0 ? prompt : prompt + "\n\nATENÇÃO: na resposta anterior faltaram ou vieram vazios: " + falta.join(", ") + ". Devolva o JSON COMPLETO.";
       var txt = await A.chamarGerarTexto("gpt41", p);
-      try { j = extrairJSON(txt); falta = conferirOS(j, C.inds); } catch (e) { falta = ["JSON válido"]; }
+      try { j = extrairJSON(txt); falta = conferirOS(j); } catch (e) { falta = ["JSON válido"]; }
       tent++;
     }
     if (falta.length) throw new Error("A IA não completou o book (faltou: " + falta.join(", ") + ").");
     var s = A.sessaoAcesso ? A.sessaoAcesso() : null;
+    if (!C.S.fin) throw new Error("O fluxo NPE-Ler-Dados-Book não devolveu o contábil da OS (consulta de custos).");
     var book = {
-      v: 1, nivel: "os", os: os, rotulo: H.rotulo || os, desc: H.desc || C.contract.name || "", neg: H.neg || "", ger: H.ger || "", sup: H.sup || "",
+      v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: H.desc || C.contract.name || "", neg: H.neg || "", ger: H.ger || "", sup: H.sup || "",
       ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal,
-      kpi: C.kpi, S: C.S, inds: C.inds.map(function (x) { var o = j.indicadores[String(x.id)] || {}; x.ler = String(o.leitura || ""); x.cam = String(o.caminho || ""); return x; }),
-      txt: { resumo: j.resumo, prioridades: j.prioridades.slice(0, 3), receita: j.receita, pessoas: j.pessoas, orcamento: j.orcamento.slice(0, 10) }
+      kpi: C.kpi, S: C.S, inds: C.inds,
+      txt: { manchete: j.manchete, sumario: j.sumario, receita: j.receita, custos: j.custos, pessoas: j.pessoas, eventos: j.eventos, ssma: j.ssma, diagnostico: j.diagnostico,
+        gestao: j.gestao.slice(0, 5), premissas: j.premissas.slice(0, 5), plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10) }
     };
     if (opts.gravar === false) return book;
     progresso("Gravando no SharePoint…");
@@ -608,6 +676,319 @@
     return h.join("");
   }
 
+  // ================================================================== RELATORIO DA OS (v2)
+  // Grupos de custo para a ponte da margem: pessoal aberto por subnivel (e o que mais pesa), o resto por nivel.
+  // Receita operacional e provisao de receita ficam de fora: somam 100% do faturamento nos dois lados.
+  // ------------------------------------------------------------------ análise financeira do relatório (v2)
+  function grupoDaConta(nivel, sub) {
+    var s = String(sub || ""), n = String(nivel || "");
+    if (s.indexOf("3.1.1.1.") === 0 || s.indexOf("3.1.1.5.") === 0) return null;
+    if (s.indexOf("4.1.1.1.") === 0) return "Salários";
+    if (s.indexOf("4.1.1.2.") === 0) return "Encargos";
+    if (s.indexOf("4.1.1.3.") === 0) return "Benefícios";
+    if (s.indexOf("4.1.1.4.") === 0) return "Provisões";
+    if (s.indexOf("4.1.1.9.") === 0) return "Apoio de pessoal";
+    if (n.indexOf("4.1.2.") === 0) return "Materiais e EPIs";
+    if (n.indexOf("4.1.3.") === 0) return "Serviços de terceiros";
+    if (n.indexOf("4.1.4.") === 0) return "Locação";
+    if (n.indexOf("4.1.6.") === 0 || n.indexOf("4.1.7.") === 0) return "Mobilização e canteiro";
+    if (n.indexOf("4.1.5.") === 0 || n.indexOf("4.1.8.") === 0) return "Despesas gerais e taxas";
+    if (s.indexOf("3.1.1.2.") === 0 || n.indexOf("3.2.1.") === 0) return "Deduções e impostos";
+    if (n.indexOf("5.2.1.") === 0) return "Despesas financeiras";
+    return "Demais";
+  }
+  function codConta(c) { var m = String(c || "").match(/^(\d{8})/); return m ? m[1] : ""; }
+  function soma(a) { return (a || []).reduce(function (s, v) { return s + (v || 0); }, 0); }
+  function mediana(a) { var b = a.filter(function (v) { return v != null && isFinite(v); }).sort(function (x, y) { return x - y; }); if (!b.length) return null; var h = Math.floor(b.length / 2); return b.length % 2 ? b[h] : (b[h - 1] + b[h]) / 2; }
+  var RX_RESC = /RESCIS|MULTA 40|AV\.?\s?PREV|INDENIZ|MULTA CONTR/i, RX_DISS = /DISS[IÍ]DIO|DIF\.?\s?SALAR|RETROAT|REONER/i;
+
+  // Junta o contabil (conta x mes: real, executivo, FCST anterior), os eventos de folha do CT2,
+  // o executivo/FCST do mes e a Receita Ideal (nao faturaveis e SLA). Tudo o que e conta fica pronto aqui;
+  // a IA recebe os numeros calculados.
+  function montarFin(dados, mes, S) {
+    var linhas = norm(dados.custos), evt = norm(dados.evt), mx = norm(dados.mesx), r2 = norm(dados.ri2);
+    if (!linhas.length) return null;
+    var meses = S.meses, rh = S.rh;
+    function ix(m) { return meses.indexOf(parseInt(m, 10)); }
+    function zeros() { return meses.map(function () { return 0; }); }
+    function arred(a) { return a.map(function (v) { return v == null ? null : Math.round(v); }); }
+    var mxm = {}; mx.forEach(function (r) { mxm[parseInt(r.MesNo, 10)] = r; });
+    var temFc = meses.map(function (m) { return !!(mxm[m] && mxm[m].ff != null && mxm[m].ff !== 0); });
+    var porSub = {}, porConta = {}, grpFc = {}, grpR = {}, grpF = {}, ordemG = [], recGap = zeros();
+    var ajM = zeros();
+    var F = { base: zeros(), he: zeros(), resc: zeros(), enc: zeros(), prov: zeros(), provFer: zeros(), prov13: zeros(), exa: zeros(), epi: zeros(), con: zeros() };
+    linhas.forEach(function (l) {
+      var i = ix(l.MesNo); if (i < 0) return;
+      var niv = l["Nível"], sub = String(l["Sub Nível I"] || ""), conta = l["C.Contabil - Descricao"], r = +l.r || 0, e = +l.e || 0, f = +l.f || 0, cod = codConta(conta), noMes = parseInt(l.MesNo, 10) === mes;
+      var a = porSub[niv + "|" + sub] = porSub[niv + "|" + sub] || [niv, sub, 0, 0, null, null];
+      a[2] += r; a[3] += e; if (noMes) { a[4] = (a[4] || 0) + r; a[5] = (a[5] || 0) + f; }
+      var c = porConta[conta] = porConta[conta] || [sub, conta, 0, 0, null, null, niv];
+      c[2] += r; c[3] += e; if (noMes) { c[4] = (c[4] || 0) + r; c[5] = (c[5] || 0) + f; }
+      var g = grupoDaConta(niv, sub);
+      if (g) { if (!grpFc[g]) { grpFc[g] = zeros(); grpR[g] = zeros(); grpF[g] = zeros(); ordemG.push(g); } grpR[g][i] += r; grpF[g][i] += f; }
+      if (temFc[i]) { if (!g) recGap[i] += r - f; else grpFc[g][i] += r - f; }
+      if (cod === "31111008") ajM[i] += r;
+      if (cod === "41111001") F.base[i] += r;
+      if (cod === "41111002") F.he[i] += r;
+      if (cod === "41111004") F.resc[i] += r;
+      if (cod === "41141001") F.provFer[i] += r;
+      if (cod === "41141003") F.prov13[i] += r;
+      if (cod === "41191001") F.exa[i] += r;
+      if (sub.indexOf("4.1.1.2.") === 0) F.enc[i] += r;
+      if (sub.indexOf("4.1.1.4.") === 0) F.prov[i] += r;
+      if (sub.indexOf("4.1.2.4.") === 0) F.epi[i] += r;
+      if (sub.indexOf("4.1.2.2.") === 0) F.con[i] += r;
+    });
+    // eventos de folha (historico do lancamento contabil, texto como esta no CT2)
+    var rescOutras = zeros(), rescEnc = zeros(), multa40 = zeros(), diss = [], provEv = {};
+    evt.forEach(function (x) {
+      var i = ix(x.MesNo); if (i < 0) return;
+      var h = String(x["Histórico de Lançamento"] || ""), c = String(x["C.Contábil"] || ""), v = +x.v || 0;
+      if (/MULTA 40/i.test(h)) multa40[i] += v;
+      if (RX_RESC.test(h) && c !== "41111004") { rescOutras[i] += v; if (c.indexOf("4112") === 0) rescEnc[i] += v; }
+      if (RX_DISS.test(h)) diss.push([meses[i], c, h, Math.round(v)]);
+      if (c.indexOf("4114") === 0) (provEv[meses[i]] = provEv[meses[i]] || []).push([c, h, Math.round(v)]);
+    });
+    var rescTot = F.resc.map(function (v, i) { return v + rescOutras[i]; });
+    var provR = F.prov.map(function (v, i) { return F.base[i] ? v / F.base[i] : null; });
+    var encR = F.enc.map(function (v, i) { return F.base[i] ? (v - rescEnc[i]) / F.base[i] : null; });
+    function picos(rat, val) {
+      var md = mediana(rat); if (md == null) return [];
+      return rat.map(function (q, i) { return q != null && Math.abs(q) > Math.abs(md) * 1.12 && Math.abs((q - md) * F.base[i]) >= 5000 ? { m: meses[i], ratio: q, mediana: md, excesso: Math.round((q - md) * F.base[i]) } : null; }).filter(Boolean);
+    }
+    var picosProv = picos(provR), picosEnc = picos(encR);
+    var provTop = {}; picosProv.forEach(function (p) { provTop[p.m] = (provEv[p.m] || []).sort(function (a, b) { return Math.abs(b[2]) - Math.abs(a[2]); }).slice(0, 4); });
+    // grupo sem lancamento real no mes, mas com valor no FCST: o mes ainda esta incompleto nesse grupo
+    var pend = {}; meses.forEach(function (m, i) { ordemG.forEach(function (g) { if (Math.abs(grpR[g][i]) < 1 && Math.abs(grpF[g][i]) >= 1000) (pend[m] = pend[m] || []).push(g); }); });
+    // FCST do mes anterior x realizado, mes a mes (alimenta a analise; o relatorio mostra so o ano)
+    var fc = meses.map(function (m, i) {
+      var r = mxm[m] || {}, o = { m: m, fat: rh.fat[i], fatFc: temFc[i] ? r.ff : null, res: rh.res[i], resFc: temFc[i] ? r.rf : null, fatEx: r.fe, resEx: r.re };
+      if (pend[m]) o.pend = pend[m];
+      if (ajM[i] > 0) o.ajuste = ajM[i];
+      if (temFc[i]) {
+        var lst = ordemG.filter(function (g) { return !(pend[m] && pend[m].indexOf(g) >= 0); }).map(function (g) { return [g, grpFc[g][i]]; }).concat([["Receita", recGap[i]]]);
+        lst.sort(function (a, b) { return Math.abs(b[1]) - Math.abs(a[1]); });
+        o.causas = lst.slice(0, 4).filter(function (x) { return Math.abs(x[1]) >= 1000; }).map(function (x) { return [x[0], Math.round(x[1])]; });
+      }
+      return o;
+    });
+    var ok = meses.map(function (m, i) { return temFc[i] && !pend[m]; });
+    var prMes = meses.filter(function (m, i) { return ok[i]; });
+    function somaOk(a) { return soma(a.map(function (v, i) { return ok[i] ? v : 0; })); }
+    var prRes = somaOk(fc.map(function (o) { return o.res; })), prFc = somaOk(fc.map(function (o) { return o.resFc; }));
+    var prG = ordemG.map(function (g) { return { nome: g, v: somaOk(grpFc[g]) }; }).concat([{ nome: "Receita", v: somaOk(recGap) }]);
+    var resid = (prRes - prFc) - soma(prG.map(function (x) { return x.v; }));
+    if (Math.abs(resid) >= 1) prG.push({ nome: "Demais", v: resid });
+    // Receita Ideal: nao faturaveis (custo) e SLA (desconto no faturamento)
+    var slaM = zeros(), nfM = zeros(), dilM = zeros(), slaIt = {}, nfIt = {}, dilIt = {};
+    r2.forEach(function (x) {
+      var i = ix(x.mes); if (i < 0) return; var v = +x.valor || 0;
+      if (x.tipo === "SLA") { slaM[i] += v; var k = String(x.item || "") + " | " + String(x.cat || ""); slaIt[k] = slaIt[k] || [x.item, x.cat, 0, 0, x.pct]; slaIt[k][2] += v; slaIt[k][3]++; }
+      else if (x.tipo === "DIL") { dilM[i] += v; var k3 = String(x.item || "") + " | " + String(x.cat || ""); dilIt[k3] = dilIt[k3] || [x.item, x.cat, 0, 0]; dilIt[k3][2] += v; dilIt[k3][3] += (+x.n || 1); }
+      else if (x.tipo === "NF") { nfM[i] += v; var k2 = String(x.item || "") + " | " + String(x.cat || ""); nfIt[k2] = nfIt[k2] || [x.item, x.cat, 0, 0]; nfIt[k2][2] += v; nfIt[k2][3] += (+x.n || 1); }
+    });
+    var FR = soma(rh.fat), FE = soma(mx.map(function (r) { return +r.fe || 0; })), resReal = soma(rh.res), resExec = soma(mx.map(function (r) { return +r.re || 0; }));
+    var ratio = FE ? FR / FE : null;
+    var contas = Object.keys(porConta).map(function (k) { return porConta[k]; })
+      .filter(function (c) { return grupoDaConta(c[6], c[0]); })
+      .sort(function (a, b) { return Math.abs(b[2] - b[3] * ratio) - Math.abs(a[2] - a[3] * ratio); }).slice(0, 40)
+      .map(function (c) { return [c[0], c[1], Math.round(c[2]), Math.round(c[3]), c[4] == null ? null : Math.round(c[4]), c[5] == null ? null : Math.round(c[5])]; });
+    var perdaRI = S.ri ? soma(S.ri.perda) : null, perdaPR = soma(rh.perdaPR);
+    return {
+      FR: Math.round(FR), FE: Math.round(FE), resReal: Math.round(resReal), resExec: Math.round(resExec),
+      linhas: Object.keys(porSub).map(function (k) { var a = porSub[k]; return [a[0], a[1], Math.round(a[2]), Math.round(a[3]), a[4] == null ? null : Math.round(a[4]), a[5] == null ? null : Math.round(a[5])]; }),
+      contas: contas,
+      fc: fc.map(function (o) { return { m: o.m, pend: o.pend || null, ajuste: o.ajuste ? Math.round(o.ajuste) : null, fat: o.fat == null ? null : Math.round(o.fat), fatFc: o.fatFc == null ? null : Math.round(o.fatFc), res: o.res == null ? null : Math.round(o.res), resFc: o.resFc == null ? null : Math.round(o.resFc), fatEx: o.fatEx == null ? null : Math.round(o.fatEx), resEx: o.resEx == null ? null : Math.round(o.resEx), causas: o.causas || null }; }),
+      pend: pend,
+      promessa: { fora: meses.filter(function (m, i) { return temFc[i] && !ok[i]; }), meses: prMes, res: Math.round(prRes), fc: Math.round(prFc), grupos: prG.map(function (x) { return { nome: x.nome, v: Math.round(x.v) }; }) },
+      receita: { perdaRI: perdaRI == null ? null : Math.round(perdaRI), perdaPR: Math.round(perdaPR), sla: Math.round(soma(slaM)), nf: Math.round(soma(nfM)), dil: Math.round(soma(dilM)), slaM: arred(slaM), nfM: arred(nfM), dilM: arred(dilM),
+        dilItens: Object.keys(dilIt).map(function (k) { var a = dilIt[k]; return [a[0], a[1], Math.round(a[2]), a[3]]; }).sort(function (a, b) { return b[2] - a[2]; }).slice(0, 10),
+        slaItens: Object.keys(slaIt).map(function (k) { var a = slaIt[k]; return [a[0], a[1], Math.round(a[2]), a[3], a[4]]; }).sort(function (a, b) { return b[2] - a[2]; }).slice(0, 8),
+        nfItens: Object.keys(nfIt).map(function (k) { var a = nfIt[k]; return [a[0], a[1], Math.round(a[2]), a[3]]; }).sort(function (a, b) { return b[2] - a[2]; }).slice(0, 10) },
+      folha: { base: arred(F.base), he: arred(F.he), resc: arred(F.resc), rescOutras: arred(rescOutras), rescTot: arred(rescTot), multa40: arred(multa40), enc: arred(F.enc), rescEnc: arred(rescEnc),
+        prov: arred(F.prov), provFer: arred(F.provFer), prov13: arred(F.prov13), exa: arred(F.exa), epi: arred(F.epi), con: arred(F.con),
+        provR: provR.map(function (v) { return v == null ? null : Math.round(v * 10000) / 10000; }), encR: encR.map(function (v) { return v == null ? null : Math.round(v * 10000) / 10000; }),
+        picosProv: picosProv, picosEnc: picosEnc, provTop: provTop, diss: diss.slice(0, 20) }
+    };
+  }
+
+  // custos = { FR, FE, resReal, resExec, linhas: [[nivel, subnivel, realAno, execAno, realMes, fcstMes]], contas: [[subnivel, conta, real, exec, realMes, fcstMes]] }
+  function analisarCustos(c) {
+    if (!c || !c.FR || !c.FE) return null;
+    var ratio = c.FR / c.FE, g = {}, ordem = [];
+    (c.linhas || []).forEach(function (l) {
+      var k = grupoDaConta(l[0], l[1]); if (!k) return;
+      if (!g[k]) { g[k] = { nome: k, real: 0, exec: 0 }; ordem.push(k); }
+      g[k].real += l[2] || 0; g[k].exec += l[3] || 0;
+    });
+    var grupos = ordem.map(function (k) {
+      var x = g[k];
+      x.pp = (x.real / c.FR - x.exec / c.FE) * 100;         // pontos de margem ganhos (+) ou perdidos (-)
+      x.prop = x.exec * ratio;                               // orcado na proporcao do faturamento real
+      x.desvio = x.real - x.prop;
+      return x;
+    }).sort(function (a, b) { return a.pp - b.pp; });
+    var contas = (c.contas || []).map(function (l) {
+      var prop = (l[3] || 0) * ratio;
+      return { sub: l[0], conta: l[1], real: l[2] || 0, exec: l[3], prop: prop, desvio: (l[2] || 0) - prop, realMes: l[4], fcstMes: l[5] };
+    }).sort(function (a, b) { return a.desvio - b.desvio; });
+    return { FR: c.FR, FE: c.FE, ratio: ratio, grupos: grupos, contas: contas,
+      margReal: c.resReal != null ? c.resReal / c.FR : null, margExec: c.resExec != null ? c.resExec / c.FE : null };
+  }
+
+  // ------------------------------------------------------------------ gráficos do relatório
+  // cascata generica: passos = [{nome, v, tipo: "base"|"passo"}]
+  function cascata(passos, o) {
+    o = o || {};
+    var acc = 0, cols = passos.map(function (p) {
+      if (p.tipo === "base") { acc = p.v; return { nome: p.nome, a: 0, b: p.v, v: p.v, tipo: "base" }; }
+      var a = acc; acc += p.v; return { nome: p.nome, a: a, b: acc, v: p.v, tipo: "passo" };
+    });
+    var vals = []; cols.forEach(function (c) { vals.push(c.a, c.b); });
+    var mn = Math.min.apply(null, vals.concat([0])), mx = Math.max.apply(null, vals.concat([0]));
+    var pad = (mx - mn) * 0.12 || 1; mn -= pad; mx += pad;
+    var f = fr(1100, o.h || 330, { l: 52, r: 10, t: 26, b: 64 }), n = cols.length, bw = f.iw / n, y = function (v) { return f.m.t + (mx - v) / (mx - mn) * f.ih; };
+    var s = "", passo = niceMax((mx - mn) / 5);
+    for (var v = Math.ceil(mn / passo) * passo; v <= mx; v += passo) s += '<line x1="' + f.m.l + '" x2="' + (f.W - f.m.r) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="' + (Math.abs(v) < 1e-9 ? COR.muted : COR.line) + '"/><text x="' + (f.m.l - 6) + '" y="' + (y(v) + 3.5) + '" text-anchor="end" font-size="10" fill="' + COR.muted + '">' + fmt(v, o.dEixo || 0) + "</text>";
+    cols.forEach(function (c, i) {
+      var x = f.m.l + bw * i + bw * 0.16, w = bw * 0.68, top = y(Math.max(c.a, c.b)), h = Math.max(1.5, Math.abs(y(c.a) - y(c.b)));
+      var cor = c.tipo === "base" ? COR.navy : (c.v < 0 ? COR.red : COR.teal);
+      s += '<rect x="' + x + '" y="' + top + '" width="' + w + '" height="' + h + '" rx="2" fill="' + cor + '"/>';
+      if (i < n - 1) s += '<line x1="' + (x + w) + '" x2="' + (x + bw) + '" y1="' + y(c.b) + '" y2="' + y(c.b) + '" stroke="' + COR.muted + '" stroke-dasharray="3 2"/>';
+      var txt = c.tipo === "base" ? o.fBase(c.v) : (c.v > 0 ? "+" : "−") + o.fPasso(Math.abs(c.v));
+      s += lbl(x + w / 2, top - 5, txt, { s: 11, c: c.tipo === "base" ? COR.navy : (c.v < 0 ? COR.badfg : COR.okfg) });
+      var linhas = [], atual = "";
+      String(c.nome).split(" ").forEach(function (p) { if ((atual + " " + p).trim().length > 11 && atual) { linhas.push(atual); atual = p; } else atual = (atual + " " + p).trim(); });
+      if (atual) linhas.push(atual);
+      linhas.slice(0, 3).forEach(function (ln, li) { s += '<text x="' + (x + w / 2) + '" y="' + (f.H - 48 + li * 13) + '" text-anchor="middle" font-size="10.5" font-weight="' + (c.tipo === "base" ? 700 : 500) + '" fill="' + COR.ink + '">' + esc(ln) + "</text>"; });
+    });
+    return svg(f, s, o.titulo || "Cascata");
+  }
+  function chPonte(an) {
+    var gs = an.grupos.filter(function (x) { return Math.abs(x.pp) >= 0.15; });
+    var resto = an.grupos.filter(function (x) { return Math.abs(x.pp) < 0.15; }).reduce(function (s, x) { return s + x.pp; }, 0);
+    if (Math.abs(resto) >= 0.01) gs = gs.concat([{ nome: "Demais", pp: resto }]);
+    return cascata([{ nome: "Margem orçada", v: an.margExec * 100, tipo: "base" }].concat(gs.map(function (x) { return { nome: x.nome, v: x.pp, tipo: "passo" }; })).concat([{ nome: "Margem real", v: an.margReal * 100, tipo: "base" }]),
+      { fBase: function (v) { return fmt(v, 2) + "%"; }, fPasso: function (v) { return fmt(v, 2); }, dEixo: 1, titulo: "Ponte da margem" });
+  }
+  function chPromessa(pr) {
+    var gs = pr.grupos.filter(function (x) { return Math.abs(x.v) >= 10000; }).sort(function (a, b) { return a.v - b.v; });
+    var resto = pr.grupos.filter(function (x) { return Math.abs(x.v) < 10000; }).reduce(function (s, x) { return s + x.v; }, 0);
+    if (Math.abs(resto) >= 1000) gs.push({ nome: "Demais", v: resto });
+    return cascata([{ nome: "Prometido nos FCSTs", v: pr.fc / 1000, tipo: "base" }].concat(gs.map(function (x) { return { nome: x.nome, v: x.v / 1000, tipo: "passo" }; })).concat([{ nome: "Entregue", v: pr.res / 1000, tipo: "base" }]),
+      { fBase: function (v) { return fmt(v) + " mil"; }, fPasso: function (v) { return fmt(v); }, titulo: "Prometido x entregue" });
+  }
+  function chPotencial(p) {
+    var passos = [{ nome: "Resultado real", v: p.res / 1000, tipo: "base" }];
+    if (p.perda) passos.push({ nome: "Perdas de receita", v: p.perda / 1000, tipo: "passo" });
+    if (p.sla) passos.push({ nome: "Descontos de SLA", v: p.sla / 1000, tipo: "passo" });
+    if (p.nf) passos.push({ nome: "Não faturáveis", v: p.nf / 1000, tipo: "passo" });
+    if (p.dil) passos.push({ nome: "Recursos diluídos", v: p.dil / 1000, tipo: "passo" });
+    passos.push({ nome: "Resultado potencial", v: (p.res + (p.perda || 0) + (p.sla || 0) + (p.nf || 0) + (p.dil || 0)) / 1000, tipo: "base" });
+    return cascata(passos, { fBase: function (v) { return fmt(v) + " mil"; }, fPasso: function (v) { return fmt(v); }, h: 300, titulo: "Resultado potencial" });
+  }
+  // custo provocado por demissao, por mes (conta rescisoes + encargos rescisorios), com o numero de demissoes
+  function chResc(meses, fo, rh) {
+    // azul = conta de rescisoes; laranja = encargos/ajustes rescisorios em outras contas (liquido; credito reduz o azul)
+    var a = fo.resc.map(function (v) { return Math.abs(v || 0) / 1000; }), b = fo.rescOutras.map(function (v) { return -(v || 0) / 1000; });
+    var tot = a.map(function (v, i) { return Math.max(0, v + b[i]); });
+    var max = niceMax(Math.max.apply(null, tot) * 1.12), f = fr(1100, 250, { l: 40, r: 8, t: 26, b: 22 });
+    var n = meses.length, bw = f.iw / n, y = function (v) { return f.m.t + f.ih - v / max * f.ih; }, s = grade(f, max, max / 4, function (v) { return fmt(v); }, f.m.t, f.ih);
+    meses.forEach(function (m, i) {
+      var x = f.m.l + bw * i + bw * 0.25, w = bw * 0.5, az = b[i] >= 0 ? a[i] : tot[i], lj = b[i] >= 0 ? b[i] : 0;
+      s += '<rect x="' + x + '" y="' + y(az) + '" width="' + w + '" height="' + (f.m.t + f.ih - y(az)) + '" fill="' + COR.navy2 + '"/>';
+      if (lj > 0) s += '<rect x="' + x + '" y="' + y(az + lj) + '" width="' + w + '" height="' + (y(az) - y(az + lj)) + '" fill="' + COR.orange + '"/>';
+      s += lbl(x + w / 2, y(tot[i]) - 5, fmt(tot[i]), { s: 11 });
+      var d = rh.dem ? rh.dem[i] : null;
+      if (d != null) s += '<text x="' + (x + w / 2) + '" y="' + (f.m.t - 10) + '" text-anchor="middle" font-size="10.5" fill="' + COR.muted + '">' + d + " dem.</text>";
+    });
+    return svg(f, s + eixoX(f, meses.map(function (m) { return MES[m]; })), "Custo de demissões");
+  }
+
+  function renderRelatorioOS(b) {
+    var S = b.S, k = b.kpi, t = b.txt || {}, c = S.fin || S.custos || {}, an = analisarCustos(c), h = [], fig = 0;
+    function figura(titulo, cap, corpo, leg) { fig++; return '<figure class="rl-fig"><figcaption><b>Figura ' + fig + ".</b> " + esc(titulo) + (cap ? '<span>' + esc(cap) + "</span>" : "") + "</figcaption>" + corpo + (leg || "") + "</figure>"; }
+    function par(txt) { return String(txt || "").split(/\n\s*\n/).filter(Boolean).map(function (p) { return '<p>' + rico(p.trim()) + "</p>"; }).join(""); }
+    function pf(v) { return c.FR ? fmt(v / c.FR * 100, 2) + "%" : "–"; }
+    var valid = (b.mesesVal || []).length, mesN = MESF[b.mes];
+    // capa
+    h.push('<header class="rl-capa"><div class="rl-capa-top"><span class="rl-tag">Relatório gerencial do contrato</span><span class="rl-per">janeiro a ' + mesN + " de " + b.ano + "</span></div>" +
+      '<h1>' + esc(b.rotulo.replace("|", " + ")) + " · " + esc(b.desc) + "</h1>" +
+      '<div class="rl-ficha"><span>' + esc(b.neg || "") + "</span><span>Gerente: <b>" + esc(b.ger || "–") + "</b></span><span>Superintendente: <b>" + esc(b.sup || "–") + "</b></span><span>Meses validados pelo Máster: <b>" + valid + "</b></span></div>" +
+      (t.manchete ? '<p class="rl-manchete">' + rico(t.manchete) + "</p>" : "") + "</header>");
+    // numeros-chave: o que ja aconteceu x para onde o ano vai
+    function cel(l, v, s, cls) { return '<div class="rl-num ' + (cls || "") + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s + "</span></div>"; }
+    var margR = c.FR ? c.resReal / c.FR : null, margE = c.FE ? c.resExec / c.FE : null;
+    h.push('<section class="rl-nums"><div class="rl-nums-g"><h3>Jan a ' + MES[b.mes] + " · realizado x executivo</h3>" +
+      cel("Faturamento", mi(c.FR), "executivo " + mi(c.FE) + (c.FE ? " · " + (c.FR >= c.FE ? "+" : "") + fmt((c.FR / c.FE - 1) * 100, 1) + "%" : ""), c.FR >= c.FE ? "ok" : "bad") +
+      cel("Resultado", mi(c.resReal), "executivo " + mi(c.resExec), c.resReal >= c.resExec ? "ok" : "bad") +
+      cel("Margem", pct(margR), "executivo " + pct(margE), margR >= margE ? "ok" : "bad") +
+      '</div><div class="rl-nums-g"><h3>Projeção do ano · real até ' + MES[b.mes] + " + FCST até dez</h3>" +
+      cel("Faturamento", mi(k.fatAno), "meta " + mi(k.fatMeta), k.fatAno >= k.fatMeta ? "ok" : "bad") +
+      cel("Resultado", mi(k.resAno), "meta " + mi(k.resMeta), k.resAno >= k.resMeta ? "ok" : "bad") +
+      cel("Margem", pct(k.fatAno ? k.resAno / k.fatAno : null), "meta " + pct(k.fatMeta ? k.resMeta / k.fatMeta : null), (k.fatAno && k.fatMeta && k.resAno / k.fatAno >= k.resMeta / k.fatMeta) ? "ok" : "bad") + "</div></section>");
+    // 1. sumario
+    h.push('<section class="rl-cap"><h2><span>1</span>Sumário executivo</h2>' + par(t.sumario) + "</section>");
+    // 2. receita: perdas, SLA e nao faturaveis
+    var rc = c.receita, r2 = par(t.receita);
+    if (rc && c.FR) {
+      var perda = rc.perdaRI != null ? rc.perdaRI : rc.perdaPR, pot = c.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0) + (rc.dil || 0);
+      r2 += figura("Resultado potencial: o que o contrato entregaria sem perdas, SLA, não faturáveis e diluídos", "R$ mil, jan a " + MES[b.mes] + " · margem real " + pct(margR) + " → potencial " + pct(pot / c.FR),
+        chPotencial({ res: c.resReal, perda: perda, sla: rc.sla, nf: rc.nf, dil: rc.dil }),
+        '<div class="rl-tab"><table><thead><tr><th>Efeito</th><th>Natureza</th><th>R$ mil</th><th>% do faturamento</th></tr></thead><tbody>' +
+        "<tr><td>Perdas de receita" + (rc.perdaRI != null ? " (Receita Ideal)" : " (PR)") + "</td><td>faturamento que não entrou por recurso indisponível</td><td>" + fmt((perda || 0) / 1000) + "</td><td>" + pf(perda || 0) + "</td></tr>" +
+        "<tr><td>Descontos de SLA</td><td>desconto contratual direto no faturamento</td><td>" + fmt((rc.sla || 0) / 1000) + "</td><td>" + pf(rc.sla || 0) + "</td></tr>" +
+        "<tr><td>Recursos não faturáveis</td><td>custo de quem não gera faturamento</td><td>" + fmt((rc.nf || 0) / 1000) + "</td><td>" + pf(rc.nf || 0) + "</td></tr>" +
+        (rc.dil != null ? "<tr><td>Recursos diluídos</td><td>custo de quem fica diluído nos serviços, sem item próprio de faturamento</td><td>" + fmt((rc.dil || 0) / 1000) + "</td><td>" + pf(rc.dil || 0) + "</td></tr>" : "") +
+        "</tbody></table>" + (rc.perdaRI != null ? '<p class="rl-nota">Conferência: perda pela Receita Ideal R$ ' + fmt(rc.perdaRI / 1000) + " mil · pela PR R$ " + fmt(rc.perdaPR / 1000) + " mil.</p>" : "") + "</div>");
+    }
+    if (S.ri) r2 += figura("De onde vem a perda de receita", "R$ mil por mês, maiores motivos do período (Receita Ideal)", chMotivos(S.meses, S.ri),
+      '<div class="bk-leg">' + S.ri.top.map(function (x, i) { return '<span><i style="background:' + CORES_MOTIVO[i] + '"></i>' + esc(x[0].charAt(0) + x[0].slice(1).toLowerCase()) + " · R$ " + fmt(x[1].reduce(function (a, v) { return a + v; }, 0) / 1000) + " mil</span>"; }).join("") + "</div>");
+    if ((S.anos && S.anos.length) || S.assert) r2 += '<div class="rl-duas">' + (S.anos && S.anos.length ? figura("Perda de receita por ano (PR)", "R$ mil · % sobre o faturamento do período", chAnos(S.anos)) : "") +
+      (S.assert ? figura("Assertividade do FCST do resultado", "diferença de margem real x FCST do mês anterior (p.p.) e % de meses assertivos no ano", chAssert(S.meses, S.assert)) : "") + "</div>";
+    h.push('<section class="rl-cap"><h2><span>2</span>Receita: o que entrou, o que se perdeu e o que custou sem faturar</h2>' + r2 + "</section>");
+    // 3. custos
+    if (an) {
+      var tab = '<div class="rl-tab"><table><thead><tr><th>Conta</th><th>Real jan–' + MES[b.mes] + '</th><th>Orçado</th><th>Orçado na proporção do faturamento</th><th>Desvio</th></tr></thead><tbody>' +
+        an.contas.slice(0, 10).map(function (x) {
+          return "<tr><td>" + esc(String(x.conta).replace(/^\d+\s*-\s*/, "")) + "</td><td>" + fmt(Math.abs(x.real) / 1000) + "</td><td>" + (!x.exec ? "não orçado" : fmt(Math.abs(x.exec) / 1000)) + "</td><td>" + fmt(Math.abs(x.prop) / 1000) +
+            '</td><td class="' + (x.desvio < 0 ? "neg" : "pos") + '">' + (x.desvio < 0 ? "−" : "+") + fmt(Math.abs(x.desvio) / 1000) + "</td></tr>";
+        }).join("") + "</tbody></table><p class=\"rl-nota\">R$ mil. Orçado na proporção = executivo × (faturamento real ÷ faturamento executivo): o que a conta poderia ter custado com o volume que de fato foi faturado. Desvio negativo = custou mais que a proporção.</p></div>";
+      var ajx = {}; (c.fc || []).forEach(function (o) { if (o.ajuste) ajx[o.m] = 1; });
+      var pr = c.promessa, pendTxt = Object.keys(c.pend || {}).map(function (m) { return " · em " + MES[m] + ", " + c.pend[m].join(", ").toLowerCase() + (ajx[m] ? " ainda sem lançamento: a receita do mês entrou como ajuste de emissão e a NF, com os impostos, sai no mês seguinte" : " ainda sem lançamento real") + " (ganho provisório)"; }).join("");
+      h.push('<section class="rl-cap"><h2><span>3</span>Custos e margem: o custo acompanhou o faturamento?</h2>' + par(t.custos) +
+        figura("Ponte da margem: do orçado ao realizado", "pontos percentuais de margem que cada grupo de custo tirou (vermelho) ou devolveu (verde), jan a " + MES[b.mes] + pendTxt, chPonte(an)) +
+        figura("As contas que mais descolaram do faturamento", "", tab) +
+        (pr && pr.meses && pr.meses.length ? figura("O que os FCSTs prometeram e o que foi entregue no ano", "R$ mil · soma, de " + MES[pr.meses[0]] + " a " + MES[pr.meses[pr.meses.length - 1]] + (pr.fora && pr.fora.length ? " (" + pr.fora.map(function (m) { return MES[m]; }).join(", ") + " fora: receita em ajuste de emissão, impostos ainda não lançados)" : "") + ", do resultado previsto no FCST do mês anterior x o realizado, e quanto cada grupo explica da diferença", chPromessa(pr)) : "") + "</section>");
+    }
+    // 4. pessoas e eventos de folha
+    var fo = c.folha;
+    h.push('<section class="rl-cap"><h2><span>4</span>Pessoas: quadro, horas e o que a folha custou</h2>' + par(t.pessoas) +
+      '<div class="rl-duas">' + figura("Efetivo e movimentação", "efetivo da folha; admissões e demissões do mês", chMov(S.meses, S.rh)) + figura("Horas e hora extra", "% de HE e HHT realizado (mil h)", chHHT(S.meses, S.rh)) + "</div>" +
+      (fo ? par(t.eventos) + figura("Custo provocado por demissão", "R$ mil por mês · azul = conta de rescisões (aviso indenizado, 13º e férias de rescisão) · laranja = encargos rescisórios (multa de 40% e FGTS de rescisão) · acima, as demissões do mês", chResc(S.meses, fo, S.rh)) : "") +
+      '<p class="rl-nota">Férias (posição de hoje): ' + (S.rh.ferSaldo == null ? "–" : fmt(S.rh.ferSaldo) + " dias de saldo") + (S.rh.fer45 == null ? "" : ", " + fmt(S.rh.fer45) + " pessoas com 45 dias ou mais") + ". Transferências no ano: " + S.rh.tIn.reduce(function (a, v) { return a + (v || 0); }, 0) + " entradas e " + S.rh.tOut.reduce(function (a, v) { return a + (v || 0); }, 0) + " saídas.</p></section>");
+    // 5. ssma, cliente e contrato
+    var g5 = (S.sat && (S.sat.length || S.satMeta != null)) ? '<div class="rl-lado">' + figura("Satisfação do cliente por pesquisa", "barra = resultado · traço = meta do ano", chSat(S.sat, S.satMeta, b.ano)) + "</div>" : "";
+    h.push('<section class="rl-cap"><h2><span>5</span>Segurança, cliente e contrato</h2><div class="rl-flex">' + g5 + '<div class="rl-txt">' + par(t.ssma) + "</div></div></section>");
+    // 6. diagnostico
+    function lista(xs) { return (xs || []).map(function (x) { return '<li><div class="rl-li-t"><b>' + esc(x.titulo || "") + '</b><span>' + esc(x.valor || "") + "</span></div>" + rico(x.texto || "") + "</li>"; }).join(""); }
+    h.push('<section class="rl-cap"><h2><span>6</span>Diagnóstico: é gestão ou é orçamento?</h2>' + par(t.diagnostico) +
+      '<div class="rl-diag"><div class="rl-diag-c ges"><h4>Gestão · o contrato controla</h4><ul>' + lista(t.gestao) + '</ul></div><div class="rl-diag-c orc"><h4>Orçamento · premissa a rever</h4><ul>' + lista(t.premissas) + "</ul></div></div></section>");
+    // 7. plano
+    h.push('<section class="rl-cap"><h2><span>7</span>Plano de ação</h2><ol class="rl-plano">' + (t.plano || []).map(function (p) {
+      return "<li><b>" + esc(p.acao || "") + "</b>" + (p.efeito ? "<span>" + rico(p.efeito) + "</span>" : "") + (p.acompanhar ? '<em>Acompanhar: ' + esc(p.acompanhar) + "</em>" : "") + "</li>";
+    }).join("") + "</ol></section>");
+    // 8. orcamento
+    h.push('<section class="rl-cap rl-orc"><h2><span>8</span>Parecer para o Orçamento · renovação</h2>' + (t.parecerOrcamento ? '<p class="rl-veredito">' + rico(t.parecerOrcamento) + "</p>" : "") +
+      '<div class="bk-orcgrid">' + (t.orcamento || []).map(function (o) { return '<div class="bk-orci"><h4>' + esc(o.titulo || "") + "<span>" + esc(o.valor || "") + "</span></h4><p>" + rico(o.texto || "") + "</p></div>"; }).join("") + "</div></section>");
+    // anexo
+    h.push('<section class="rl-cap rl-anexo"><h2><span>A</span>Anexo · situação dos indicadores</h2><div class="rl-tab"><table><thead><tr><th>Indicador</th><th>Situação em ' + MES[b.mes] + '</th><th>Jan → ' + MES[b.mes] + '</th><th>Valores da caixa</th></tr></thead><tbody>' +
+      b.inds.map(function (x) { return "<tr><td>#" + x.id + " " + esc(x.nome) + '</td><td><span class="bk-pill ' + x.st + '">' + esc(x.pill) + "</span></td><td>" + stripHtml(x.strip) + '</td><td class="rl-cx">' + esc(x.val || "") + "</td></tr>"; }).join("") + "</tbody></table></div></section>");
+    h.push('<div class="bk-fontes">Fontes: RESULTADOS (contábil real, executivo e FCST por conta; lançamentos da folha no contábil; folha, ponto, cadastro, rescisões, transferências, férias, perdas e satisfação), RECEITA IDEAL (perdas por motivo, não faturáveis, diluídos e SLA) e ATA_COMENTARIO. Números calculados a partir dessas fontes; textos escritos por IA. Gerado em ' +
+      esc(new Date(b.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })) + (b.por ? " por " + esc(b.por) : "") + ".</div>");
+    return '<article class="rl">' + h.join("") + "</article>";
+  }
+
   // ------------------------------------------------------------------ tela
   var _prog = "";
   function progresso(t) { _prog = t; var p = el("bkProgresso"); if (p) { p.style.display = t ? "block" : "none"; p.textContent = t; } }
@@ -650,7 +1031,7 @@
       var reg = mapa[os];
       c = el("bkConteudo"); if (!c) return;
       if (!reg) { c.innerHTML = '<p class="bk-vazio">Ainda não há book gravado para ' + esc(os) + "." + (master() ? " Para gerar, filtre esta OS no Power BI e use “Gerar / atualizar book desta OS”." : "") + "</p>"; return; }
-      c.innerHTML = renderBookOS(reg.d);
+      c.innerHTML = (reg.d && reg.d.v >= 2) ? renderRelatorioOS(reg.d) : renderBookOS(reg.d);
     } catch (e) {
       var c2 = el("bkConteudo"); if (c2) c2.innerHTML = '<p class="bk-vazio">Não consegui ler os books: ' + esc(e.message || e) + "</p>";
     }
@@ -689,5 +1070,5 @@
     }
   }
 
-  window.BOOK = { render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS };
+  window.BOOK = { render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin };
 })();
