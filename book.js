@@ -141,6 +141,35 @@
     if (!(r.ok && j && j.ok === true)) throw new Error("O GitHub recusou o pedido (c\u00f3digo " + ((j && j.status) || r.status) + ").");
     return true;
   }
+  // Quem respondeu pela OS em cada periodo do ano: cada vigencia vale ate o mes anterior a proxima.
+  function mesAnt(am) { var a = Math.floor(am / 100), m = am % 100; return m === 1 ? (a - 1) * 100 + 12 : am - 1; }
+  function rotMes(am) { return MES[am % 100] + "/" + String(Math.floor(am / 100)).slice(2); }
+  function linhaTempo(resp, tipo, os, ano, mes) {
+    var ini = ano * 100 + 1, fim = ano * 100 + mes;
+    var xs = (resp || []).filter(function (r) { return r.tipo === tipo && r.os === os && r.vig; }).sort(function (a, b) { return a.vig - b.vig; });
+    var out = [];
+    xs.forEach(function (r, i) {
+      var de = r.vig, ate = i + 1 < xs.length ? mesAnt(xs[i + 1].vig) : fim;
+      if (ate < ini || de > fim) return;
+      de = Math.max(de, ini); ate = Math.min(ate, fim);
+      if (out.length && out[out.length - 1].nome === r.nome) { out[out.length - 1].ate = ate; return; }
+      out.push({ nome: r.nome, de: de, ate: ate });
+    });
+    return out;
+  }
+  function txtLinha(lt, atual) {
+    if (!lt || !lt.length) return atual || "–";
+    if (lt.length === 1) return lt[0].nome;
+    return lt.map(function (x, i) { return x.nome + (i === lt.length - 1 ? " (desde " + rotMes(x.de) + ")" : " (" + rotMes(x.de) + " a " + rotMes(x.ate) + ")"); }).join(" → ");
+  }
+  function historicoOS(dados, os, ano, mes) {
+    return { gestor: linhaTempo(dados.resp, "RESPONSAVEL", os, ano, mes), ger: linhaTempo(dados.resp, "GERENTE_OS", os, ano, mes), sup: linhaTempo(dados.resp, "SUPERINTENDENTE_OS", os, ano, mes) };
+  }
+  function trocasTxt(hist) {
+    var t = [];
+    [["gestor", "Gestor do contrato"], ["ger", "Gerente"], ["sup", "Superintendente"]].forEach(function (q) { var lt = hist && hist[q[0]]; if (lt && lt.length > 1) t.push(q[1] + ": " + txtLinha(lt)); });
+    return t;
+  }
   // bloco de OSs vai ao fluxo como "A|B" (o app mostra "A + B")
   function codigosBloco(rot) { return String(rot || "").split(/[|+]/).map(function (x) { return x.trim().toUpperCase(); }).filter(Boolean).join("|"); }
   async function lerDadosFluxo(rotulo, ano, mes, tk, urlOpt) {
@@ -154,17 +183,18 @@
     var j = await r.json();
     if (!j || j.ok !== true) throw new Error("O fluxo não devolveu os dados.");
     // fin = contabil numa tabela so: C = conta x mes (real, executivo, FCST anterior), E = eventos da folha (CT2), M = executivo/FCST do mes
-    var custos = [], evt = [], mesx = [], proj = [], projx = [], fer = null, ctt = {};
+    var custos = [], evt = [], mesx = [], proj = [], projx = [], fer = null, ctt = {}, resp = [];
     norm(j.fin).forEach(function (x) {
       if (x.tipo === "C") custos.push({ "Nível": x.a, "Sub Nível I": x.b, "C.Contabil - Descricao": x.c, MesNo: x.mes, r: x.r, e: x.e, f: x.f });
       else if (x.tipo === "E") evt.push({ "C.Contábil": x.a, "Histórico de Lançamento": x.c, MesNo: x.mes, v: x.r });
       else if (x.tipo === "M") mesx.push({ MesNo: x.mes, fe: x.r, re: x.e, ff: x.f, rf: x.g });
       else if (x.tipo === "P") proj.push({ m: x.mes, efet: x.r, hht: x.e, fat: x.f, res: x.g });
       else if (x.tipo === "Q") projx.push({ m: x.mes, fe: x.r, re: x.e });
+      else if (x.tipo === "R") { var partes = String(x.c || "").split("|"); resp.push({ tipo: x.a, os: String(x.b || "").toUpperCase(), nome: partes[partes.length - 1], vig: parseInt(x.mes, 10) || 0 }); }
       else if (x.tipo === "F") fer = { f30: x.r, f45: x.e, saldo: x.f };
       else if (x.tipo === "H") { var cc = String(x.b || "").toUpperCase(); ctt[cc] = ctt[cc] || {}; if (ctt[cc][x.a] == null) ctt[cc][x.a] = x.c == null ? "" : String(x.c); }
     });
-    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, proj: proj, projx: projx, fer: fer, ctt: ctt, ri2: norm(j.ri2) };
+    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, proj: proj, projx: projx, fer: fer, ctt: ctt, resp: resp, ri2: norm(j.ri2) };
   }
   function configurarFluxo() {
     var f = document.createElement("div");
@@ -371,7 +401,10 @@
       '"orcamento":[{"titulo":"(até 40 caracteres)","valor":"(até 30 caracteres)","texto":"(até 300 caracteres)"}] (5 a 8 itens: absenteísmo, turnover, custos acima do executivo de forma recorrente, acúmulo de férias e o que mais os DADOS sustentarem; dissídio e reoneração não entram como item)}');
     L.push("");
     L.push("DADOS");
-    L.push("Contrato (CTT): " + (C.H.desc || os) + " | Negócio " + (C.H.neg || "–") + " | Gestor do contrato " + (C.H.gestor || "–") + " | Gerente " + (C.H.ger || "–") + " | Superintendente " + (C.H.sup || "–"));
+    var hOS = C.H.hist || {};
+    L.push("Contrato (CTT): " + ((C.H.rotulo && C.H.rotulo.indexOf("|") > 0 && C.H.grupo) ? C.H.grupo + " (bloco: valores somados das OSs " + C.H.rotulo.split("|").join(" + ") + ")" : (C.H.desc || os)) + " | Negócio " + (C.H.neg || "–") +
+      " | Gestor do contrato " + txtLinha(hOS.gestor, C.H.gestor) + " | Gerente " + txtLinha(hOS.ger, C.H.ger) + " | Superintendente " + txtLinha(hOS.sup, C.H.sup));
+    if (trocasTxt(hOS).length) L.push("TROCA DE RESPONSÁVEIS NO ANO (cadastro com vigência): " + trocasTxt(hOS).join("; ") + ". Diga quem era o anterior, até quando ficou e desde quando o novo responde, e atribua cada período a quem respondia.");
     L.push("Período: janeiro a " + MESF[mes] + "/" + ano + ", analisado mês a mês. Todos os meses do período estão fechados; não comente fechamento, validação ou meses provisórios.");
     if (fi) {
       L.push("JAN A " + MES[mes].toUpperCase() + " (contábil): faturamento real " + rs(fi.FR) + " x executivo " + rs(fi.FE) + " | resultado real " + rs(fi.resReal) + " x executivo " + rs(fi.resExec) +
@@ -511,9 +544,10 @@
     var rotBloco = (elOS && elOS.rotulo) || H.rotulo || os;
     var dados = await lerDadosFluxo(rotBloco, ano, mes, tk, opts.urlFluxo);
     var ct = (dados.ctt || {})[os];
-    if (ct) { H = { rotulo: codigosBloco(rotBloco) || os, desc: ct.desc || "", neg: ct.neg || "", ger: ct.gerente || "", sup: ct.sup || "", gestor: ct.gestor || "", ctt: true }; window.OS_HIER_CTT = window.OS_HIER_CTT || {}; window.OS_HIER_CTT[os] = H; }
+    var hist = historicoOS(dados, os, ano, mes);
+    if (ct) { H = { rotulo: codigosBloco(rotBloco) || os, grupo: ct.grupo || "", desc: ct.desc || "", neg: ct.neg || "", ger: ct.gerente || "", sup: ct.sup || "", gestor: ct.gestor || "", ctt: true }; window.OS_HIER_CTT = window.OS_HIER_CTT || {}; window.OS_HIER_CTT[os] = H; }
     var C = coletarOS(os, ano, mes, dados);
-    if (ct) C.H = H;
+    if (ct) { H.hist = hist; C.H = H; }
     var prompt = promptOS(os, ano, mes, C);
     progresso("A IA está escrevendo o book (" + Math.round(prompt.length / 1000) + " mil caracteres de dados)…");
     var j = null, falta = ["tudo"], tent = 0;
@@ -527,7 +561,7 @@
     var s = A.sessaoAcesso ? A.sessaoAcesso() : null;
     if (!C.S.fin) throw new Error("O fluxo NPE-Ler-Dados-Book não devolveu o contábil da OS (consulta de custos).");
     var book = {
-      v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: H.desc || C.contract.name || "", descCtt: !!H.ctt, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
+      v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: (H.rotulo && H.rotulo.indexOf("|") > 0 && H.grupo) ? H.grupo : (H.desc || C.contract.name || ""), descCtt: !!H.ctt, hist: hist, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
       ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal,
       kpi: C.kpi, S: C.S, inds: C.inds,
       txt: { sumario: j.sumario, receita: j.receita, custos: j.custos, pessoas: j.pessoas, eventos: j.eventos, ssma: j.ssma, diagnostico: j.diagnostico,
@@ -973,7 +1007,7 @@
     // capa
     h.push('<header class="rl-capa"><div class="rl-capa-top"><span class="rl-tag">Relatório gerencial do contrato</span><span class="rl-per">janeiro a ' + mesN + " de " + b.ano + "</span></div>" +
       '<h1>' + (b.descCtt ? esc(b.desc) : esc(b.rotulo.replace("|", " + ")) + " · " + esc(b.desc)) + "</h1>" +
-      '<div class="rl-ficha"><span>' + esc(b.neg || "") + "</span><span>Gestor do contrato: <b>" + esc(b.gestor || "–") + "</b></span><span>Gerente: <b>" + esc(b.ger || "–") + "</b></span><span>Superintendente: <b>" + esc(b.sup || "–") + "</b></span></div>" +
+      '<div class="rl-ficha"><span>' + esc(b.neg || "") + "</span><span>Gestor do contrato: <b>" + esc(txtLinha(b.hist && b.hist.gestor, b.gestor)) + "</b></span><span>Gerente: <b>" + esc(txtLinha(b.hist && b.hist.ger, b.ger)) + "</b></span><span>Superintendente: <b>" + esc(txtLinha(b.hist && b.hist.sup, b.sup)) + "</b></span></div>" +
       "</header>");
     // numeros-chave: o que ja aconteceu x para onde o ano vai
     function cel(l, v, s, cls) { return '<div class="rl-num ' + (cls || "") + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s + "</span></div>"; }
@@ -1068,12 +1102,12 @@
     if (dados.fer) { S.rh.fer30 = dados.fer.f30; S.rh.fer45 = dados.fer.f45; S.rh.ferSaldo = dados.fer.saldo; }
     var proj = (dados.proj || []).slice().sort(function (x, y) { return x.m - y.m; });
     S.proj = conferirProjecao(S, proj.slice(0, 3));
-    var ct = (dados.ctt || {})[o.codigo] || {}, f = S.fin;
+    var ct = (dados.ctt || {})[o.codigo] || {}, f = S.fin, hist = historicoOS(dados, o.codigo, ano, mes), blocoCod = codigosBloco(o.rotulo || o.codigo);
     function med(a) { var v = a.filter(function (x) { return x != null; }); return v.length ? soma(v) / v.length / 100 : null; }
     var kpi = { fatAno: f.FR + soma(proj.map(function (x) { return x.fat; })), resAno: f.resReal + soma(proj.map(function (x) { return x.res; })),
       fatMeta: f.FE + soma((dados.projx || []).map(function (x) { return x.fe; })), resMeta: f.resExec + soma((dados.projx || []).map(function (x) { return x.re; })),
       absAcum: med(S.rh.abs), turnAcum: null };
-    return { v: 2, os: o.codigo, rotulo: o.rotulo || o.codigo, desc: ct.desc || o.desc || o.codigo, gestor: ct.gestor || "", ger: ct.gerente || "", sup: ct.sup || "", neg: ct.neg || "", ano: ano, mes: mes, S: S, kpi: kpi };
+    return { v: 2, os: o.codigo, rotulo: o.rotulo || o.codigo, hist: hist, desc: (blocoCod.indexOf("|") > 0 && ct.grupo) ? ct.grupo : (ct.desc || o.desc || o.codigo), gestor: ct.gestor || "", ger: ct.gerente || "", sup: ct.sup || "", neg: ct.neg || "", ano: ano, mes: mes, S: S, kpi: kpi };
   }
   function maisComum(xs) { var c = {}, best = "", n = 0; xs.forEach(function (x) { if (!x) return; c[x] = (c[x] || 0) + 1; if (c[x] > n) { n = c[x]; best = x; } }); return best; }
   function linhaOS(b) {
@@ -1085,7 +1119,7 @@
       rescTot: f.folha ? -soma(f.folha.rescTot) : 0, multa40: f.folha ? -soma(f.folha.multa40) : 0,
       efet: S.rh.efet[n], adm: soma(S.rh.adm), dem: soma(S.rh.dem), he: S.rh.he[n], abs: k.absAcum, turn: k.turnAcum, demTurn: soma(S.rh.demTurn || []),
       f30: S.rh.fer30, f45: S.rh.fer45, alerta: S.proj && S.proj.alerta ? S.proj.alerta.problemas : null,
-      fatAno: k.fatAno, fatMeta: k.fatMeta, resAno: k.resAno, resMeta: k.resMeta, diag: (b.txt && b.txt.diagnostico) || "",
+      fatAno: k.fatAno, fatMeta: k.fatMeta, resAno: k.resAno, resMeta: k.resMeta, diag: (b.txt && b.txt.diagnostico) || "", trocas: trocasTxt(b.hist),
       mm: (f.fc || []).map(function (o) { return [o.m, o.fat, o.res, o.fatEx, o.resEx, o.resFc]; }), efetM: S.rh.efet.slice() };
   }
   function agregarGrupo(books) {
@@ -1128,6 +1162,7 @@
     L.push("- Use SOMENTE os números dos DADOS, como estão: R$ 1.500.000 (sem centavos a partir de R$ 1.000), R$ 850,00 abaixo disso, negativos entre parênteses, R$ (647.973); percentuais com duas casas, 10,00%. Nunca abrevie (nada de 'mi' ou 'mil'). Custos sempre positivos.");
     L.push("- Analise o ano mês a mês: use o MÊS A MÊS do grupo e de cada OS para mostrar quando o resultado melhorou ou piorou e por quê; os totais fecham a história.");
     L.push("- Proporcionalidade: se o faturamento cresceu além do executivo, o custo pode crescer na mesma proporção; a margem cai quando algum custo cresce mais que o volume.");
+    L.push("- Blocos de OSs (ex.: 'M00100 + M05100 - CBMM - ARAXA') têm os valores somados: cite sempre o bloco com a composição. Quando houver TROCA DE RESPONSÁVEIS NO ANO, diga quem era o anterior, até quando ficou e desde quando o novo responde.");
     L.push("- Pessoas (gerentes, gestores, superintendentes) são citadas só pelo nome como está nos DADOS; nunca presuma gênero (não use ele/ela, dele/dela, o gerente/a gerente): escreva 'a gerência de NOME' ou 'as OSs de NOME'.");
     L.push("- Toda afirmação de impacto cita as OSs (código) que o causam" + (ger ? "." : " e a gerência delas."));
     L.push("- Ao falar de contratos, um contrato por linha: cada linha começa com o código e a descrição da OS (ex.: 'M03100 - NEXA - TRES MARIAS: ...') e termina antes do próximo contrato; quebre a linha (\\n) a cada contrato. Nunca deixe o código de um contrato no fim da linha de outro." + (ger ? "" : " O mesmo vale para as gerências: uma gerência por linha, começando pelo nome."));
@@ -1159,7 +1194,7 @@
     G.linhasOS.forEach(function (o) {
       L.push("  " + (String(o.desc).indexOf(o.os) === 0 ? o.desc : o.os + " " + o.desc) + (ger ? "" : " [" + o.ger + "]") + " | gestor " + (o.gestor || "–") + " | faturamento " + rs(o.FR) + " x " + rs(o.FE) + " | resultado " + rs(o.res) + " x " + rs(o.rex) + " (diferença " + rs(o.gap) + ") | margem " + pct(o.FR ? o.res / o.FR : null) + " x " + pct(o.FE ? o.rex / o.FE : null) +
         " | perdas " + rs(o.perda) + " | SLA " + rs(o.sla) + " | não faturáveis " + rs(o.nf) + " | diluídos (informativo) " + rs(o.dil) + " | HE " + (o.heDesvio < 0 ? moeda(-o.heDesvio) + " acima da proporção" : "na proporção") + " | rescisões " + rs(o.rescTot) +
-        " | efetivo " + fmt(o.efet) + " (" + o.adm + " admissões, " + o.dem + " demissões no ano, " + o.demTurn + " contam no turnover) | absenteísmo médio mensal " + pct(o.abs) + " | férias 30+ " + fmt(o.f30) + ", 45+ " + fmt(o.f45) + (o.alerta ? " | ALERTA DE PROJEÇÃO: " + o.alerta.join("; ") : ""));
+        " | efetivo " + fmt(o.efet) + " (" + o.adm + " admissões, " + o.dem + " demissões no ano, " + o.demTurn + " contam no turnover) | absenteísmo médio mensal " + pct(o.abs) + " | férias 30+ " + fmt(o.f30) + ", 45+ " + fmt(o.f45) + (o.alerta ? " | ALERTA DE PROJEÇÃO: " + o.alerta.join("; ") : "") + (o.trocas && o.trocas.length ? " | TROCA DE RESPONSÁVEIS NO ANO: " + o.trocas.join("; ") : ""));
       L.push("    resultado mês a mês (real x executivo): " + o.mm.map(function (x) { return MES[x[0]] + " " + rs(x[2]) + " x " + rs(x[4]); }).join(" · "));
       if (ger && o.diag) L.push("    diagnóstico da OS: " + String(o.diag).replace(/\s+/g, " ").slice(0, 420));
     });
@@ -1268,7 +1303,8 @@
     var margR = G.FR ? G.resReal / G.FR : null, margE = G.FE ? G.resExec / G.FE : null, k = G.kpi;
     h.push('<header class="rl-capa"><div class="rl-capa-top"><span class="rl-tag">Relatório da ' + (ger ? "Gerência" : "Superintendência") + '</span><span class="rl-per">janeiro a ' + MESF[b.mes] + " de " + b.ano + "</span></div>" +
       "<h1>" + esc(b.nome) + "</h1>" + '<div class="rl-ficha">' + (ger ? "<span>Superintendente: <b>" + esc(b.sup || "–") + "</b></span>" : "") + "<span>OSs elegíveis: <b>" + G.linhasOS.length + "</b></span>" +
-      (b.porGer ? "<span>Gerências: <b>" + b.porGer.length + "</b></span>" : "") + (b.semBook && b.semBook.length ? "<span>Sem dados no painel: <b>" + esc(b.semBook.join(", ")) + "</b></span>" : "") + "</div></header>");
+      (b.porGer ? "<span>Gerências: <b>" + b.porGer.length + "</b></span>" : "") + (b.semBook && b.semBook.length ? "<span>Sem dados no painel: <b>" + esc(b.semBook.join(", ")) + "</b></span>" : "") + "</div>" +
+      (function () { var tr = G.linhasOS.filter(function (o) { return o.trocas && o.trocas.length; }); return tr.length ? '<div class="rl-alerta" style="margin-top:12px"><b>Trocas de responsáveis no ano</b>' + tr.map(function (o) { return esc(o.desc + ": " + o.trocas.join("; ")); }).join("<br>") + "</div>" : ""; })() + "</header>");
     h.push('<section class="rl-nums"><div class="rl-nums-g"><h3>Jan a ' + MES[b.mes] + " · realizado x executivo</h3>" +
       cel("Faturamento", moeda(G.FR), "executivo " + moeda(G.FE), G.FR >= G.FE ? "ok" : "bad") + cel("Resultado", moeda(G.resReal), "executivo " + moeda(G.resExec), G.resReal >= G.resExec ? "ok" : "bad") + cel("Margem", pct(margR), "executivo " + pct(margE), margR >= margE ? "ok" : "bad") +
       '</div><div class="rl-nums-g"><h3>Projeção do ano · real + projetado até dez</h3>' +
