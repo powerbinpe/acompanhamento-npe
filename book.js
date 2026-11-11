@@ -1178,15 +1178,21 @@
       if (!aa.ok || String(aa.token || "").length !== 64) throw new Error(aa.erro || "O login do agente nao gerou token.");
       tk = { login: String(opts.login).toLowerCase().trim(), token: aa.token };
     } else tk = await obterToken();
-    var res = [], semDados = [], fila = lista.slice(), feitas = 0;
+    var res = [], falhas = [], fila = lista.slice(), feitas = 0;
     async function trabalhador() {
       while (fila.length) {
         var o = fila.shift();
-        try { res.push(await resumoOS(o, ano, mes, tk, opts.urlFluxo)); } catch (e) { semDados.push(o.codigo); }
+        try { res.push(await resumoOS(o, ano, mes, tk, opts.urlFluxo)); } catch (e) { falhas.push(o); }
         feitas++; progresso("Lendo os dados das OSs de " + nome + " no painel: " + feitas + " de " + lista.length + "…");
       }
     }
-    await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador()]);
+    await Promise.all([trabalhador(), trabalhador(), trabalhador()]);
+    // segunda tentativa, uma por vez, guardando o motivo de quem falhar de novo
+    var semDados = [];
+    for (var fi = 0; fi < falhas.length; fi++) {
+      try { res.push(await resumoOS(falhas[fi], ano, mes, tk, opts.urlFluxo)); }
+      catch (e) { semDados.push(falhas[fi].codigo + " (" + String(e && e.message || e).slice(0, 120) + ")"); }
+    }
     if (!res.length) throw new Error("O painel não devolveu dados para as OSs de " + nome + ".");
     var G = agregarGrupo(res), extra = { semBook: semDados };
     if (nivel === "sup") extra.porGer = porGerencia(G.linhasOS);
