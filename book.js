@@ -507,9 +507,11 @@
       tk = { login: String(opts.login).toLowerCase().trim(), token: aa.token };
     } else tk = await obterToken();
     progresso("Lendo contábil, RH, Receita Ideal e histórico (NPE-Ler-Dados-Book)…");
-    var dados = await lerDadosFluxo(H.rotulo || os, ano, mes, tk, opts.urlFluxo);
+    var elOS = elegiveis().filter(function (o) { return o.codigo === os; })[0];
+    var rotBloco = (elOS && elOS.rotulo) || H.rotulo || os;
+    var dados = await lerDadosFluxo(rotBloco, ano, mes, tk, opts.urlFluxo);
     var ct = (dados.ctt || {})[os];
-    if (ct) { H = { rotulo: H.rotulo || os, desc: ct.desc || "", neg: ct.neg || "", ger: ct.gerente || "", sup: ct.sup || "", gestor: ct.gestor || "", ctt: true }; window.OS_HIER_CTT = window.OS_HIER_CTT || {}; window.OS_HIER_CTT[os] = H; }
+    if (ct) { H = { rotulo: codigosBloco(rotBloco) || os, desc: ct.desc || "", neg: ct.neg || "", ger: ct.gerente || "", sup: ct.sup || "", gestor: ct.gestor || "", ctt: true }; window.OS_HIER_CTT = window.OS_HIER_CTT || {}; window.OS_HIER_CTT[os] = H; }
     var C = coletarOS(os, ano, mes, dados);
     if (ct) C.H = H;
     var prompt = promptOS(os, ano, mes, C);
@@ -1313,7 +1315,7 @@
     return lista || [];
   }
   function abas() {
-    return '<div class="bk-tabs"><button type="button" class="' + (st.nivel === "os" ? "on" : "") + '" data-action="book:nivel:os">OS</button><button type="button" disabled title="Em revisão">Gerência</button><button type="button" disabled title="Em revisão">Superintendência</button></div>';
+    return '<div class="bk-tabs"><button type="button" class="' + (st.nivel === "os" ? "on" : "") + '" data-action="book:nivel:os">OS</button><button type="button" class="' + (st.nivel === "ger" ? "on" : "") + '" data-action="book:nivel:ger">Gerência</button><button type="button" class="' + (st.nivel === "sup" ? "on" : "") + '" data-action="book:nivel:sup">Superintendência</button></div>';
   }
   async function renderGrupo(box) {
     var nivel = st.nivel, ano = anoAtivo(), mes = A.ultimoMesFechado ? A.ultimoMesFechado(ano) : 0, rot = nivel === "ger" ? "Gerência" : "Superintendência";
@@ -1342,7 +1344,7 @@
   async function render() {
     var box = el("tabBookContainer"); if (!box) return;
     if (A.garantirHierarquia) { try { await A.garantirHierarquia(); } catch (e) {} }
-    st.nivel = "os"; // Gerência/Superintendência em revisão
+    if (st.nivel !== "os") return renderGrupo(box);
     var lista = osPermitidas();
     var os = st.sel.os || osAtiva();
     st.sel.os = os;
