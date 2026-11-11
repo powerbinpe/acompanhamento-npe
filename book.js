@@ -1263,7 +1263,7 @@
     return lista || [];
   }
   function abas() {
-    return '<div class="bk-tabs"><button type="button" class="' + (st.nivel === "os" ? "on" : "") + '" data-action="book:nivel:os">OS</button><button type="button" class="' + (st.nivel === "ger" ? "on" : "") + '" data-action="book:nivel:ger">Gerência</button><button type="button" class="' + (st.nivel === "sup" ? "on" : "") + '" data-action="book:nivel:sup">Superintendência</button></div>';
+    return '<div class="bk-tabs"><button type="button" class="' + (st.nivel === "os" ? "on" : "") + '" data-action="book:nivel:os">OS</button><button type="button" disabled title="Em revisão">Gerência</button><button type="button" disabled title="Em revisão">Superintendência</button></div>';
   }
   async function renderGrupo(box) {
     var nivel = st.nivel, ano = anoAtivo(), mes = A.ultimoMesFechado ? A.ultimoMesFechado(ano) : 0, rot = nivel === "ger" ? "Gerência" : "Superintendência";
@@ -1292,7 +1292,7 @@
   async function render() {
     var box = el("tabBookContainer"); if (!box) return;
     if (A.garantirHierarquia) { try { await A.garantirHierarquia(); } catch (e) {} }
-    if (st.nivel !== "os") return renderGrupo(box);
+    st.nivel = "os"; // Gerência/Superintendência em revisão
     var lista = osPermitidas();
     var os = st.sel.os || osAtiva();
     st.sel.os = os;
