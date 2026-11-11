@@ -1298,11 +1298,21 @@
     }
     await Promise.all([trabalhador(), trabalhador(), trabalhador()]);
     // segunda tentativa, uma por vez, guardando o motivo de quem falhar de novo
-    var semDados = [];
+    // OS sem contabil no ano e legitima (fica listada como "sem dados"); erro de acesso ou de tempo nao:
+    // nesse caso o relatorio NAO e gravado pela metade (11/11: gerencia gravada com 1 de 6 OSs).
+    var semDados = [], naoLidas = [];
     for (var fi = 0; fi < falhas.length; fi++) {
-      try { res.push(await resumoOS(falhas[fi], ano, mes, tk, opts.urlFluxo)); }
-      catch (e) { semDados.push(nomeOS(falhas[fi].codigo, falhas[fi].desc) + " (" + String(e && e.message || e).slice(0, 120) + ")"); }
+      var ult = null;
+      for (var tt = 0; tt < 2; tt++) {
+        if (tt) await new Promise(function (r) { setTimeout(r, 4000); });
+        try { res.push(await resumoOS(falhas[fi], ano, mes, tk, opts.urlFluxo)); ult = null; break; } catch (e) { ult = e; }
+      }
+      if (!ult) continue;
+      var msg = String(ult && ult.message || ult);
+      if (/sem dados cont[aá]beis/i.test(msg)) semDados.push(nomeOS(falhas[fi].codigo, falhas[fi].desc) + " (sem contábil no ano)");
+      else naoLidas.push(nomeOS(falhas[fi].codigo, falhas[fi].desc) + " (" + msg.slice(0, 100) + ")");
     }
+    if (naoLidas.length) throw new Error("Não consegui ler " + naoLidas.length + " OS(s) de " + nome + ", nada foi gravado: " + naoLidas.join("; "));
     if (!res.length) throw new Error("O painel não devolveu dados para as OSs de " + nome + ".");
     // planos de acao avaliados no book de cada OS (gerado antes, na mesma rodada)
     try {
@@ -1323,8 +1333,10 @@
     }
     if (falta.length) throw new Error("A IA não completou o relatório (faltou: " + falta.join(", ") + ").");
     var s2 = A.sessaoAcesso ? A.sessaoAcesso() : null;
+    // o que vai para o SharePoint: sem o detalhe dos planos e sem o diagnostico de cada OS (so o prompt usa)
+    var Gs = Object.assign({}, G, { linhasOS: G.linhasOS.map(function (o) { var c = Object.assign({}, o); delete c.diag; c.planos = o.planos ? o.planos.map(function (q) { return { indicador: q.indicador, efeito: q.efeito }; }) : null; return c; }) });
     var book = { v: 2, nivel: nivel, chave: alvo, nome: titulo, sup: nivel === "ger" ? maisComum(res.map(function (b) { return b.sup; })) : titulo, ano: ano, mes: mes, em: new Date().toISOString(), por: s2 ? s2.login : "",
-      G: G, porGer: extra.porGer || null, semBook: semDados,
+      G: Gs, porGer: extra.porGer || null, semBook: semDados,
       txt: { sumario: j.sumario, ranking: j.ranking || "", gerencias: j.gerencias || "", impactos: j.impactos, pessoas: j.pessoas, planos: j.planos || "", alavancas: j.alavancas.slice(0, 6), plano: j.plano.slice(0, 6) } };
     if (opts.gravar === false) return book;
     progresso("Gravando no SharePoint…");
