@@ -1083,7 +1083,8 @@
       rescTot: f.folha ? -soma(f.folha.rescTot) : 0, multa40: f.folha ? -soma(f.folha.multa40) : 0,
       efet: S.rh.efet[n], adm: soma(S.rh.adm), dem: soma(S.rh.dem), he: S.rh.he[n], abs: k.absAcum, turn: k.turnAcum, demTurn: soma(S.rh.demTurn || []),
       f30: S.rh.fer30, f45: S.rh.fer45, alerta: S.proj && S.proj.alerta ? S.proj.alerta.problemas : null,
-      fatAno: k.fatAno, fatMeta: k.fatMeta, resAno: k.resAno, resMeta: k.resMeta, diag: (b.txt && b.txt.diagnostico) || "" };
+      fatAno: k.fatAno, fatMeta: k.fatMeta, resAno: k.resAno, resMeta: k.resMeta, diag: (b.txt && b.txt.diagnostico) || "",
+      mm: (f.fc || []).map(function (o) { return [o.m, o.fat, o.res, o.fatEx, o.resEx, o.resFc]; }), efetM: S.rh.efet.slice() };
   }
   function agregarGrupo(books) {
     var A2 = { FR: 0, FE: 0, resReal: 0, resExec: 0, linhas: [], contas: [], receita: { perda: 0, sla: 0, nf: 0, dil: 0, perdaPR: 0 }, promessa: { res: 0, fc: 0, grupos: [], n: 0 },
@@ -1108,6 +1109,9 @@
     A2.promessa.meses = A2.promessa.n ? [1] : [];
     A2.recorrentes = Object.keys(rec).map(function (k) { return rec[k]; }).sort(function (a, b) { return b.oss.length - a.oss.length || (a.real - a.exec) - (b.real - b.exec); }).slice(0, 10);
     A2.linhasOS = books.map(linhaOS).sort(function (a, b) { return a.gap - b.gap; });
+    var mm = {};
+    A2.linhasOS.forEach(function (o) { o.mm.forEach(function (x) { var t = mm[x[0]] = mm[x[0]] || [x[0], 0, 0, 0, 0, 0, 0]; t[1] += x[1] || 0; t[2] += x[2] || 0; t[3] += x[3] || 0; t[4] += x[4] || 0; if (x[5] != null) { t[5] += x[5]; t[6]++; } }); });
+    A2.mesAMes = Object.keys(mm).map(function (k) { return mm[k]; }).sort(function (a, b) { return a[0] - b[0]; });
     return A2;
   }
 
@@ -1120,6 +1124,7 @@
     L.push("");
     L.push("REGRAS");
     L.push("- Use SOMENTE os números dos DADOS, como estão: R$ 1.500.000 (sem centavos a partir de R$ 1.000), R$ 850,00 abaixo disso, negativos entre parênteses, R$ (647.973); percentuais com duas casas, 10,00%. Nunca abrevie (nada de 'mi' ou 'mil'). Custos sempre positivos.");
+    L.push("- Analise o ano mês a mês: use o MÊS A MÊS do grupo e de cada OS para mostrar quando o resultado melhorou ou piorou e por quê; os totais fecham a história.");
     L.push("- Proporcionalidade: se o faturamento cresceu além do executivo, o custo pode crescer na mesma proporção; a margem cai quando algum custo cresce mais que o volume.");
     L.push("- Toda afirmação de impacto cita as OSs (código) que o causam" + (ger ? "." : " e a gerência delas."));
     L.push("- Acúmulo de férias (30 e 45 dias ou mais) é ponto de atenção: amplia o dissídio e a reoneração. Alertas de projeção (EFETIVO PR/HHT PR que não acompanham a movimentação) devem ser cobrados das OSs citadas.");
@@ -1131,6 +1136,7 @@
     L.push("");
     L.push("DADOS (" + quem + ", " + G.linhasOS.length + " OSs elegíveis" + (extra.semBook && extra.semBook.length ? "; sem dados no painel: " + extra.semBook.join(", ") : "") + ")");
     L.push("JAN A " + MES[mes].toUpperCase() + ": faturamento real " + rs(G.FR) + " x executivo " + rs(G.FE) + " (" + (G.FE ? fmt((G.FR / G.FE - 1) * 100, 2) + "%" : "–") + ") | resultado real " + rs(G.resReal) + " x executivo " + rs(G.resExec) + " | margem real " + pct(G.FR ? G.resReal / G.FR : null) + " x executivo " + pct(G.FE ? G.resExec / G.FE : null) + ".");
+    if (G.mesAMes && G.mesAMes.length) L.push("MÊS A MÊS DO GRUPO (faturamento real x executivo | resultado real x executivo | resultado previsto no FCST do mês anterior): " + G.mesAMes.map(function (t) { return MES[t[0]] + ": " + rs(t[1]) + " x " + rs(t[3]) + " | " + rs(t[2]) + " x " + rs(t[4]) + (t[6] ? " | FCST " + rs(t[5]) : ""); }).join(" · ") + ".");
     L.push("PROJEÇÃO DO ANO (real até o mês + projetado no painel até dezembro, somando as OSs): faturamento " + rs(G.kpi.fatAno) + " x meta " + rs(G.kpi.fatMeta) + " | resultado " + rs(G.kpi.resAno) + " x meta " + rs(G.kpi.resMeta) + ".");
     if (an) L.push("PONTE DA MARGEM DO GRUPO (p.p. por grupo de custo; negativo = custou mais que a proporção): " + an.grupos.map(function (g) { return g.nome + " " + (g.pp > 0 ? "+" : "") + fmt(g.pp, 2); }).join("; ") + ".");
     L.push("CONTAS QUE MAIS PESARAM (quanto custaram a mais que a proporção, somando as OSs; e as OSs que mais contribuíram): " + G.contas.slice(0, 10).map(function (c) { return c.conta + " " + dif(c.desvio) + " (" + c.oss.filter(function (o) { return o[1] < 0; }).map(function (o) { return o[0] + " " + moeda(Math.abs(o[1])); }).join(", ") + ")"; }).join("; ") + ".");
@@ -1148,8 +1154,9 @@
     L.push("POR OS (do pior para o melhor resultado contra o executivo):");
     G.linhasOS.forEach(function (o) {
       L.push("  " + (String(o.desc).indexOf(o.os) === 0 ? o.desc : o.os + " " + o.desc) + (ger ? "" : " [" + o.ger + "]") + " | gestor " + (o.gestor || "–") + " | faturamento " + rs(o.FR) + " x " + rs(o.FE) + " | resultado " + rs(o.res) + " x " + rs(o.rex) + " (diferença " + rs(o.gap) + ") | margem " + pct(o.FR ? o.res / o.FR : null) + " x " + pct(o.FE ? o.rex / o.FE : null) +
-        " | perdas " + rs(o.perda) + " | SLA " + rs(o.sla) + " | diluídos " + rs(o.dil) + " | HE " + (o.heDesvio < 0 ? moeda(-o.heDesvio) + " acima da proporção" : "na proporção") + " | rescisões " + rs(o.rescTot) +
+        " | perdas " + rs(o.perda) + " | SLA " + rs(o.sla) + " | não faturáveis " + rs(o.nf) + " | diluídos " + rs(o.dil) + " | HE " + (o.heDesvio < 0 ? moeda(-o.heDesvio) + " acima da proporção" : "na proporção") + " | rescisões " + rs(o.rescTot) +
         " | efetivo " + fmt(o.efet) + " (" + o.adm + " admissões, " + o.dem + " demissões no ano, " + o.demTurn + " contam no turnover) | absenteísmo médio mensal " + pct(o.abs) + " | férias 30+ " + fmt(o.f30) + ", 45+ " + fmt(o.f45) + (o.alerta ? " | ALERTA DE PROJEÇÃO: " + o.alerta.join("; ") : ""));
+      L.push("    resultado mês a mês (real x executivo): " + o.mm.map(function (x) { return MES[x[0]] + " " + rs(x[2]) + " x " + rs(x[4]); }).join(" · "));
       if (ger && o.diag) L.push("    diagnóstico da OS: " + String(o.diag).replace(/\s+/g, " ").slice(0, 420));
     });
     return L.join("\n");
@@ -1220,6 +1227,22 @@
     return book;
   }
 
+  // resultado do grupo mes a mes: barra = real, traco = executivo
+  function chMesGrupo(mm) {
+    if (!mm || !mm.length) return "";
+    var vals = []; mm.forEach(function (t) { vals.push(t[2], t[4]); });
+    var mn = Math.min.apply(null, vals.concat([0])), mx = Math.max.apply(null, vals.concat([0])), pad = (mx - mn) * 0.15 || 1; mn -= pad; mx += pad;
+    var f = fr(1100, 300, { l: 80, r: 10, t: 24, b: 26 }), n = mm.length, bw = f.iw / n, y = function (v) { return f.m.t + (mx - v) / (mx - mn) * f.ih; };
+    var s = "", passo = niceMax((mx - mn) / 5);
+    for (var v = Math.ceil(mn / passo) * passo; v <= mx; v += passo) s += '<line x1="' + f.m.l + '" x2="' + (f.W - f.m.r) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="' + (Math.abs(v) < 1e-9 ? COR.muted : COR.line) + '"/><text x="' + (f.m.l - 6) + '" y="' + (y(v) + 3.5) + '" text-anchor="end" font-size="10" fill="' + COR.muted + '">' + fmt(v) + "</text>";
+    mm.forEach(function (t, i) {
+      var x = f.m.l + bw * i + bw * 0.25, w = bw * 0.5, r = t[2], e = t[4], top = y(Math.max(0, r)), h = Math.abs(y(r) - y(0));
+      s += '<rect x="' + x + '" y="' + top + '" width="' + w + '" height="' + Math.max(1.5, h) + '" rx="2" fill="' + (r >= e ? COR.teal : COR.red) + '"/>';
+      s += '<line x1="' + (x - 6) + '" x2="' + (x + w + 6) + '" y1="' + y(e) + '" y2="' + y(e) + '" stroke="' + COR.navy + '" stroke-width="3"/>';
+      s += lbl(x + w / 2, (r >= 0 ? top - 6 : y(r) + 14), moeda(r), { s: 10 });
+    });
+    return svg(f, s + eixoX(f, mm.map(function (t) { return MES[t[0]]; })), "Resultado mês a mês");
+  }
   function chGap(linhas) {
     var xs = linhas.slice(0, 14), max = Math.max.apply(null, xs.map(function (o) { return Math.abs(o.gap); }).concat([1]));
     var lh = 30, f = fr(1100, 20 + xs.length * lh, { l: 300, r: 150, t: 10, b: 10 }), mid = f.m.l + f.iw / 2, sc = function (v) { return Math.abs(v) / max * (f.iw / 2 - 10); };
@@ -1247,7 +1270,7 @@
       '</div><div class="rl-nums-g"><h3>Projeção do ano · real + projetado até dez</h3>' +
       cel("Faturamento", moeda(k.fatAno), "meta " + moeda(k.fatMeta), k.fatAno >= k.fatMeta ? "ok" : "bad") + cel("Resultado", moeda(k.resAno), "meta " + moeda(k.resMeta), k.resAno >= k.resMeta ? "ok" : "bad") +
       cel("Margem", pct(k.fatAno ? k.resAno / k.fatAno : null), "meta " + pct(k.fatMeta ? k.resMeta / k.fatMeta : null), (k.fatAno && k.fatMeta && k.resAno / k.fatAno >= k.resMeta / k.fatMeta) ? "ok" : "bad") + "</div></section>");
-    h.push(cap(++nc, "Sumário executivo", par(t.sumario)));
+    h.push(cap(++nc, "Sumário executivo", par(t.sumario) + figura("Resultado do mês, somando as OSs", "barra = realizado (verde acima do executivo, vermelho abaixo) · traço = executivo do mês", chMesGrupo(G.mesAMes))));
     // ranking / gerencias
     var tabOS = '<div class="rl-tab"><table><thead><tr><th>OS</th>' + (ger ? "<th>Gestor</th>" : "<th>Gerente</th>") + "<th>Faturamento</th><th>x executivo</th><th>Resultado</th><th>Executivo</th><th>Margem</th><th>Perdas</th><th>Potencial</th></tr></thead><tbody>" +
       G.linhasOS.map(function (o) {
