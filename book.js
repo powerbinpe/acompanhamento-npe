@@ -141,7 +141,10 @@
     if (!(r.ok && j && j.ok === true)) throw new Error("O GitHub recusou o pedido (c\u00f3digo " + ((j && j.status) || r.status) + ").");
     return true;
   }
+  // bloco de OSs vai ao fluxo como "A|B" (o app mostra "A + B")
+  function codigosBloco(rot) { return String(rot || "").split(/[|+]/).map(function (x) { return x.trim().toUpperCase(); }).filter(Boolean).join("|"); }
   async function lerDadosFluxo(rotulo, ano, mes, tk, urlOpt) {
+    rotulo = codigosBloco(rotulo);
     var url = String(urlOpt || urlFluxo() || "").trim();
     if (url.indexOf("http") !== 0) throw new Error("Cole a URL do fluxo NPE-Ler-Dados-Book (botão ⚙ Fluxo do Book).");
     var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
