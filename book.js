@@ -151,15 +151,16 @@
     var j = await r.json();
     if (!j || j.ok !== true) throw new Error("O fluxo não devolveu os dados.");
     // fin = contabil numa tabela so: C = conta x mes (real, executivo, FCST anterior), E = eventos da folha (CT2), M = executivo/FCST do mes
-    var custos = [], evt = [], mesx = [], proj = [], fer = null;
+    var custos = [], evt = [], mesx = [], proj = [], fer = null, ctt = {};
     norm(j.fin).forEach(function (x) {
       if (x.tipo === "C") custos.push({ "Nível": x.a, "Sub Nível I": x.b, "C.Contabil - Descricao": x.c, MesNo: x.mes, r: x.r, e: x.e, f: x.f });
       else if (x.tipo === "E") evt.push({ "C.Contábil": x.a, "Histórico de Lançamento": x.c, MesNo: x.mes, v: x.r });
       else if (x.tipo === "M") mesx.push({ MesNo: x.mes, fe: x.r, re: x.e, ff: x.f, rf: x.g });
       else if (x.tipo === "P") proj.push({ m: x.mes, efet: x.r, hht: x.e, fat: x.f, res: x.g });
       else if (x.tipo === "F") fer = { f30: x.r, f45: x.e, saldo: x.f };
+      else if (x.tipo === "H") { var cc = String(x.b || "").toUpperCase(); ctt[cc] = ctt[cc] || {}; if (ctt[cc][x.a] == null) ctt[cc][x.a] = x.c == null ? "" : String(x.c); }
     });
-    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, proj: proj, fer: fer, ri2: norm(j.ri2) };
+    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, proj: proj, fer: fer, ctt: ctt, ri2: norm(j.ri2) };
   }
   function configurarFluxo() {
     var f = document.createElement("div");
@@ -349,8 +350,7 @@
     L.push("- Não compare com orçado, PR ou meta um número que não tenha essa comparação nos DADOS.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
-    L.push('{"manchete":"(até 220 caracteres: a frase que resume o contrato no período)",' +
-      '"sumario":"(3 parágrafos, 900 a 1500 caracteres: receita, custo e o que fazer)",' +
+    L.push('{"sumario":"(3 parágrafos, 900 a 1500 caracteres: receita, custo e o que fazer)",' +
       '"receita":"(2 parágrafos, até 1400 caracteres: perdas por motivo, SLA, não faturáveis, diluídos, % do faturamento e resultado potencial)",' +
       '"custos":"(2 ou 3 parágrafos, até 1700 caracteres: proporcionalidade, ponte da margem, contas, o que o FCST prometeu e não entregou)",' +
       '"pessoas":"(2 ou 3 parágrafos, até 1500 caracteres: efetivo, admissões/demissões e seus custos, HHT, HE, absenteísmo, faturamento do recurso novo e a coerência da projeção dos próximos meses)",' +
@@ -364,7 +364,7 @@
       '"orcamento":[{"titulo":"(até 40 caracteres)","valor":"(até 30 caracteres)","texto":"(até 300 caracteres)"}] (5 a 8 itens: absenteísmo, turnover, custos acima do executivo de forma recorrente, acúmulo de férias e o que mais os DADOS sustentarem; dissídio e reoneração não entram como item)}');
     L.push("");
     L.push("DADOS");
-    L.push("Contrato: " + os + " | " + (C.H.desc || "") + " | Negócio " + (C.H.neg || "–") + " | Gerente " + (C.H.ger || "–") + " | Superintendente " + (C.H.sup || "–"));
+    L.push("Contrato (CTT): " + (C.H.desc || os) + " | Negócio " + (C.H.neg || "–") + " | Gestor do contrato " + (C.H.gestor || "–") + " | Gerente " + (C.H.ger || "–") + " | Superintendente " + (C.H.sup || "–"));
     L.push("Período: janeiro a " + MESF[mes] + "/" + ano + ". Primeiro mês com acompanhamento: " + (C.p0 <= 12 ? MESF[C.p0] : "nenhum") + ". Meses validados pelo Máster: " + (C.mesesVal.length ? C.mesesVal.map(function (x) { return MES[x]; }).join(", ") : "nenhum") + ".");
     if (fi) {
       L.push("JAN A " + MES[mes].toUpperCase() + " (contábil): faturamento real " + rs(fi.FR) + " x executivo " + rs(fi.FE) + " | resultado real " + rs(fi.resReal) + " x executivo " + rs(fi.resExec) +
@@ -473,7 +473,7 @@
   function conferirOS(j) {
     var falta = [];
     if (!j || typeof j !== "object") return ["tudo"];
-    ["manchete", "receita", "custos", "pessoas", "eventos", "ssma", "diagnostico", "parecerOrcamento"].forEach(function (k) { if (!j[k] || String(j[k]).length < 40) falta.push(k); });
+    ["receita", "custos", "pessoas", "eventos", "ssma", "diagnostico", "parecerOrcamento"].forEach(function (k) { if (!j[k] || String(j[k]).length < 40) falta.push(k); });
     if (!j.sumario || String(j.sumario).length < 400) falta.push("sumario");
     if (!Array.isArray(j.gestao) || j.gestao.length < 2) falta.push("gestao");
     if (!Array.isArray(j.premissas) || j.premissas.length < 1) falta.push("premissas");
@@ -504,7 +504,10 @@
     } else tk = await obterToken();
     progresso("Lendo contábil, RH, Receita Ideal e histórico (NPE-Ler-Dados-Book)…");
     var dados = await lerDadosFluxo(H.rotulo || os, ano, mes, tk, opts.urlFluxo);
+    var ct = (dados.ctt || {})[os];
+    if (ct) { H = { rotulo: H.rotulo || os, desc: ct.desc || "", neg: ct.neg || "", ger: ct.gerente || "", sup: ct.sup || "", gestor: ct.gestor || "", ctt: true }; window.OS_HIER_CTT = window.OS_HIER_CTT || {}; window.OS_HIER_CTT[os] = H; }
     var C = coletarOS(os, ano, mes, dados);
+    if (ct) C.H = H;
     var prompt = promptOS(os, ano, mes, C);
     progresso("A IA está escrevendo o book (" + Math.round(prompt.length / 1000) + " mil caracteres de dados)…");
     var j = null, falta = ["tudo"], tent = 0;
@@ -518,10 +521,10 @@
     var s = A.sessaoAcesso ? A.sessaoAcesso() : null;
     if (!C.S.fin) throw new Error("O fluxo NPE-Ler-Dados-Book não devolveu o contábil da OS (consulta de custos).");
     var book = {
-      v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: H.desc || C.contract.name || "", neg: H.neg || "", ger: H.ger || "", sup: H.sup || "",
+      v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: H.desc || C.contract.name || "", descCtt: !!H.ctt, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
       ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal,
       kpi: C.kpi, S: C.S, inds: C.inds,
-      txt: { manchete: j.manchete, sumario: j.sumario, receita: j.receita, custos: j.custos, pessoas: j.pessoas, eventos: j.eventos, ssma: j.ssma, diagnostico: j.diagnostico,
+      txt: { sumario: j.sumario, receita: j.receita, custos: j.custos, pessoas: j.pessoas, eventos: j.eventos, ssma: j.ssma, diagnostico: j.diagnostico,
         gestao: j.gestao.slice(0, 5), premissas: j.premissas.slice(0, 5), plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10) }
     };
     if (opts.gravar === false) return book;
@@ -964,9 +967,9 @@
     var valid = (b.mesesVal || []).length, mesN = MESF[b.mes];
     // capa
     h.push('<header class="rl-capa"><div class="rl-capa-top"><span class="rl-tag">Relatório gerencial do contrato</span><span class="rl-per">janeiro a ' + mesN + " de " + b.ano + "</span></div>" +
-      '<h1>' + esc(b.rotulo.replace("|", " + ")) + " · " + esc(b.desc) + "</h1>" +
-      '<div class="rl-ficha"><span>' + esc(b.neg || "") + "</span><span>Gerente: <b>" + esc(b.ger || "–") + "</b></span><span>Superintendente: <b>" + esc(b.sup || "–") + "</b></span><span>Meses validados pelo Máster: <b>" + valid + "</b></span></div>" +
-      (t.manchete ? '<p class="rl-manchete">' + rico(t.manchete) + "</p>" : "") + "</header>");
+      '<h1>' + (b.descCtt ? esc(b.desc) : esc(b.rotulo.replace("|", " + ")) + " · " + esc(b.desc)) + "</h1>" +
+      '<div class="rl-ficha"><span>' + esc(b.neg || "") + "</span><span>Gestor do contrato: <b>" + esc(b.gestor || "–") + "</b></span><span>Gerente: <b>" + esc(b.ger || "–") + "</b></span><span>Superintendente: <b>" + esc(b.sup || "–") + "</b></span><span>Meses validados pelo Máster: <b>" + valid + "</b></span></div>" +
+      "</header>");
     // numeros-chave: o que ja aconteceu x para onde o ano vai
     function cel(l, v, s, cls) { return '<div class="rl-num ' + (cls || "") + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s + "</span></div>"; }
     var margR = c.FR ? c.resReal / c.FR : null, margE = c.FE ? c.resExec / c.FE : null;
