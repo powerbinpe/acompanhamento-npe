@@ -389,7 +389,7 @@
     var base = (await listarOSs(cfg, ano, mesBase)).map(function (x) { return x.code; });
     var todas = filtro.length ? base.filter(function (c) { return filtro.indexOf(c.toUpperCase()) !== -1; }) : base;
     var plano = { etapa: et, tarefas: [], info: {}, log: [] };
-    if (!todas.length && et !== "aba6g" && et !== "aba6s") { plano.aviso = "Nenhuma OS elegivel para o filtro informado."; return plano; }
+    if (!todas.length && et !== "aba6g" && et !== "aba6s" && et !== "aba6d") { plano.aviso = "Nenhuma OS elegivel para o filtro informado."; return plano; }
 
     if (et === "aba1") {
       if (!meses.length) { plano.aviso = "Informe o mes da Aba 1 (um mes, uma lista ou um intervalo, ex.: 1-8)."; return plano; }
@@ -459,6 +459,11 @@
       if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
       todas.forEach(function (cod) { plano.tarefas.push({ etapa: "aba6", chave: "aba6_" + ano + "_" + ultimo, os: cod, ano: ano, mes: ultimo }); });
       plano.log.push("Aba 6: " + todas.length + " OSs, book ate " + (MESES[ultimo - 1] || ultimo) + ".");
+    } else if (et === "aba6d") {
+      // Relatorio da Diretoria: uma tarefa (empresa por negocio), aberta pela primeira OS elegivel.
+      if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
+      plano.tarefas.push({ etapa: "aba6d", chave: "aba6d_" + ano + "_" + ultimo, os: "EMPRESA", osUrl: todas[0] || base[0], ano: ano, mes: ultimo });
+      plano.log.push("Diretoria: um relatorio (empresa por negocio), ate " + (MESES[ultimo - 1] || ultimo) + ".");
     } else if (et === "aba6g" || et === "aba6s") {
       // Relatorio da Gerencia / Superintendencia: uma tarefa por grupo das OSs elegiveis, com dados direto do painel.
       if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }

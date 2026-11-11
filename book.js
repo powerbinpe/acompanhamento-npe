@@ -6,7 +6,7 @@
 (function () {
   "use strict";
   var A = window.NPE_APP || {};
-  var ANO_OS = 9995, ANO_GER = 9994, ANO_SUP = 9993;
+  var ANO_OS = 9995, ANO_GER = 9994, ANO_SUP = 9993, ANO_DIR = 9992;
   var MES = ["", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   var MESF = ["", "janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   var CATS = [
@@ -27,7 +27,7 @@
   CSS += "\n.rl{background:#fff;border:1px solid #E3E8F2;border-radius:14px;padding:34px 44px;max-width:1080px;margin:0 auto;color:#1E293B;width:100%;box-sizing:border-box}\n.rl-capa{border-bottom:3px solid #14204A;padding-bottom:18px;margin-bottom:18px}\n.rl-capa-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#5B6B82}\n.rl-tag{color:#14204A;font-weight:700}\n.rl-capa h1{font-size:30px;color:#14204A;margin:8px 0 10px;line-height:1.15;text-wrap:balance}\n.rl-ficha{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:#334155}\n.rl-manchete{font-size:19px!important;line-height:1.45!important;color:#0F172A;margin:16px 0 0!important;font-weight:600;border-left:4px solid #E5484D;padding-left:14px}\n.rl-nums{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:4px 0 8px}\n.rl-nums-g{background:#F5F7FD;border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}\n.rl-nums-g h3{grid-column:1/-1;margin:0;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#5B6B82}\n.rl-num .l{display:block;font-size:11px;color:#5B6B82;font-weight:700}.rl-num .v{display:block;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}.rl-num .s{font-size:11.5px;color:#5B6B82}\n.rl-num.ok .v{color:#0B7A6C}.rl-num.bad .v{color:#B42318}\n.rl-cap{margin-top:26px}\n.rl-cap h2{font-size:19px;color:#14204A;display:flex;align-items:center;gap:10px;margin:0 0 12px;border-bottom:1px solid #E3E8F2;padding-bottom:8px}\n.rl-cap h2 span{display:inline-flex;width:28px;height:28px;border-radius:50%;background:#14204A;color:#fff;font-size:13px;align-items:center;justify-content:center;flex:none}\n.rl p{font-size:14.5px;line-height:1.75;margin:0 0 12px}\n.rl p b{color:#14204A}\n.rl-fig{margin:14px 0 18px;border:1px solid #E3E8F2;border-radius:12px;padding:12px 14px}\n.rl-fig figcaption{font-size:12.5px;color:#14204A;margin-bottom:6px}.rl-fig figcaption span{display:block;color:#5B6B82;font-size:11.5px}\n.rl-duas{display:grid;grid-template-columns:1fr 1fr;gap:14px}.rl-duas .rl-fig{margin:6px 0}\n.rl-flex{display:flex;gap:16px;align-items:flex-start}.rl-lado{flex:0 0 380px}.rl-txt{flex:1;min-width:0}\n.rl-tab{overflow-x:auto}.rl-tab table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}\n.rl-tab th{text-align:right;font-size:11px;color:#5B6B82;text-transform:uppercase;letter-spacing:.4px;padding:6px 8px;border-bottom:2px solid #E3E8F2;vertical-align:bottom}\n.rl-tab th:first-child,.rl-tab td:first-child{text-align:left}\n.rl-tab td{text-align:right;padding:6px 8px;border-bottom:1px solid #EEF1F6}\n.rl-tab td.neg{color:#B42318;font-weight:700}.rl-tab td.pos{color:#0B7A6C;font-weight:700}\n.rl .rl-nota{font-size:12px;color:#5B6B82;line-height:1.5;margin-top:8px}\n.rl-diag{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}\n.rl-diag-c{border-radius:12px;padding:12px 14px}.rl-diag-c.ges{background:#FDF2F2;border:1px solid #F5C2C2}.rl-diag-c.orc{background:#F0F4FF;border:1px solid #C7D3F3}\n.rl-diag-c h4{margin:0 0 8px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#14204A}\n.rl-diag-c ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}\n.rl-diag-c li{font-size:13px;line-height:1.55;color:#334155}\n.rl-li-t{display:flex;justify-content:space-between;gap:8px}.rl-li-t b{color:#14204A}.rl-li-t span{font-weight:700;color:#B42318;white-space:nowrap}\n.rl-plano{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px}\n.rl-plano li{font-size:14px;line-height:1.6}.rl-plano li b{color:#14204A;display:block}.rl-plano li span{display:block;color:#334155}.rl-plano li em{font-style:normal;font-size:12px;color:#5B6B82}\n.rl-orc{border:2px solid #14204A;border-radius:14px;padding:16px 18px;background:linear-gradient(180deg,#F5F7FD,#fff)}\n.rl-alerta{background:#FFF6E5;border:1px solid #F0C36D;border-left:5px solid #E08A0B;border-radius:10px;padding:10px 14px;margin:0 0 14px;font-size:13.5px;line-height:1.55;color:#5C3D00}.rl-alerta b{display:block;color:#7A4B00;margin-bottom:2px}\n.rl .rl-veredito{font-size:15px;font-weight:600;color:#14204A;border-left:4px solid #14204A;padding-left:12px}\n.rl-anexo .bk-strip em{display:none}.rl-anexo td{vertical-align:middle}.rl-cx{text-align:left!important;font-size:11.5px;color:#334155;max-width:420px}\n@media (max-width:900px){.rl{padding:18px}.rl-nums,.rl-duas,.rl-diag{grid-template-columns:1fr}.rl-nums-g{grid-template-columns:1fr 1fr}.rl-flex{flex-direction:column}.rl-lado{flex:none;width:100%}}";
   (function () { var s = document.createElement("style"); s.id = "bkCss"; s.textContent = CSS; document.head.appendChild(s); })();
 
-  var st = { nivel: "os", sel: { os: "", ger: "", sup: "" }, linhas: { os: null, ger: null, sup: null }, carregando: false, msg: "" };
+  var st = { nivel: "os", sel: { os: "", ger: "", sup: "" }, linhas: { os: null, ger: null, sup: null, dir: null }, carregando: false, msg: "" };
 
   // ------------------------------------------------------------------ utilidades
   function el(id) { return document.getElementById(id); }
@@ -57,8 +57,8 @@
   // ------------------------------------------------------------------ leitura do SharePoint
   async function lerNivel(nivel, forcar) {
     if (st.linhas[nivel] && !forcar) return st.linhas[nivel];
-    var ano = nivel === "os" ? ANO_OS : nivel === "ger" ? ANO_GER : ANO_SUP;
-    var pref = nivel === "os" ? "BOOK_OS " : nivel === "ger" ? "BOOK_GER " : "BOOK_SUP ";
+    var ano = nivel === "os" ? ANO_OS : nivel === "ger" ? ANO_GER : nivel === "dir" ? ANO_DIR : ANO_SUP;
+    var pref = nivel === "os" ? "BOOK_OS " : nivel === "ger" ? "BOOK_GER " : nivel === "dir" ? "BOOK_DIR " : "BOOK_SUP ";
     var mapa = {};
     var linhas = await A.tab5Post(window.FLOW_LER_SNAPSHOT_URL, { ano: ano });
     (linhas || []).forEach(function (l) {
@@ -77,8 +77,8 @@
   async function gravar(nivel, k, dados) {
     var mapa = await lerNivel(nivel, true);
     var reg = mapa[k] || { id: 0 };
-    var ano = nivel === "os" ? ANO_OS : nivel === "ger" ? ANO_GER : ANO_SUP;
-    var pref = nivel === "os" ? "BOOK_OS " : nivel === "ger" ? "BOOK_GER " : "BOOK_SUP ";
+    var ano = nivel === "os" ? ANO_OS : nivel === "ger" ? ANO_GER : nivel === "dir" ? ANO_DIR : ANO_SUP;
+    var pref = nivel === "os" ? "BOOK_OS " : nivel === "ger" ? "BOOK_GER " : nivel === "dir" ? "BOOK_DIR " : "BOOK_SUP ";
     var s = A.sessaoAcesso ? A.sessaoAcesso() : null;
     var corpo = JSON.stringify(dados);
     if (corpo.length > 60000) throw new Error("O book ficou grande demais para gravar (" + corpo.length + " caracteres).");
@@ -172,12 +172,12 @@
   }
   // bloco de OSs vai ao fluxo como "A|B" (o app mostra "A + B")
   function codigosBloco(rot) { return String(rot || "").split(/[|+]/).map(function (x) { return x.trim().toUpperCase(); }).filter(Boolean).join("|"); }
-  async function lerDadosFluxo(rotulo, ano, mes, tk, urlOpt) {
+  async function lerDadosFluxo(rotulo, ano, mes, tk, urlOpt, extra) {
     rotulo = codigosBloco(rotulo);
     var url = String(urlOpt || urlFluxo() || "").trim();
     if (url.indexOf("http") !== 0) throw new Error("Cole a URL do fluxo NPE-Ler-Dados-Book (botão ⚙ Fluxo do Book).");
     var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ login: tk.login, token: tk.token, os: rotulo, ano: ano, mes: mes }) });
+      body: JSON.stringify(Object.assign({ login: tk.login, token: tk.token, os: rotulo, ano: ano, mes: mes }, extra || {})) });
     if (r.status === 401) { window._NPE_TOKEN_BOOK = null; throw new Error("O fluxo recusou o acesso (sessão expirada ou perfil sem permissão)."); }
     if (!r.ok) throw new Error("O fluxo NPE-Ler-Dados-Book respondeu " + r.status + ".");
     var j = await r.json();
@@ -194,7 +194,7 @@
       else if (x.tipo === "F") fer = { f30: x.r, f45: x.e, saldo: x.f };
       else if (x.tipo === "H") { var cc = String(x.b || "").toUpperCase(); ctt[cc] = ctt[cc] || {}; if (ctt[cc][x.a] == null) ctt[cc][x.a] = x.c == null ? "" : String(x.c); }
     });
-    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, proj: proj, projx: projx, fer: fer, ctt: ctt, resp: resp, ri2: norm(j.ri2) };
+    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, proj: proj, projx: projx, fer: fer, ctt: ctt, resp: resp, ri2: norm(j.ri2), dir: norm(j.dir) };
   }
   function configurarFluxo() {
     var f = document.createElement("div");
@@ -1342,6 +1342,168 @@
     return '<article class="rl">' + h.join("") + "</article>";
   }
 
+  // ------------------------------------------------------------------ book da Diretoria (empresa por negócio)
+  var NEGOCIOS = ["ROTINA", "PARADA", "LOCACOES", "OFICINA", "OVERHEAD"];
+  function montarDiretoria(dir, mes) {
+    var N = {};
+    NEGOCIOS.forEach(function (k) { N[k] = { neg: k, m: {}, linhas: [], oss: [] }; });
+    norm(dir).forEach(function (x) {
+      var n = N[String(x.a || "").toUpperCase()]; if (!n) return;
+      var m = parseInt(x.mes, 10) || 0;
+      if (x.tipo === "D1") { var a = n.m[m] = n.m[m] || {}; a.fr = +x.r || 0; a.fe = +x.e || 0; a.ff = x.f == null ? null : +x.f; a.pr = +x.g || 0; }
+      else if (x.tipo === "D2") { var b2 = n.m[m] = n.m[m] || {}; b2.rr = +x.r || 0; b2.re = +x.e || 0; b2.rf = x.f == null ? null : +x.f; }
+      else if (x.tipo === "DG") n.linhas.push([x.b, x.c, +x.r || 0, +x.e || 0]);
+      else if (x.tipo === "DO") n.oss.push({ os: x.b, desc: x.c || x.b, fr: +x.r || 0, fe: +x.e || 0, rr: +x.f || 0, re: +x.g || 0 });
+    });
+    return NEGOCIOS.map(function (k) {
+      var n = N[k], z = { neg: k, FR: 0, FE: 0, RR: 0, RE: 0, perda: 0, fcRes: 0, fcReal: 0, fcFat: 0, fcFatReal: 0, nFc: 0, fatAno: 0, fatMeta: 0, resAno: 0, resMeta: 0, mm: [] };
+      for (var m = 1; m <= 12; m++) {
+        var a = n.m[m] || {};
+        z.fatAno += a.fr || 0; z.fatMeta += a.fe || 0; z.resAno += a.rr || 0; z.resMeta += a.re || 0;
+        if (m > mes) continue;
+        z.FR += a.fr || 0; z.FE += a.fe || 0; z.RR += a.rr || 0; z.RE += a.re || 0; z.perda += a.pr || 0;
+        if (a.rf != null && a.rf !== 0) { z.fcRes += a.rf; z.fcReal += a.rr || 0; z.nFc++; }
+        if (a.ff != null && a.ff !== 0) { z.fcFat += a.ff; z.fcFatReal += a.fr || 0; }
+        z.mm.push([m, Math.round(a.fr || 0), Math.round(a.rr || 0), Math.round(a.fe || 0), Math.round(a.re || 0), a.rf == null ? null : Math.round(a.rf)]);
+      }
+      var g = {}; n.linhas.forEach(function (l) { var gr = grupoDaConta(l[0], l[1]); if (!gr) return; var x = g[gr] = g[gr] || { nome: gr, real: 0, exec: 0 }; x.real += l[2]; x.exec += l[3]; });
+      z.grupos = Object.keys(g).map(function (q) { var x = g[q]; return { nome: q, real: Math.round(x.real), exec: Math.round(x.exec), dif: Math.round(x.real - x.exec) }; }).sort(function (p, q) { return p.dif - q.dif; });
+      z.ponte = (z.FR && z.FE) ? analisarCustos({ FR: z.FR, FE: z.FE, resReal: z.RR, resExec: z.RE, linhas: n.linhas }) : null;
+      var oss = n.oss.filter(function (o) { return o.fr || o.rr || o.re; }).map(function (o) { o.gap = o.rr - o.re; return o; }).sort(function (p, q) { return p.gap - q.gap; });
+      z.piores = oss.slice(0, 6).filter(function (o) { return o.gap < 0; }).map(function (o) { return [o.os, o.desc, Math.round(o.fr), Math.round(o.fe), Math.round(o.rr), Math.round(o.re)]; });
+      z.melhores = oss.slice(-4).reverse().filter(function (o) { return o.gap > 0; }).map(function (o) { return [o.os, o.desc, Math.round(o.fr), Math.round(o.fe), Math.round(o.rr), Math.round(o.re)]; });
+      z.nOS = oss.length;
+      ["FR", "FE", "RR", "RE", "perda", "fcRes", "fcReal", "fcFat", "fcFatReal", "fatAno", "fatMeta", "resAno", "resMeta"].forEach(function (q) { z[q] = Math.round(z[q]); });
+      if (z.ponte) z.ponteG = z.ponte.grupos.map(function (x) { return [x.nome, Math.round(x.pp * 100) / 100]; });
+      delete z.ponte;
+      return z;
+    });
+  }
+  function promptDiretoria(ano, mes, D) {
+    var L = [], T = { FR: 0, FE: 0, RR: 0, RE: 0, fatAno: 0, fatMeta: 0, resAno: 0, resMeta: 0 };
+    D.forEach(function (z) { Object.keys(T).forEach(function (q) { T[q] += z[q] || 0; }); });
+    L.push("Você é o controller sênior do Setor de Performance da NPE. Escreva o RELATÓRIO DA DIRETORIA de janeiro a " + MESF[mes] + "/" + ano + ": o resultado da empresa por negócio (ROTINA, PARADA, LOCACOES, OFICINA e OVERHEAD), analisado mês a mês, contra o Executivo e o FCST do mês anterior. Todos os meses do período estão fechados; não comente fechamento nem validação.");
+    L.push("É estratégico e o mais resumido de todos: mostre onde a empresa ganha e perde resultado, quais negócios e quais OSs (com código e descrição) explicam, e as decisões que cabem à diretoria.");
+    L.push("");
+    L.push("REGRAS");
+    L.push("- Use SOMENTE os números dos DADOS, como estão: R$ 1.500.000 (sem centavos a partir de R$ 1.000), R$ 850,00 abaixo disso, negativos entre parênteses, R$ (647.973); percentuais com duas casas. Nunca abrevie (nada de 'mi' ou 'mil'). Custos sempre positivos.");
+    L.push("- Compare com o que houver: se o negócio não tem Executivo, compare com o FCST e diga que não há Executivo; o OVERHEAD é custo (resultado negativo): compare o custo real com o Executivo e o FCST e diga se gastou mais ou menos.");
+    L.push("- Ao falar de negócios ou OSs, um por linha: cada linha começa com o nome do negócio ou com o código e a descrição da OS; quebre a linha (\\n) a cada um.");
+    L.push("- Pessoas são citadas só pelo nome; nunca presuma gênero. Não invente nada; sem registro, diga que não há registro.");
+    L.push("- Português do Brasil, tom executivo, frases curtas. **Negrito** só para 1 ou 2 números por texto.");
+    L.push("");
+    L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
+    L.push('{"sumario":"(2 parágrafos, até 900 caracteres: a empresa no período e no ano)","negocios":{' + NEGOCIOS.map(function (k) { return '"' + k + '":"(até 700 caracteres: o negócio contra o Executivo e o FCST, mês a mês quando relevante, e as OSs que explicam)"'; }).join(",") + '},"riscos":"(até 700 caracteres: o que ameaça o resultado do ano)","decisoes":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres)","negocio":"(negócio e OSs)"}] (3 a 5 itens)}');
+    L.push("");
+    L.push("DADOS");
+    L.push("EMPRESA (soma dos 5 negócios), JAN A " + MES[mes].toUpperCase() + ": faturamento " + rs(T.FR) + " x executivo " + rs(T.FE) + " | resultado " + rs(T.RR) + " x executivo " + rs(T.RE) + " | margem " + pct(T.FR ? T.RR / T.FR : null) + " x " + pct(T.FE ? T.RE / T.FE : null) + ".");
+    L.push("EMPRESA, ANO (real até o mês + projetado no painel até dezembro): faturamento " + rs(T.fatAno) + " x executivo do ano " + rs(T.fatMeta) + " | resultado " + rs(T.resAno) + " x executivo do ano " + rs(T.resMeta) + ".");
+    D.forEach(function (z) {
+      L.push("");
+      L.push("NEGÓCIO " + z.neg + " (" + z.nOS + " OSs/centros com valor):");
+      L.push("  jan a " + MES[mes] + ": faturamento " + rs(z.FR) + " x executivo " + (z.FE ? rs(z.FE) : "sem Executivo") + " | resultado " + rs(z.RR) + " x executivo " + (z.FE || z.RE ? rs(z.RE) : "sem Executivo") + " | margem " + pct(z.FR ? z.RR / z.FR : null) + (z.FE ? " x " + pct(z.RE / z.FE) : "") + " | perdas de receita (PR) " + rs(z.perda) + ".");
+      if (z.nFc) L.push("  FCST do mês anterior, somando os meses com FCST: prometeu resultado " + rs(z.fcRes) + " e o realizado foi " + rs(z.fcReal) + " (diferença " + rs(z.fcReal - z.fcRes) + "); faturamento previsto " + rs(z.fcFat) + " x realizado " + rs(z.fcFatReal) + ".");
+      L.push("  ano: faturamento " + rs(z.fatAno) + " x executivo " + (z.fatMeta ? rs(z.fatMeta) : "sem Executivo") + " | resultado " + rs(z.resAno) + " x executivo " + (z.resMeta ? rs(z.resMeta) : "sem Executivo") + ".");
+      L.push("  mês a mês (resultado real x executivo | FCST anterior): " + z.mm.map(function (t) { return MES[t[0]] + " " + rs(t[2]) + " x " + rs(t[4]) + (t[5] != null && t[5] !== 0 ? " | FCST " + rs(t[5]) : ""); }).join(" · ") + ".");
+      if (z.ponteG) L.push("  ponte da margem (p.p.; negativo = custou mais que a proporção do faturamento): " + z.ponteG.map(function (x) { return x[0] + " " + (x[1] > 0 ? "+" : "") + fmt(x[1], 2); }).join("; ") + ".");
+      L.push("  grupos de custo, real x executivo (custo positivo): " + z.grupos.slice(0, 8).map(function (x) { return x.nome + " " + cu(x.real) + " x " + cu(x.exec); }).join("; ") + ".");
+      if (z.piores.length) L.push("  OSs que mais tiraram resultado (resultado real x executivo): " + z.piores.map(function (o) { return o[1] + " " + rs(o[4]) + " x " + rs(o[5]); }).join("; ") + ".");
+      if (z.melhores.length) L.push("  OSs que mais somaram: " + z.melhores.map(function (o) { return o[1] + " " + rs(o[4]) + " x " + rs(o[5]); }).join("; ") + ".");
+    });
+    return L.join("\n");
+  }
+  function conferirDiretoria(j) {
+    var falta = [];
+    if (!j || typeof j !== "object") return ["tudo"];
+    if (!j.sumario || String(j.sumario).length < 200) falta.push("sumario");
+    if (!j.negocios || NEGOCIOS.some(function (k) { return !j.negocios[k]; })) falta.push("negocios");
+    if (!j.riscos) falta.push("riscos");
+    if (!Array.isArray(j.decisoes) || j.decisoes.length < 2) falta.push("decisoes");
+    return falta;
+  }
+  async function gerarDiretoria(opts) {
+    opts = opts || {};
+    var ano = opts.ano || anoAtivo(), mes = opts.mes || mesAtivo() || (A.ultimoMesFechado ? A.ultimoMesFechado(ano) : 0);
+    if (!(mes >= 1)) throw new Error("Selecione o mês no Power BI.");
+    var tk;
+    if (opts.token) tk = { login: opts.login, token: opts.token };
+    else if (opts.login && opts.senha) {
+      var aa = await A.autenticarAcesso(opts.login, opts.senha);
+      if (!aa.ok || String(aa.token || "").length !== 64) throw new Error(aa.erro || "O login do agente nao gerou token.");
+      tk = { login: String(opts.login).toLowerCase().trim(), token: aa.token };
+    } else tk = await obterToken();
+    progresso("Lendo o resultado da empresa por negócio no painel…");
+    var dados = await lerDadosFluxo("-", ano, mes, tk, opts.urlFluxo, { diretoria: "1" });
+    if (!dados.dir || !dados.dir.length) throw new Error("O painel não devolveu os dados por negócio (perfil sem acesso ou fluxo sem a Consulta Dir).");
+    var D = montarDiretoria(dados.dir, mes);
+    var prompt = promptDiretoria(ano, mes, D);
+    progresso("A IA está escrevendo o relatório da Diretoria…");
+    var j = null, falta = ["tudo"], tent = 0;
+    while (falta.length && tent < 2) {
+      var p = tent === 0 ? prompt : prompt + "\n\nATENÇÃO: na resposta anterior faltaram ou vieram vazios: " + falta.join(", ") + ". Devolva o JSON COMPLETO.";
+      var txt = await A.chamarGerarTexto("gpt41", p);
+      try { j = extrairJSON(txt); falta = conferirDiretoria(j); } catch (e) { falta = ["JSON válido"]; }
+      tent++;
+    }
+    if (falta.length) throw new Error("A IA não completou o relatório (faltou: " + falta.join(", ") + ").");
+    var s2 = A.sessaoAcesso ? A.sessaoAcesso() : null;
+    var book = { v: 2, nivel: "dir", nome: "EMPRESA", ano: ano, mes: mes, em: new Date().toISOString(), por: s2 ? s2.login : "", D: D,
+      txt: { sumario: j.sumario, negocios: j.negocios, riscos: j.riscos, decisoes: j.decisoes.slice(0, 5) } };
+    if (opts.gravar === false) return book;
+    progresso("Gravando no SharePoint…");
+    await gravar("dir", "EMPRESA", book);
+    return book;
+  }
+  function chNegocios(D) {
+    var xs = D.map(function (z) { return { os: z.neg, desc: z.neg, gap: z.RR - z.RE }; });
+    var max = Math.max.apply(null, xs.map(function (o) { return Math.abs(o.gap); }).concat([1]));
+    var lh = 34, f = fr(1100, 20 + xs.length * lh, { l: 160, r: 170, t: 10, b: 10 }), mid = f.m.l + f.iw / 2, sc = function (v) { return Math.abs(v) / max * (f.iw / 2 - 10); };
+    var s = '<line x1="' + mid + '" x2="' + mid + '" y1="' + f.m.t + '" y2="' + (f.H - f.m.b) + '" stroke="' + COR.muted + '"/>';
+    xs.forEach(function (o, i) {
+      var y = f.m.t + i * lh, w = sc(o.gap), neg = o.gap < 0;
+      s += '<text x="' + (f.m.l - 10) + '" y="' + (y + 21) + '" text-anchor="end" font-size="13" font-weight="700" fill="' + COR.ink + '">' + esc(o.desc) + "</text>";
+      s += '<rect x="' + (neg ? mid - w : mid) + '" y="' + (y + 7) + '" width="' + w + '" height="19" rx="2" fill="' + (neg ? COR.red : COR.teal) + '"/>';
+      s += '<text x="' + (f.W - 6) + '" y="' + (y + 21) + '" text-anchor="end" font-size="12.5" font-weight="700" fill="' + (neg ? COR.badfg : COR.okfg) + '">' + moeda(o.gap) + "</text>";
+    });
+    return svg(f, s, "Resultado contra o executivo por negócio");
+  }
+  function renderRelatorioDir(b) {
+    var D = b.D, t = b.txt || {}, h = [], fig = 0, nc = 0, T = { FR: 0, FE: 0, RR: 0, RE: 0, fatAno: 0, fatMeta: 0, resAno: 0, resMeta: 0 };
+    D.forEach(function (z) { Object.keys(T).forEach(function (q) { T[q] += z[q] || 0; }); });
+    function figura(titulo, cap, corpo) { fig++; return '<figure class="rl-fig"><figcaption><b>Figura ' + fig + ".</b> " + esc(titulo) + (cap ? '<span>' + esc(cap) + "</span>" : "") + "</figcaption>" + corpo + "</figure>"; }
+    function par(txt) { return String(txt || "").split(/\n+/).map(function (p) { return p.trim(); }).filter(Boolean).map(function (p) { return '<p>' + rico(p) + "</p>"; }).join(""); }
+    function cap(n, tit, corpo, cls) { return '<section class="rl-cap' + (cls ? " " + cls : "") + '"><h2><span>' + n + "</span>" + tit + "</h2>" + corpo + "</section>"; }
+    function cel(l, v, s2, cls) { return '<div class="rl-num ' + (cls || "") + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s2 + "</span></div>"; }
+    h.push('<header class="rl-capa"><div class="rl-capa-top"><span class="rl-tag">Relatório da Diretoria</span><span class="rl-per">janeiro a ' + MESF[b.mes] + " de " + b.ano + '</span></div><h1>Resultado da empresa por negócio</h1><div class="rl-ficha"><span>ROTINA · PARADA · LOCACOES · OFICINA · OVERHEAD</span></div></header>');
+    h.push('<section class="rl-nums"><div class="rl-nums-g"><h3>Jan a ' + MES[b.mes] + " · realizado x executivo</h3>" +
+      cel("Faturamento", moeda(T.FR), "executivo " + moeda(T.FE), T.FR >= T.FE ? "ok" : "bad") + cel("Resultado", moeda(T.RR), "executivo " + moeda(T.RE), T.RR >= T.RE ? "ok" : "bad") + cel("Margem", pct(T.FR ? T.RR / T.FR : null), "executivo " + pct(T.FE ? T.RE / T.FE : null), (T.FR && T.FE && T.RR / T.FR >= T.RE / T.FE) ? "ok" : "bad") +
+      '</div><div class="rl-nums-g"><h3>Ano · real + projetado até dez</h3>' +
+      cel("Faturamento", moeda(T.fatAno), "executivo " + moeda(T.fatMeta), T.fatAno >= T.fatMeta ? "ok" : "bad") + cel("Resultado", moeda(T.resAno), "executivo " + moeda(T.resMeta), T.resAno >= T.resMeta ? "ok" : "bad") + cel("Margem", pct(T.fatAno ? T.resAno / T.fatAno : null), "executivo " + pct(T.fatMeta ? T.resMeta / T.fatMeta : null), "") + "</div></section>");
+    var tab = '<div class="rl-tab"><table><thead><tr><th>Negócio</th><th>Faturamento</th><th>Executivo</th><th>Resultado</th><th>Executivo</th><th>FCST anterior</th><th>Margem</th><th>Resultado do ano</th><th>Executivo do ano</th></tr></thead><tbody>' +
+      D.map(function (z) { return "<tr><td>" + esc(z.neg) + "</td><td>" + moeda(z.FR) + "</td><td>" + (z.FE ? moeda(z.FE) : "sem Executivo") + '</td><td class="' + (z.RR < z.RE ? "neg" : "pos") + '">' + moeda(z.RR) + "</td><td>" + (z.FE || z.RE ? moeda(z.RE) : "sem Executivo") + "</td><td>" + (z.nFc ? moeda(z.fcRes) + " → " + moeda(z.fcReal) : "–") + "</td><td>" + pct(z.FR ? z.RR / z.FR : null) + "</td><td>" + moeda(z.resAno) + "</td><td>" + (z.resMeta ? moeda(z.resMeta) : "sem Executivo") + "</td></tr>"; }).join("") + "</tbody></table><p class=\"rl-nota\">FCST anterior: soma do resultado previsto no FCST do mês anterior → realizado nos mesmos meses.</p></div>";
+    h.push(cap(++nc, "Sumário executivo", par(t.sumario) + figura("Resultado contra o executivo, por negócio", "jan a " + MES[b.mes] + " · vermelho = abaixo do executivo", chNegocios(D)) + figura("Os negócios", "", tab)));
+    D.forEach(function (z) {
+      var tabO = (z.piores.length || z.melhores.length) ? '<div class="rl-tab"><table><thead><tr><th>OS / centro de custo</th><th>Faturamento</th><th>Resultado</th><th>Executivo</th></tr></thead><tbody>' +
+        z.piores.concat(z.melhores).map(function (o) { return "<tr><td>" + esc(o[1]) + "</td><td>" + moeda(o[2]) + '</td><td class="' + (o[4] < o[5] ? "neg" : "pos") + '">' + moeda(o[4]) + "</td><td>" + moeda(o[5]) + "</td></tr>"; }).join("") + "</tbody></table></div>" : "";
+      h.push(cap(++nc, z.neg, par(t.negocios && t.negocios[z.neg]) + figura("Resultado do mês · " + z.neg, "barra = realizado · traço = executivo do mês", chMesGrupo(z.mm)) + (tabO ? figura("OSs que mais tiraram e mais somaram resultado", "jan a " + MES[b.mes], tabO) : "")));
+    });
+    h.push(cap(++nc, "Riscos para o ano", par(t.riscos)));
+    h.push(cap(++nc, "Decisões", '<ol class="rl-plano">' + (t.decisoes || []).map(function (p) { return "<li><b>" + esc(p.acao || "") + "</b>" + (p.efeito ? "<span>" + rico(p.efeito) + "</span>" : "") + (p.negocio ? "<em>" + esc(p.negocio) + "</em>" : "") + "</li>"; }).join("") + "</ol>"));
+    h.push('<div class="bk-fontes">Resultado da empresa por negócio direto do painel RESULTADOS (realizado, Executivo e FCST do mês anterior). Textos escritos por IA. Gerado em ' + esc(new Date(b.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })) + (b.por ? " por " + esc(b.por) : "") + ".</div>");
+    return '<article class="rl">' + h.join("") + "</article>";
+  }
+  async function renderDir(box) {
+    box.innerHTML = '<div class="bk-wrap"><div class="bk-nav"><span class="bk-marca">BOOK</span>' + abas() +
+      (master() ? '<span class="bk-acoes">' + (temChaveIA() ? '<button type="button" class="bk-bt sec" data-action="book:gerardir">🤖 Gerar agora (neste navegador)</button>' : "") +
+        '<button type="button" class="bk-bt" data-action="book:nuvemdir" title="O agente da nuvem gera e grava o relatório da Diretoria">☁ Gerar pela nuvem</button></span>' : "") +
+      '</div><div id="bkProgresso" class="bk-prog" style="display:none"></div><div id="bkConteudo"><p class="bk-vazio">Carregando…</p></div></div>';
+    if (_prog) progresso(_prog);
+    try {
+      var mapa = await lerNivel("dir"), reg = mapa.EMPRESA, c = el("bkConteudo");
+      if (c) c.innerHTML = reg && reg.d ? renderRelatorioDir(reg.d) : '<p class="bk-vazio">Ainda não há relatório da Diretoria gravado.</p>';
+    } catch (e) { var c2 = el("bkConteudo"); if (c2) c2.innerHTML = '<p class="bk-vazio">Não consegui ler o relatório: ' + esc(e.message || e) + "</p>"; }
+  }
+
   // ------------------------------------------------------------------ tela
   var _prog = "";
   function progresso(t) { _prog = t; var p = el("bkProgresso"); if (p) { p.style.display = t ? "block" : "none"; p.textContent = t; } }
@@ -1351,7 +1513,7 @@
     return lista || [];
   }
   function abas() {
-    return '<div class="bk-tabs"><button type="button" class="' + (st.nivel === "os" ? "on" : "") + '" data-action="book:nivel:os">OS</button><button type="button" class="' + (st.nivel === "ger" ? "on" : "") + '" data-action="book:nivel:ger">Gerência</button><button type="button" class="' + (st.nivel === "sup" ? "on" : "") + '" data-action="book:nivel:sup">Superintendência</button></div>';
+    return '<div class="bk-tabs"><button type="button" class="' + (st.nivel === "os" ? "on" : "") + '" data-action="book:nivel:os">OS</button><button type="button" class="' + (st.nivel === "ger" ? "on" : "") + '" data-action="book:nivel:ger">Gerência</button><button type="button" class="' + (st.nivel === "sup" ? "on" : "") + '" data-action="book:nivel:sup">Superintendência</button>' + (master() ? '<button type="button" class="' + (st.nivel === "dir" ? "on" : "") + '" data-action="book:nivel:dir">Diretoria</button>' : "") + '</div>';
   }
   async function renderGrupo(box) {
     var nivel = st.nivel, ano = anoAtivo(), mes = A.ultimoMesFechado ? A.ultimoMesFechado(ano) : 0, rot = nivel === "ger" ? "Gerência" : "Superintendência";
@@ -1380,6 +1542,7 @@
   async function render() {
     var box = el("tabBookContainer"); if (!box) return;
     if (A.garantirHierarquia) { try { await A.garantirHierarquia(); } catch (e) {} }
+    if (st.nivel === "dir") return renderDir(box);
     if (st.nivel !== "os") return renderGrupo(box);
     var lista = osPermitidas();
     var os = st.sel.os || osAtiva();
@@ -1429,7 +1592,23 @@
   });
   document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") abrirLista(false); });
   async function acao(nome, alvo) {
-    if (nome === "nivel:os" || nome === "nivel:ger" || nome === "nivel:sup") { st.nivel = nome.slice(6); render(); return; }
+    if (nome === "nivel:os" || nome === "nivel:ger" || nome === "nivel:sup" || nome === "nivel:dir") { st.nivel = nome.slice(6); render(); return; }
+    if (nome === "gerardir") {
+      if (st.carregando) return;
+      st.carregando = true;
+      try { await gerarDiretoria({}); progresso(""); toast("✅ Relatório gravado."); }
+      catch (e) { progresso("⚠ " + (e.message || e)); }
+      finally { st.carregando = false; render(); }
+      return;
+    }
+    if (nome === "nuvemdir") {
+      if (st.carregando) return;
+      st.carregando = true;
+      try { progresso("Pedindo ao agente da nuvem o relatório da Diretoria…"); await pedirAoAgente("", "aba6d"); progresso("☁ Pedido enviado. O agente monta e grava o relatório em alguns minutos; depois é só abrir esta aba de novo."); }
+      catch (e) { progresso("⚠ " + (e.message || e)); }
+      finally { st.carregando = false; }
+      return;
+    }
     if (nome.indexOf("grp:") === 0) { st.sel[st.nivel] = nome.slice(4); abrirLista(false); render(); return; }
     if (nome === "gerargrp") {
       if (st.carregando || !st.sel[st.nivel]) return;
@@ -1467,5 +1646,5 @@
     }
   }
 
-  window.BOOK = { render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao, gerarGrupo: gerarGrupo, listarGrupos: listarGrupos, _agregarGrupo: agregarGrupo, _promptGrupo: promptGrupo, _renderRelatorioGrupo: renderRelatorioGrupo };
+  window.BOOK = { render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao, gerarGrupo: gerarGrupo, listarGrupos: listarGrupos, gerarDiretoria: gerarDiretoria, _montarDiretoria: montarDiretoria, _renderRelatorioDir: renderRelatorioDir, _agregarGrupo: agregarGrupo, _promptGrupo: promptGrupo, _renderRelatorioGrupo: renderRelatorioGrupo };
 })();
