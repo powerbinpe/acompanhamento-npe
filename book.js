@@ -339,7 +339,7 @@
     L.push("");
     L.push("COMO ANALISAR");
     L.push("1. Proporcionalidade. O faturamento real ficou " + (an ? fmt((an.ratio - 1) * 100, 2) + "% " + (an.ratio >= 1 ? "acima" : "abaixo") : "–") + " do executivo. Se o volume cresce, o custo deve crescer na mesma proporção; a margem só cai se algum custo cresceu mais que o volume. Use a PONTE DA MARGEM (pontos que cada grupo tirou ou devolveu) e as CONTAS para dizer exatamente o que descolou e por quê.");
-    L.push("2. Receita e custo sem faturamento em quatro efeitos, sempre em R$ e em % do faturamento: PERDAS (faturamento que não entrou por recurso indisponível, por motivo), SLA (desconto contratual direto no faturamento, por item e parâmetro) e NÃO FATURÁVEIS (custo de recursos que não geram faturamento, por função) e DILUÍDOS (custo de recursos diluídos nos serviços, sem item próprio de faturamento). Feche com o RESULTADO POTENCIAL: quanto seria o resultado e a margem sem esses efeitos. A comparação Receita Ideal x PR é só conferência: cite em no máximo uma frase, sem destaque.");
+    L.push("2. Receita e custo sem faturamento em três efeitos, sempre em R$ e em % do faturamento: PERDAS (faturamento que não entrou por recurso indisponível, por motivo), SLA (desconto contratual direto no faturamento, por item e parâmetro) e NÃO FATURÁVEIS (custo de recursos que não geram faturamento, por função) Feche com o RESULTADO POTENCIAL: real + perdas (como faturamento) + SLA (desconto direto) + não faturáveis (custo de recurso que não fatura). Os DILUÍDOS são apenas informativos: cite se relevante, mas nunca some em conta nenhuma. A comparação Receita Ideal x PR é só conferência: cite em no máximo uma frase, sem destaque.");
     L.push("3. FCST mês a mês. Use a linha do tempo para explicar o ANO: o que os FCSTs do mês anterior prometeram de resultado, o que foi entregue e quais grupos explicam a diferença. Não descreva mês a mês; cite no máximo os 2 ou 3 meses decisivos.");
     L.push("4. Movimentação de efetivo. Admissão traz custo imediato (exames, EPIs, consumíveis) e o faturamento do recurso novo normalmente só aparece no mês seguinte (HHT e faturamento sobem). Se o HHT ou o faturamento não subiram depois das admissões, aponte. Demissão traz custo rescisório.");
     L.push("5. Encargos. Seguem o salário. Separe o que é automático do que foi provocado por demissão: rescisões, aviso prévio indenizado, multa de 40% do FGTS e FGTS de rescisão (tabela FOLHA e EVENTOS). Esses itens não são proporcionais ao salário.");
@@ -357,7 +357,7 @@
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
     L.push('{"sumario":"(3 parágrafos, 900 a 1500 caracteres: receita, custo e o que fazer)",' +
-      '"receita":"(2 parágrafos, até 1400 caracteres: perdas por motivo, SLA, não faturáveis, diluídos, % do faturamento e resultado potencial)",' +
+      '"receita":"(2 parágrafos, até 1400 caracteres: perdas por motivo, SLA, não faturáveis, % do faturamento e resultado potencial; diluídos só como informação)",' +
       '"custos":"(2 ou 3 parágrafos, até 1700 caracteres: proporcionalidade, ponte da margem, contas, o que o FCST prometeu e não entregou)",' +
       '"pessoas":"(2 ou 3 parágrafos, até 1500 caracteres: efetivo, admissões/demissões e seus custos, HHT, HE, absenteísmo, faturamento do recurso novo e a coerência da projeção dos próximos meses)",' +
       '"eventos":"(até 1000 caracteres: rescisões e multa de 40%, encargos fora do padrão, acúmulo de férias (30 e 45 dias ou mais) e o efeito dele no dissídio e na reoneração ' + (ano + 1) + ')",' +
@@ -385,14 +385,14 @@
       an.contas.slice(0, 16).forEach(function (x) { L.push("  " + x.conta + ": " + cu(x.real) + " | " + (x.exec ? cu(x.exec) : "não orçado") + " | " + cu(x.prop) + " | " + dif(x.desvio)); });
     }
     if (fi && fi.receita) {
-      var rc = fi.receita, perda = rc.perdaRI != null ? rc.perdaRI : rc.perdaPR, pot = fi.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0) + (rc.dil || 0);
+      var rc = fi.receita, perda = rc.perdaRI != null ? rc.perdaRI : rc.perdaPR, pot = fi.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0);
       L.push("");
       L.push("RECEITA E CUSTO SEM FATURAMENTO (jan a " + MES[mes] + "):");
       L.push("Perdas de receita " + (rc.perdaRI != null ? "(Receita Ideal) " : "(PR) ") + rs(perda) + " = " + pf(perda) + " do faturamento" + (rc.perdaRI != null ? " | conferência pela PR: " + rs(rc.perdaPR) : "") + ".");
       L.push("Descontos de SLA " + rs(rc.sla) + " = " + pf(rc.sla) + " do faturamento. Por mês: " + linhaSerie(rc.slaM, rs) + ". Itens: " + (rc.slaItens.length ? rc.slaItens.map(function (x) { return x[0] + " (" + x[1] + ", " + (x[4] != null ? fmt(x[4] * 100, 2) + "% de desconto, " : "") + x[3] + " meses) " + rs(x[2]); }).join("; ") : "nenhum") + ".");
       L.push("Recursos não faturáveis (custo) " + rs(rc.nf) + " = " + pf(rc.nf) + " do faturamento. Por mês: " + linhaSerie(rc.nfM, rs) + ". Funções: " + (rc.nfItens.length ? rc.nfItens.map(function (x) { return x[0] + " (" + x[1] + ", " + x[3] + " pessoa-mês) " + rs(x[2]); }).join("; ") : "nenhuma") + ".");
-      if (rc.dil != null) L.push("Recursos diluídos (custo de quem fica diluído nos serviços, sem item próprio de faturamento) " + rs(rc.dil) + " = " + pf(rc.dil) + " do faturamento. Por mês: " + linhaSerie(rc.dilM, rs) + ". Funções: " + (rc.dilItens.length ? rc.dilItens.map(function (x) { return x[0] + " (" + x[1] + ", " + x[3] + " pessoa-mês) " + rs(x[2]); }).join("; ") : "nenhuma") + ".");
-      L.push("RESULTADO POTENCIAL (real + perdas + SLA + não faturáveis + diluídos): " + rs(pot) + ", margem " + pct(fi.FR ? pot / fi.FR : null) + " (real " + pct(fi.FR ? fi.resReal / fi.FR : null) + ").");
+      if (rc.dil != null) L.push("Recursos diluídos (APENAS INFORMATIVO, não entram em nenhuma conta nem no resultado potencial) " + rs(rc.dil) + " = " + pf(rc.dil) + " do faturamento. Por mês: " + linhaSerie(rc.dilM, rs) + ". Funções: " + (rc.dilItens.length ? rc.dilItens.map(function (x) { return x[0] + " (" + x[1] + ", " + x[3] + " pessoa-mês) " + rs(x[2]); }).join("; ") : "nenhuma") + ".");
+      L.push("RESULTADO POTENCIAL (real + perdas + SLA + não faturáveis; diluídos NÃO entram): " + rs(pot) + ", margem " + pct(fi.FR ? pot / fi.FR : null) + " (real " + pct(fi.FR ? fi.resReal / fi.FR : null) + ").");
     }
     if (S.ri) {
       L.push("Perda (Receita Ideal) por mês: " + linhaSerie(S.ri.perda, rs) + " | % sobre o ideal: " + S.ri.perda.map(function (p, i) { return MES[i + 1] + " " + (S.ri.ideal[i] ? fmt(p / S.ri.ideal[i] * 100, 2) + "%" : "–"); }).join(" · ") + " (referência 4%).");
@@ -940,8 +940,7 @@
     if (p.perda) passos.push({ nome: "Perdas de receita", v: p.perda / 1000, tipo: "passo" });
     if (p.sla) passos.push({ nome: "Descontos de SLA", v: p.sla / 1000, tipo: "passo" });
     if (p.nf) passos.push({ nome: "Não faturáveis", v: p.nf / 1000, tipo: "passo" });
-    if (p.dil) passos.push({ nome: "Recursos diluídos", v: p.dil / 1000, tipo: "passo" });
-    passos.push({ nome: "Resultado potencial", v: (p.res + (p.perda || 0) + (p.sla || 0) + (p.nf || 0) + (p.dil || 0)) / 1000, tipo: "base" });
+    passos.push({ nome: "Resultado potencial", v: (p.res + (p.perda || 0) + (p.sla || 0) + (p.nf || 0)) / 1000, tipo: "base" });
     return cascata(passos, { fBase: function (v) { return moeda(v * 1000); }, fPasso: function (v) { return moeda(v * 1000).replace("R$ ", ""); }, fEixo: function (v) { return fmt(v * 1000); }, h: 300, titulo: "Resultado potencial" });
   }
   // custo provocado por demissao, por mes (conta rescisoes + encargos rescisorios), com o numero de demissoes
@@ -989,14 +988,14 @@
     // 2. receita: perdas, SLA e nao faturaveis
     var rc = c.receita, r2 = par(t.receita);
     if (rc && c.FR) {
-      var perda = rc.perdaRI != null ? rc.perdaRI : rc.perdaPR, pot = c.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0) + (rc.dil || 0);
-      r2 += figura("Resultado potencial: o que o contrato entregaria sem perdas, SLA, não faturáveis e diluídos", "jan a " + MES[b.mes] + " · margem real " + pct(margR) + " → potencial " + pct(pot / c.FR),
-        chPotencial({ res: c.resReal, perda: perda, sla: rc.sla, nf: rc.nf, dil: rc.dil }),
+      var perda = rc.perdaRI != null ? rc.perdaRI : rc.perdaPR, pot = c.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0);
+      r2 += figura("Resultado potencial: o que o contrato entregaria sem perdas, SLA e não faturáveis", "jan a " + MES[b.mes] + " · margem real " + pct(margR) + " → potencial " + pct(pot / c.FR),
+        chPotencial({ res: c.resReal, perda: perda, sla: rc.sla, nf: rc.nf }),
         '<div class="rl-tab"><table><thead><tr><th>Efeito</th><th>Natureza</th><th>Valor</th><th>% do faturamento</th></tr></thead><tbody>' +
         "<tr><td>Perdas de receita" + (rc.perdaRI != null ? " (Receita Ideal)" : " (PR)") + "</td><td>faturamento que não entrou por recurso indisponível</td><td>" + moeda(perda || 0) + "</td><td>" + pf(perda || 0) + "</td></tr>" +
         "<tr><td>Descontos de SLA</td><td>desconto contratual direto no faturamento</td><td>" + moeda(rc.sla || 0) + "</td><td>" + pf(rc.sla || 0) + "</td></tr>" +
         "<tr><td>Recursos não faturáveis</td><td>custo de quem não gera faturamento</td><td>" + moeda(rc.nf || 0) + "</td><td>" + pf(rc.nf || 0) + "</td></tr>" +
-        (rc.dil != null ? "<tr><td>Recursos diluídos</td><td>custo de quem fica diluído nos serviços, sem item próprio de faturamento</td><td>" + moeda(rc.dil || 0) + "</td><td>" + pf(rc.dil || 0) + "</td></tr>" : "") +
+        (rc.dil != null ? "<tr><td>Recursos diluídos <i>(informativo)</i></td><td>custo de quem fica diluído nos serviços; não entra no resultado potencial</td><td>" + moeda(rc.dil || 0) + "</td><td>" + pf(rc.dil || 0) + "</td></tr>" : "") +
         "</tbody></table>" + (rc.perdaRI != null ? '<p class="rl-nota">Conferência: perda pela Receita Ideal ' + moeda(rc.perdaRI) + " · pela PR " + moeda(rc.perdaPR) + ".</p>" : "") + "</div>");
     }
     if (S.ri) r2 += figura("De onde vem a perda de receita", "por mês, maiores motivos do período (Receita Ideal)", chMotivos(S.meses, S.ri),
@@ -1077,7 +1076,7 @@
   function linhaOS(b) {
     var f = b.S.fin, rc = f.receita || {}, an = analisarCustos(f), S = b.S, k = b.kpi || {}, n = S.meses.length - 1;
     var perda = rc.perdaRI != null ? rc.perdaRI : rc.perdaPR, he = an ? an.contas.filter(function (x) { return /^41111002/.test(x.conta); })[0] : null;
-    var pot = f.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0) + (rc.dil || 0);
+    var pot = f.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0);
     return { os: b.os, desc: b.desc, gestor: b.gestor || "", ger: b.ger || "", sup: b.sup || "", FR: f.FR, FE: f.FE, res: f.resReal, rex: f.resExec, gap: f.resReal - f.resExec,
       perda: perda || 0, sla: rc.sla || 0, nf: rc.nf || 0, dil: rc.dil || 0, pot: pot, heDesvio: he ? Math.round(he.desvio) : 0,
       rescTot: f.folha ? -soma(f.folha.rescTot) : 0, multa40: f.folha ? -soma(f.folha.multa40) : 0,
@@ -1141,8 +1140,8 @@
     if (an) L.push("PONTE DA MARGEM DO GRUPO (p.p. por grupo de custo; negativo = custou mais que a proporção): " + an.grupos.map(function (g) { return g.nome + " " + (g.pp > 0 ? "+" : "") + fmt(g.pp, 2); }).join("; ") + ".");
     L.push("CONTAS QUE MAIS PESARAM (quanto custaram a mais que a proporção, somando as OSs; e as OSs que mais contribuíram): " + G.contas.slice(0, 10).map(function (c) { return c.conta + " " + dif(c.desvio) + " (" + c.oss.filter(function (o) { return o[1] < 0; }).map(function (o) { return o[0] + " " + moeda(Math.abs(o[1])); }).join(", ") + ")"; }).join("; ") + ".");
     if (G.recorrentes.length) L.push("CUSTOS ACIMA DO EXECUTIVO DE FORMA RECORRENTE (conta: OSs): " + G.recorrentes.map(function (r) { return r.conta + ": " + r.oss.join(", "); }).join("; ") + ".");
-    var rc = G.receita, pot = G.resReal + rc.perda + rc.sla + rc.nf + rc.dil;
-    L.push("RECEITA E CUSTO SEM FATURAMENTO: perdas " + rs(rc.perda) + " (" + pf(rc.perda) + ") | SLA " + rs(rc.sla) + " (" + pf(rc.sla) + ") | não faturáveis " + rs(rc.nf) + " (" + pf(rc.nf) + ") | diluídos " + rs(rc.dil) + " (" + pf(rc.dil) + ") | resultado potencial " + rs(pot) + ", margem " + pct(G.FR ? pot / G.FR : null) + ".");
+    var rc = G.receita, pot = G.resReal + rc.perda + rc.sla + rc.nf;
+    L.push("RECEITA E CUSTO SEM FATURAMENTO: perdas " + rs(rc.perda) + " (" + pf(rc.perda) + ") | SLA " + rs(rc.sla) + " (" + pf(rc.sla) + ") | não faturáveis " + rs(rc.nf) + " (" + pf(rc.nf) + ") | resultado potencial (real + perdas + SLA + não faturáveis) " + rs(pot) + ", margem " + pct(G.FR ? pot / G.FR : null) + ". Diluídos, apenas informativo e fora de qualquer conta: " + rs(rc.dil) + ".");
     if (G.promessa.n) L.push("FCST: somando as OSs, os FCSTs do mês anterior prometeram " + rs(G.promessa.fc) + " e o realizado foi " + rs(G.promessa.res) + " (diferença " + rs(G.promessa.res - G.promessa.fc) + "). Por grupo: " + G.promessa.grupos.slice().sort(function (a, b) { return a.v - b.v; }).map(function (x) { return x.nome + (x.v < 0 ? " piorou " : " melhorou ") + moeda(Math.abs(x.v)); }).join("; ") + ".");
     L.push("FOLHA: rescisões e encargos rescisórios " + rs(G.resc) + ", dos quais multa de 40% do FGTS " + rs(G.multa40) + ". Férias: " + fmt(G.f30) + " pessoas com 30 dias ou mais e " + fmt(G.f45) + " com 45 dias ou mais (saldo " + fmt(G.saldo) + " dias).");
     if (!ger && extra.porGer) {
@@ -1154,7 +1153,7 @@
     L.push("POR OS (do pior para o melhor resultado contra o executivo):");
     G.linhasOS.forEach(function (o) {
       L.push("  " + (String(o.desc).indexOf(o.os) === 0 ? o.desc : o.os + " " + o.desc) + (ger ? "" : " [" + o.ger + "]") + " | gestor " + (o.gestor || "–") + " | faturamento " + rs(o.FR) + " x " + rs(o.FE) + " | resultado " + rs(o.res) + " x " + rs(o.rex) + " (diferença " + rs(o.gap) + ") | margem " + pct(o.FR ? o.res / o.FR : null) + " x " + pct(o.FE ? o.rex / o.FE : null) +
-        " | perdas " + rs(o.perda) + " | SLA " + rs(o.sla) + " | não faturáveis " + rs(o.nf) + " | diluídos " + rs(o.dil) + " | HE " + (o.heDesvio < 0 ? moeda(-o.heDesvio) + " acima da proporção" : "na proporção") + " | rescisões " + rs(o.rescTot) +
+        " | perdas " + rs(o.perda) + " | SLA " + rs(o.sla) + " | não faturáveis " + rs(o.nf) + " | diluídos (informativo) " + rs(o.dil) + " | HE " + (o.heDesvio < 0 ? moeda(-o.heDesvio) + " acima da proporção" : "na proporção") + " | rescisões " + rs(o.rescTot) +
         " | efetivo " + fmt(o.efet) + " (" + o.adm + " admissões, " + o.dem + " demissões no ano, " + o.demTurn + " contam no turnover) | absenteísmo médio mensal " + pct(o.abs) + " | férias 30+ " + fmt(o.f30) + ", 45+ " + fmt(o.f45) + (o.alerta ? " | ALERTA DE PROJEÇÃO: " + o.alerta.join("; ") : ""));
       L.push("    resultado mês a mês (real x executivo): " + o.mm.map(function (x) { return MES[x[0]] + " " + rs(x[2]) + " x " + rs(x[4]); }).join(" · "));
       if (ger && o.diag) L.push("    diagnóstico da OS: " + String(o.diag).replace(/\s+/g, " ").slice(0, 420));
@@ -1283,13 +1282,13 @@
       h.push(cap(++nc, "Gerências: onde está o resultado", par(t.gerencias) + figura("As gerências", "da pior para a melhor contra o executivo", tabG) + figura("As OSs que mais pesam", "as 14 piores contra o executivo", chGap(G.linhasOS))));
     }
     // impactos
-    var rc = G.receita, pot = G.resReal + rc.perda + rc.sla + rc.nf + rc.dil;
+    var rc = G.receita, pot = G.resReal + rc.perda + rc.sla + rc.nf;
     var tabC = '<div class="rl-tab"><table><thead><tr><th>Conta</th><th>Custou a mais que a proporção</th><th>OSs que mais contribuíram</th></tr></thead><tbody>' +
       G.contas.filter(function (c) { return c.desvio < 0; }).slice(0, 8).map(function (c) { return "<tr><td>" + esc(String(c.conta).replace(/^\d+\s*-\s*/, "")) + '</td><td class="neg">' + moeda(-c.desvio) + '</td><td class="rl-cx">' + esc(c.oss.filter(function (o) { return o[1] < 0; }).map(function (o) { return o[0] + " " + moeda(-o[1]); }).join(" · ")) + "</td></tr>"; }).join("") + "</tbody></table></div>";
     h.push(cap(++nc, "Impactos: o que tirou resultado e quem causou", par(t.impactos) +
       (an ? figura("Ponte da margem do grupo", "pontos percentuais de margem por grupo de custo, somando as OSs", chPonte(an)) : "") +
       figura("As contas que mais pesaram", "", tabC) +
-      figura("Resultado potencial do grupo", "sem perdas, SLA, não faturáveis e diluídos · margem real " + pct(margR) + " → potencial " + pct(G.FR ? pot / G.FR : null), chPotencial({ res: G.resReal, perda: rc.perda, sla: rc.sla, nf: rc.nf, dil: rc.dil }))));
+      figura("Resultado potencial do grupo", "sem perdas, SLA e não faturáveis · margem real " + pct(margR) + " → potencial " + pct(G.FR ? pot / G.FR : null), chPotencial({ res: G.resReal, perda: rc.perda, sla: rc.sla, nf: rc.nf }))));
     // pessoas
     var tabP = '<div class="rl-tab"><table><thead><tr><th>OS</th><th>Efetivo</th><th>Adm./dem. no ano</th><th>HE no mês</th><th>Absenteísmo médio</th><th>Demissões (turnover)</th><th>Férias 30+</th><th>Férias 45+</th><th>Projeção</th></tr></thead><tbody>' +
       G.linhasOS.map(function (o) { return "<tr><td>" + esc(o.os) + "</td><td>" + fmt(o.efet) + "</td><td>" + o.adm + " / " + o.dem + "</td><td>" + (o.he == null ? "–" : fmt(o.he, 2) + "%") + "</td><td>" + pct(o.abs) + "</td><td>" + o.demTurn + "</td><td>" + fmt(o.f30) + '</td><td class="' + ((o.f45 || 0) > 0 ? "neg" : "") + '">' + fmt(o.f45) + '</td><td class="' + (o.alerta ? "neg" : "") + '">' + (o.alerta ? "corrigir" : "ok") + "</td></tr>"; }).join("") + "</tbody></table></div>";
