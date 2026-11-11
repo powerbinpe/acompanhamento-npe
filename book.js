@@ -227,6 +227,35 @@
     var t = r ? String(r.comentario || "").trim() : "";
     return t === "Sem parecer registrado" ? "" : t;
   }
+  // OS sempre com a OS DESCRICAO RELACIONADA (ou a descricao do bloco), nunca so o numero.
+  function nomeOS(cod, desc) {
+    cod = String(cod || ""); desc = String(desc || "").trim();
+    if (!desc) return cod;
+    return desc.indexOf(cod) === 0 || /^[A-Z]\d{5}/.test(desc) ? desc : cod + " - " + desc;
+  }
+  // Troca codigos soltos (M03100) pelo nome completo, sem duplicar quando o texto ja traz a descricao.
+  function expandirOSs(txt, mapa) {
+    return String(txt || "").replace(/\b([A-Z]\d{5})\b(?!\s*[-–+])/g, function (cod) {
+      var n = mapa[cod]; if (!n) return cod;
+      return String(txt).indexOf(n) >= 0 && n.indexOf(cod) >= 0 ? cod : n;
+    });
+  }
+  function mapaNomesOS(linhas) {
+    var m = {};
+    (linhas || []).forEach(function (o) {
+      var n = nomeOS(o.os, o.desc);
+      String(o.rot || o.os || "").split(/\s*[|+]\s*/).forEach(function (c) { if (c) m[c.trim().toUpperCase()] = n; });
+      m[o.os] = n;
+    });
+    return m;
+  }
+  // Texto livre da ATA sem o cabecalho da caixa e sem os textos padrao de "vazio".
+  function limparAta(t, tiraCaixa) {
+    var x = String(t || "").trim();
+    if (tiraCaixa) x = x.split("\n").slice(1).join(" ");
+    x = x.replace(/\s+/g, " ").trim();
+    return /^(sem justificativas?|sem parecer registrado|-)\.?$/i.test(x) ? "" : x;
+  }
   function primeiraLinha(t) { return String(t || "").split("\n")[0].trim(); }
   var SCORE = { 1: "t1", 2: "t2", 4: "t4", 6: "t6", 7: "t7", 8: "t8", 9: "t9", 10: "t10", 11: "t11", 12: "t12", 13: "t13", 14: "t14", 15: "t15", 16: "t16", 17: "t17", 19: "t19", 20: "t20" };
   // A situacao do mes vem da CAIXA: a primeira linha do parecer gravado traz "Mes: ATENDEU / NAO ATENDEU /
@@ -377,6 +406,8 @@
     L.push("7. Dissídio e reoneração da folha (janeiro/" + (ano + 1) + ") são premissas básicas do orçamento: NÃO os trate como premissa a rever nem como item para o Orçamento. O que o orçamento não consegue prever é o tamanho do ACÚMULO DE FÉRIAS, que multiplica esses dois efeitos; é isso que deve ser apontado, com as pessoas com 30 e com 45 dias ou mais. Não estime valor que não esteja nos DADOS.");
     L.push("8. Para o ORÇAMENTO, as observações que importam são: absenteísmo e turnover altos (realidade do contrato e da região), custos que ficam acima do executivo de forma padronizada, mês após mês (use RECORRÊNCIA), e acúmulo de férias (30 e 45 dias ou mais). Cada observação com o número que a sustenta.");
     L.push("10. Projeção dos próximos meses. Faça a análise futura com os números que o contrato projetou (EFETIVO PR, HHT PR, faturamento e resultado projetados). Se houver ALERTA DE PROJEÇÃO, diga com clareza que a projeção não acompanha a movimentação do último mês e peça a correção: quem admitiu tem que projetar mais efetivo e HHT (e o faturamento correspondente); quem desligou, menos.");
+    L.push("11. Planos de ação informados. Para cada indicador que não atendeu em algum mês, leia mês a mês o que o gestor escreveu (G) e o parecer do Setor de Performance (P) e compare com a situação e os números da caixa nos meses seguintes. Classifique o plano: FUNCIONANDO (depois da ação o indicador melhorou ou voltou a atender), PARCIAL (melhorou, mas ainda não atende), SEM EFEITO (a mesma ação se repete há 2 meses ou mais e o cenário não muda: diga com todas as letras que o que está sendo feito não está mudando o cenário e que o plano precisa ser trocado), PIOROU, ou SEM PLANO (não atende e o gestor não informou ação: cobre o plano). Use o parecer do Setor de Performance como referência técnica; quando o gestor disser uma coisa e os números ou o parecer mostrarem outra, aponte. Vale para todos os indicadores, inclusive os de SSMA.");
+    L.push("12. SSMA (SAF, CAF, PBI/PBD): um acidente pode parar um dia inteiro de serviço, e esse dia deixa de ser medido. Quando houver acidente ou ocorrência, procure a perda de receita do mesmo mês e diga se o evento ajuda a explicar a perda; se os DADOS não permitirem ligar os dois, diga que não há registro. Avalie se as ações de segurança informadas evitaram nova ocorrência.");
     L.push("9. Gestão ou orçamento. Para cada causa, decida: é GESTÃO (o contrato controla: hora extra, absenteísmo, demissões evitáveis, perdas por falta de mão de obra, SLA, recursos sem faturar) ou é PREMISSA DE ORÇAMENTO (o preço não previu: custo estrutural não orçado ou que fica acima do executivo todo mês, absenteísmo e turnover da região). Seja assertivo. Se o problema é de gestão, o parecer ao Orçamento diz isso com todas as letras.");
     L.push("");
     L.push("REGRAS");
@@ -394,9 +425,10 @@
       '"eventos":"(até 1000 caracteres: rescisões e multa de 40%, encargos fora do padrão, acúmulo de férias (30 e 45 dias ou mais) e o efeito dele no dissídio e na reoneração ' + (ano + 1) + ')",' +
       '"ssma":"(até 700 caracteres: segurança, satisfação do cliente, boas práticas e renovação)",' +
       '"diagnostico":"(até 600 caracteres: a conclusão: quanto é gestão e quanto é orçamento)",' +
+      '"planos":[{"indicador":"(#número e nome)","acao":"(o que o gestor informou que está fazendo, resumido, até 160 caracteres; nenhuma ação informada, se for o caso)","desde":"(mês em que a ação aparece pela primeira vez)","efeito":"(FUNCIONANDO, PARCIAL, SEM EFEITO, PIOROU ou SEM PLANO)","texto":"(até 300 caracteres: a evidência mês a mês, com os números da caixa e o que diz o parecer do Setor de Performance)","recomendacao":"(até 220 caracteres: manter, ajustar ou trocar o plano, e o que fazer)"}] (todos os indicadores que não atenderam em algum mês do ano, do mais grave para o menos grave, até 10 itens; [] se todos atenderam o ano todo),' +
       '"gestao":[{"titulo":"(até 45 caracteres)","valor":"(até 25 caracteres, o número)","texto":"(até 260 caracteres)"}] (3 a 5 itens),' +
       '"premissas":[{"titulo":"","valor":"","texto":""}] (2 a 5 itens),' +
-      '"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres, com o ganho esperado se houver número nos DADOS)","acompanhar":"(até 90 caracteres)"}] (4 a 6 itens),' +
+      '"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres, com o ganho esperado se houver número nos DADOS)","acompanhar":"(até 90 caracteres)"}] (4 a 6 itens; onde o plano informado está SEM EFEITO ou não existe, proponha a troca),' +
       '"parecerOrcamento":"(até 450 caracteres: o veredito para a renovação: o que considerar no preço, ou corrigir a gestão antes)",' +
       '"orcamento":[{"titulo":"(até 40 caracteres)","valor":"(até 30 caracteres)","texto":"(até 300 caracteres)"}] (5 a 8 itens: absenteísmo, turnover, custos acima do executivo de forma recorrente, acúmulo de férias e o que mais os DADOS sustentarem; dissídio e reoneração não entram como item)}');
     L.push("");
@@ -489,11 +521,22 @@
     L.push("Perda PR acumulada " + rs(k.perdaAcum) + " (" + pct(k.perdaPct) + "). Absenteísmo acumulado " + pct(k.absAcum) + " (referência " + pct(k.absMeta) + "). Turnover acumulado " + pct(k.turnAcum) + ".");
     L.push("SATISFAÇÃO DO CLIENTE (todos os anos): " + (S.sat.length ? S.sat.map(function (s) { return s[0] + " " + pct(s[1], 1) + " (meta " + pct(s[2], 1) + ")"; }).join("; ") : "nenhuma pesquisa registrada") + ". Meta do ano: " + pct(S.satMeta, 1) + ".");
     L.push("");
-    L.push("INDICADORES (A=atendeu, N=não atendeu, V=não avaliado, -=sem apuração; caixa = valores do último mês; parecer do último mês):");
+    L.push("INDICADORES (A=atendeu, N=não atendeu, V=não avaliado, -=sem apuração; caixa = valores do último mês):");
     C.inds.forEach(function (x) {
       L.push("#" + x.id + " " + x.nome + " | " + x.strip.split("").map(function (ch, i) { return MES[i + 1] + ":" + ch; }).join(" ") + " | caixa: " + (x.val || "–"));
-      var p = ata(os, x.id, mes); if (p) L.push("  parecer " + MES[mes] + ": " + p.replace(/\s+/g, " ").slice(0, 500));
-      var g = ata(os, x.id, mes, "GESTOR"); if (g) L.push("  justificativa do gestor: " + g.replace(/\s+/g, " ").slice(0, 300));
+    });
+    L.push("");
+    L.push("PLANOS INFORMADOS x PARECER DO SETOR DE PERFORMANCE, mês a mês (G = o que o gestor escreveu no comentário: ações e justificativas; P = parecer do Setor de Performance; caixa = valores do indicador no mês; letra = situação):");
+    C.inds.forEach(function (x) {
+      var temN = x.strip.indexOf("N") >= 0, linhas = [];
+      for (var m3 = 1; m3 <= mes; m3++) {
+        var pr = ata(os, x.id, m3), g3 = limparAta(ata(os, x.id, m3, "GESTOR")), p3 = limparAta(pr, true), cx3 = primeiraLinha(pr).replace(/\s+/g, " ");
+        if (!g3 && !p3) continue;
+        linhas.push("  " + MES[m3] + " [" + (x.strip.charAt(m3 - 1) || "-") + "]" + (cx3 ? " caixa: " + cx3.slice(0, 150) : "") + " | G: " + (g3 ? g3.slice(0, 240) : "nenhuma ação informada") + (p3 ? " | P: " + p3.slice(0, 220) : ""));
+      }
+      if (!linhas.length) { if (temN) L.push("#" + x.id + " " + x.nome + ": não atendeu em " + (x.strip.split("N").length - 1) + " mês(es) e não há comentário do gestor nem parecer."); return; }
+      L.push("#" + x.id + " " + x.nome + ":");
+      (temN ? linhas : linhas.slice(-2)).forEach(function (l) { L.push(l); });
     });
     var obs = ata(os, 23, mes); if (obs) L.push("#23 Observações gerais (" + MES[mes] + "): " + obs.replace(/\s+/g, " ").slice(0, 700));
     L.push("SÍNTESE DO MÊS (#24), últimos meses:");
@@ -507,9 +550,10 @@
     if (a < 0 || b <= a) throw new Error("A IA não devolveu um JSON.");
     return JSON.parse(t.slice(a, b + 1));
   }
-  function conferirOS(j) {
+  function conferirOS(j, temN) {
     var falta = [];
     if (!j || typeof j !== "object") return ["tudo"];
+    if (temN && (!Array.isArray(j.planos) || !j.planos.length)) falta.push("planos");
     ["receita", "custos", "pessoas", "eventos", "ssma", "diagnostico", "parecerOrcamento"].forEach(function (k) { if (!j[k] || String(j[k]).length < 40) falta.push(k); });
     if (!j.sumario || String(j.sumario).length < 400) falta.push("sumario");
     if (!Array.isArray(j.gestao) || j.gestao.length < 2) falta.push("gestao");
@@ -554,7 +598,7 @@
     while (falta.length && tent < 2) {
       var p = tent === 0 ? prompt : prompt + "\n\nATENÇÃO: na resposta anterior faltaram ou vieram vazios: " + falta.join(", ") + ". Devolva o JSON COMPLETO.";
       var txt = await A.chamarGerarTexto("gpt41", p);
-      try { j = extrairJSON(txt); falta = conferirOS(j); } catch (e) { falta = ["JSON válido"]; }
+      try { j = extrairJSON(txt); falta = conferirOS(j, C.inds.some(function (x) { return x.strip.indexOf("N") >= 0; })); } catch (e) { falta = ["JSON válido"]; }
       tent++;
     }
     if (falta.length) throw new Error("A IA não completou o book (faltou: " + falta.join(", ") + ").");
@@ -564,7 +608,7 @@
       v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: (H.rotulo && H.rotulo.indexOf("|") > 0 && H.grupo) ? H.grupo : (H.desc || C.contract.name || ""), descCtt: !!H.ctt, hist: hist, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
       ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal,
       kpi: C.kpi, S: C.S, inds: C.inds,
-      txt: { sumario: j.sumario, receita: j.receita, custos: j.custos, pessoas: j.pessoas, eventos: j.eventos, ssma: j.ssma, diagnostico: j.diagnostico,
+      txt: { sumario: j.sumario, receita: j.receita, custos: j.custos, pessoas: j.pessoas, eventos: j.eventos, ssma: j.ssma, diagnostico: j.diagnostico, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
         gestao: j.gestao.slice(0, 5), premissas: j.premissas.slice(0, 5), plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10) }
     };
     if (opts.gravar === false) return book;
@@ -1066,14 +1110,20 @@
     h.push('<section class="rl-cap"><h2><span>5</span>Segurança, cliente e contrato</h2><div class="rl-flex">' + g5 + '<div class="rl-txt">' + par(t.ssma) + "</div></div></section>");
     // 6. diagnostico
     function lista(xs) { return (xs || []).map(function (x) { return '<li><div class="rl-li-t"><b>' + esc(x.titulo || "") + '</b><span>' + esc(x.valor || "") + "</span></div>" + rico(x.texto || "") + "</li>"; }).join(""); }
-    h.push('<section class="rl-cap"><h2><span>6</span>Diagnóstico: é gestão ou é orçamento?</h2>' + par(t.diagnostico) +
+    var EF = { "FUNCIONANDO": "ok", "PARCIAL": "na", "SEM EFEITO": "bad", "PIOROU": "bad", "SEM PLANO": "bad" };
+    var pls = t.planos || [];
+    h.push('<section class="rl-cap"><h2><span>6</span>Planos informados: estão mudando o cenário?</h2>' + (pls.length ?
+      '<p class="rl-nota">Comparação, indicador a indicador, entre o que o gestor informou nos comentários, o parecer do Setor de Performance e o que os números fizeram nos meses seguintes.</p><div class="rl-tab"><table><thead><tr><th>Indicador</th><th>O que foi informado</th><th>Efeito</th><th>Evidência</th><th>O que fazer</th></tr></thead><tbody>' +
+      pls.map(function (q) { var ef = String(q.efeito || "").toUpperCase().trim(); return "<tr><td>" + esc(q.indicador || "") + '</td><td class="rl-cx">' + esc(q.acao || "") + (q.desde ? "<br><i>desde " + esc(q.desde) + "</i>" : "") + '</td><td><span class="bk-pill ' + (EF[ef] || "na") + '">' + esc(ef || "–") + '</span></td><td class="rl-cx">' + rico(q.texto || "") + '</td><td class="rl-cx">' + rico(q.recomendacao || "") + "</td></tr>"; }).join("") + "</tbody></table></div>"
+      : '<p class="rl-nota">Todos os indicadores atenderam no ano, ou este relatório foi gerado antes da análise dos planos.</p>') + "</section>");
+    h.push('<section class="rl-cap"><h2><span>7</span>Diagnóstico: é gestão ou é orçamento?</h2>' + par(t.diagnostico) +
       '<div class="rl-diag"><div class="rl-diag-c ges"><h4>Gestão · o contrato controla</h4><ul>' + lista(t.gestao) + '</ul></div><div class="rl-diag-c orc"><h4>Orçamento · premissa a rever</h4><ul>' + lista(t.premissas) + "</ul></div></div></section>");
     // 7. plano
-    h.push('<section class="rl-cap"><h2><span>7</span>Plano de ação</h2><ol class="rl-plano">' + (t.plano || []).map(function (p) {
+    h.push('<section class="rl-cap"><h2><span>8</span>Plano de ação</h2><ol class="rl-plano">' + (t.plano || []).map(function (p) {
       return "<li><b>" + esc(p.acao || "") + "</b>" + (p.efeito ? "<span>" + rico(p.efeito) + "</span>" : "") + (p.acompanhar ? '<em>Acompanhar: ' + esc(p.acompanhar) + "</em>" : "") + "</li>";
     }).join("") + "</ol></section>");
     // 8. orcamento
-    h.push('<section class="rl-cap rl-orc"><h2><span>8</span>Parecer para o Orçamento · renovação</h2>' + (t.parecerOrcamento ? '<p class="rl-veredito">' + rico(t.parecerOrcamento) + "</p>" : "") +
+    h.push('<section class="rl-cap rl-orc"><h2><span>9</span>Parecer para o Orçamento · renovação</h2>' + (t.parecerOrcamento ? '<p class="rl-veredito">' + rico(t.parecerOrcamento) + "</p>" : "") +
       '<div class="bk-orcgrid">' + (t.orcamento || []).map(function (o) { return '<div class="bk-orci"><h4>' + esc(o.titulo || "") + "<span>" + esc(o.valor || "") + "</span></h4><p>" + rico(o.texto || "") + "</p></div>"; }).join("") + "</div></section>");
     // anexo
     h.push('<section class="rl-cap rl-anexo"><h2><span>A</span>Anexo · situação dos indicadores</h2><div class="rl-tab"><table><thead><tr><th>Indicador</th><th>Situação em ' + MES[b.mes] + '</th><th>Jan → ' + MES[b.mes] + '</th><th>Valores da caixa</th></tr></thead><tbody>' +
@@ -1120,7 +1170,7 @@
     var f = b.S.fin, rc = f.receita || {}, an = analisarCustos(f), S = b.S, k = b.kpi || {}, n = S.meses.length - 1;
     var perda = rc.perdaRI != null ? rc.perdaRI : rc.perdaPR, he = an ? an.contas.filter(function (x) { return /^41111002/.test(x.conta); })[0] : null;
     var pot = f.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0);
-    return { os: b.os, desc: b.desc, gestor: b.gestor || "", ger: b.ger || "", sup: b.sup || "", FR: f.FR, FE: f.FE, res: f.resReal, rex: f.resExec, gap: f.resReal - f.resExec,
+    return { os: b.os, rot: b.rotulo || b.os, desc: b.desc, planos: b.planos || null, gestor: b.gestor || "", ger: b.ger || "", sup: b.sup || "", FR: f.FR, FE: f.FE, res: f.resReal, rex: f.resExec, gap: f.resReal - f.resExec,
       perda: perda || 0, sla: rc.sla || 0, nf: rc.nf || 0, dil: rc.dil || 0, pot: pot, heDesvio: he ? Math.round(he.desvio) : 0,
       rescTot: f.folha ? -soma(f.folha.rescTot) : 0, multa40: f.folha ? -soma(f.folha.multa40) : 0,
       efet: S.rh.efet[n], adm: soma(S.rh.adm), dem: soma(S.rh.dem), he: S.rh.he[n], abs: k.absAcum, turn: k.turnAcum, demTurn: soma(S.rh.demTurn || []),
@@ -1136,13 +1186,13 @@
       var f = b.S.fin, an = analisarCustos(f), rc = f.receita || {}, k = b.kpi || {};
       A2.FR += f.FR; A2.FE += f.FE; A2.resReal += f.resReal; A2.resExec += f.resExec;
       (f.linhas || []).forEach(function (l) { var key = l[0] + "|" + l[1]; var a = sub[key] = sub[key] || [l[0], l[1], 0, 0, null, null]; a[2] += l[2] || 0; a[3] += l[3] || 0; });
-      if (an) an.contas.forEach(function (x) { var c = cont[x.conta] = cont[x.conta] || { conta: x.conta, real: 0, exec: 0, desvio: 0, oss: [] }; c.real += x.real; c.exec += x.exec || 0; c.desvio += x.desvio; c.oss.push([b.os, Math.round(x.desvio)]); });
+      if (an) an.contas.forEach(function (x) { var c = cont[x.conta] = cont[x.conta] || { conta: x.conta, real: 0, exec: 0, desvio: 0, oss: [] }; c.real += x.real; c.exec += x.exec || 0; c.desvio += x.desvio; c.oss.push([nomeOS(b.os, b.desc), Math.round(x.desvio)]); });
       A2.receita.perda += rc.perdaRI != null ? rc.perdaRI : (rc.perdaPR || 0); A2.receita.perdaPR += rc.perdaPR || 0; A2.receita.sla += rc.sla || 0; A2.receita.nf += rc.nf || 0; A2.receita.dil += rc.dil || 0;
       if (f.promessa && f.promessa.meses && f.promessa.meses.length) { A2.promessa.n++; A2.promessa.res += f.promessa.res; A2.promessa.fc += f.promessa.fc; f.promessa.grupos.forEach(function (x) { pg[x.nome] = (pg[x.nome] || 0) + x.v; }); }
       ["fatAno", "fatMeta", "resAno", "resMeta"].forEach(function (q) { A2.kpi[q] += k[q] || 0; });
       A2.f30 += b.S.rh.fer30 || 0; A2.f45 += b.S.rh.fer45 || 0; A2.efet += b.S.rh.ferTot || 0;
       if (f.folha) { A2.resc += -soma(f.folha.rescTot); A2.multa40 += -soma(f.folha.multa40); }
-      (f.recorrentes || []).forEach(function (x) { var r = rec[x[0]] = rec[x[0]] || { conta: x[0], oss: [], real: 0, exec: 0 }; r.oss.push(b.os); r.real += x[4]; r.exec += x[5]; });
+      (f.recorrentes || []).forEach(function (x) { var r = rec[x[0]] = rec[x[0]] || { conta: x[0], oss: [], real: 0, exec: 0 }; r.oss.push(nomeOS(b.os, b.desc)); r.real += x[4]; r.exec += x[5]; });
     });
     A2.linhas = Object.keys(sub).map(function (k) { return sub[k]; });
     A2.contas = Object.keys(cont).map(function (k) { var c = cont[k]; c.oss.sort(function (a, b) { return a[1] - b[1]; }); c.oss = c.oss.slice(0, 4); c.real = Math.round(c.real); c.exec = Math.round(c.exec); c.desvio = Math.round(c.desvio); return c; })
@@ -1170,15 +1220,16 @@
     L.push("- Proporcionalidade: se o faturamento cresceu além do executivo, o custo pode crescer na mesma proporção; a margem cai quando algum custo cresce mais que o volume.");
     L.push("- Blocos de OSs (ex.: 'M00100 + M05100 - CBMM - ARAXA') têm os valores somados: cite sempre o bloco com a composição. Quando houver TROCA DE RESPONSÁVEIS NO ANO, diga quem era o anterior, até quando ficou e desde quando o novo responde.");
     L.push("- Pessoas (gerentes, gestores, superintendentes) são citadas só pelo nome como está nos DADOS; nunca presuma gênero (não use ele/ela, dele/dela, o gerente/a gerente): escreva 'a gerência de NOME' ou 'as OSs de NOME'.");
-    L.push("- Toda afirmação de impacto cita as OSs (código) que o causam" + (ger ? "." : " e a gerência delas."));
+    L.push("- Toda afirmação de impacto cita as OSs que o causam" + (ger ? "." : " e a gerência delas.") + " Sempre cite a OS com código e descrição, como está nos DADOS (ex.: 'M03100 - NEXA - TRES MARIAS'), nunca só o número; isso vale também para os campos oss e acompanhar.");
+    L.push("- PLANOS INFORMADOS: cada OS traz a avaliação dos planos que o gestor informou nos comentários, cruzada com o parecer do Setor de Performance (FUNCIONANDO, PARCIAL, SEM EFEITO, PIOROU, SEM PLANO). Diga em quais contratos o que está sendo feito não está mudando o cenário (SEM EFEITO, PIOROU) ou não existe plano (SEM PLANO), em quais indicadores, e cobre a troca do plano. Vale para todos os indicadores, inclusive SSMA (acidente pode parar um dia de serviço e esse dia deixa de ser medido).");
     L.push("- Ao falar de contratos, um contrato por linha: cada linha começa com o código e a descrição da OS (ex.: 'M03100 - NEXA - TRES MARIAS: ...') e termina antes do próximo contrato; quebre a linha (\\n) a cada contrato. Nunca deixe o código de um contrato no fim da linha de outro." + (ger ? "" : " O mesmo vale para as gerências: uma gerência por linha, começando pelo nome."));
     L.push("- Férias sempre em PESSOAS, por contrato: quantas pessoas o contrato tem, quantas já têm 30 dias ou mais de saldo (direito a sair) e quantas passam de 45 dias (ponto de atenção), com o % das pessoas no contrato. Nunca cite saldo total de dias de férias: esse número não orienta o gestor.");
     L.push("- Acúmulo de férias (30 e 45 dias ou mais) é ponto de atenção: amplia o dissídio e a reoneração. Alertas de projeção (EFETIVO PR/HHT PR que não acompanham a movimentação) devem ser cobrados das OSs citadas.");
     L.push("- Português do Brasil, tom executivo, frases curtas, sem listas dentro dos textos, parágrafos separados por linha em branco, **negrito** só para 1 ou 2 números por texto. Não invente nada; sem registro, diga que não há registro.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
-    L.push(ger ? '{"sumario":"(2 ou 3 parágrafos, até 1200 caracteres)","ranking":"(uma linha por contrato, do pior para o melhor, cada linha começando pelo código e descrição da OS, com os números dele; até 1200 caracteres)","impactos":"(2 ou 3 parágrafos, até 1500 caracteres: custos acima da proporção, perdas, SLA, não faturáveis e diluídos, FCST prometido x entregue, rescisões; com as OSs que causaram)","pessoas":"(até 900 caracteres: efetivo, HE, absenteísmo, turnover, férias em pessoas por contrato (efetivo, 30 dias ou mais, 45 dias ou mais) e alertas de projeção, com as OSs)","alavancas":[{"alavanca":"(Custo, Faturamento, Perda, Absenteísmo, Folha ou Projeção)","valor":"(até 25 caracteres)","texto":"(até 260 caracteres)","oss":"(códigos)"}] (3 a 6 itens),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres)","acompanhar":"(até 90 caracteres)","oss":"(códigos)"}] (3 a 6 itens)}'
-      : '{"sumario":"(2 parágrafos, até 900 caracteres)","gerencias":"(uma linha por gerência, começando pelo nome, com os números e as OSs que mais pesam; até 1100 caracteres)","impactos":"(até 1200 caracteres: os impactos globais e quem causa, gerência e OSs)","pessoas":"(até 600 caracteres: férias, absenteísmo, turnover e alertas de projeção)","alavancas":[{"alavanca":"","valor":"","texto":"(até 220 caracteres)","oss":"(gerência e códigos)"}] (3 a 5 itens),"plano":[{"acao":"","efeito":"(até 180 caracteres)","acompanhar":"","oss":""}] (3 a 5 itens)}');
+    L.push(ger ? '{"sumario":"(2 ou 3 parágrafos, até 1200 caracteres)","ranking":"(uma linha por contrato, do pior para o melhor, cada linha começando pelo código e descrição da OS, com os números dele; até 1200 caracteres)","impactos":"(2 ou 3 parágrafos, até 1500 caracteres: custos acima da proporção, perdas, SLA, não faturáveis e diluídos, FCST prometido x entregue, rescisões; com as OSs que causaram)","pessoas":"(até 900 caracteres: efetivo, HE, absenteísmo, turnover, férias em pessoas por contrato (efetivo, 30 dias ou mais, 45 dias ou mais) e alertas de projeção, com as OSs)","planos":"(uma linha por contrato com problema, começando pelo código e descrição da OS: os indicadores em que o plano informado está SEM EFEITO, PIOROU ou SEM PLANO, e o que cobrar; até 1200 caracteres)","alavancas":[{"alavanca":"(Custo, Faturamento, Perda, Absenteísmo, Folha ou Projeção)","valor":"(até 25 caracteres)","texto":"(até 260 caracteres)","oss":"(códigos)"}] (3 a 6 itens),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres)","acompanhar":"(até 90 caracteres)","oss":"(códigos)"}] (3 a 6 itens)}'
+      : '{"sumario":"(2 parágrafos, até 900 caracteres)","gerencias":"(uma linha por gerência, começando pelo nome, com os números e as OSs que mais pesam; até 1100 caracteres)","impactos":"(até 1200 caracteres: os impactos globais e quem causa, gerência e OSs)","pessoas":"(até 600 caracteres: férias, absenteísmo, turnover e alertas de projeção)","planos":"(uma linha por gerência, começando pelo nome: os contratos e indicadores em que os planos informados não estão mudando o cenário ou não existem; até 900 caracteres)","alavancas":[{"alavanca":"","valor":"","texto":"(até 220 caracteres)","oss":"(gerência e códigos)"}] (3 a 5 itens),"plano":[{"acao":"","efeito":"(até 180 caracteres)","acompanhar":"","oss":""}] (3 a 5 itens)}');
     L.push("");
     L.push("DADOS (" + quem + ", " + G.linhasOS.length + " OSs elegíveis" + (extra.semBook && extra.semBook.length ? "; sem dados no painel: " + extra.semBook.join(", ") : "") + ")");
     L.push("JAN A " + MES[mes].toUpperCase() + ": faturamento real " + rs(G.FR) + " x executivo " + rs(G.FE) + " (" + (G.FE ? fmt((G.FR / G.FE - 1) * 100, 2) + "%" : "–") + ") | resultado real " + rs(G.resReal) + " x executivo " + rs(G.resExec) + " | margem real " + pct(G.FR ? G.resReal / G.FR : null) + " x executivo " + pct(G.FE ? G.resExec / G.FE : null) + ".");
@@ -1203,6 +1254,8 @@
         " | perdas " + rs(o.perda) + " | SLA " + rs(o.sla) + " | não faturáveis " + rs(o.nf) + " | diluídos (informativo) " + rs(o.dil) + " | HE " + (o.heDesvio < 0 ? moeda(-o.heDesvio) + " acima da proporção" : "na proporção") + " | rescisões " + rs(o.rescTot) +
         " | efetivo " + fmt(o.efet) + " (" + o.adm + " admissões, " + o.dem + " demissões no ano, " + o.demTurn + " contam no turnover) | absenteísmo médio mensal " + pct(o.abs) + " | férias: " + feriasTxt(o.ferTot, o.f30, o.f45) + (o.alerta ? " | ALERTA DE PROJEÇÃO: " + o.alerta.join("; ") : "") + (o.trocas && o.trocas.length ? " | TROCA DE RESPONSÁVEIS NO ANO: " + o.trocas.join("; ") : ""));
       L.push("    resultado mês a mês (real x executivo): " + o.mm.map(function (x) { return MES[x[0]] + " " + rs(x[2]) + " x " + rs(x[4]); }).join(" · "));
+      if (o.planos) { var pr0 = o.planos.filter(function (q) { return q.efeito !== "FUNCIONANDO"; }); L.push("    planos informados: " + (o.planos.length ? o.planos.map(function (q) { return q.indicador + " " + q.efeito; }).join("; ") : "todos os indicadores atenderam") + (pr0.length ? " | detalhe: " + pr0.slice(0, 5).map(function (q) { return q.indicador + ": " + String(q.acao).slice(0, 110) + " -> " + String(q.recomendacao).slice(0, 110); }).join(" / ") : "")); }
+      else L.push("    planos informados: sem avaliação no book da OS");
       if (ger && o.diag) L.push("    diagnóstico da OS: " + String(o.diag).replace(/\s+/g, " ").slice(0, 420));
     });
     return L.join("\n");
@@ -1217,7 +1270,7 @@
   }
   function porGerencia(linhas) {
     var g = {};
-    linhas.forEach(function (o) { var k = o.ger || "(sem gerente)"; var x = g[k] = g[k] || { nome: k, n: 0, FR: 0, FE: 0, res: 0, rex: 0, perda: 0, f30: 0, f45: 0, efet: 0, alertas: [] }; x.n++; x.FR += o.FR; x.FE += o.FE; x.res += o.res; x.rex += o.rex; x.perda += o.perda; x.f30 += o.f30 || 0; x.f45 += o.f45 || 0; x.efet += o.ferTot || 0; if (o.alerta) x.alertas.push(o.os); });
+    linhas.forEach(function (o) { var k = o.ger || "(sem gerente)"; var x = g[k] = g[k] || { nome: k, n: 0, FR: 0, FE: 0, res: 0, rex: 0, perda: 0, f30: 0, f45: 0, efet: 0, alertas: [] }; x.n++; x.FR += o.FR; x.FE += o.FE; x.res += o.res; x.rex += o.rex; x.perda += o.perda; x.f30 += o.f30 || 0; x.f45 += o.f45 || 0; x.efet += o.ferTot || 0; if (o.alerta) x.alertas.push(nomeOS(o.os, o.desc)); });
     return Object.keys(g).map(function (k) { return g[k]; }).sort(function (a, b) { return (a.res - a.rex) - (b.res - b.rex); });
   }
   async function gerarGrupo(nivel, nome, opts) {
@@ -1247,9 +1300,14 @@
     var semDados = [];
     for (var fi = 0; fi < falhas.length; fi++) {
       try { res.push(await resumoOS(falhas[fi], ano, mes, tk, opts.urlFluxo)); }
-      catch (e) { semDados.push(falhas[fi].codigo + " (" + String(e && e.message || e).slice(0, 120) + ")"); }
+      catch (e) { semDados.push(nomeOS(falhas[fi].codigo, falhas[fi].desc) + " (" + String(e && e.message || e).slice(0, 120) + ")"); }
     }
     if (!res.length) throw new Error("O painel não devolveu dados para as OSs de " + nome + ".");
+    // planos de acao avaliados no book de cada OS (gerado antes, na mesma rodada)
+    try {
+      var mapaOS = await lerNivel("os", true);
+      res.forEach(function (b) { var r0 = mapaOS[String(b.os).toUpperCase()]; var d0 = r0 && r0.d; if (d0 && d0.ano === ano && d0.txt && Array.isArray(d0.txt.planos)) b.planos = d0.txt.planos.map(function (q) { return { indicador: q.indicador || "", efeito: String(q.efeito || "").toUpperCase().trim(), acao: q.acao || "", recomendacao: q.recomendacao || "" }; }); });
+    } catch (e) {}
     var G = agregarGrupo(res), extra = { semBook: semDados };
     if (nivel === "sup") extra.porGer = porGerencia(G.linhasOS);
     var titulo = maisComum(res.map(function (b) { return nivel === "ger" ? b.ger : b.sup; })) || nome;
@@ -1266,7 +1324,7 @@
     var s2 = A.sessaoAcesso ? A.sessaoAcesso() : null;
     var book = { v: 2, nivel: nivel, chave: alvo, nome: titulo, sup: nivel === "ger" ? maisComum(res.map(function (b) { return b.sup; })) : titulo, ano: ano, mes: mes, em: new Date().toISOString(), por: s2 ? s2.login : "",
       G: G, porGer: extra.porGer || null, semBook: semDados,
-      txt: { sumario: j.sumario, ranking: j.ranking || "", gerencias: j.gerencias || "", impactos: j.impactos, pessoas: j.pessoas, alavancas: j.alavancas.slice(0, 6), plano: j.plano.slice(0, 6) } };
+      txt: { sumario: j.sumario, ranking: j.ranking || "", gerencias: j.gerencias || "", impactos: j.impactos, pessoas: j.pessoas, planos: j.planos || "", alavancas: j.alavancas.slice(0, 6), plano: j.plano.slice(0, 6) } };
     if (opts.gravar === false) return book;
     progresso("Gravando no SharePoint…");
     await gravar(nivel, alvo, book);
@@ -1303,8 +1361,11 @@
   }
   function renderRelatorioGrupo(b) {
     var G = b.G, t = b.txt || {}, ger = b.nivel === "ger", an = analisarCustos(G), h = [], fig = 0, nc = 0;
+    var MN = mapaNomesOS(G.linhasOS);
+    function nm(o) { return nomeOS(o.os, o.desc); }
+    function xo(txt) { return expandirOSs(txt, MN); }
     function figura(titulo, cap, corpo) { fig++; return '<figure class="rl-fig"><figcaption><b>Figura ' + fig + ".</b> " + esc(titulo) + (cap ? '<span>' + esc(cap) + "</span>" : "") + "</figcaption>" + corpo + "</figure>"; }
-    function par(txt) { return String(txt || "").split(/\n+/).map(function (p) { return p.trim(); }).filter(Boolean).map(function (p) { return '<p>' + rico(p) + "</p>"; }).join(""); }
+    function par(txt) { return xo(txt).split(/\n+/).map(function (p) { return p.trim(); }).filter(Boolean).map(function (p) { return '<p>' + rico(p) + "</p>"; }).join(""); }
     function cap(n, tit, corpo, cls) { return '<section class="rl-cap' + (cls ? " " + cls : "") + '"><h2><span>' + n + "</span>" + tit + "</h2>" + corpo + "</section>"; }
     function cel(l, v, s2, cls) { return '<div class="rl-num ' + (cls || "") + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s2 + "</span></div>"; }
     var margR = G.FR ? G.resReal / G.FR : null, margE = G.FE ? G.resExec / G.FE : null, k = G.kpi;
@@ -1321,30 +1382,38 @@
     // ranking / gerencias
     var tabOS = '<div class="rl-tab"><table><thead><tr><th>OS</th>' + (ger ? "<th>Gestor</th>" : "<th>Gerente</th>") + "<th>Faturamento</th><th>x executivo</th><th>Resultado</th><th>Executivo</th><th>Margem</th><th>Perdas</th><th>Potencial</th></tr></thead><tbody>" +
       G.linhasOS.map(function (o) {
-        return "<tr><td>" + esc(o.os) + "</td><td>" + esc(ger ? o.gestor : o.ger) + "</td><td>" + moeda(o.FR) + "</td><td>" + (o.FE ? (o.FR >= o.FE ? "+" : "") + fmt((o.FR / o.FE - 1) * 100, 2) + "%" : "–") + '</td><td class="' + (o.res < o.rex ? "neg" : "pos") + '">' + moeda(o.res) + "</td><td>" + moeda(o.rex) + "</td><td>" + pct(o.FR ? o.res / o.FR : null) + "</td><td>" + moeda(o.perda) + "</td><td>" + moeda(o.pot) + "</td></tr>";
+        return "<tr><td>" + esc(nm(o)) + "</td><td>" + esc(ger ? o.gestor : o.ger) + "</td><td>" + moeda(o.FR) + "</td><td>" + (o.FE ? (o.FR >= o.FE ? "+" : "") + fmt((o.FR / o.FE - 1) * 100, 2) + "%" : "–") + '</td><td class="' + (o.res < o.rex ? "neg" : "pos") + '">' + moeda(o.res) + "</td><td>" + moeda(o.rex) + "</td><td>" + pct(o.FR ? o.res / o.FR : null) + "</td><td>" + moeda(o.perda) + "</td><td>" + moeda(o.pot) + "</td></tr>";
       }).join("") + "</tbody></table></div>";
     if (ger) h.push(cap(++nc, "Contratos: onde está o resultado", par(t.ranking) + figura("Resultado contra o executivo, por OS", "jan a " + MES[b.mes] + " · vermelho = abaixo do executivo", chGap(G.linhasOS)) + figura("As OSs da gerência", "do pior para o melhor resultado contra o executivo", tabOS)));
     else {
       var tabG = '<div class="rl-tab"><table><thead><tr><th>Gerência</th><th>OSs</th><th>Faturamento</th><th>x executivo</th><th>Resultado</th><th>Executivo</th><th>Margem</th><th>Perdas</th><th>Férias 45+</th><th>Alertas de projeção</th></tr></thead><tbody>' +
-        (b.porGer || []).map(function (g) { return "<tr><td>" + esc(g.nome) + "</td><td>" + g.n + "</td><td>" + moeda(g.FR) + "</td><td>" + (g.FE ? (g.FR >= g.FE ? "+" : "") + fmt((g.FR / g.FE - 1) * 100, 2) + "%" : "–") + '</td><td class="' + (g.res < g.rex ? "neg" : "pos") + '">' + moeda(g.res) + "</td><td>" + moeda(g.rex) + "</td><td>" + pct(g.FR ? g.res / g.FR : null) + "</td><td>" + moeda(g.perda) + "</td><td>" + fmt(g.f45) + "</td><td>" + esc(g.alertas.join(", ") || "–") + "</td></tr>"; }).join("") + "</tbody></table></div>";
+        (b.porGer || []).map(function (g) { return "<tr><td>" + esc(g.nome) + "</td><td>" + g.n + "</td><td>" + moeda(g.FR) + "</td><td>" + (g.FE ? (g.FR >= g.FE ? "+" : "") + fmt((g.FR / g.FE - 1) * 100, 2) + "%" : "–") + '</td><td class="' + (g.res < g.rex ? "neg" : "pos") + '">' + moeda(g.res) + "</td><td>" + moeda(g.rex) + "</td><td>" + pct(g.FR ? g.res / g.FR : null) + "</td><td>" + moeda(g.perda) + "</td><td>" + fmt(g.f45) + "</td><td>" + esc(g.alertas.map(function (c) { return MN[c] || c; }).join(", ") || "–") + "</td></tr>"; }).join("") + "</tbody></table></div>";
       h.push(cap(++nc, "Gerências: onde está o resultado", par(t.gerencias) + figura("As gerências", "da pior para a melhor contra o executivo", tabG) + figura("As OSs que mais pesam", "as 14 piores contra o executivo", chGap(G.linhasOS))));
     }
     // impactos
     var rc = G.receita, pot = G.resReal + rc.perda + rc.sla + rc.nf;
     var tabC = '<div class="rl-tab"><table><thead><tr><th>Conta</th><th>Custou a mais que a proporção</th><th>OSs que mais contribuíram</th></tr></thead><tbody>' +
-      G.contas.filter(function (c) { return c.desvio < 0; }).slice(0, 8).map(function (c) { return "<tr><td>" + esc(String(c.conta).replace(/^\d+\s*-\s*/, "")) + '</td><td class="neg">' + moeda(-c.desvio) + '</td><td class="rl-cx">' + esc(c.oss.filter(function (o) { return o[1] < 0; }).map(function (o) { return o[0] + " " + moeda(-o[1]); }).join(" · ")) + "</td></tr>"; }).join("") + "</tbody></table></div>";
+      G.contas.filter(function (c) { return c.desvio < 0; }).slice(0, 8).map(function (c) { return "<tr><td>" + esc(String(c.conta).replace(/^\d+\s*-\s*/, "")) + '</td><td class="neg">' + moeda(-c.desvio) + '</td><td class="rl-cx">' + esc(c.oss.filter(function (o) { return o[1] < 0; }).map(function (o) { return (MN[o[0]] || o[0]) + " " + moeda(-o[1]); }).join(" · ")) + "</td></tr>"; }).join("") + "</tbody></table></div>";
     h.push(cap(++nc, "Impactos: o que tirou resultado e quem causou", par(t.impactos) +
       (an ? figura("Ponte da margem do grupo", "pontos percentuais de margem por grupo de custo, somando as OSs", chPonte(an)) : "") +
       figura("As contas que mais pesaram", "", tabC) +
       figura("Resultado potencial do grupo", "sem perdas, SLA e não faturáveis · margem real " + pct(margR) + " → potencial " + pct(G.FR ? pot / G.FR : null), chPotencial({ res: G.resReal, perda: rc.perda, sla: rc.sla, nf: rc.nf }))));
     // pessoas
     var tabP = '<div class="rl-tab"><table><thead><tr><th>OS</th><th>Efetivo</th><th>Adm./dem. no ano</th><th>HE no mês</th><th>Absenteísmo médio</th><th>Demissões (turnover)</th><th>Férias 30+</th><th>Férias 45+</th><th>Projeção</th></tr></thead><tbody>' +
-      G.linhasOS.map(function (o) { return "<tr><td>" + esc(o.os) + "</td><td>" + fmt(o.efet) + "</td><td>" + o.adm + " / " + o.dem + "</td><td>" + (o.he == null ? "–" : fmt(o.he, 2) + "%") + "</td><td>" + pct(o.abs) + "</td><td>" + o.demTurn + "</td><td>" + fmt(o.f30) + (o.ferTot && o.f30 != null ? " (" + fmt(o.f30 / o.ferTot * 100, 2) + "%)" : "") + '</td><td class="' + ((o.f45 || 0) > 0 ? "neg" : "") + '">' + fmt(o.f45) + (o.ferTot && o.f45 != null ? " (" + fmt(o.f45 / o.ferTot * 100, 2) + "%)" : "") + '</td><td class="' + (o.alerta ? "neg" : "") + '">' + (o.alerta ? "corrigir" : "ok") + "</td></tr>"; }).join("") + "</tbody></table></div>";
+      G.linhasOS.map(function (o) { return "<tr><td>" + esc(nm(o)) + "</td><td>" + fmt(o.efet) + "</td><td>" + o.adm + " / " + o.dem + "</td><td>" + (o.he == null ? "–" : fmt(o.he, 2) + "%") + "</td><td>" + pct(o.abs) + "</td><td>" + o.demTurn + "</td><td>" + fmt(o.f30) + (o.ferTot && o.f30 != null ? " (" + fmt(o.f30 / o.ferTot * 100, 2) + "%)" : "") + '</td><td class="' + ((o.f45 || 0) > 0 ? "neg" : "") + '">' + fmt(o.f45) + (o.ferTot && o.f45 != null ? " (" + fmt(o.f45 / o.ferTot * 100, 2) + "%)" : "") + '</td><td class="' + (o.alerta ? "neg" : "") + '">' + (o.alerta ? "corrigir" : "ok") + "</td></tr>"; }).join("") + "</tbody></table></div>";
     var al = G.linhasOS.filter(function (o) { return o.alerta; });
-    h.push(cap(++nc, "Pessoas, férias e projeção", (al.length ? '<div class="rl-alerta"><b>Projeção a corrigir em ' + al.length + (al.length > 1 ? " OSs" : " OS") + "</b>" + esc(al.map(function (o) { return o.os + ": " + o.alerta[0]; }).join(" · ")) + "</div>" : "") + par(t.pessoas) + figura("Pessoas por OS", "férias em pessoas: com 30 dias ou mais de saldo (já têm direito) e com 45 dias ou mais (ponto de atenção), entre parênteses o % das pessoas no contrato (ativos e em férias; afastados e demitidos fora)", tabP)));
+    h.push(cap(++nc, "Pessoas, férias e projeção", (al.length ? '<div class="rl-alerta"><b>Projeção a corrigir em ' + al.length + (al.length > 1 ? " OSs" : " OS") + "</b>" + al.map(function (o) { return esc(nm(o) + ": " + o.alerta[0]); }).join("<br>") + "</div>" : "") + par(t.pessoas) + figura("Pessoas por OS", "férias em pessoas: com 30 dias ou mais de saldo (já têm direito) e com 45 dias ou mais (ponto de atenção), entre parênteses o % das pessoas no contrato (ativos e em férias; afastados e demitidos fora)", tabP)));
+    // planos informados pelos gestores, avaliados no book de cada OS
+    var comPl = G.linhasOS.filter(function (o) { return o.planos; });
+    if (comPl.length || t.planos) {
+      var conta = function (o, ef) { return (o.planos || []).filter(function (q) { return ef.indexOf(q.efeito) >= 0; }).length; };
+      var tabPl = '<div class="rl-tab"><table><thead><tr><th>OS</th><th>Funcionando</th><th>Parcial</th><th>Sem efeito / piorou</th><th>Sem plano</th><th>Indicadores a trocar o plano</th></tr></thead><tbody>' +
+        comPl.map(function (o) { var ruins = (o.planos || []).filter(function (q) { return ["SEM EFEITO", "PIOROU", "SEM PLANO"].indexOf(q.efeito) >= 0; }); return "<tr><td>" + esc(nm(o)) + "</td><td>" + conta(o, ["FUNCIONANDO"]) + "</td><td>" + conta(o, ["PARCIAL"]) + '</td><td class="' + (conta(o, ["SEM EFEITO", "PIOROU"]) ? "neg" : "") + '">' + conta(o, ["SEM EFEITO", "PIOROU"]) + '</td><td class="' + (conta(o, ["SEM PLANO"]) ? "neg" : "") + '">' + conta(o, ["SEM PLANO"]) + '</td><td class="rl-cx">' + esc(ruins.map(function (q) { return q.indicador; }).join(" · ") || "–") + "</td></tr>"; }).join("") + "</tbody></table></div>";
+      h.push(cap(++nc, "Planos informados: estão mudando o cenário?", par(t.planos) + (comPl.length ? figura("Planos por OS", "o que o gestor informou nos comentários, cruzado com o parecer do Setor de Performance e com os números dos meses seguintes", tabPl) : "")));
+    }
     // alavancas e plano
-    h.push(cap(++nc, "Alavancas", '<div class="bk-orcgrid">' + (t.alavancas || []).map(function (o) { return '<div class="bk-orci"><h4>' + esc(o.alavanca || "") + "<span>" + esc(o.valor || "") + "</span></h4><p>" + rico(o.texto || "") + "</p>" + (o.oss ? '<p class="rl-nota">' + esc(o.oss) + "</p>" : "") + "</div>"; }).join("") + "</div>"));
-    h.push(cap(++nc, "Plano de ação", '<ol class="rl-plano">' + (t.plano || []).map(function (p) { return "<li><b>" + esc(p.acao || "") + "</b>" + (p.efeito ? "<span>" + rico(p.efeito) + "</span>" : "") + (p.acompanhar || p.oss ? '<em>' + (p.acompanhar ? "Acompanhar: " + esc(p.acompanhar) : "") + (p.oss ? " · " + esc(p.oss) : "") + "</em>" : "") + "</li>"; }).join("") + "</ol>"));
+    h.push(cap(++nc, "Alavancas", '<div class="bk-orcgrid">' + (t.alavancas || []).map(function (o) { return '<div class="bk-orci"><h4>' + esc(o.alavanca || "") + "<span>" + esc(o.valor || "") + "</span></h4><p>" + rico(xo(o.texto || "")) + "</p>" + (o.oss ? '<p class="rl-nota">' + esc(xo(o.oss)) + "</p>" : "") + "</div>"; }).join("") + "</div>"));
+    h.push(cap(++nc, "Plano de ação", '<ol class="rl-plano">' + (t.plano || []).map(function (p) { return "<li><b>" + esc(p.acao || "") + "</b>" + (p.efeito ? "<span>" + rico(xo(p.efeito)) + "</span>" : "") + (p.acompanhar || p.oss ? '<em>' + (p.acompanhar ? "Acompanhar: " + esc(xo(p.acompanhar)) : "") + (p.oss ? " · " + esc(xo(p.oss)) : "") + "</em>" : "") + "</li>"; }).join("") + "</ol>"));
     h.push('<div class="bk-fontes">Dados de todas as OSs elegíveis do acompanhamento, direto do painel (RESULTADOS, RECEITA IDEAL e CTT), janeiro a ' + MESF[b.mes] + ". Textos escritos por IA. Gerado em " + esc(new Date(b.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })) + (b.por ? " por " + esc(b.por) : "") + ".</div>");
     return '<article class="rl">' + h.join("") + "</article>";
   }
