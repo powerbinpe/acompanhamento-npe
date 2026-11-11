@@ -389,7 +389,7 @@
     var base = (await listarOSs(cfg, ano, mesBase)).map(function (x) { return x.code; });
     var todas = filtro.length ? base.filter(function (c) { return filtro.indexOf(c.toUpperCase()) !== -1; }) : base;
     var plano = { etapa: et, tarefas: [], info: {}, log: [] };
-    if (!todas.length) { plano.aviso = "Nenhuma OS elegivel para o filtro informado."; return plano; }
+    if (!todas.length && et !== "aba6g" && et !== "aba6s") { plano.aviso = "Nenhuma OS elegivel para o filtro informado."; return plano; }
 
     if (et === "aba1") {
       if (!meses.length) { plano.aviso = "Informe o mes da Aba 1 (um mes, uma lista ou um intervalo, ex.: 1-8)."; return plano; }
@@ -459,6 +459,19 @@
       if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
       todas.forEach(function (cod) { plano.tarefas.push({ etapa: "aba6", chave: "aba6_" + ano + "_" + ultimo, os: cod, ano: ano, mes: ultimo }); });
       plano.log.push("Aba 6: " + todas.length + " OSs, book ate " + (MESES[ultimo - 1] || ultimo) + ".");
+    } else if (et === "aba6g" || et === "aba6s") {
+      // Relatorio da Gerencia / Superintendencia: uma tarefa por grupo das OSs elegiveis, com dados direto do painel.
+      if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
+      var nivelG = et === "aba6g" ? "ger" : "sup";
+      var qg = await abrirNoQuadro((await lerUrlOS(cfg, todas[0] || base[0], ano, ultimo)) + "&NPE_DRY=1");
+      var grupos;
+      try {
+        if (qg.win.NPE_APP && qg.win.NPE_APP.garantirHierarquia) await qg.win.NPE_APP.garantirHierarquia();
+        grupos = qg.win.BOOK.listarGrupos(nivelG);
+      } finally { fecharQuadro(qg); }
+      if (filtro.length) grupos = grupos.filter(function (g) { return filtro.indexOf(g.nome) !== -1 || g.oss.some(function (c) { return filtro.indexOf(c) !== -1; }); });
+      grupos.forEach(function (g) { plano.tarefas.push({ etapa: et, chave: et + "_" + ano + "_" + ultimo, os: g.nome, osUrl: g.oss[0], ano: ano, mes: ultimo }); });
+      plano.log.push((nivelG === "ger" ? "Gerencias: " : "Superintendencias: ") + grupos.length + " relatorio(s), ate " + (MESES[ultimo - 1] || ultimo) + ".");
     } else {
       plano.aviso = "Etapa desconhecida: " + et;
     }
