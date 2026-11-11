@@ -215,7 +215,7 @@
     for (m = 1; m <= mes; m++) S.meses.push(m);
     var rh = {}; (dados.rh || []).forEach(function (r) { rh[parseInt(r.MesNo, 10)] = r; });
     function col(k, f) { return S.meses.map(function (mm) { var r = rh[mm]; var v = r ? r[k] : null; return v == null ? null : (f ? f(v) : v); }); }
-    S.rh = { efet: col("efetFolha"), hht: col("hht"), he: col("hePct", function (v) { return v * 100; }), abs: col("absPct", function (v) { return v * 100; }),
+    S.rh = { efet: col("efetFolha"), hht: col("hht"), hhtPR: col("hhtPR"), he: col("hePct", function (v) { return v * 100; }), abs: col("absPct", function (v) { return v * 100; }),
       adm: col("adm"), dem: col("dem"), demTurn: col("demTurnover"), ativos: col("ativosFim"), tIn: col("transfEntra"), tOut: col("transfSai"),
       fat: col("fat"), res: col("res"), perdaPR: col("perdaPR") };
     var r1 = rh[S.meses[S.meses.length - 1]] || {};
@@ -319,6 +319,7 @@
     L.push("- Use SOMENTE os números dos DADOS, como estão (R$ 1.234.567; 12,81%). Pode arredondar R$ para mil ou milhão (R$ 1,82 mi; R$ 160,8 mil). Não invente valor, data, causa, nome ou evento; sem registro, diga que não há registro.");
     L.push("- Português do Brasil, tom executivo, frases curtas, sem listas dentro dos textos. Parágrafos separados por uma linha em branco. **Negrito** só para 1 ou 2 números-chave por texto.");
     L.push("- Meses não validados pelo Máster entram, mas o parecer desses meses não é definitivo.");
+    L.push("- Não compare com orçado, PR ou meta um número que não tenha essa comparação nos DADOS.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
     L.push('{"manchete":"(até 220 caracteres: a frase que resume o contrato no período)",' +
@@ -400,6 +401,17 @@
     L.push("PESSOAS MÊS A MÊS (folha, ponto e cadastro):");
     L.push("Efetivo da folha: " + linhaSerie(S.rh.efet) + " | ativos no fim do mês: " + linhaSerie(S.rh.ativos));
     L.push("Admissões: " + linhaSerie(S.rh.adm) + " | Demissões: " + linhaSerie(S.rh.dem) + " | que contam no turnover: " + linhaSerie(S.rh.demTurn) + " | transferências entrada/saída: " + linhaSerie(S.rh.tIn) + " / " + linhaSerie(S.rh.tOut));
+    if (S.rh.hhtPR && S.rh.hhtPR.some(function (v) { return v != null; })) L.push("HHT da PR (h): " + linhaSerie(S.rh.hhtPR));
+    // efeito das admissoes calculado aqui: a IA nao deduz tendencia de HHT/faturamento sozinha
+    var efe = [];
+    S.meses.forEach(function (m, i) {
+      var a = S.rh.adm[i] || 0; if (a < 5) return;
+      if (i + 1 >= S.meses.length) { efe.push(MES[m] + ": " + a + " admissões; o mês seguinte ainda não está fechado, efeito a confirmar"); return; }
+      var h0 = S.rh.hht[i], h1 = S.rh.hht[i + 1], f0 = S.rh.fat[i], f1 = S.rh.fat[i + 1];
+      efe.push(MES[m] + ": " + a + " admissões e " + (S.rh.dem[i] || 0) + " demissões; em " + MES[S.meses[i + 1]] + " o HHT " + (h0 && h1 != null ? (h1 >= h0 ? "subiu " : "caiu ") + fmt(Math.abs(h1 / h0 - 1) * 100, 1) + "%" : "–") +
+        " e o faturamento " + (f0 && f1 != null ? (f1 >= f0 ? "subiu " : "caiu ") + fmt(Math.abs(f1 / f0 - 1) * 100, 1) + "%" : "–") + " sobre " + MES[m]);
+    });
+    if (efe.length) L.push("EFEITO DAS ADMISSÕES NO MÊS SEGUINTE (calculado; use estes números, não deduza outra tendência): " + efe.join(" | ") + ".");
     L.push("HHT realizado (h): " + linhaSerie(S.rh.hht) + " | % HE: " + linhaSerie(S.rh.he, function (v) { return fmt(v, 1) + "%"; }) + " | % absenteísmo: " + linhaSerie(S.rh.abs, function (v) { return fmt(v, 1) + "%"; }));
     L.push("Faturamento do mês: " + linhaSerie(S.rh.fat, rs));
     L.push("Férias (posição de hoje): saldo " + fmt(S.rh.ferSaldo) + " dias | pessoas com 45 dias ou mais: " + fmt(S.rh.fer45) + ".");
