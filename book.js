@@ -1158,7 +1158,7 @@
     var kpi = { fatAno: f.FR + soma(proj.map(function (x) { return x.fat; })), resAno: f.resReal + soma(proj.map(function (x) { return x.res; })),
       fatMeta: f.FE + soma((dados.projx || []).map(function (x) { return x.fe; })), resMeta: f.resExec + soma((dados.projx || []).map(function (x) { return x.re; })),
       absAcum: med(S.rh.abs), turnAcum: null };
-    return { v: 2, os: o.codigo, rotulo: o.rotulo || o.codigo, hist: hist, desc: (blocoCod.indexOf("|") > 0 && ct.grupo) ? ct.grupo : (ct.desc || o.desc || o.codigo), gestor: ct.gestor || "", ger: ct.gerente || "", sup: ct.sup || "", neg: ct.neg || "", ano: ano, mes: mes, S: S, kpi: kpi };
+    return { v: 2, os: o.codigo, rotulo: o.rotulo || o.codigo, hist: hist, desc: (blocoCod.indexOf("|") > 0 && ct.grupo) ? ct.grupo : (ct.desc || o.desc || o.codigo), gestor: atualDe(hist.gestor) || ct.gestor || "", ger: atualDe(hist.ger) || ct.gerente || "", sup: atualDe(hist.sup) || ct.sup || "", neg: ct.neg || "", ano: ano, mes: mes, S: S, kpi: kpi };
   }
   // Ferias contadas em pessoas: efetivo, quantas com 30+ dias (ja tem direito) e, dentro delas, quantas com 45+ (atencao).
   function feriasTxt(efet, f30, f45) {
@@ -1166,6 +1166,9 @@
     if (f30 == null && f45 == null) return "sem registro de férias";
     return (efet ? fmt(efet) + " pessoas no contrato (ativos e em férias; afastados e demitidos fora); " : "") + fmt(f30 || 0) + " com 30 dias ou mais de saldo, já com direito a sair" + pp(f30 || 0) + ", das quais " + fmt(f45 || 0) + " com 45 dias ou mais, ponto de atenção" + pp(f45 || 0);
   }
+  // Responsavel vigente pelo cadastro do acompanhamento (PARAM_ELEGIBILIDADE). Decisao do usuario (12/11):
+  // o cadastro define a gerencia/superintendencia de cada OS; a CTT so entra quando nao ha cadastro.
+  function atualDe(lt) { return lt && lt.length ? lt[lt.length - 1].nome : ""; }
   function maisComum(xs) { var c = {}, best = "", n = 0; xs.forEach(function (x) { if (!x) return; c[x] = (c[x] || 0) + 1; if (c[x] > n) { n = c[x]; best = x; } }); return best; }
   function linhaOS(b) {
     var f = b.S.fin, rc = f.receita || {}, an = analisarCustos(f), S = b.S, k = b.kpi || {}, n = S.meses.length - 1;
