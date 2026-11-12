@@ -957,7 +957,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-12 10:00";
+    window.NPE_BUILD = "2026-11-12 11:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -7160,7 +7160,7 @@ function hydrateFromPowerBI() {
       } else if (acao === "adicionarGrupo") {
         adicionarGrupo();
       } else if (acao === "definirResponsavel") {
-        definirResponsavel(el.getAttribute("data-os"));
+        definirResponsavel(el.getAttribute("data-os"), el.getAttribute("data-tipo"));
       } else if (acao === "removerTrocaResponsavel") {
         removerTrocaResponsavel(el.getAttribute("data-id"));
       } else if (acao === "switchTab") {
@@ -9507,12 +9507,15 @@ function hydrateFromPowerBI() {
     // nativo do navegador) mas não deixa fechar com um nome que não existe na lista. Usado
     // onde o valor tem que vir de um cadastro real (ex.: Gestor da OS, que vem da CTT), não
     // ser digitado à mão -- digitar à mão permitia nome errado/duplicado sem ninguém notar.
+    // Escolha restrita a uma lista (12/11/2026): o campo so FILTRA, nao aceita texto livre. Antes era um
+    // input com datalist, que parecia campo livre e deixava digitar qualquer nome ate a validacao.
     function promptSelecaoNaPagina(titulo, texto, valorPadrao, rotuloOk, opcoes) {
       return new Promise(function(resolve) {
-        var listaId = "_caixaLista" + Date.now();
-        var opcoesHTML = (opcoes || []).map(function(o) {
-          return '<option value="' + String(o).replace(/"/g, "&quot;") + '">';
-        }).join("");
+        var lista = (opcoes || []).map(function(o) { return String(o); });
+        var escolhido = null;
+        var padrao = (valorPadrao === undefined || valorPadrao === null) ? "" : String(valorPadrao);
+        lista.forEach(function(o) { if (o.toUpperCase() === padrao.toUpperCase()) escolhido = o; });
+        function escAttr(s) { return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;"); }
         var fundo = document.createElement("div");
         fundo.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh;" +
           "background:rgba(11,26,58,0.90); z-index:999999999; display:flex;" +
@@ -9522,9 +9525,10 @@ function hydrateFromPowerBI() {
             '<div style="background:linear-gradient(135deg,#0f2b5c,#0284c7); padding:14px 20px; color:#fff; font-weight:800; font-size:1.02rem;">' + titulo + '</div>' +
             '<div style="padding:18px 20px 8px; font-size:0.90rem; color:#334155; line-height:1.6; white-space:pre-line;">' + texto + '</div>' +
             '<div style="padding:0 20px 4px;">' +
-              '<input id="_caixaInput" type="text" list="' + listaId + '" autocomplete="off" placeholder="Comece a digitar para filtrar..." style="width:100%; padding:10px 12px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">' +
-              '<datalist id="' + listaId + '">' + opcoesHTML + '</datalist>' +
-              '<div id="_caixaErro" style="display:none; color:#b91c1c; font-size:0.80rem; font-weight:700; margin-top:6px;">⚠️ Esse nome não está no cadastro. Escolha um da lista.</div>' +
+              '<input id="_caixaFiltro" type="text" autocomplete="off" placeholder="Filtrar a lista..." style="width:100%; padding:9px 12px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.92rem; box-sizing:border-box;">' +
+              '<div id="_caixaLista" role="listbox" style="margin-top:8px; max-height:260px; overflow-y:auto; border:1.5px solid #e2e8f0; border-radius:8px;"></div>' +
+              '<div id="_caixaEscolhido" style="margin-top:8px; font-size:0.84rem; color:#0f2b5c; font-weight:700;"></div>' +
+              '<div id="_caixaErro" style="display:none; color:#b91c1c; font-size:0.80rem; font-weight:700; margin-top:6px;">⚠️ Escolha um nome da lista.</div>' +
             '</div>' +
             '<div style="padding:14px 20px 18px; display:flex; gap:10px; justify-content:flex-end;">' +
               '<button type="button" data-r="0" style="background:#e2e8f0; color:#475569; border:none; padding:9px 18px; border-radius:8px; font-weight:800; cursor:pointer;">Cancelar</button>' +
@@ -9532,27 +9536,30 @@ function hydrateFromPowerBI() {
             '</div>' +
           '</div>';
         function fechar(v) { try { document.body.removeChild(fundo); } catch (e) {} resolve(v); }
-        function valorValido() {
-          var digitado = String(campo.value || "").trim();
-          if (!digitado) return null;
-          var achado = (opcoes || []).filter(function(o) { return String(o).toUpperCase() === digitado.toUpperCase(); })[0];
-          return achado || null;
+        function desenhar() {
+          var termo = String(filtro.value || "").trim().toUpperCase();
+          var vis = lista.filter(function(o) { return !termo || o.toUpperCase().indexOf(termo) !== -1; });
+          caixa.innerHTML = vis.length ? vis.map(function(o) {
+            var on = (o === escolhido);
+            return '<button type="button" role="option" data-op="' + escAttr(o) + '" style="display:block; width:100%; text-align:left; border:none; border-bottom:1px solid #f1f5f9; padding:8px 12px; font-size:0.88rem; cursor:pointer; background:' + (on ? "#dbeafe" : "#fff") + '; color:#0f2b5c; font-weight:' + (on ? "800" : "500") + ';">' + escAttr(o) + '</button>';
+          }).join("") : '<div style="padding:10px 12px; font-size:0.84rem; color:#64748b;">Nenhum nome da lista contém esse texto.</div>';
+          document.getElementById("_caixaEscolhido").innerHTML = escolhido ? "Escolhido: " + escAttr(escolhido) : "";
         }
         function tentarConfirmar() {
-          var v = valorValido();
-          if (v === null) {
-            document.getElementById("_caixaErro").style.display = "block";
-            campo.style.borderColor = "#fca5a5";
-            campo.focus();
-            return;
-          }
-          fechar(v);
+          if (escolhido === null) { document.getElementById("_caixaErro").style.display = "block"; return; }
+          fechar(escolhido);
         }
-        var campo;
+        var filtro, caixa;
         fundo.addEventListener("click", function(ev) {
+          var op = ev.target.closest ? ev.target.closest("button[data-op]") : null;
+          if (op) { escolhido = op.getAttribute("data-op"); document.getElementById("_caixaErro").style.display = "none"; desenhar(); return; }
           var b = ev.target.closest ? ev.target.closest("button[data-r]") : null;
           if (b) { if (b.getAttribute("data-r") === "1") tentarConfirmar(); else fechar(null); }
           else if (ev.target === fundo) fechar(null);
+        });
+        fundo.addEventListener("dblclick", function(ev) {
+          var op = ev.target.closest ? ev.target.closest("button[data-op]") : null;
+          if (op) { escolhido = op.getAttribute("data-op"); tentarConfirmar(); }
         });
         fundo.addEventListener("keydown", function(ev) {
           if (ev.key === "Enter") tentarConfirmar();
@@ -9560,13 +9567,11 @@ function hydrateFromPowerBI() {
         });
         document.body.appendChild(fundo);
         ajustarCaixaAoVisual(fundo);
-        campo = fundo.querySelector("#_caixaInput");
-        campo.value = (valorPadrao === undefined || valorPadrao === null) ? "" : String(valorPadrao);
-        campo.addEventListener("input", function() {
-          document.getElementById("_caixaErro").style.display = "none";
-          campo.style.borderColor = "#cbd5e1";
-        });
-        try { window.scrollTo(0, 0); campo.focus(); campo.select(); } catch (e) {}
+        filtro = fundo.querySelector("#_caixaFiltro");
+        caixa = fundo.querySelector("#_caixaLista");
+        filtro.addEventListener("input", desenhar);
+        desenhar();
+        try { window.scrollTo(0, 0); filtro.focus(); } catch (e) {}
       });
     }
 
@@ -10760,25 +10765,44 @@ function hydrateFromPowerBI() {
       body.innerHTML = html;
     }
 
-    // ---- responsavel por OS, com vigencia mensal --------------------------
+    // ---- responsaveis por OS, com vigencia mensal -------------------------
     // Regra: a OS manda. Guardamos apenas o mes em que cada pessoa ASSUME; o mes em que
     // deixou e derivado (o anterior ao proximo inicio da mesma OS). Assim e impossivel ter
     // dois responsaveis no mesmo periodo, ou um mes sem ninguem.
-    function registrosResponsavel() {
+    // 12/11/2026: a mesma regra vale para o GERENTE e o SUPERINTENDENTE da OS. A CTT so mostra
+    // quem responde HOJE (reescreve o passado), entao a troca no meio do ano so existe aqui.
+    //   RESPONSAVEL        valor "OS|NOME"         (gestor do contrato)
+    //   GERENTE_OS         valor "OS|CODIGO|NOME"
+    //   SUPERINTENDENTE_OS valor "OS|CODIGO|NOME"
+    var RESP_TIPOS = {
+      RESPONSAVEL: { rot: "Gestor do contrato", col: "GESTOR DO CONTRATO", comCod: false },
+      GERENTE_OS: { rot: "Gerente", col: "GERENTE", comCod: true },
+      SUPERINTENDENTE_OS: { rot: "Superintendente", col: "SUPERINTENDENTE", comCod: true }
+    };
+    var RESP_TIPO = "RESPONSAVEL";
+    function trocarTipoResp(tipo) { if (RESP_TIPOS[tipo]) { RESP_TIPO = tipo; renderMetasPanel(); } }
+    function registrosResponsavel(tipo) {
+      tipo = tipo || "RESPONSAVEL";
       return (window.METAS_DB.parametros || []).filter(function(p) {
-        return String(p.tipo) === "RESPONSAVEL" && String(p.ativo) === "Sim";
+        return String(p.tipo) === tipo && String(p.ativo) === "Sim";
       });
     }
     function osDoRegistroResp(p) { return String(p.valor || "").split("|")[0].trim(); }
     function nomeDoRegistroResp(p) {
       var partes = String(p.valor || "").split("|");
+      var comCod = RESP_TIPOS[String(p.tipo)] && RESP_TIPOS[String(p.tipo)].comCod;
+      if (comCod) return partes.length > 2 ? partes.slice(2).join("|").trim() : "";
       return partes.length > 1 ? partes.slice(1).join("|").trim() : "";
     }
-    // Linha do tempo de uma OS: [{nome, inicio, fim}] com o fim calculado.
-    function historicoResponsavel(osCode) {
-      var regs = registrosResponsavel()
+    function codDoRegistroResp(p) {
+      var comCod = RESP_TIPOS[String(p.tipo)] && RESP_TIPOS[String(p.tipo)].comCod;
+      return comCod ? String(String(p.valor || "").split("|")[1] || "").trim() : "";
+    }
+    // Linha do tempo de uma OS: [{nome, cod, inicio, fim}] com o fim calculado.
+    function historicoResponsavel(osCode, tipo) {
+      var regs = registrosResponsavel(tipo)
         .filter(function(p) { return osDoRegistroResp(p).toUpperCase() === String(osCode).toUpperCase(); })
-        .map(function(p) { return { id: p.id, nome: nomeDoRegistroResp(p), inicio: parseInt(p.vigencia, 10) || 202601 }; })
+        .map(function(p) { return { id: p.id, nome: nomeDoRegistroResp(p), cod: codDoRegistroResp(p), inicio: parseInt(p.vigencia, 10) || 202601 }; })
         .sort(function(a, b) { return a.inicio - b.inicio; });
       regs.forEach(function(r, i) {
         r.fim = (i + 1 < regs.length) ? mesAnterior(regs[i + 1].inicio) : null;
@@ -10790,8 +10814,8 @@ function hydrateFromPowerBI() {
       return mes === 1 ? (ano - 1) * 100 + 12 : ano * 100 + (mes - 1);
     }
     // Quem respondia pela OS num mes especifico.
-    function responsavelNoMes(osCode, anoMes) {
-      var h = historicoResponsavel(osCode).filter(function(r) { return r.inicio <= anoMes; });
+    function responsavelNoMes(osCode, anoMes, tipo) {
+      var h = historicoResponsavel(osCode, tipo).filter(function(r) { return r.inicio <= anoMes; });
       return h.length ? h[h.length - 1].nome : "";
     }
     // O bloco so vale enquanto as OSs tiverem o MESMO responsavel: se um gestor assume so
@@ -10804,9 +10828,9 @@ function hydrateFromPowerBI() {
       return oss.every(function(o) { return responsavelNoMes(o, anoMes) === ref; });
     }
 
-    // Lista de nomes de Gestor que realmente existem no cadastro (v\u00eam da CTT, via
-    // ACTIVE_CONTRACTS_CATALOG) -- fonte \u00fanica usada para validar quem pode ser escolhido
-    // como respons\u00e1vel, sem deixar digitar um nome que n\u00e3o existe.
+    // Lista de nomes de Gestor que realmente existem no cadastro (vêm da CTT, via
+    // ACTIVE_CONTRACTS_CATALOG) -- fonte única usada para validar quem pode ser escolhido
+    // como responsável, sem deixar digitar um nome que não existe.
     function nomesGestoresConhecidos() {
       var vistos = {};
       var nomes = [];
@@ -10818,89 +10842,140 @@ function hydrateFromPowerBI() {
       });
       return nomes.sort();
     }
+    // Pessoas que podem ser escolhidas, so com nome (e codigo) vindos da CTT:
+    // gestor = GESTOR DO CONTRATO do catalogo; gerente/superintendente = GESTOR REGIONAL /
+    // Superintendente com Cod_Gerente / Cod_Superintendente, como foram carregados da CTT no
+    // cadastro (carga de 23/09 com as 399 OSs) e o gerente atual do catalogo.
+    function pessoasDoTipoResp(tipo) {
+      if (!RESP_TIPOS[tipo] || !RESP_TIPOS[tipo].comCod) {
+        // gestor: o GESTOR DO CONTRATO do catalogo (OSs do acompanhamento) mais os nomes que a carga da
+        // CTT gravou no cadastro (cobre tambem os centros de custo de apoio)
+        var vistos = {};
+        nomesGestoresConhecidos().forEach(function(n) { vistos[n] = true; });
+        registrosResponsavel("RESPONSAVEL").forEach(function(p) { var n = nomeDoRegistroResp(p).toUpperCase(); if (n) vistos[n] = true; });
+        return Object.keys(vistos).sort().map(function(n) { return { nome: n, cod: "" }; });
+      }
+      var porNome = {};
+      registrosResponsavel(tipo).forEach(function(p) {
+        var n = nomeDoRegistroResp(p).toUpperCase(), c = codDoRegistroResp(p);
+        if (!n) return;
+        if (!porNome[n] || (!porNome[n].cod && c)) porNome[n] = { nome: n, cod: c };
+      });
+      if (tipo === "GERENTE_OS") (window.ACTIVE_CONTRACTS_CATALOG || []).forEach(function(c) {
+        var n = String(c.gerente || "").trim().toUpperCase();
+        if (n && n.indexOf("SEM INFORMA") !== 0 && !porNome[n]) porNome[n] = { nome: n, cod: "" };
+      });
+      return Object.keys(porNome).sort().map(function(n) { return porNome[n]; });
+    }
+    function rotuloPessoaResp(p) { return p.cod ? p.nome + " · cód. " + p.cod : p.nome; }
 
-    async function definirResponsavel(osCode) {
-      var atual = responsavelNoMes(osCode, mesAtualDoFiltro());
-      var nome = await promptSelecaoNaPagina("\ud83d\udc64 Respons\u00e1vel pela OS " + osCode,
-        "Quem passa a responder por esta OS. O respons\u00e1vel anterior continua valendo nos meses dele.",
-        atual || "", "Continuar", nomesGestoresConhecidos());
-      if (nome === null) return;
-      nome = String(nome).trim().toUpperCase().replace(/\|/g, " ");
-      if (!nome) { showToast("\u26a0\ufe0f Informe o nome do respons\u00e1vel."); return; }
-      var vig = await pedirVigencia("A partir de que m\u00eas " + nome + " responde pela OS " + osCode + "?");
+    async function definirResponsavel(osCode, tipo) {
+      tipo = RESP_TIPOS[tipo] ? tipo : "RESPONSAVEL";
+      var T = RESP_TIPOS[tipo];
+      var pessoas = pessoasDoTipoResp(tipo);
+      var atualNome = responsavelNoMes(osCode, mesAtualDoFiltro(), tipo);
+      var atual = pessoas.filter(function(p) { return p.nome === String(atualNome).toUpperCase(); })[0];
+      var escolha = await promptSelecaoNaPagina("👤 " + T.rot + " da OS " + osCode,
+        "Quem passa a ser " + T.rot.toLowerCase() + " desta OS. Só aparecem nomes do cadastro da CTT; use a pesquisa para achar.\nO anterior continua valendo nos meses dele.",
+        atual ? rotuloPessoaResp(atual) : "", "Continuar", pessoas.map(rotuloPessoaResp));
+      if (escolha === null) return;
+      var pessoa = pessoas.filter(function(p) { return rotuloPessoaResp(p) === escolha; })[0];
+      if (!pessoa) { showToast("⚠️ Escolha um nome da lista."); return; }
+      if (T.comCod && !pessoa.cod) { showToast("⛔ " + pessoa.nome + " está sem código no cadastro da CTT; não dá para gravar sem o código."); return; }
+      var nome = pessoa.nome.replace(/\|/g, " ");
+      var vig = await pedirVigencia("A partir de que mês " + nome + " é " + T.rot.toLowerCase() + " da OS " + osCode + "?");
       if (!vig) return;
-      var jaTem = registrosResponsavel().filter(function(p) {
+      var valor = T.comCod ? osCode + "|" + pessoa.cod + "|" + nome : osCode + "|" + nome;
+      var jaTem = registrosResponsavel(tipo).filter(function(p) {
         return osDoRegistroResp(p).toUpperCase() === osCode.toUpperCase() &&
                (parseInt(p.vigencia, 10) || 0) === vig;
       })[0];
       if (jaTem) {
-        jaTem.valor = osCode + "|" + nome;
+        jaTem.valor = valor;
         jaTem._dirty = true;
       } else {
-        window.METAS_DB.parametros.push({ id: -(Date.now()), tipo: "RESPONSAVEL",
-          valor: osCode + "|" + nome, ativo: "Sim", vigencia: vig, _dirty: true, _novo: true });
+        window.METAS_DB.parametros.push({ id: -(Date.now()), tipo: tipo,
+          valor: valor, ativo: "Sim", vigencia: vig, _dirty: true, _novo: true });
       }
       renderMetasPanel();
       metasAtualizaDirtyInfo();
-      showToast("\u2705 " + nome + " responde pela " + osCode + " desde " + rotuloVigencia(vig) + " \u2014 clique em Salvar.");
+      showToast("✅ " + nome + " é " + T.rot.toLowerCase() + " da " + osCode + " desde " + rotuloVigencia(vig) + " — clique em Salvar.");
     }
 
     async function removerTrocaResponsavel(id) {
       var p = paramLinha(id);
       if (!p) return;
-      var h = historicoResponsavel(osDoRegistroResp(p));
-      if (h.length <= 1) { showToast("\u26d4 Toda OS precisa de um respons\u00e1vel."); return; }
-      if (!await confirmarNaPagina("\u21a9\ufe0f Remover troca de respons\u00e1vel",
-            "O respons\u00e1vel anterior volta a valer para o per\u00edodo.", "Remover")) return;
-      p.ativo = "N\u00e3o";
+      var T = RESP_TIPOS[String(p.tipo)] || RESP_TIPOS.RESPONSAVEL;
+      var h = historicoResponsavel(osDoRegistroResp(p), String(p.tipo));
+      if (h.length <= 1) { showToast("⛔ Toda OS precisa de um " + T.rot.toLowerCase() + "."); return; }
+      if (!await confirmarNaPagina("↩️ Remover troca de " + T.rot.toLowerCase(),
+            "O " + T.rot.toLowerCase() + " anterior volta a valer para o período.", "Remover")) return;
+      p.ativo = "Não";
       p._dirty = true;
       renderMetasPanel();
       metasAtualizaDirtyInfo();
     }
 
     function renderResponsaveisPanel(body) {
+      var tipo = RESP_TIPO, T = RESP_TIPOS[tipo];
       var filtro = (document.getElementById("respFiltro") || {}).value || "";
       var termo = String(filtro).toUpperCase().trim();
+      // As OSs da lista sao as do acompanhamento (as que tem gestor cadastrado), para os tres tipos.
       var oss = {};
-      registrosResponsavel().forEach(function(p) { oss[osDoRegistroResp(p)] = true; });
+      registrosResponsavel("RESPONSAVEL").forEach(function(p) { oss[osDoRegistroResp(p)] = true; });
       var lista = Object.keys(oss).sort();
       if (termo) {
         lista = lista.filter(function(o) {
           return o.toUpperCase().indexOf(termo) !== -1 ||
-                 historicoResponsavel(o).some(function(r) { return r.nome.toUpperCase().indexOf(termo) !== -1; });
+                 historicoResponsavel(o, tipo).some(function(r) { return r.nome.toUpperCase().indexOf(termo) !== -1; });
         });
       }
-      var comTroca = lista.filter(function(o) { return historicoResponsavel(o).length > 1; }).length;
+      var comTroca = lista.filter(function(o) { return historicoResponsavel(o, tipo).length > 1; }).length;
+      var semCad = lista.filter(function(o) { return !historicoResponsavel(o, tipo).length; }).length;
 
-      var html = '<div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:0.82rem; color:#1e3a8a;">' +
-        'A CTT alimenta o respons\u00e1vel <b>s\u00f3 na entrada</b> da OS. Daqui em diante quem manda \u00e9 este cadastro: ' +
-        'trocar o gestor na CTT n\u00e3o reescreve mais o passado. O m\u00eas em que a pessoa <b>deixou</b> \u00e9 calculado \u2014 ' +
-        '\u00e9 o anterior ao in\u00edcio do pr\u00f3ximo respons\u00e1vel, ent\u00e3o nunca h\u00e1 dois no mesmo per\u00edodo nem m\u00eas sem ningu\u00e9m.' +
+      var botoes = Object.keys(RESP_TIPOS).map(function(t) {
+        var on = (t === tipo);
+        return '<button type="button" onclick="trocarTipoResp(\'' + t + '\')" style="background:' + (on ? "#0f2b5c" : "#e2e8f0") + '; color:' + (on ? "#fff" : "#475569") + '; border:none; padding:6px 14px; border-radius:7px; font-weight:800; font-size:0.80rem; cursor:pointer;">' + RESP_TIPOS[t].rot + '</button>';
+      }).join("");
+      var html = '<div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">' + botoes + '</div>' +
+        '<div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:0.82rem; color:#1e3a8a;">' +
+        (tipo === "RESPONSAVEL"
+          ? 'A CTT alimenta o responsável <b>só na entrada</b> da OS. Daqui em diante quem manda é este cadastro: trocar o gestor na CTT não reescreve mais o passado. '
+          : 'A CTT mostra só o ' + T.rot.toLowerCase() + ' de <b>hoje</b>. Quando ele muda no meio do ano, registre aqui a troca e o mês: os meses anteriores continuam com quem respondia. ') +
+        'O mês em que a pessoa <b>deixou</b> é calculado — é o anterior ao início da próxima, então nunca há dois no mesmo período nem mês sem ninguém. Os nomes vêm só da CTT.' +
       '</div>' +
       '<div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">' +
-        '<input id="respFiltro" type="text" value="' + filtro + '" placeholder="Filtrar por OS ou respons\u00e1vel..." oninput="renderMetasPanel()" style="flex:1; min-width:220px; padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:7px; font-size:0.86rem;">' +
-        '<span style="font-size:0.78rem; color:#64748b;">' + lista.length + ' OSs \u00b7 ' + comTroca + ' com troca no per\u00edodo</span>' +
+        '<input id="respFiltro" type="text" value="' + filtro + '" placeholder="Filtrar por OS ou nome..." oninput="renderMetasPanel()" style="flex:1; min-width:220px; padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:7px; font-size:0.86rem;">' +
+        '<span style="font-size:0.78rem; color:#64748b;">' + lista.length + ' OSs · ' + comTroca + ' com troca no período' + (semCad ? ' · ' + semCad + ' sem cadastro' : '') + '</span>' +
       '</div>' +
       '<table style="width:100%; border-collapse:collapse;">' +
         '<tr style="background:#f1f5f9;">' +
           '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">OS</th>' +
-          '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">RESPONS\u00c1VEL</th>' +
+          '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">' + T.col + '</th>' +
           '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">DESDE</th>' +
-          '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">AT\u00c9</th>' +
+          '<th style="padding:7px 8px; text-align:left; font-size:0.74rem; color:#334155;">ATÉ</th>' +
           '<th style="padding:7px 8px; text-align:right; font-size:0.74rem; color:#334155;"></th>' +
         '</tr>';
 
+      var btTrocar = function(o, rot) { return '<button type="button" data-action="definirResponsavel" data-os="' + o + '" data-tipo="' + tipo + '" style="background:#e0f2fe; color:#075985; border:none; padding:5px 11px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer;">' + rot + '</button>'; };
       lista.forEach(function(o) {
-        var h = historicoResponsavel(o);
+        var h = historicoResponsavel(o, tipo);
+        if (!h.length) {
+          html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
+            '<td style="padding:6px 8px; font-weight:800; font-size:0.84rem; color:#0f2b5c;">' + o + '</td>' +
+            '<td colspan="3" style="padding:6px 8px; font-size:0.80rem; color:#b45309;">sem ' + T.rot.toLowerCase() + ' cadastrado</td>' +
+            '<td style="padding:6px 8px; text-align:right;">' + btTrocar(o, "Definir") + '</td></tr>';
+          return;
+        }
         h.forEach(function(r, idx) {
           var vigente = (r.fim === null);
           html += '<tr style="border-bottom:1px solid #f1f5f9; background:' + (idx > 0 ? "#fffbeb" : "transparent") + ';">' +
             '<td style="padding:6px 8px; font-weight:800; font-size:0.84rem; color:#0f2b5c;">' + (idx === 0 ? o : "") + '</td>' +
-            '<td style="padding:6px 8px; font-size:0.84rem; color:' + (vigente ? "#0f2b5c" : "#64748b") + '; font-weight:' + (vigente ? "700" : "400") + ';">' + r.nome + '</td>' +
+            '<td style="padding:6px 8px; font-size:0.84rem; color:' + (vigente ? "#0f2b5c" : "#64748b") + '; font-weight:' + (vigente ? "700" : "400") + ';">' + r.nome + (r.cod ? ' <span style="font-size:0.72rem; color:#94a3b8; font-weight:400;">cód. ' + r.cod + '</span>' : '') + '</td>' +
             '<td style="padding:6px 8px; font-size:0.80rem; color:#475569;">' + rotuloVigencia(r.inicio) + '</td>' +
             '<td style="padding:6px 8px; font-size:0.80rem; color:#475569;">' + (vigente ? '<span style="color:#16a34a; font-weight:800;">vigente</span>' : rotuloVigencia(r.fim)) + '</td>' +
             '<td style="padding:6px 8px; text-align:right; white-space:nowrap;">' +
-              (idx === 0 ? '<button type="button" data-action="definirResponsavel" data-os="' + o + '" style="background:#e0f2fe; color:#075985; border:none; padding:5px 11px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer;">Trocar</button>' : "") +
+              (idx === 0 ? btTrocar(o, "Trocar") : "") +
               (idx > 0 ? '<button type="button" data-action="removerTrocaResponsavel" data-id="' + r.id + '" style="background:#fee2e2; color:#991b1b; border:none; padding:5px 11px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer;">Remover troca</button>' : "") +
             '</td>' +
           '</tr>';
@@ -11423,6 +11498,6 @@ function hydrateFromPowerBI() {
 
   
     </script>
-  <script src="book.js?v=2026-11-12_1000"></script>
+  <script src="book.js?v=2026-11-12_1130"></script>
 </body>
 </html>
