@@ -1485,8 +1485,6 @@
   // Ranking: a medida ja manda so as OSs elegiveis (CTT, regra de 30/09/2026): Status ATIVO ou ATUAL,
   // qualquer estagio, Setor da lista operacional (e, temporariamente, OS ENCERRADA). Todas entram
   // marcadas por padrao; tirar e a mao. A marca fica no campo Ranking da linha da OS.
-  // 13/11/2026: a medida manda tambem as OSs ENCERRADAS com lancamento no ano (status E). Elas somam no
-  // total do cliente e no TOTAL GERAL, igual a RPC, mas nunca entram no ranking nem nos Gerenciais.
   // ===========================================================================
   var MESES = ["", "JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
   var abertosD = {}, todosD = {};
@@ -1502,9 +1500,7 @@
     return r;
   }
   function elegivelRanking(d) { return d.status === "A" || d.status === "U"; }
-  function encerradaD(d) { return d.status === "E"; }
   function marcadoRanking(d) {
-    if (encerradaD(d)) return false;
     var r = linhaOS(d.cod), v = r ? r.Ranking : "";
     if (v === "Sim") return true;
     if (v === "Nao") return false;
@@ -1512,7 +1508,7 @@
   }
   function itemD(d) {
     var m = linhaOS(d.cod) || {};
-    return { d: d, meta: { f: m.FatMeta || 0, r: m.ResMeta || 0 }, marcado: marcadoRanking(d), soma: encerradaD(d) };
+    return { d: d, meta: { f: m.FatMeta || 0, r: m.ResMeta || 0 }, marcado: marcadoRanking(d) };
   }
   var CAMPOS_D = ["fmes", "rmes", "facu", "racu", "fano", "rano", "fcon", "rcon", "f12", "r12", "efe"];
   function somaD(xs) {
@@ -1692,9 +1688,7 @@
     xs.forEach(function (x) { (m[x.d.cliente || "(sem cliente)"] = m[x.d.cliente || "(sem cliente)"] || []).push(x); });
     return Object.keys(m).map(function (c) {
       var marc = m[c].filter(function (x) { return x.marcado; });
-      var somas = m[c].filter(function (x) { return x.soma; });   // encerradas: somam, fora do ranking
-      var inc = marc.concat(somas);
-      return { cliente: c, itens: m[c], marcados: marc, somas: somas, soEnc: !marc.length && somas.length > 0, t: somaD(inc.length ? inc : m[c]) };
+      return { cliente: c, itens: m[c], marcados: marc, t: somaD(marc.length ? marc : m[c]) };
     });
   }
 
@@ -1758,14 +1752,13 @@
     var ls;
     if (modo === "C") {
       ls = porClienteD(itens).map(function (g) { g.k = g.cliente; return g; })
-        .filter(function (g) { return todos || g.marcados.length || g.somas.length; });
+        .filter(function (g) { return todos || g.marcados.length; });
     } else {
-      ls = itens.map(function (x) { return { k: x.d.cod, x: x, soEnc: x.soma, t: somaD([x]) }; })
-        .filter(function (l) { return todos || l.x.marcado || l.x.soma; });
+      ls = itens.map(function (x) { return { k: x.d.cod, x: x, t: somaD([x]) }; })
+        .filter(function (l) { return todos || l.x.marcado; });
     }
     (o.fixos || []).forEach(function (f) { ls.push({ k: f.cliente, fixo: f.fixo, cliente: f.cliente, t: f.t }); });
-    // quem so tem OS encerrada fica no fim (soma no total, sem posicao de ranking)
-    ls = aplicarOrdem(key, ls, function (a, b) { return ((a.soEnc ? 1 : 0) - (b.soEnc ? 1 : 0)) || ((b.t[campo] || 0) - (a.t[campo] || 0)); });
+    ls = aplicarOrdem(key, ls, function (a, b) { return (b.t[campo] || 0) - (a.t[campo] || 0); });
     GRUPOS_QUADRO[key] = ls;
     if (!ls.length) return '<div class="vazio">' + o.vazio + "</div>";
     var n = ls.length;
@@ -1773,29 +1766,24 @@
       return '<input type="number" class="pos" min="1" max="' + n + '" value="' + (i + 1) + '" data-ord="' + esc(key + "|" + l.k) + '" aria-label="Posição de ' + esc(l.k) + '" title="Mude o número para mudar a ordem">';
     };
     var linhaOSq = function (x, cls, pos) {
-      var marca = x.soma ? "" : marcaHtml(x.marcado ? "on" : "", "data-rk", x.d.cod, x.marcado ? "Tirar do ranking" : "Pôr no ranking");
-      return '<tr class="' + cls + (x.marcado ? "" : " fora-rank") + '"><td class="c rk">' + (x.soma ? "" : (pos || "")) + marca + "</td>" +
-        '<td class="cli" title="' + esc(x.d.desc) + '"><span class="os">' + esc(x.d.desc) + "</span>" + (elegivelRanking(x.d) ? "" : ' <span class="chip fora">' + esc(rotuloEstado(x.d)) + (x.soma ? " · soma no total" : "") + "</span>") + "</td>" + celCols(cols, somaD([x])) + "</tr>";
+      return '<tr class="' + cls + (x.marcado ? "" : " fora-rank") + '"><td class="c rk">' + (pos || "") + marcaHtml(x.marcado ? "on" : "", "data-rk", x.d.cod, x.marcado ? "Tirar do ranking" : "Pôr no ranking") + "</td>" +
+        '<td class="cli" title="' + esc(x.d.desc) + '"><span class="os">' + esc(x.d.desc) + "</span>" + (elegivelRanking(x.d) ? "" : ' <span class="chip fora">' + esc(rotuloEstado(x.d)) + "</span>") + "</td>" + celCols(cols, somaD([x])) + "</tr>";
     };
     var corpo = ls.map(function (l, i) {
       if (l.fixo) return '<tr class="no nivel1"><td class="c rk">' + posHtml(l, i) + '</td><td class="cli" title="' + esc(l.cliente) + '">' + esc(l.cliente) + ' <span class="dica">· ' + esc(l.fixo) + "</span></td>" + celCols(cols, l.t) + "</tr>";
-      if (modo === "O") return linhaOSq(l.x, "no nivel1", l.soEnc ? "" : posHtml(l, i));
+      if (modo === "O") return linhaOSq(l.x, "no nivel1", posHtml(l, i));
       var g = l, chC = "cli:" + key + ":" + g.cliente;
       var aberto = NIVEIS.os && (abertosD[chC] === undefined ? false : abertosD[chC]);
-      var nElig = g.itens.length - g.somas.length;
-      var estado = nElig && g.marcados.length === nElig ? "on" : g.marcados.length ? "parcial" : "";
-      var marcaCli = g.soEnc ? "" : marcaHtml(estado, "data-rkcli", key + "|" + g.cliente, estado === "on" ? "Tirar o cliente do ranking" : "Pôr o cliente no ranking");
-      var notaEnc = g.soEnc ? ' <span class="chip fora">só OS encerrada · soma no total</span>' : g.somas.length ? ' <span class="dica">(' + g.somas.length + (g.somas.length === 1 ? " encerrada soma" : " encerradas somam") + ")</span>" : "";
-      var h = '<tr class="no nivel1' + (g.marcados.length ? "" : " fora-rank") + '"><td class="c rk">' + (g.soEnc ? "" : posHtml(l, i)) + marcaCli + "</td>" +
-        '<td class="cli" title="' + esc(g.cliente) + '">' + (NIVEIS.os ? seta("data-dcli", chC, aberto, g.cliente) : "") + esc(g.cliente) + ' <span class="dica">· ' + g.itens.length + (g.itens.length === 1 ? " OS" : " OSs") + "</span>" + notaEnc + "</td>" + celCols(cols, g.t) + "</tr>";
-      if (aberto) g.itens.filter(function (x) { return todos || x.marcado || x.soma; }).sort(function (a, b) { return ((a.soma ? 1 : 0) - (b.soma ? 1 : 0)) || ((b.d[campo] || 0) - (a.d[campo] || 0)); })
+      var estado = g.marcados.length === g.itens.length ? "on" : g.marcados.length ? "parcial" : "";
+      var h = '<tr class="no nivel1' + (g.marcados.length ? "" : " fora-rank") + '"><td class="c rk">' + posHtml(l, i) + marcaHtml(estado, "data-rkcli", key + "|" + g.cliente, estado === "on" ? "Tirar o cliente do ranking" : "Pôr o cliente no ranking") + "</td>" +
+        '<td class="cli" title="' + esc(g.cliente) + '">' + (NIVEIS.os ? seta("data-dcli", chC, aberto, g.cliente) : "") + esc(g.cliente) + ' <span class="dica">· ' + g.itens.length + (g.itens.length === 1 ? " OS" : " OSs") + "</span></td>" + celCols(cols, g.t) + "</tr>";
+      if (aberto) g.itens.filter(function (x) { return todos || x.marcado; }).sort(function (a, b) { return (b.d[campo] || 0) - (a.d[campo] || 0); })
         .forEach(function (x) { h += linhaOSq(x, "folha", ""); });
       return h;
     }).join("");
-    // total: as do ranking mais as encerradas (somam como na RPC)
     var marcadosTot = modo === "C"
-      ? ls.reduce(function (a, l) { return l.fixo ? a : a.concat(l.marcados, l.somas); }, [])
-      : ls.filter(function (l) { return !l.fixo && (l.x.marcado || l.x.soma); }).map(function (l) { return l.x; });
+      ? ls.reduce(function (a, l) { return l.fixo ? a : a.concat(l.marcados); }, [])
+      : ls.filter(function (l) { return !l.fixo && l.x.marcado; }).map(function (l) { return l.x; });
     var total = somaD(marcadosTot);
     ls.forEach(function (l) { if (l.fixo) { CAMPOS_D.forEach(function (c) { total[c] += l.t[c] || 0; }); total.metaF += l.t.metaF || 0; total.metaR += l.t.metaR || 0; total.fanoMeta += l.t.fanoMeta || 0; total.ranoMeta += l.t.ranoMeta || 0; } });
     var rotNome = modo === "C" ? (NIVEIS.os ? "CLIENTE · OS" : "CLIENTE") : "OS";
@@ -1839,10 +1827,8 @@
     // cada quadro: monta a tabela primeiro (ela guarda as linhas) e depois o subtitulo com a contagem
     var quadro = function (key, titulo, itensQ, cols, o, subOrdem) {
       var corpo = tabelaQuadro(key, itensQ, cols, o);
-      var gq = (GRUPOS_QUADRO[key] || []).filter(function (l) { return !l.fixo; });
-      var n = gq.filter(function (l) { return !l.soEnc; }).length, nEnc = gq.length - n;
-      var sub = "ordem pelo maior " + subOrdem + " · " + n + (modoQuadro() === "C" ? " clientes" : " OSs") + " no ranking" +
-        (nEnc ? " · " + nEnc + (modoQuadro() === "C" ? (nEnc === 1 ? " cliente só com OS encerrada" : " clientes só com OS encerrada") : (nEnc === 1 ? " OS encerrada" : " OSs encerradas")) + " (soma no total)" : "");
+      var n = (GRUPOS_QUADRO[key] || []).filter(function (l) { return !l.fixo; }).length;
+      var sub = "ordem pelo maior " + subOrdem + " · " + n + (modoQuadro() === "C" ? " clientes" : " OSs") + " no ranking";
       return secaoD(key, titulo, sub, corpo, true, restaurar(key));
     };
     var barra = '<div class="barra"><span class="chip def">Fechamento ' + rotuloMes() + "</span>" +
@@ -1854,14 +1840,13 @@
       htmlPainelColunas() + htmlCopiaExcel() +
       // Legenda do atingimento (regra do RPCO): o real do ano contra a meta do ano
       '<div class="legenda-atin"><b>ATIN. META FAT/RES ANO</b> · real do ano (' + ANO + ', realizado + projetado) sobre a meta do ano: ' +
-      '<span class="ok-mark">✔</span> atingiu 96% ou mais da meta · <span class="alerta-mark">⚠</span> entre 90% e 96% · <span class="nao-mark">✘</span> abaixo de 90% · em branco: sem meta cadastrada. Cliente e total são ponderados: soma do real das OSs com meta ÷ soma das metas das OSs; OS sem meta fica fora do atingimento. ' +
-      '<b>OS ENCERRADA</b> com lançamento no ano soma no cliente e no total, como na RPC, mas não entra no ranking nem nos Gerenciais.</div>';
+      '<span class="ok-mark">✔</span> atingiu 96% ou mais da meta · <span class="alerta-mark">⚠</span> entre 90% e 96% · <span class="nao-mark">✘</span> abaixo de 90% · em branco: sem meta cadastrada. Cliente e total são ponderados: soma do real das OSs com meta ÷ soma das metas das OSs; OS sem meta fica fora do atingimento.</div>';
     return '<div class="destaques-tela">' + barra +
       quadro("rotina", "Rotina", doNeg("R"), COLS.rotina, { campo: "facu", vazio: "Nenhum destaque de rotina." }, "faturamento acumulado") +
       quadro("locofi", "Locações e Oficina", doNeg("O"), COLS.demais, { campo: "facu", fixos: [{ cliente: "LOCACOES", fixo: "total do negócio", t: tLoc }], vazio: "Nenhum destaque de oficina." }, "faturamento acumulado") +
       quadro("parada", "Paradas", doNeg("P"), COLS.parada, { campo: "facu", vazio: "Nenhum destaque de parada." }, "faturamento acumulado") +
       quadro("mes", "Destaques do mês", itens, COLS.mes, { campo: "fmes", vazio: "Nenhum destaque no mês." }, "faturamento do mês") +
-      secaoD("gerenciais", "Gerenciais", "por gerente · ordem pelo maior faturamento acumulado", htmlGerenciaisD(itens.filter(function (x) { return !x.soma; })), false) + "</div>";
+      secaoD("gerenciais", "Gerenciais", "por gerente · ordem pelo maior faturamento acumulado", htmlGerenciaisD(itens), false) + "</div>";
   }
   var gerSel = "";
   var COLS_GER = ["acm", "ano", "p12"];
@@ -2296,7 +2281,7 @@
     if (t.hasAttribute("data-rkcli")) {
       var pc = t.getAttribute("data-rkcli"), bar = pc.indexOf("|"), sec = pc.slice(0, bar), cl = pc.slice(bar + 1);
       var negSec = sec === "rotina" ? "R" : sec === "locofi" ? "O" : sec === "parada" ? "P" : "";   // mes: todas
-      var dc = DEST.filter(function (d) { return d.cliente === cl && !encerradaD(d) && (!negSec || negSec.indexOf(d.neg) >= 0); });
+      var dc = DEST.filter(function (d) { return d.cliente === cl && (!negSec || negSec.indexOf(d.neg) >= 0); });
       alternarRanking(dc.map(function (d) { return d.cod; }), !dc.every(marcadoRanking));
       return;
     }
