@@ -32,6 +32,7 @@
   CSS += "\n.bk-wrap{max-width:none}\n.rl{max-width:none;width:100%}\n.rl-fig svg,.bk-chart svg{max-height:420px}\n.rl-duas .rl-fig svg{max-height:360px}\n.rl-lado{flex-basis:440px}\n@media (min-width:1500px){.rl-cap{padding:0 32px 22px}.rl-cap h2{margin:0 -32px 16px;padding:12px 32px}}";
   CSS += "\n.rl-duas-txt{align-items:start}.rl-duas-txt .rl-txt p:first-child{margin-top:6px}\n.rl-tab-txt th,.rl-tab-txt td{text-align:left;vertical-align:top}\n.rl-tab-txt2 th:nth-child(2),.rl-tab-txt2 td:nth-child(2){text-align:left}\n.rl-qfer{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}.rl-qfer .rl-num .v{font-size:22px}\n.rl-tab td{white-space:nowrap}.rl-tab td:first-child,.rl-tab td.rl-cx,.rl-tab-txt td,.rl-tab-txt2 td:nth-child(2){white-space:normal}.rl-tab-txt td .bk-pill{white-space:nowrap}\n.rl-cap .rl-flex .rl-lado{flex-basis:46%}\n.rl-nota-caixa{background:#F3F6FC;border:1px dashed #C5CEDC;border-radius:10px;padding:10px 14px}\n@media (min-width:1100px){.rl-plano{display:grid;grid-template-columns:1fr 1fr;gap:10px}}\n@media (max-width:900px){.rl-qfer{grid-template-columns:1fr}}";
   CSS += ".rl-nota-enc{font-size:11.5px;color:#5B6B82;margin:6px 2px 0;line-height:1.5}";
+  CSS += ".rl-tab small.rl-v{display:block;font-size:10.5px;color:#5B6B82;font-weight:600;line-height:1.2}.rl-coer td{vertical-align:top}.rl-coer td .bk-pill{margin-left:0}";
   (function () { var s = document.createElement("style"); s.id = "bkCss"; s.textContent = CSS; document.head.appendChild(s); })();
 
   var st = { nivel: "os", sel: { os: "", ger: "", sup: "" }, linhas: { os: null, ger: null, sup: null, dir: null }, carregando: false, msg: "" };
@@ -449,38 +450,56 @@
   // Devolve as linhas por mes e os meses fora, para cruzar com a justificativa do responsavel.
   var TOL_COER = 0.05;
   function coerenciaEfetivo(S) {
-    var rh = S.rh || {}, fo = (S.fin && S.fin.folha) || {}, out = [], fora = [];
+    var rh = S.rh || {}, fo = (S.fin && S.fin.folha) || {}, out = [], fora = [], rows = [];
     function pc(v) { return (v >= 0 ? "+" : "") + fmt(v * 100, 2) + "%"; }
-    for (var i = 1; i < S.meses.length; i++) {
-      var m = S.meses[i], e0 = rh.efet[i - 1], e1 = rh.efet[i], f0 = rh.fat[i - 1], f1 = rh.fat[i], r0 = rh.res[i - 1], r1 = rh.res[i];
-      if (!e0 || !e1 || !f0 || f1 == null || r0 == null || r1 == null) continue;
-      var c0 = f0 - r0, c1 = f1 - r1;
+    for (var i = 0; i < S.meses.length; i++) {
+      var m = S.meses[i], e1 = rh.efet[i], f1 = rh.fat[i], r1 = rh.res[i], h1 = (rh.hht || [])[i];
+      if (!e1 || f1 == null || r1 == null) continue;
+      var c1 = f1 - r1, rc1 = Math.abs((fo.rescTot || [])[i] || 0), dem = (rh.dem || [])[i] || 0;
+      // indicadores de proporcao: faturamento e custo por pessoa e por hora trabalhada
+      var row = { m: m, efet: e1, hht: h1, fat: f1, custo: c1, res: r1, dem: dem, resc: rc1,
+        fpp: f1 / e1, cpp: c1 / e1, fph: h1 ? f1 / h1 : null, cph: h1 ? c1 / h1 : null };
+      rows.push(row);
+      if (i === 0) continue;
+      var e0 = rh.efet[i - 1], f0 = rh.fat[i - 1], r0 = rh.res[i - 1];
+      if (!e0 || !f0 || r0 == null) continue;
+      var c0 = f0 - r0;
       if (!(c0 > 0) || !(c1 > 0)) continue;
       var dE = e1 / e0 - 1, dF = f1 / f0 - 1, dC = c1 / c0 - 1;
-      var rc0 = Math.abs((fo.rescTot || [])[i - 1] || 0), rc1 = Math.abs((fo.rescTot || [])[i] || 0), dem = (rh.dem || [])[i] || 0;
+      var rc0 = Math.abs((fo.rescTot || [])[i - 1] || 0);
       var dCs = (c0 - rc0) > 0 ? (c1 - rc1) / (c0 - rc0) - 1 : null;
       // HHT ao lado: admissao ou demissao no meio do mes mexe no efetivo da folha sem mexer no mes inteiro de horas
-      var h0 = (rh.hht || [])[i - 1], h1 = (rh.hht || [])[i], dH = h0 && h1 != null ? h1 / h0 - 1 : null;
+      var h0 = (rh.hht || [])[i - 1], dH = h0 && h1 != null ? h1 / h0 - 1 : null;
+      row.dE = dE; row.dF = dF; row.dC = dC; row.dH = dH; row.dCs = dCs;
       var fatTxt, custoTxt, ruim = false;
-      if (Math.abs(dF - dE) <= TOL_COER) fatTxt = "faturamento coerente com o efetivo";
+      if (Math.abs(dF - dE) <= TOL_COER) { fatTxt = "faturamento coerente com o efetivo"; row.fatSt = "ok"; }
       else {
         fatTxt = "FATURAMENTO FORA DA PROPORÇÃO DO EFETIVO (" + (dF > dE ? "acima" : "abaixo") + " em " + fmt(Math.abs(dF - dE) * 100, 2) + " p.p.)";
-        if (dH != null && Math.abs(dF - dH) <= TOL_COER) fatTxt += ", mas acompanhou o HHT (" + pc(dH) + "): a diferença vem de admissão ou demissão no meio do mês, confirme na justificativa";
-        else if (dH != null) fatTxt += " e também fora do HHT (" + pc(dH) + ")";
+        if (dH != null && Math.abs(dF - dH) <= TOL_COER) { fatTxt += ", mas acompanhou o HHT (" + pc(dH) + "): a diferença vem de admissão ou demissão no meio do mês, confirme na justificativa"; row.fatSt = "hht"; }
+        else { if (dH != null) fatTxt += " e também fora do HHT (" + pc(dH) + ")"; row.fatSt = dF > dE ? "acima" : "abaixo"; }
         ruim = true;
       }
       var gap = dC - dE;
-      if (Math.abs(gap) <= TOL_COER) custoTxt = "custo coerente com o efetivo";
+      if (Math.abs(gap) <= TOL_COER) { custoTxt = "custo coerente com o efetivo"; row.custoSt = "ok"; }
       else if (gap > 0) {
-        if (dem > 0 && rc1 > 0 && dCs != null && Math.abs(dCs - dE) <= TOL_COER) custoTxt = "custo acima da proporção SÓ pelas rescisões do mês das demissões (" + dem + " demissões, rescisões " + rs(rc1) + "): esperado neste mês, mas tem que ser apontado";
-        else if (dem > 0 && rc1 > 0) { custoTxt = "CUSTO ACIMA DA PROPORÇÃO MESMO SEM AS RESCISÕES (" + dem + " demissões, rescisões " + rs(rc1) + "; sem elas o custo variou " + (dCs == null ? "–" : pc(dCs)) + ")"; ruim = true; }
-        else { custoTxt = "CUSTO ACIMA DA PROPORÇÃO DO EFETIVO SEM DEMISSÃO QUE EXPLIQUE"; ruim = true; }
-      } else { custoTxt = "CUSTO ABAIXO DA PROPORÇÃO DO EFETIVO (" + (dE >= 0 ? "subiu menos que o efetivo" : "caiu mais que o efetivo") + "; conferir custo de pessoal ainda não lançado, lançamento fora do mês ou estorno)"; ruim = true; }
-      out.push(MES[m] + ": efetivo " + fmt(e0) + "→" + fmt(e1) + " (" + pc(dE) + ")" + (dH != null ? ", HHT " + pc(dH) : "") + ", faturamento " + pc(dF) + " (por pessoa " + rs(f0 / e0) + "→" + rs(f1 / e1) + "), custo " + pc(dC) +
-        (rc1 ? " (sem rescisões " + (dCs == null ? "–" : pc(dCs)) + ")" : "") + ", resultado " + rs(r0) + "→" + rs(r1) + "; demissões " + dem + (rc1 ? ", rescisões " + rs(rc1) : "") + ". Leitura: " + fatTxt + "; " + custoTxt + ".");
+        if (dem > 0 && rc1 > 0 && dCs != null && Math.abs(dCs - dE) <= TOL_COER) { custoTxt = "custo acima da proporção SÓ pelas rescisões do mês das demissões (" + dem + " demissões, rescisões " + rs(rc1) + "): esperado neste mês, mas tem que ser apontado"; row.custoSt = "resc"; }
+        else if (dem > 0 && rc1 > 0) { custoTxt = "CUSTO ACIMA DA PROPORÇÃO MESMO SEM AS RESCISÕES (" + dem + " demissões, rescisões " + rs(rc1) + "; sem elas o custo variou " + (dCs == null ? "–" : pc(dCs)) + ")"; ruim = true; row.custoSt = "acima"; }
+        else { custoTxt = "CUSTO ACIMA DA PROPORÇÃO DO EFETIVO SEM DEMISSÃO QUE EXPLIQUE"; ruim = true; row.custoSt = "acima"; }
+      } else { custoTxt = "CUSTO ABAIXO DA PROPORÇÃO DO EFETIVO (" + (dE >= 0 ? "subiu menos que o efetivo" : "caiu mais que o efetivo") + "; conferir custo de pessoal ainda não lançado, lançamento fora do mês ou estorno)"; ruim = true; row.custoSt = "abaixo"; }
+      row.ruim = ruim;
+      out.push(MES[m] + ": efetivo " + fmt(e0) + "→" + fmt(e1) + " (" + pc(dE) + ")" + (dH != null ? ", HHT " + pc(dH) : "") + ", faturamento " + pc(dF) + ", custo " + pc(dC) +
+        (rc1 ? " (sem rescisões " + (dCs == null ? "–" : pc(dCs)) + ")" : "") + ", resultado " + rs(r0) + "→" + rs(r1) +
+        "; faturamento por pessoa " + rs(f0 / e0) + "→" + rs(f1 / e1) + ", custo por pessoa " + rs(c0 / e0) + "→" + rs(c1 / e1) +
+        (h0 && h1 ? ", faturamento por hora " + rs(f0 / h0) + "→" + rs(f1 / h1) + ", custo por hora " + rs(c0 / h0) + "→" + rs(c1 / h1) : "") +
+        "; demissões " + dem + (rc1 ? ", rescisões " + rs(rc1) : "") + ". Leitura: " + fatTxt + "; " + custoTxt + ".");
       if (ruim) fora.push(m);
     }
-    return { linhas: out, fora: fora };
+    return { linhas: out, fora: fora, rows: rows };
+  }
+  // quem justificou o mes (qualquer texto do responsavel em faturamento, resultado, assertividade, efetivo, HHT ou observacoes)
+  var IDS_JUST_COER = [1, 2, 4, 9, 10, 23];
+  function justificouMes(os, m) {
+    return IDS_JUST_COER.some(function (id) { return !!limparAta(ata(os, id, m, "GESTOR")); });
   }
   function promptOS(os, ano, mes, C) {
     var S = C.S, k = C.kpi, fi = S.fin, an = analisarCustos(fi), L = [];
@@ -772,7 +791,7 @@
     var book = {
       v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: (H.rotulo && H.rotulo.indexOf("|") > 0 && H.grupo) ? H.grupo : (H.desc || C.contract.name || ""), descCtt: !!H.ctt, hist: hist, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
       ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal,
-      kpi: C.kpi, S: C.S, inds: C.inds, valoresSemOrigem: gc.semOrigem,
+      kpi: C.kpi, S: C.S, inds: C.inds, valoresSemOrigem: gc.semOrigem, coerJust: (function () { var o = {}; coerenciaEfetivo(C.S).rows.forEach(function (r) { if (r.ruim) o[r.m] = justificouMes(os, r.m); }); return o; })(),
       txt: { sumario: j.sumario, receita: j.receita, custos: j.custos, pessoas: j.pessoas, eventos: j.eventos, ssma: j.ssma, diagnostico: j.diagnostico, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
         gestao: j.gestao.slice(0, 5), premissas: j.premissas.slice(0, 5), plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10) }
     };
@@ -1224,6 +1243,28 @@
     return '<div class="rl-qfer">' + c("Pessoas no contrato", tot ? fmt(tot) : "–", "ativos e em férias") + c("30 dias ou mais", fmt(f30 || 0), pp(f30 || 0) + " · já podem sair", (f30 || 0) > 0 ? "bad" : "ok") +
       c("Mais de 45 dias", fmt(f45 || 0), pp(f45 || 0) + " · fora da regra (painel RH)", (f45 || 0) > 0 ? "bad" : "ok") + c("Transferências no ano", tin + " / " + tout, "entradas / saídas") + "</div>";
   }
+  // 16/11/2026 (usuario): tabela mes a mes de faturamento e custo contra o efetivo e o HHT, com a leitura de
+  // proporcao (5 p.p.) e se o responsavel justificou o mes fora. Sai dos numeros calculados, nao da IA.
+  function tabelaCoerencia(S, b, figura) {
+    if (!S || !S.rh || !S.rh.efet) return "";
+    var co = coerenciaEfetivo(S);
+    if (co.rows.length < 2) return "";
+    var J = b.coerJust || null;
+    function pv(v) { return v == null ? "" : '<small class="rl-v">' + (v >= 0 ? "+" : "") + fmt(v * 100, 2) + "%</small>"; }
+    function pill(cl, t) { return '<span class="bk-pill ' + cl + '">' + t + "</span>"; }
+    var FAT = { ok: pill("ok", "coerente"), hht: pill("na", "segue o HHT"), acima: pill("bad", "acima"), abaixo: pill("bad", "abaixo") };
+    var CUS = { ok: pill("ok", "coerente"), resc: pill("na", "rescisões do mês"), acima: pill("bad", "acima"), abaixo: pill("bad", "abaixo") };
+    var linhas = co.rows.map(function (r) {
+      var just = !r.ruim ? "–" : (!J || J[r.m] == null ? "–" : (J[r.m] ? pill("na", "registrada") : pill("bad", "não há")));
+      return "<tr><td>" + MES[r.m] + "</td><td>" + fmt(r.efet) + pv(r.dE) + "</td><td>" + (r.hht ? fmt(r.hht) : "–") + pv(r.dH) + "</td><td>" + moeda(r.fat) + pv(r.dF) + "</td><td>" + moeda(r.custo) + pv(r.dC) + "</td>" +
+        "<td>" + moeda(r.fpp) + "</td><td>" + moeda(r.cpp) + "</td><td>" + moeda(r.fph) + "</td><td>" + moeda(r.cph) + "</td>" +
+        "<td>" + (r.dem || 0) + "</td><td>" + (r.resc ? moeda(r.resc) : "–") + "</td><td>" + (r.fatSt ? FAT[r.fatSt] : "–") + "</td><td>" + (r.custoSt ? CUS[r.custoSt] : "–") + "</td><td>" + just + "</td></tr>";
+    }).join("");
+    var tab = '<div class="rl-tab rl-coer"><table><thead><tr><th>Mês</th><th>Efetivo</th><th>HHT (h)</th><th>Faturamento</th><th>Custo</th><th>Faturamento por pessoa</th><th>Custo por pessoa</th><th>Faturamento por hora</th><th>Custo por hora</th>' +
+      "<th>Demissões</th><th>Rescisões</th><th>Faturamento x efetivo</th><th>Custo x efetivo</th><th>Justificativa do responsável</th></tr></thead><tbody>" + linhas + "</tbody></table>" +
+      '<p class="rl-nota">Variação contra o mês anterior abaixo de cada valor. Custo = faturamento − resultado. Coerente = a variação do faturamento (ou do custo) ficou a até 5 p.p. da variação do efetivo. "Segue o HHT" = fora do efetivo, mas na proporção das horas (admissão ou demissão no meio do mês). "Rescisões do mês" = custo acima da proporção só pelas rescisões do mês das demissões, esperado mas apontado. Justificativa = o responsável escreveu algo no mês em Faturamento, Resultado, Assertividade, Efetivo, HHT ou Observações; se ela explica o número, o texto acima avalia.</p></div>';
+    return figura("Faturamento, custo e efetivo mês a mês", "a proporção entre o que o contrato faturou, o que custou e o quadro que teve", tab);
+  }
   function renderRelatorioOS(b) {
     var S = b.S, k = b.kpi, t = b.txt || {}, c = S.fin || S.custos || {}, an = analisarCustos(c), h = [], fig = 0;
     function figura(titulo, cap, corpo, leg) { fig++; return '<figure class="rl-fig"><figcaption><b>Figura ' + fig + ".</b> " + esc(titulo) + (cap ? '<span>' + esc(cap) + "</span>" : "") + "</figcaption>" + corpo + (leg || "") + "</figure>"; }
@@ -1280,7 +1321,7 @@
       var fProm = pr && pr.meses && pr.meses.length ? figura("O que os FCSTs prometeram e o que foi entregue no ano", "soma, de " + MES[pr.meses[0]] + " a " + MES[pr.meses[pr.meses.length - 1]] + ", do resultado previsto no FCST do mês anterior x o realizado, por grupo", chPromessa(pr)) : "";
       h.push('<section class="rl-cap"><h2><span>3</span>Custos e margem: o custo acompanhou o faturamento?</h2>' +
         '<div class="rl-duas rl-duas-txt"><div class="rl-txt">' + par(t.custos) + "</div>" + figura("As contas que mais descolaram do faturamento", "", tab) + "</div>" +
-        (fProm ? '<div class="rl-duas">' + fPonte + fProm + "</div>" : fPonte) + "</section>");
+        (fProm ? '<div class="rl-duas">' + fPonte + fProm + "</div>" : fPonte) + tabelaCoerencia(S, b, figura) + "</section>");
     }
     // 4. pessoas e eventos de folha
     var fo = c.folha;
