@@ -190,7 +190,7 @@
     var j = await r.json();
     if (!j || j.ok !== true) throw new Error("O fluxo não devolveu os dados.");
     // fin = contabil numa tabela so: C = conta x mes (real, executivo, FCST anterior), E = eventos da folha (CT2), M = executivo/FCST do mes
-    var custos = [], evt = [], mesx = [], proj = [], projx = [], fer = null, ctt = {}, resp = [];
+    var custos = [], evt = [], mesx = [], proj = [], projx = [], fer = null, ctt = {}, resp = [], hex = [], ferRH = null;
     norm(j.fin).forEach(function (x) {
       if (x.tipo === "C") custos.push({ "Nível": x.a, "Sub Nível I": x.b, "C.Contabil - Descricao": x.c, MesNo: x.mes, r: x.r, e: x.e, f: x.f });
       else if (x.tipo === "E") evt.push({ "C.Contábil": x.a, "Histórico de Lançamento": x.c, MesNo: x.mes, v: x.r });
@@ -199,9 +199,11 @@
       else if (x.tipo === "Q") projx.push({ m: x.mes, fe: x.r, re: x.e });
       else if (x.tipo === "R") { var partes = String(x.c || "").split("|"); resp.push({ tipo: x.a, os: String(x.b || "").toUpperCase(), nome: partes[partes.length - 1], vig: parseInt(x.mes, 10) || 0 }); }
       else if (x.tipo === "F") fer = { f30: x.r, f45: x.e, saldo: x.f, tot: x.g };
+      else if (x.tipo === "X") hex.push({ m: parseInt(x.mes, 10) || 0, acima: x.r == null ? null : +x.r, pessoas: x.e == null ? null : +x.e, horas: x.f == null ? null : +x.f });
+      else if (x.tipo === "Y") ferRH = { f45: x.r == null ? null : +x.r };
       else if (x.tipo === "H") { var cc = String(x.b || "").toUpperCase(); ctt[cc] = ctt[cc] || {}; if (ctt[cc][x.a] == null) ctt[cc][x.a] = x.c == null ? "" : String(x.c); }
     });
-    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, proj: proj, projx: projx, fer: fer, ctt: ctt, resp: resp, ri2: norm(j.ri2), dir: norm(j.dir) };
+    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, proj: proj, projx: projx, fer: fer, ctt: ctt, resp: resp, ri2: norm(j.ri2), dir: norm(j.dir), hex: hex, ferRH: ferRH };
   }
   function configurarFluxo() {
     var f = document.createElement("div");
@@ -316,7 +318,7 @@
     (dados.ri || []).forEach(function (r) {
       var mm = parseInt(r.mes, 10); var ix = S.meses.indexOf(mm); if (ix < 0) return;
       tem = true;
-      var p = (r.ideal || 0) - (r.medido || 0);
+      var p = r.perda != null ? (r.perda || 0) : (r.ideal || 0) - (r.medido || 0);   // 16/11: regra do painel (PERDA TOTAL)
       ideal[ix] += r.ideal || 0; perda[ix] += p;
       var k = String(r.motivo || "(SEM JUSTIFICATIVA)");
       mot[k] = mot[k] || S.meses.map(function () { return 0; }); mot[k][ix] += p;
@@ -369,6 +371,7 @@
     var S = montarSeries(dados, mes);
     S.fin = montarFin(dados, mes, S);
     if (dados.fer) { S.rh.fer30 = dados.fer.f30; S.rh.fer45 = dados.fer.f45; S.rh.ferSaldo = dados.fer.saldo; S.rh.ferTot = dados.fer.tot; }
+    if (dados.ferRH && dados.ferRH.f45 != null) S.rh.fer45 = dados.ferRH.f45;   // 16/11: mais de 45 dias pela regra do painel RH (igual ao #14)
     S.proj = conferirProjecao(S, (dados.proj || []).slice().sort(function (a, b) { return a.m - b.m; }));
     var md = contract.monthHistory[mes] || {};
     // Valores das caixas: vem na URL so para o mes selecionado; fora dele, o historico mensal.
@@ -390,19 +393,42 @@
     };
     var hs = S.rh.he.filter(function (v) { return v != null; });
     if (hs.length) kpi.heMedia = hs.reduce(function (a, b) { return a + b; }, 0) / hs.length;
+    // 16/11/2026 (usuario): numeros dos paineis para os indicadores qualitativos, com as regras deles.
+    // #13 Excesso de HE: pessoas acima do limite no mes (PARADA 60 h, demais 55 h; painel RH);
+    // #14 Acumulo de ferias: qualquer pessoa com mais de 45 dias = nao aderente (painel RH; so a posicao de hoje);
+    // #7 Receita Ideal: perda total acima de 4% da receita ideal = nao aderente (painel Receita Ideal).
+    // Indicador ja marcado pelo Master segue a marcacao; o numero apurado vai junto para a IA.
+    var hexM = {}; (dados.hex || []).forEach(function (x) { hexM[x.m] = x; });
+    var ptM = {}; norm(dados.ri2).forEach(function (x) { if (x.tipo === "PT") ptM[parseInt(x.mes, 10)] = { perda: +x.valor || 0, ideal: +x.pct || 0 }; });
+    S.qual = { hex: hexM, pt: ptM, fer45: dados.ferRH ? dados.ferRH.f45 : null };
+    function apuraQual(id, m) {
+      if (id === 13) { var h = hexM[m]; if (!h || h.acima == null) return null;
+        return { st: h.acima > 0 ? "bad" : "ok", txt: fmt(h.acima) + (h.acima === 1 ? " pessoa" : " pessoas") + " acima do limite de hora extra no mês (55 h rotina, 60 h parada)" + (h.pessoas != null ? " · " + fmt(h.pessoas) + " pessoas com HE · " + fmt(h.horas || 0) + " h" : "") }; }
+      if (id === 14) { if (m !== mes || S.qual.fer45 == null) return null;
+        return { st: S.qual.fer45 > 0 ? "bad" : "ok", txt: fmt(S.qual.fer45) + (S.qual.fer45 === 1 ? " pessoa" : " pessoas") + " com mais de 45 dias de férias (posição de hoje, painel RH)" }; }
+      if (id === 7) { var t = ptM[m]; if (!t || !t.ideal) return null; var pc = t.perda / t.ideal;
+        return { st: pc > 0.04 ? "bad" : "ok", txt: "perda " + moeda(t.perda) + " = " + fmt(pc * 100, 2) + "% da Receita Ideal " + moeda(t.ideal) + " (referência 4%)" }; }
+      return null;
+    }
     var inds = [];
     CATS.forEach(function (c) {
       c.ids.forEach(function (id) {
-        var strip = "", m;
-        for (m = 1; m <= mes; m++) strip += (m < p0) ? "-" : ({ ok: "A", bad: "N", na: "V" }[statusMes(contract, m, id, os)] || "-");
-        var s = statusMes(contract, mes, id, os);
+        var strip = "", m, sts = [];
         var caixa = primeiraLinha(ata(os, id, mes));
         var vals = [], diverge = [];
         for (m = 1; m <= mes; m++) {
-          vals.push(m < p0 ? "" : valorApurado(contract, m, id));
+          var st0 = m < p0 ? "" : statusMes(contract, m, id, os), v0 = m < p0 ? "" : valorApurado(contract, m, id);
+          var q0 = m < p0 ? null : apuraQual(id, m);
+          if (q0) {
+            if (/ainda n\u00e3o avaliada/.test(v0)) { st0 = q0.st; v0 = q0.txt; }       // Master nao marcou: vale o numero do painel
+            else v0 = (v0 ? v0 + " | " : "") + "apurado: " + q0.txt + (st0 && st0 !== "na" && st0 !== q0.st ? " (a marcação diverge do número)" : "");
+          }
+          sts.push(st0); vals.push(v0);
+          strip += (m < p0) ? "-" : ({ ok: "A", bad: "N", na: "V" }[st0] || "-");
           var ap = statusApurado(contract, m, id), pc = statusCaixa(os, m, id);
           if (m >= p0 && ap && pc && ap !== "na" && pc !== "na" && ap !== pc) diverge.push(MES[m] + " (parecer: " + ({ ok: "atendeu", bad: "não atendeu", na: "não avaliado" }[pc]) + ")");
         }
+        var s = sts[sts.length - 1];
         var vMes = vals[vals.length - 1];
         inds.push({ id: id, nome: NOME[id], cat: c.cat, st: s || "na", strip: strip, vals: vals, diverge: diverge,
           pill: s === "ok" ? "ATENDEU" : s === "bad" ? "NÃO ATENDEU" : "NÃO AVALIADO",
@@ -436,6 +462,8 @@
     L.push("8. Para o ORÇAMENTO, as observações que importam são: absenteísmo e turnover altos (realidade do contrato e da região), custos que ficam acima do executivo de forma padronizada, mês após mês (use RECORRÊNCIA), e acúmulo de férias (30 e 45 dias ou mais). Cada observação com o número que a sustenta.");
     L.push("10. Projeção dos próximos meses. Faça a análise futura com os números que o contrato projetou (EFETIVO PR, HHT PR, faturamento e resultado projetados). Se houver ALERTA DE PROJEÇÃO, diga com clareza que a projeção não acompanha a movimentação do último mês e peça a correção: quem admitiu tem que projetar mais efetivo e HHT (e o faturamento correspondente); quem desligou, menos.");
     L.push("11. Planos de ação informados. Para cada indicador que não atendeu em algum mês, leia mês a mês o que o RESPONSÁVEL respondeu e o que o SETOR DE PERFORMANCE apontou (blocos separados nos DADOS) e compare com a APURAÇÃO REAL dos meses seguintes. Classifique o plano: FUNCIONANDO (depois da ação o indicador melhorou ou voltou a atender), PARCIAL (melhorou, mas ainda não atende), SEM EFEITO (a mesma ação se repete há 2 meses ou mais e o cenário não muda: diga com todas as letras que o que está sendo feito não está mudando o cenário e que o plano precisa ser trocado), PIOROU, AGUARDANDO (a ação começou no último mês e ainda não há mês seguinte para medir o efeito) ou SEM PLANO (não atende e o gestor não informou nenhuma ação: cobre o plano; se há ação informada, nunca use SEM PLANO). Use o parecer do Setor de Performance como referência técnica; quando o gestor disser uma coisa e os números ou o parecer mostrarem outra, aponte. Vale para todos os indicadores, inclusive os de SSMA.");
+    L.push("13. Indicadores que dependiam da marcação do Máster agora vêm apurados pelos números dos painéis: #13 Excesso de Hora Extra = pessoas acima do limite no mês (55 h rotina, 60 h parada; painel RH); #14 Acúmulo de Férias = qualquer pessoa com mais de 45 dias está fora (painel RH; só a posição de hoje); #7 Receita Ideal = perda acima de 4% da Receita Ideal não é aderente (painel Receita Ideal). Quando o Máster já marcou, vale a marcação; se o número apurado diverge dela, diga. PBI/PBD: só o que o Máster apurou.");
+    L.push("14. Perda de receita: sempre leve o valor da perda para as contas (é faturamento que não entrou e reduz o resultado) e diga se ela está melhorando ou piorando ao longo dos meses, com os números mês a mês.");
     L.push("12. SSMA (SAF, CAF, PBI/PBD): um acidente pode parar um dia inteiro de serviço, e esse dia deixa de ser medido. Quando houver acidente ou ocorrência, procure a perda de receita do mesmo mês e diga se o evento ajuda a explicar a perda; se os DADOS não permitirem ligar os dois, diga que não há registro. Avalie se as ações de segurança informadas evitaram nova ocorrência.");
     L.push("9. Gestão ou orçamento. Para cada causa, decida: é GESTÃO (o contrato controla: hora extra, absenteísmo, demissões evitáveis, perdas por falta de mão de obra, SLA, recursos sem faturar) ou é PREMISSA DE ORÇAMENTO (o preço não previu: custo estrutural não orçado ou que fica acima do executivo todo mês, absenteísmo e turnover da região). Seja assertivo. Se o problema é de gestão, o parecer ao Orçamento diz isso com todas as letras.");
     L.push("");
@@ -1097,7 +1125,7 @@
     function c(l, v, s2, cls) { return '<div class="rl-num ' + (cls || "") + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s2 + "</span></div>"; }
     if (f30 == null && f45 == null) return '<p class="rl-nota">Sem registro de férias.</p>';
     return '<div class="rl-qfer">' + c("Pessoas no contrato", tot ? fmt(tot) : "–", "ativos e em férias") + c("30 dias ou mais", fmt(f30 || 0), pp(f30 || 0) + " · já podem sair", (f30 || 0) > 0 ? "bad" : "ok") +
-      c("45 dias ou mais", fmt(f45 || 0), pp(f45 || 0) + " · ponto de atenção", (f45 || 0) > 0 ? "bad" : "ok") + c("Transferências no ano", tin + " / " + tout, "entradas / saídas") + "</div>";
+      c("Mais de 45 dias", fmt(f45 || 0), pp(f45 || 0) + " · fora da regra (painel RH)", (f45 || 0) > 0 ? "bad" : "ok") + c("Transferências no ano", tin + " / " + tout, "entradas / saídas") + "</div>";
   }
   function renderRelatorioOS(b) {
     var S = b.S, k = b.kpi, t = b.txt || {}, c = S.fin || S.custos || {}, an = analisarCustos(c), h = [], fig = 0;
@@ -1211,6 +1239,7 @@
     S.fin = montarFin(dados, mes, S);
     if (!S.fin) throw new Error("sem dados contábeis");
     if (dados.fer) { S.rh.fer30 = dados.fer.f30; S.rh.fer45 = dados.fer.f45; S.rh.ferSaldo = dados.fer.saldo; S.rh.ferTot = dados.fer.tot; }
+    if (dados.ferRH && dados.ferRH.f45 != null) S.rh.fer45 = dados.ferRH.f45;   // 16/11: mais de 45 dias pela regra do painel RH (igual ao #14)
     var proj = (dados.proj || []).slice().sort(function (x, y) { return x.m - y.m; });
     S.proj = conferirProjecao(S, proj.slice(0, 3));
     var ct = (dados.ctt || {})[o.codigo] || {}, f = S.fin, hist = historicoOS(dados, o.codigo, ano, mes), blocoCod = codigosBloco(o.rotulo || o.codigo);
@@ -1224,7 +1253,7 @@
   function feriasTxt(efet, f30, f45) {
     function pp(v) { return efet ? " (" + fmt(v / efet * 100, 2) + "% das pessoas)" : ""; }
     if (f30 == null && f45 == null) return "sem registro de férias";
-    return (efet ? fmt(efet) + " pessoas no contrato (ativos e em férias; afastados e demitidos fora); " : "") + fmt(f30 || 0) + " com 30 dias ou mais de saldo, já com direito a sair" + pp(f30 || 0) + ", das quais " + fmt(f45 || 0) + " com 45 dias ou mais, ponto de atenção" + pp(f45 || 0);
+    return (efet ? fmt(efet) + " pessoas no contrato (ativos e em férias; afastados e demitidos fora); " : "") + fmt(f30 || 0) + " com 30 dias ou mais de saldo, já com direito a sair" + pp(f30 || 0) + "; pela regra do painel RH, " + fmt(f45 || 0) + " com mais de 45 dias, fora da regra" + pp(f45 || 0);
   }
   // Responsavel vigente pelo cadastro do acompanhamento (PARAM_ELEGIBILIDADE). Decisao do usuario (12/11):
   // o cadastro define a gerencia/superintendencia de cada OS; a CTT so entra quando nao ha cadastro.
