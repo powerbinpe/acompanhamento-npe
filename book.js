@@ -443,6 +443,45 @@
   function rs(v) { return moeda(v); }
   function cu(v) { return v == null ? "–" : moeda(Math.abs(v)); }
   function dif(v) { return v == null ? "–" : moeda(Math.abs(v)) + (v < 0 ? " a mais" : " a menos"); }
+  // 16/11/2026 (usuario): faturamento e custo tem que acompanhar o efetivo. Faturamento por pessoa estavel; quando
+  // o efetivo cai, o custo cai junto -- so no mes das demissoes o custo pode subir, pelas rescisoes, e isso e
+  // apontado. Comparar so com o executivo nao basta (ele nao e corrigido mes a mes). Tolerancia de 5 p.p.
+  // Devolve as linhas por mes e os meses fora, para cruzar com a justificativa do responsavel.
+  var TOL_COER = 0.05;
+  function coerenciaEfetivo(S) {
+    var rh = S.rh || {}, fo = (S.fin && S.fin.folha) || {}, out = [], fora = [];
+    function pc(v) { return (v >= 0 ? "+" : "") + fmt(v * 100, 2) + "%"; }
+    for (var i = 1; i < S.meses.length; i++) {
+      var m = S.meses[i], e0 = rh.efet[i - 1], e1 = rh.efet[i], f0 = rh.fat[i - 1], f1 = rh.fat[i], r0 = rh.res[i - 1], r1 = rh.res[i];
+      if (!e0 || !e1 || !f0 || f1 == null || r0 == null || r1 == null) continue;
+      var c0 = f0 - r0, c1 = f1 - r1;
+      if (!(c0 > 0) || !(c1 > 0)) continue;
+      var dE = e1 / e0 - 1, dF = f1 / f0 - 1, dC = c1 / c0 - 1;
+      var rc0 = Math.abs((fo.rescTot || [])[i - 1] || 0), rc1 = Math.abs((fo.rescTot || [])[i] || 0), dem = (rh.dem || [])[i] || 0;
+      var dCs = (c0 - rc0) > 0 ? (c1 - rc1) / (c0 - rc0) - 1 : null;
+      // HHT ao lado: admissao ou demissao no meio do mes mexe no efetivo da folha sem mexer no mes inteiro de horas
+      var h0 = (rh.hht || [])[i - 1], h1 = (rh.hht || [])[i], dH = h0 && h1 != null ? h1 / h0 - 1 : null;
+      var fatTxt, custoTxt, ruim = false;
+      if (Math.abs(dF - dE) <= TOL_COER) fatTxt = "faturamento coerente com o efetivo";
+      else {
+        fatTxt = "FATURAMENTO FORA DA PROPORÇÃO DO EFETIVO (" + (dF > dE ? "acima" : "abaixo") + " em " + fmt(Math.abs(dF - dE) * 100, 2) + " p.p.)";
+        if (dH != null && Math.abs(dF - dH) <= TOL_COER) fatTxt += ", mas acompanhou o HHT (" + pc(dH) + "): a diferença vem de admissão ou demissão no meio do mês, confirme na justificativa";
+        else if (dH != null) fatTxt += " e também fora do HHT (" + pc(dH) + ")";
+        ruim = true;
+      }
+      var gap = dC - dE;
+      if (Math.abs(gap) <= TOL_COER) custoTxt = "custo coerente com o efetivo";
+      else if (gap > 0) {
+        if (dem > 0 && rc1 > 0 && dCs != null && Math.abs(dCs - dE) <= TOL_COER) custoTxt = "custo acima da proporção SÓ pelas rescisões do mês das demissões (" + dem + " demissões, rescisões " + rs(rc1) + "): esperado neste mês, mas tem que ser apontado";
+        else if (dem > 0 && rc1 > 0) { custoTxt = "CUSTO ACIMA DA PROPORÇÃO MESMO SEM AS RESCISÕES (" + dem + " demissões, rescisões " + rs(rc1) + "; sem elas o custo variou " + (dCs == null ? "–" : pc(dCs)) + ")"; ruim = true; }
+        else { custoTxt = "CUSTO ACIMA DA PROPORÇÃO DO EFETIVO SEM DEMISSÃO QUE EXPLIQUE"; ruim = true; }
+      } else { custoTxt = "CUSTO ABAIXO DA PROPORÇÃO DO EFETIVO (" + (dE >= 0 ? "subiu menos que o efetivo" : "caiu mais que o efetivo") + "; conferir custo de pessoal ainda não lançado, lançamento fora do mês ou estorno)"; ruim = true; }
+      out.push(MES[m] + ": efetivo " + fmt(e0) + "→" + fmt(e1) + " (" + pc(dE) + ")" + (dH != null ? ", HHT " + pc(dH) : "") + ", faturamento " + pc(dF) + " (por pessoa " + rs(f0 / e0) + "→" + rs(f1 / e1) + "), custo " + pc(dC) +
+        (rc1 ? " (sem rescisões " + (dCs == null ? "–" : pc(dCs)) + ")" : "") + ", resultado " + rs(r0) + "→" + rs(r1) + "; demissões " + dem + (rc1 ? ", rescisões " + rs(rc1) : "") + ". Leitura: " + fatTxt + "; " + custoTxt + ".");
+      if (ruim) fora.push(m);
+    }
+    return { linhas: out, fora: fora };
+  }
   function promptOS(os, ano, mes, C) {
     var S = C.S, k = C.kpi, fi = S.fin, an = analisarCustos(fi), L = [];
     function pf(v) { return fi && fi.FR ? fmt(v / fi.FR * 100, 2) + "%" : "–"; }
@@ -464,6 +503,8 @@
     L.push("11. Planos de ação informados. Para cada indicador que não atendeu em algum mês, leia mês a mês o que o RESPONSÁVEL respondeu e o que o SETOR DE PERFORMANCE apontou (blocos separados nos DADOS) e compare com a APURAÇÃO REAL dos meses seguintes. Classifique o plano: FUNCIONANDO (depois da ação o indicador melhorou ou voltou a atender), PARCIAL (melhorou, mas ainda não atende), SEM EFEITO (a mesma ação se repete há 2 meses ou mais e o cenário não muda: diga com todas as letras que o que está sendo feito não está mudando o cenário e que o plano precisa ser trocado), PIOROU, AGUARDANDO (a ação começou no último mês e ainda não há mês seguinte para medir o efeito) ou SEM PLANO (não atende e o gestor não informou nenhuma ação: cobre o plano; se há ação informada, nunca use SEM PLANO). Use o parecer do Setor de Performance como referência técnica; quando o gestor disser uma coisa e os números ou o parecer mostrarem outra, aponte. Vale para todos os indicadores, inclusive os de SSMA.");
     L.push("13. Indicadores que dependiam da marcação do Máster agora vêm apurados pelos números dos painéis: #13 Excesso de Hora Extra = pessoas acima do limite no mês (55 h rotina, 60 h parada; painel RH); #14 Acúmulo de Férias = qualquer pessoa com mais de 45 dias está fora (painel RH; só a posição de hoje); #7 Receita Ideal = perda acima de 4% da Receita Ideal não é aderente (painel Receita Ideal). Quando o Máster já marcou, vale a marcação; se o número apurado diverge dela, diga. Ao citar a série de um desses indicadores, cite TODOS os meses em que ficou fora (ex.: no #13, todo mês com pessoa acima do limite), sem pular nenhum. PBI/PBD: só o que o Máster apurou.");
     L.push("15. Coerência: o sumário, o diagnóstico e o plano seguem a classificação que você deu em planos. Só diga trocar o plano quando ele estiver SEM EFEITO, PIOROU ou SEM PLANO; PARCIAL é ajustar; FUNCIONANDO e AGUARDANDO é manter. Nunca recomende trocar no sumário um plano que você classificou como PARCIAL.");
+    L.push("16. Normalidade e justificativa: tudo o que fugir da normalidade (indicador fora, variação de faturamento, custo ou resultado de um mês para o outro, número fora da proporção) precisa de justificativa do responsável. Para cada desvio diga se ele justificou; se não justificou, aponte a falta de justificativa com todas as letras; se justificou, diga se a justificativa é coerente com os números e, se não for, aponte e diga o que falta responder. Vale para todos os indicadores e valores.");
+    L.push("17. Faturamento e resultado se explicam pelo efetivo, não só pelo executivo (o executivo não é corrigido de um mês para o outro). Use o bloco COERÊNCIA FATURAMENTO x EFETIVO x CUSTO: o faturamento deve variar na mesma proporção do efetivo (faturamento por pessoa estável) e o custo deve cair quando o efetivo cai. No mês da redução de efetivo é esperado aumento de custo pelas demissões (rescisões, multa de 40%): aponte esse custo e o valor. Nos demais meses, custo fora da proporção do efetivo não é aceitável: aponte e cobre a justificativa. Ao explicar variação de faturamento ou de resultado no mês ou no ano, diga se houve movimentação de efetivo e se a variação ficou na proporção dela.");
     L.push("14. Perda de receita: sempre leve o valor da perda para as contas (é faturamento que não entrou e reduz o resultado) e diga se ela está melhorando ou piorando ao longo dos meses, com os números mês a mês.");
     L.push("12. SSMA (SAF, CAF, PBI/PBD): um acidente pode parar um dia inteiro de serviço, e esse dia deixa de ser medido. Quando houver acidente ou ocorrência, procure a perda de receita do mesmo mês e diga se o evento ajuda a explicar a perda; se os DADOS não permitirem ligar os dois, diga que não há registro. Avalie se as ações de segurança informadas evitaram nova ocorrência.");
     L.push("9. Gestão ou orçamento. Para cada causa, decida: é GESTÃO (o contrato controla: hora extra, absenteísmo, demissões evitáveis, perdas por falta de mão de obra, SLA, recursos sem faturar) ou é PREMISSA DE ORÇAMENTO (o preço não previu: custo estrutural não orçado ou que fica acima do executivo todo mês, absenteísmo e turnover da região). Seja assertivo. Se o problema é de gestão, o parecer ao Orçamento diz isso com todas as letras.");
@@ -478,7 +519,7 @@
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
     L.push('{"sumario":"(3 parágrafos, 900 a 1500 caracteres: receita, custo e o que fazer)",' +
       '"receita":"(2 parágrafos, até 1400 caracteres: perdas por motivo, SLA, não faturáveis, % do faturamento e resultado potencial; diluídos só como informação)",' +
-      '"custos":"(2 ou 3 parágrafos, até 1700 caracteres: proporcionalidade, ponte da margem, contas, o que o FCST prometeu e não entregou)",' +
+      '"custos":"(3 parágrafos, até 2100 caracteres: proporcionalidade, ponte da margem, contas, o que o FCST prometeu e não entregou, e a coerência mês a mês de faturamento e custo com o efetivo, com os meses fora da proporção e se o responsável justificou cada um)",' +
       '"pessoas":"(2 ou 3 parágrafos, até 1500 caracteres: efetivo, admissões/demissões e seus custos, HHT, HE, absenteísmo, faturamento do recurso novo e a coerência da projeção dos próximos meses)",' +
       '"eventos":"(até 1000 caracteres: rescisões e multa de 40%, encargos fora do padrão, acúmulo de férias (30 e 45 dias ou mais) e o efeito dele no dissídio e na reoneração ' + (ano + 1) + ')",' +
       '"ssma":"(até 700 caracteres: segurança, satisfação do cliente, boas práticas e renovação)",' +
@@ -568,7 +609,21 @@
     });
     if (efe.length) L.push("EFEITO DAS ADMISSÕES NO MÊS SEGUINTE (calculado; use estes números, não deduza outra tendência): " + efe.join(" | ") + ".");
     L.push("HHT realizado (h): " + linhaSerie(S.rh.hht) + " | % HE: " + linhaSerie(S.rh.he, function (v) { return fmt(v, 2) + "%"; }) + " | % absenteísmo: " + linhaSerie(S.rh.abs, function (v) { return fmt(v, 2) + "%"; }));
-    L.push("Faturamento do mês: " + linhaSerie(S.rh.fat, rs));
+    L.push("Faturamento do mês: " + linhaSerie(S.rh.fat, rs) + " | resultado do mês: " + linhaSerie(S.rh.res, rs));
+    var coe = coerenciaEfetivo(S);
+    if (coe.linhas.length) {
+      L.push("COERÊNCIA FATURAMENTO x EFETIVO x CUSTO, MÊS CONTRA O MÊS ANTERIOR (calculado; custo = faturamento - resultado; tolerância de 5 p.p.; use estes números e esta leitura):");
+      coe.linhas.forEach(function (l) { L.push("  " + l); });
+      var just = [];
+      coe.fora.forEach(function (m) {
+        var g = [1, 2, 4, 9, 10].map(function (id) { var t = limparAta(ata(os, id, m, "GESTOR")); return t ? "#" + id + " " + t.slice(0, 260) : ""; }).filter(Boolean);
+        var ob = limparAta(ata(os, 23, m, "GESTOR"));
+        if (ob) g.push("#23 " + ob.slice(0, 260));
+        just.push("  " + MES[m] + ": " + (g.length ? g.join(" || ") : "NENHUMA JUSTIFICATIVA DO RESPONSÁVEL neste mês para faturamento, resultado, efetivo ou HHT"));
+      });
+      if (just.length) { L.push("O QUE O RESPONSÁVEL ESCREVEU NOS MESES FORA DA PROPORÇÃO (faturamento, resultado, assertividade, efetivo, HHT e observações; compare com os números acima):"); just.forEach(function (l) { L.push(l); }); }
+      else L.push("Nenhum mês fora da proporção do efetivo.");
+    }
     if (S.rh.efetPR && S.rh.efetPR.some(function (v) { return v != null; })) L.push("EFETIVO PR (projetado) nos meses fechados: " + linhaSerie(S.rh.efetPR));
     if (S.proj && S.proj.meses && S.proj.meses.length) {
       L.push("PROJEÇÃO LANÇADA PELO CONTRATO PARA OS PRÓXIMOS MESES (EFETIVO PR, HHT PR, faturamento e resultado projetados): " + S.proj.meses.map(function (x) { return MES[x.m] + ": efetivo " + fmt(x.efet) + ", HHT " + fmt(x.hht) + " h, faturamento " + rs(x.fat) + ", resultado " + rs(x.res); }).join(" | ") + ".");
