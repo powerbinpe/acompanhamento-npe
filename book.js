@@ -32,7 +32,7 @@
   CSS += "\n.bk-wrap{max-width:none}\n.rl{max-width:none;width:100%}\n.rl-fig svg,.bk-chart svg{max-height:420px}\n.rl-duas .rl-fig svg{max-height:360px}\n.rl-lado{flex-basis:440px}\n@media (min-width:1500px){.rl-cap{padding:0 32px 22px}.rl-cap h2{margin:0 -32px 16px;padding:12px 32px}}";
   CSS += "\n.rl-duas-txt{align-items:start}.rl-duas-txt .rl-txt p:first-child{margin-top:6px}\n.rl-tab-txt th,.rl-tab-txt td{text-align:left;vertical-align:top}\n.rl-tab-txt2 th:nth-child(2),.rl-tab-txt2 td:nth-child(2){text-align:left}\n.rl-qfer{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}.rl-qfer .rl-num .v{font-size:22px}\n.rl-tab td{white-space:nowrap}.rl-tab td:first-child,.rl-tab td.rl-cx,.rl-tab-txt td,.rl-tab-txt2 td:nth-child(2){white-space:normal}.rl-tab-txt td .bk-pill{white-space:nowrap}\n.rl-cap .rl-flex .rl-lado{flex-basis:46%}\n.rl-nota-caixa{background:#F3F6FC;border:1px dashed #C5CEDC;border-radius:10px;padding:10px 14px}\n@media (min-width:1100px){.rl-plano{display:grid;grid-template-columns:1fr 1fr;gap:10px}}\n@media (max-width:900px){.rl-qfer{grid-template-columns:1fr}}";
   CSS += ".rl-nota-enc{font-size:11.5px;color:#5B6B82;margin:6px 2px 0;line-height:1.5}";
-  CSS += ".rl-tab small.rl-v{display:block;font-size:10.5px;color:#5B6B82;font-weight:600;line-height:1.2}.rl-coer td{vertical-align:top}.rl-coer td .bk-pill{margin-left:0}";
+  CSS += ".rl-tab small.rl-v{display:block;font-size:10.5px;color:#5B6B82;font-weight:600;line-height:1.2}.rl-coer td{vertical-align:top}.rl-coer td .bk-pill{margin-left:0}.rl-coer td:last-child{white-space:normal;min-width:180px;text-align:left}.rl-coer th,.rl-coer td{padding-left:6px;padding-right:6px}.rl-coer small.rl-vn{display:block;font-size:11px;color:#334155;line-height:1.35;margin-top:3px}";
   (function () { var s = document.createElement("style"); s.id = "bkCss"; s.textContent = CSS; document.head.appendChild(s); })();
 
   var st = { nivel: "os", sel: { os: "", ger: "", sup: "" }, linhas: { os: null, ger: null, sup: null, dir: null }, carregando: false, msg: "" };
@@ -543,6 +543,7 @@
       '"eventos":"(até 1000 caracteres: rescisões e multa de 40%, encargos fora do padrão, acúmulo de férias (30 e 45 dias ou mais) e o efeito dele no dissídio e na reoneração ' + (ano + 1) + ')",' +
       '"ssma":"(até 700 caracteres: segurança, satisfação do cliente, boas práticas e renovação)",' +
       '"diagnostico":"(até 600 caracteres: a conclusão: quanto é gestão e quanto é orçamento)",' +
+      '"coerencia":[{"mes":"(jan, fev, ...)","avaliacao":"(COERENTE, INCOERENTE ou SEM JUSTIFICATIVA)","nota":"(até 140 caracteres: o que o responsável escreveu sobre o mês e por que explica ou não o número)"}] (um item para CADA mês listado em O QUE O RESPONSÁVEL ESCREVEU NOS MESES FORA DA PROPORÇÃO; texto genérico, repetido de outro mês ou que não fala do desvio daquele mês é SEM JUSTIFICATIVA ou INCOERENTE, nunca COERENTE; [] se não houver mês fora),' +
       '"planos":[{"indicador":"(#número e nome)","acao":"(o que o gestor informou que está fazendo, resumido, até 160 caracteres; nenhuma ação informada, se for o caso)","desde":"(mês em que a ação atual aparece pela primeira vez; se o plano mudou no ano, o mês da mudança)","efeito":"(FUNCIONANDO, PARCIAL, SEM EFEITO, PIOROU, AGUARDANDO ou SEM PLANO)","texto":"(até 300 caracteres: a evidência mês a mês, com os números da caixa e o que diz o parecer do Setor de Performance)","recomendacao":"(até 220 caracteres: manter, ajustar ou trocar o plano, e o que fazer)"}] (todos os indicadores que não atenderam em algum mês do ano, do mais grave para o menos grave, até 10 itens; [] se todos atenderam o ano todo),' +
       '"gestao":[{"titulo":"(até 45 caracteres)","valor":"(até 25 caracteres, o número)","texto":"(até 260 caracteres)"}] (3 a 5 itens),' +
       '"premissas":[{"titulo":"","valor":"","texto":""}] (2 a 5 itens),' +
@@ -733,6 +734,23 @@
     return { j: j, falta: falta, semOrigem: orig };
   }
 
+  // 16/11/2026: o sumario/diagnostico/parecer nao pode mandar TROCAR plano que a propria IA classificou como
+  // PARCIAL, AGUARDANDO ou FUNCIONANDO. Busca por palavras do indicador nas frases com "troc".
+  var CHAVES_PLANO = { 2: ["resultado ano"], 4: ["assertividade"], 6: ["perda de receita", "perdas de receita"], 7: ["receita ideal"], 9: ["plano de efetivo"], 10: ["hht"],
+    11: ["absenteismo"], 12: ["turnover", "rotatividade"], 13: ["hora extra", "horas extras"], 14: ["ferias"], 15: ["saf", "seguranca", "acidente"], 16: ["caf"],
+    17: ["satisfacao"], 19: ["pbi", "pbd"], 20: ["boas praticas"] };
+  function semAcento(t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+  function trocasIndevidas(j) {
+    var ok = { "SEM EFEITO": 1, "PIOROU": 1, "SEM PLANO": 1 }, ruins = [];
+    var frases = [j.sumario, j.diagnostico, j.parecerOrcamento].map(semAcento).join(" ").split(/[.;:]/).filter(function (f) { return /troc/.test(f); });
+    (Array.isArray(j.planos) ? j.planos : []).forEach(function (pl) {
+      if (ok[String(pl.efeito || "").toUpperCase()]) return;
+      var id = parseInt(String(pl.indicador || "").replace(/[^0-9]/g, ""), 10), ch = CHAVES_PLANO[id];
+      if (!ch) return;
+      if (frases.some(function (f) { return ch.some(function (c) { return f.indexOf(c) >= 0; }); })) ruins.push(pl.indicador + " (" + pl.efeito + ")");
+    });
+    return ruins;
+  }
   function extrairJSON(txt) {
     var t = String(txt || "").replace(/```json|```/g, "");
     var a = t.indexOf("{"), b = t.lastIndexOf("}");
@@ -784,7 +802,15 @@
     var prompt = promptOS(os, ano, mes, C);
     progresso("A IA está escrevendo o book (" + Math.round(prompt.length / 1000) + " mil caracteres de dados)…");
     var temNx = C.inds.some(function (x) { return x.strip.indexOf("N") >= 0; });
-    var gc = await gerarConferido(prompt, function (jj) { return conferirOS(jj, temNx); }), j = gc.j, falta = gc.falta;
+    var nFora = coerenciaEfetivo(C.S).fora.length;
+    var gc = await gerarConferido(prompt, function (jj) {
+      var f = conferirOS(jj, temNx);
+      if (nFora && (!Array.isArray(jj.coerencia) || !jj.coerencia.length)) f.push("coerencia (um item por mês fora da proporção)");
+      var tr = trocasIndevidas(jj);
+      if (tr.length) f.push("coerência do sumário com os planos: o texto manda trocar o plano de " + tr.join(", ") + ", mas trocar é só para SEM EFEITO, PIOROU ou SEM PLANO (PARCIAL = ajustar; FUNCIONANDO e AGUARDANDO = manter)");
+      return f;
+    }), j = gc.j, falta = gc.falta;
+    if (falta.length && falta.every(function (x) { return /^coerência do sumário/.test(x); })) falta = [];   // nao derruba o book por isso; a regra ja foi cobrada na nova tentativa
     if (falta.length) throw new Error("A IA não completou o book (faltou: " + falta.join(", ") + ").");
     var s = A.sessaoAcesso ? A.sessaoAcesso() : null;
     if (!C.S.fin) throw new Error("O fluxo NPE-Ler-Dados-Book não devolveu o contábil da OS (consulta de custos).");
@@ -792,7 +818,7 @@
       v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: (H.rotulo && H.rotulo.indexOf("|") > 0 && H.grupo) ? H.grupo : (H.desc || C.contract.name || ""), descCtt: !!H.ctt, hist: hist, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
       ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal,
       kpi: C.kpi, S: C.S, inds: C.inds, valoresSemOrigem: gc.semOrigem, coerJust: (function () { var o = {}; coerenciaEfetivo(C.S).rows.forEach(function (r) { if (r.ruim) o[r.m] = justificouMes(os, r.m); }); return o; })(),
-      txt: { sumario: j.sumario, receita: j.receita, custos: j.custos, pessoas: j.pessoas, eventos: j.eventos, ssma: j.ssma, diagnostico: j.diagnostico, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
+      txt: { coerencia: Array.isArray(j.coerencia) ? j.coerencia.slice(0, 12) : [], sumario: j.sumario, receita: j.receita, custos: j.custos, pessoas: j.pessoas, eventos: j.eventos, ssma: j.ssma, diagnostico: j.diagnostico, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
         gestao: j.gestao.slice(0, 5), premissas: j.premissas.slice(0, 5), plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10) }
     };
     if (opts.gravar === false) return book;
@@ -1249,20 +1275,24 @@
     if (!S || !S.rh || !S.rh.efet) return "";
     var co = coerenciaEfetivo(S);
     if (co.rows.length < 2) return "";
-    var J = b.coerJust || null;
+    var J = b.coerJust || null, VD = {};
+    ((b.txt && b.txt.coerencia) || []).forEach(function (x) { var mm = MES.indexOf(String(x.mes || "").toLowerCase().slice(0, 3)); if (mm > 0) VD[mm] = { a: String(x.avaliacao || "").toUpperCase(), n: x.nota || "" }; });
     function pv(v) { return v == null ? "" : '<small class="rl-v">' + (v >= 0 ? "+" : "") + fmt(v * 100, 2) + "%</small>"; }
     function pill(cl, t) { return '<span class="bk-pill ' + cl + '">' + t + "</span>"; }
     var FAT = { ok: pill("ok", "coerente"), hht: pill("na", "segue o HHT"), acima: pill("bad", "acima"), abaixo: pill("bad", "abaixo") };
     var CUS = { ok: pill("ok", "coerente"), resc: pill("na", "rescisões do mês"), acima: pill("bad", "acima"), abaixo: pill("bad", "abaixo") };
     var linhas = co.rows.map(function (r) {
-      var just = !r.ruim ? "–" : (!J || J[r.m] == null ? "–" : (J[r.m] ? pill("na", "registrada") : pill("bad", "não há")));
+      var vd = VD[r.m], just;
+      if (!r.ruim) just = "–";
+      else if (vd) just = (/^COER/.test(vd.a) ? pill("ok", "coerente") : /^INCOER/.test(vd.a) ? pill("bad", "incoerente") : pill("bad", "sem justificativa")) + (vd.n ? '<small class="rl-vn">' + esc(vd.n) + "</small>" : "");
+      else just = !J || J[r.m] == null ? "–" : (J[r.m] ? pill("na", "registrada") : pill("bad", "não há"));
       return "<tr><td>" + MES[r.m] + "</td><td>" + fmt(r.efet) + pv(r.dE) + "</td><td>" + (r.hht ? fmt(r.hht) : "–") + pv(r.dH) + "</td><td>" + moeda(r.fat) + pv(r.dF) + "</td><td>" + moeda(r.custo) + pv(r.dC) + "</td>" +
         "<td>" + moeda(r.fpp) + "</td><td>" + moeda(r.cpp) + "</td><td>" + moeda(r.fph) + "</td><td>" + moeda(r.cph) + "</td>" +
         "<td>" + (r.dem || 0) + "</td><td>" + (r.resc ? moeda(r.resc) : "–") + "</td><td>" + (r.fatSt ? FAT[r.fatSt] : "–") + "</td><td>" + (r.custoSt ? CUS[r.custoSt] : "–") + "</td><td>" + just + "</td></tr>";
     }).join("");
     var tab = '<div class="rl-tab rl-coer"><table><thead><tr><th>Mês</th><th>Efetivo</th><th>HHT (h)</th><th>Faturamento</th><th>Custo</th><th>Faturamento por pessoa</th><th>Custo por pessoa</th><th>Faturamento por hora</th><th>Custo por hora</th>' +
       "<th>Demissões</th><th>Rescisões</th><th>Faturamento x efetivo</th><th>Custo x efetivo</th><th>Justificativa do responsável</th></tr></thead><tbody>" + linhas + "</tbody></table>" +
-      '<p class="rl-nota">Variação contra o mês anterior abaixo de cada valor. Custo = faturamento − resultado. Coerente = a variação do faturamento (ou do custo) ficou a até 5 p.p. da variação do efetivo. "Segue o HHT" = fora do efetivo, mas na proporção das horas (admissão ou demissão no meio do mês). "Rescisões do mês" = custo acima da proporção só pelas rescisões do mês das demissões, esperado mas apontado. Justificativa = o responsável escreveu algo no mês em Faturamento, Resultado, Assertividade, Efetivo, HHT ou Observações; se ela explica o número, o texto acima avalia.</p></div>';
+      '<p class="rl-nota">Variação contra o mês anterior abaixo de cada valor. Custo = faturamento − resultado. Coerente = a variação do faturamento (ou do custo) ficou a até 5 p.p. da variação do efetivo. "Segue o HHT" = fora do efetivo, mas na proporção das horas (admissão ou demissão no meio do mês). "Rescisões do mês" = custo acima da proporção só pelas rescisões do mês das demissões, esperado mas apontado. Justificativa = avaliação do Setor de Performance sobre o que o responsável escreveu no mês (Faturamento, Resultado, Assertividade, Efetivo, HHT e Observações): coerente com o número, incoerente ou sem justificativa.</p></div>';
     return figura("Faturamento, custo e efetivo mês a mês", "a proporção entre o que o contrato faturou, o que custou e o quadro que teve", tab);
   }
   function renderRelatorioOS(b) {
