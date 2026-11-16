@@ -469,7 +469,7 @@
     L.push("9. Gestão ou orçamento. Para cada causa, decida: é GESTÃO (o contrato controla: hora extra, absenteísmo, demissões evitáveis, perdas por falta de mão de obra, SLA, recursos sem faturar) ou é PREMISSA DE ORÇAMENTO (o preço não previu: custo estrutural não orçado ou que fica acima do executivo todo mês, absenteísmo e turnover da região). Seja assertivo. Se o problema é de gestão, o parecer ao Orçamento diz isso com todas as letras.");
     L.push("");
     L.push("REGRAS");
-    L.push("- Use SOMENTE os números dos DADOS, escritos exatamente como neles: R$ 1.500.000 (sem centavos a partir de R$ 1.000), R$ 850,00 (com centavos abaixo de R$ 1.000), valores negativos entre parênteses, R$ (647.973), e percentuais sempre com duas casas, 10,00% e 1,00%. Nunca abrevie (nada de 'mi', 'mil' ou 'milhões'). Não invente valor, data, causa, nome ou evento; sem registro, diga que não há registro.");
+    L.push("- Use SOMENTE os números dos DADOS, escritos exatamente como neles: R$ 1.500.000 (sem centavos a partir de R$ 1.000), R$ 850,00 (com centavos abaixo de R$ 1.000), valores negativos entre parênteses, R$ (647.973), e percentuais sempre com duas casas, 10,00% e 1,00%. Nunca abrevie (nada de 'mi', 'mil' ou 'milhões'). Não invente valor, data, causa, nome ou evento; sem registro, diga que não há registro. Todo valor em R$ que você escrever tem que estar nos DADOS ou ser a soma ou a diferença de valores que você cita no mesmo trecho, com as parcelas escritas (ex.: transporte R$ 121.126 e passagens R$ 75.485, total R$ 196.611). Nunca escreva um total sem as parcelas nem um número que não venha dos DADOS.");
     L.push("- Português do Brasil, tom executivo, frases curtas, sem listas dentro dos textos. Parágrafos separados por uma linha em branco. **Negrito** só para 1 ou 2 números-chave por texto.");
     L.push("- Não compare com orçado, PR ou meta um número que não tenha essa comparação nos DADOS.");
     L.push("- Pessoas (gestor, gerente, superintendente) são citadas só pelo nome como está nos DADOS; nunca presuma gênero (não use ele/ela, dele/dela, o gestor/a gestora).");
@@ -613,6 +613,52 @@
     return L.join("\n");
   }
 
+  // 16/11/2026 (usuario): nenhum valor montado pela IA. Todo R$ da resposta tem que estar no prompt (DADOS)
+  // ou ser soma/diferenca de 2 ou 3 valores citados no mesmo trecho. Se nao for, a IA refaz (ate 2 vezes).
+  function numsBR(t) { var out = [], re = /\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?/g, m; while ((m = re.exec(t))) out.push(Math.abs(parseFloat(m[0].replace(/\./g, "").replace(",", ".")))); return out; }
+  function valoresRS(t) { var out = [], re = /R\$\s*\(?\s*-?(\d{1,3}(?:\.\d{3})+|\d{4,})(?:,\d+)?\s*\)?/g, m; while ((m = re.exec(t))) out.push({ txt: m[0].trim(), v: parseFloat(m[1].replace(/\./g, "")) }); return out; }
+  function valoresSemOrigem(j, fonte) {
+    var base = {}; numsBR(fonte).forEach(function (n) { base[Math.round(n)] = 1; });
+    function tem(v) { var r = Math.round(v); return base[r] || base[r - 1] || base[r + 1]; }
+    var itens = [];
+    (function andar(v, k) {
+      if (typeof v === "string") itens.push([k, v]);
+      else if (Array.isArray(v)) v.forEach(function (o) { if (o && typeof o === "object") itens.push([k, Object.keys(o).map(function (q) { return String(o[q] == null ? "" : o[q]); }).join(" | ")]); else andar(o, k); });
+      else if (v && typeof v === "object") Object.keys(v).forEach(function (q) { andar(v[q], k ? k + "." + q : q); });
+    })(j, "");
+    var ruins = [];
+    itens.forEach(function (it) {
+      var vs = valoresRS(it[1]), ns = vs.map(function (x) { return x.v; });
+      vs.forEach(function (x) {
+        if (x.v < 1000 || tem(x.v)) return;
+        var ok = false, a, b, c;
+        for (a = 0; a < ns.length && !ok; a++) for (b = 0; b < ns.length && !ok; b++) {
+          if (a === b) continue;
+          if (Math.abs(ns[a] + ns[b] - x.v) <= 2 || Math.abs(ns[a] - ns[b] - x.v) <= 2) ok = true;
+          for (c = 0; c < ns.length && !ok; c++) if (c !== a && c !== b && Math.abs(ns[a] + ns[b] + ns[c] - x.v) <= 3) ok = true;
+        }
+        var rot = x.txt + " (" + it[0] + ")";
+        if (!ok && ruins.indexOf(rot) < 0) ruins.push(rot);
+      });
+    });
+    return ruins;
+  }
+  async function gerarConferido(prompt, conferir) {
+    var j = null, falta = ["tudo"], orig = [], tent = 0;
+    while (tent < 3) {
+      var p = prompt;
+      if (tent > 0 && falta.length) p += "\n\nATENÇÃO: na resposta anterior faltaram ou vieram vazios: " + falta.join(", ") + ". Devolva o JSON COMPLETO.";
+      else if (tent > 0 && orig.length) p += "\n\nATENÇÃO: estes valores da resposta anterior não estão nos DADOS nem são a soma ou a diferença dos valores citados no mesmo trecho: " + orig.join("; ") + ". Use somente valores dos DADOS; se precisar de um total, escreva as parcelas no mesmo trecho. Devolva o JSON COMPLETO.";
+      var txt = await A.chamarGerarTexto("gpt41", p);
+      try { j = extrairJSON(txt); falta = conferir(j); orig = falta.length ? [] : valoresSemOrigem(j, prompt); } catch (e) { falta = ["JSON válido"]; orig = []; }
+      tent++;
+      if (!falta.length && !orig.length) break;
+      if (falta.length && tent >= 2) break;
+    }
+    if (orig.length) try { console.warn("[BOOK] valores sem origem nos DADOS:", orig); } catch (e) {}
+    return { j: j, falta: falta, semOrigem: orig };
+  }
+
   function extrairJSON(txt) {
     var t = String(txt || "").replace(/```json|```/g, "");
     var a = t.indexOf("{"), b = t.lastIndexOf("}");
@@ -663,20 +709,15 @@
     if (ct) { H.hist = hist; C.H = H; }
     var prompt = promptOS(os, ano, mes, C);
     progresso("A IA está escrevendo o book (" + Math.round(prompt.length / 1000) + " mil caracteres de dados)…");
-    var j = null, falta = ["tudo"], tent = 0;
-    while (falta.length && tent < 2) {
-      var p = tent === 0 ? prompt : prompt + "\n\nATENÇÃO: na resposta anterior faltaram ou vieram vazios: " + falta.join(", ") + ". Devolva o JSON COMPLETO.";
-      var txt = await A.chamarGerarTexto("gpt41", p);
-      try { j = extrairJSON(txt); falta = conferirOS(j, C.inds.some(function (x) { return x.strip.indexOf("N") >= 0; })); } catch (e) { falta = ["JSON válido"]; }
-      tent++;
-    }
+    var temNx = C.inds.some(function (x) { return x.strip.indexOf("N") >= 0; });
+    var gc = await gerarConferido(prompt, function (jj) { return conferirOS(jj, temNx); }), j = gc.j, falta = gc.falta;
     if (falta.length) throw new Error("A IA não completou o book (faltou: " + falta.join(", ") + ").");
     var s = A.sessaoAcesso ? A.sessaoAcesso() : null;
     if (!C.S.fin) throw new Error("O fluxo NPE-Ler-Dados-Book não devolveu o contábil da OS (consulta de custos).");
     var book = {
       v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: (H.rotulo && H.rotulo.indexOf("|") > 0 && H.grupo) ? H.grupo : (H.desc || C.contract.name || ""), descCtt: !!H.ctt, hist: hist, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
       ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal,
-      kpi: C.kpi, S: C.S, inds: C.inds,
+      kpi: C.kpi, S: C.S, inds: C.inds, valoresSemOrigem: gc.semOrigem,
       txt: { sumario: j.sumario, receita: j.receita, custos: j.custos, pessoas: j.pessoas, eventos: j.eventos, ssma: j.ssma, diagnostico: j.diagnostico, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
         gestao: j.gestao.slice(0, 5), premissas: j.premissas.slice(0, 5), plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10) }
     };
@@ -1319,7 +1360,7 @@
     L.push("- Ao falar de contratos, um contrato por linha: cada linha começa com o código e a descrição da OS (ex.: 'M03100 - NEXA - TRES MARIAS: ...') e termina antes do próximo contrato; quebre a linha (\\n) a cada contrato. Nunca deixe o código de um contrato no fim da linha de outro." + (ger ? "" : " O mesmo vale para as gerências: uma gerência por linha, começando pelo nome."));
     L.push("- Férias sempre em PESSOAS, por contrato: quantas pessoas o contrato tem, quantas já têm 30 dias ou mais de saldo (direito a sair) e quantas passam de 45 dias (ponto de atenção), com o % das pessoas no contrato. Nunca cite saldo total de dias de férias: esse número não orienta o gestor.");
     L.push("- Acúmulo de férias (30 e 45 dias ou mais) é ponto de atenção: amplia o dissídio e a reoneração. Alertas de projeção (EFETIVO PR/HHT PR que não acompanham a movimentação) devem ser cobrados das OSs citadas.");
-    L.push("- Português do Brasil, tom executivo, frases curtas, sem listas dentro dos textos, parágrafos separados por linha em branco, **negrito** só para 1 ou 2 números por texto. Não invente nada; sem registro, diga que não há registro.");
+    L.push("- Português do Brasil, tom executivo, frases curtas, sem listas dentro dos textos, parágrafos separados por linha em branco, **negrito** só para 1 ou 2 números por texto. Não invente nada; sem registro, diga que não há registro. Todo valor em R$ que você escrever tem que estar nos DADOS ou ser a soma ou a diferença de valores que você cita no mesmo trecho, com as parcelas escritas (ex.: transporte R$ 121.126 e passagens R$ 75.485, total R$ 196.611). Nunca escreva um total sem as parcelas nem um número que não venha dos DADOS.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
     L.push(ger ? '{"sumario":"(2 ou 3 parágrafos, até 1200 caracteres)","ranking":"(uma linha por contrato, do pior para o melhor, cada linha começando pelo código e descrição da OS, com os números dele; até 1200 caracteres)","impactos":"(2 ou 3 parágrafos, até 1500 caracteres: custos acima da proporção, perdas, SLA, não faturáveis e diluídos, FCST prometido x entregue, rescisões; com as OSs que causaram)","pessoas":"(até 900 caracteres: efetivo, HE, absenteísmo, turnover, férias em pessoas por contrato (efetivo, 30 dias ou mais, 45 dias ou mais) e alertas de projeção, com as OSs)","planos":"(uma linha por contrato com problema, começando pelo código e descrição da OS: os indicadores em que o plano informado está SEM EFEITO, PIOROU ou SEM PLANO, e o que cobrar; até 1200 caracteres)","alavancas":[{"alavanca":"(Custo, Faturamento, Perda, Absenteísmo, Folha ou Projeção)","valor":"(até 25 caracteres)","texto":"(até 260 caracteres)","oss":"(códigos)"}] (3 a 6 itens),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres)","acompanhar":"(até 90 caracteres)","oss":"(códigos)"}] (3 a 6 itens)}'
@@ -1417,13 +1458,7 @@
     var titulo = maisComum(res.map(function (b) { return nivel === "ger" ? b.ger : b.sup; })) || nome;
     var prompt = promptGrupo(nivel, titulo, ano, mes, G, extra);
     progresso("A IA está escrevendo o relatório de " + titulo + " (" + res.length + " OSs)…");
-    var j = null, falta = ["tudo"], tent = 0;
-    while (falta.length && tent < 2) {
-      var p = tent === 0 ? prompt : prompt + "\n\nATENÇÃO: na resposta anterior faltaram ou vieram vazios: " + falta.join(", ") + ". Devolva o JSON COMPLETO.";
-      var txt = await A.chamarGerarTexto("gpt41", p);
-      try { j = extrairJSON(txt); falta = conferirGrupo(j, nivel); } catch (e) { falta = ["JSON válido"]; }
-      tent++;
-    }
+    var gc = await gerarConferido(prompt, function (jj) { return conferirGrupo(jj, nivel); }), j = gc.j, falta = gc.falta;
     if (falta.length) throw new Error("A IA não completou o relatório (faltou: " + falta.join(", ") + ").");
     var s2 = A.sessaoAcesso ? A.sessaoAcesso() : null;
     // o que vai para o SharePoint: sem o detalhe dos planos e sem o diagnostico de cada OS (so o prompt usa)
@@ -1576,7 +1611,7 @@
     L.push("- Use SOMENTE os números dos DADOS, como estão: R$ 1.500.000 (sem centavos a partir de R$ 1.000), R$ 850,00 abaixo disso, negativos entre parênteses, R$ (647.973); percentuais com duas casas. Nunca abrevie (nada de 'mi' ou 'mil'). Custos sempre positivos.");
     L.push("- Compare com o que houver: se o negócio não tem Executivo, compare com o FCST e diga que não há Executivo; o OVERHEAD é custo (resultado negativo): compare o custo real com o Executivo e o FCST e diga se gastou mais ou menos.");
     L.push("- Ao falar de negócios ou OSs, um por linha: cada linha começa com o nome do negócio ou com o código e a descrição da OS; quebre a linha (\\n) a cada um.");
-    L.push("- Pessoas são citadas só pelo nome; nunca presuma gênero. Não invente nada; sem registro, diga que não há registro.");
+    L.push("- Pessoas são citadas só pelo nome; nunca presuma gênero. Não invente nada; sem registro, diga que não há registro. Todo valor em R$ que você escrever tem que estar nos DADOS ou ser a soma ou a diferença de valores que você cita no mesmo trecho, com as parcelas escritas (ex.: transporte R$ 121.126 e passagens R$ 75.485, total R$ 196.611). Nunca escreva um total sem as parcelas nem um número que não venha dos DADOS.");
     L.push("- Português do Brasil, tom executivo, frases curtas. **Negrito** só para 1 ou 2 números por texto.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
@@ -1625,13 +1660,7 @@
     var D = montarDiretoria(dados.dir, mes);
     var prompt = promptDiretoria(ano, mes, D);
     progresso("A IA está escrevendo o relatório da Diretoria…");
-    var j = null, falta = ["tudo"], tent = 0;
-    while (falta.length && tent < 2) {
-      var p = tent === 0 ? prompt : prompt + "\n\nATENÇÃO: na resposta anterior faltaram ou vieram vazios: " + falta.join(", ") + ". Devolva o JSON COMPLETO.";
-      var txt = await A.chamarGerarTexto("gpt41", p);
-      try { j = extrairJSON(txt); falta = conferirDiretoria(j); } catch (e) { falta = ["JSON válido"]; }
-      tent++;
-    }
+    var gc = await gerarConferido(prompt, conferirDiretoria), j = gc.j, falta = gc.falta;
     if (falta.length) throw new Error("A IA não completou o relatório (faltou: " + falta.join(", ") + ").");
     var s2 = A.sessaoAcesso ? A.sessaoAcesso() : null;
     var book = { v: 2, nivel: "dir", nome: "EMPRESA", ano: ano, mes: mes, em: new Date().toISOString(), por: s2 ? s2.login : "", D: D,
