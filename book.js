@@ -274,15 +274,28 @@
     var t = r[1].toUpperCase();
     return t.indexOf("N\u00c3O AT") === 0 ? "bad" : t.indexOf("ATENDEU") === 0 ? "ok" : "na";
   }
-  function statusMes(contract, m, id, os) {
-    var cx = os ? statusCaixa(os, m, id) : "";
-    if (cx) return cx;
+  // 16/11/2026 (usuario): a situacao vem SEMPRE da apuracao real (o score do app com os numeros do mes),
+  // nao da conclusao do parecer. O parecer e o comentario do gestor entram so como contexto para a IA;
+  // a primeira linha do parecer so e usada quando o mes nao tem apuracao.
+  function statusApurado(contract, m, id) {
     var sc = SCORE[id]; if (!sc) return "";
     try {
       var tp = window.calculateOSScore(contract, m).topics[sc];
       if (!tp) return "";
       if (!tp.applicable) return "na";
       return tp.earned >= tp.max - 0.01 ? "ok" : "bad";
+    } catch (e) { return ""; }
+  }
+  function statusMes(contract, m, id, os) {
+    var ap = statusApurado(contract, m, id);
+    if (ap) return ap;
+    return os ? statusCaixa(os, m, id) : "";
+  }
+  // Valores apurados do indicador no mes, pela mesma funcao que monta a caixa do app (numeros do painel).
+  function valorApurado(contract, m, id) {
+    try {
+      var md = contract && contract.monthHistory ? contract.monthHistory[m] : null;
+      return A.buildTopicDetailLine ? String(A.buildTopicDetailLine("t" + id, md, contract, m) || "").replace(/\s+/g, " ").trim() : "";
     } catch (e) { return ""; }
   }
 
@@ -384,9 +397,16 @@
         for (m = 1; m <= mes; m++) strip += (m < p0) ? "-" : ({ ok: "A", bad: "N", na: "V" }[statusMes(contract, m, id, os)] || "-");
         var s = statusMes(contract, mes, id, os);
         var caixa = primeiraLinha(ata(os, id, mes));
-        inds.push({ id: id, nome: NOME[id], cat: c.cat, st: s || "na", strip: strip,
+        var vals = [], diverge = [];
+        for (m = 1; m <= mes; m++) {
+          vals.push(m < p0 ? "" : valorApurado(contract, m, id));
+          var ap = statusApurado(contract, m, id), pc = statusCaixa(os, m, id);
+          if (m >= p0 && ap && pc && ap !== "na" && pc !== "na" && ap !== pc) diverge.push(MES[m] + " (parecer: " + ({ ok: "atendeu", bad: "não atendeu", na: "não avaliado" }[pc]) + ")");
+        }
+        var vMes = vals[vals.length - 1];
+        inds.push({ id: id, nome: NOME[id], cat: c.cat, st: s || "na", strip: strip, vals: vals, diverge: diverge,
           pill: s === "ok" ? "ATENDEU" : s === "bad" ? "NÃO ATENDEU" : "NÃO AVALIADO",
-          val: caixa.replace(/\s\|\s/g, " · ").slice(0, 260) });
+          val: (vMes || caixa.replace(/\s\|\s/g, " · ")).slice(0, 260) });
       });
     });
     return { contract: contract, H: H, p0: p0, mesesVal: mesesVal, S: S, kpi: kpi, inds: inds };
@@ -402,6 +422,8 @@
     function pf(v) { return fi && fi.FR ? fmt(v / fi.FR * 100, 2) + "%" : "–"; }
     L.push("Você é o controller sênior do Setor de Performance da NPE. Escreva o RELATÓRIO GERENCIAL da OS " + os + " (" + (C.H.desc || "") + ") de janeiro a " + MESF[mes] + "/" + ano + ".");
     L.push("É um relatório executivo em forma de narrativa: cada capítulo conta uma parte da mesma história e liga causa e efeito entre faturamento, custos, pessoas e contrato. Não é uma lista de indicadores.");
+    L.push("VOCÊ ESCREVE COMO O SETOR DE PERFORMANCE. Este relatório é a continuação dos pareceres que o Setor de Performance já escreveu mês a mês: parta do RESUMO DO MÊS (#24) de cada mês para saber o que mais afetou o resultado, mantenha coerência com os PARECERES POR INDICADOR, atualize tudo com a APURAÇÃO REAL e diga quando um ponto já apontado melhorou, piorou ou continua igual. Se um parecer antigo concluiu diferente da apuração, vale a apuração.");
+    L.push("SEPARE AS DUAS VOZES. O que o RESPONSÁVEL (gestor do contrato) respondeu é a versão do contrato: cite como \"o responsável informou\" e confronte com os números; nunca trate como conclusão. O que o SETOR DE PERFORMANCE apontou é a avaliação técnica, e é nela que este relatório se apoia e avança.");
     L.push("");
     L.push("COMO ANALISAR");
     L.push("1. Proporcionalidade. O faturamento real ficou " + (an ? fmt((an.ratio - 1) * 100, 2) + "% " + (an.ratio >= 1 ? "acima" : "abaixo") : "–") + " do executivo. Se o volume cresce, o custo deve crescer na mesma proporção; a margem só cai se algum custo cresceu mais que o volume. Use a PONTE DA MARGEM (pontos que cada grupo tirou ou devolveu) e as CONTAS para dizer exatamente o que descolou e por quê.");
@@ -413,7 +435,7 @@
     L.push("7. Dissídio e reoneração da folha (janeiro/" + (ano + 1) + ") são premissas básicas do orçamento: NÃO os trate como premissa a rever nem como item para o Orçamento. O que o orçamento não consegue prever é o tamanho do ACÚMULO DE FÉRIAS, que multiplica esses dois efeitos; é isso que deve ser apontado, com as pessoas com 30 e com 45 dias ou mais. Não estime valor que não esteja nos DADOS.");
     L.push("8. Para o ORÇAMENTO, as observações que importam são: absenteísmo e turnover altos (realidade do contrato e da região), custos que ficam acima do executivo de forma padronizada, mês após mês (use RECORRÊNCIA), e acúmulo de férias (30 e 45 dias ou mais). Cada observação com o número que a sustenta.");
     L.push("10. Projeção dos próximos meses. Faça a análise futura com os números que o contrato projetou (EFETIVO PR, HHT PR, faturamento e resultado projetados). Se houver ALERTA DE PROJEÇÃO, diga com clareza que a projeção não acompanha a movimentação do último mês e peça a correção: quem admitiu tem que projetar mais efetivo e HHT (e o faturamento correspondente); quem desligou, menos.");
-    L.push("11. Planos de ação informados. Para cada indicador que não atendeu em algum mês, leia mês a mês o que o gestor escreveu (G) e o parecer do Setor de Performance (P) e compare com a situação e os números da caixa nos meses seguintes. Classifique o plano: FUNCIONANDO (depois da ação o indicador melhorou ou voltou a atender), PARCIAL (melhorou, mas ainda não atende), SEM EFEITO (a mesma ação se repete há 2 meses ou mais e o cenário não muda: diga com todas as letras que o que está sendo feito não está mudando o cenário e que o plano precisa ser trocado), PIOROU, AGUARDANDO (a ação começou no último mês e ainda não há mês seguinte para medir o efeito) ou SEM PLANO (não atende e o gestor não informou nenhuma ação: cobre o plano; se há ação informada, nunca use SEM PLANO). Use o parecer do Setor de Performance como referência técnica; quando o gestor disser uma coisa e os números ou o parecer mostrarem outra, aponte. Vale para todos os indicadores, inclusive os de SSMA.");
+    L.push("11. Planos de ação informados. Para cada indicador que não atendeu em algum mês, leia mês a mês o que o RESPONSÁVEL respondeu e o que o SETOR DE PERFORMANCE apontou (blocos separados nos DADOS) e compare com a APURAÇÃO REAL dos meses seguintes. Classifique o plano: FUNCIONANDO (depois da ação o indicador melhorou ou voltou a atender), PARCIAL (melhorou, mas ainda não atende), SEM EFEITO (a mesma ação se repete há 2 meses ou mais e o cenário não muda: diga com todas as letras que o que está sendo feito não está mudando o cenário e que o plano precisa ser trocado), PIOROU, AGUARDANDO (a ação começou no último mês e ainda não há mês seguinte para medir o efeito) ou SEM PLANO (não atende e o gestor não informou nenhuma ação: cobre o plano; se há ação informada, nunca use SEM PLANO). Use o parecer do Setor de Performance como referência técnica; quando o gestor disser uma coisa e os números ou o parecer mostrarem outra, aponte. Vale para todos os indicadores, inclusive os de SSMA.");
     L.push("12. SSMA (SAF, CAF, PBI/PBD): um acidente pode parar um dia inteiro de serviço, e esse dia deixa de ser medido. Quando houver acidente ou ocorrência, procure a perda de receita do mesmo mês e diga se o evento ajuda a explicar a perda; se os DADOS não permitirem ligar os dois, diga que não há registro. Avalie se as ações de segurança informadas evitaram nova ocorrência.");
     L.push("9. Gestão ou orçamento. Para cada causa, decida: é GESTÃO (o contrato controla: hora extra, absenteísmo, demissões evitáveis, perdas por falta de mão de obra, SLA, recursos sem faturar) ou é PREMISSA DE ORÇAMENTO (o preço não previu: custo estrutural não orçado ou que fica acima do executivo todo mês, absenteísmo e turnover da região). Seja assertivo. Se o problema é de gestão, o parecer ao Orçamento diz isso com todas as letras.");
     L.push("");
@@ -528,26 +550,37 @@
     L.push("Perda PR acumulada " + rs(k.perdaAcum) + " (" + pct(k.perdaPct) + "). Absenteísmo acumulado " + pct(k.absAcum) + " (referência " + pct(k.absMeta) + "). Turnover acumulado " + pct(k.turnAcum) + ".");
     L.push("SATISFAÇÃO DO CLIENTE (todos os anos): " + (S.sat.length ? S.sat.map(function (s) { return s[0] + " " + pct(s[1], 1) + " (meta " + pct(s[2], 1) + ")"; }).join("; ") : "nenhuma pesquisa registrada") + ". Meta do ano: " + pct(S.satMeta, 1) + ".");
     L.push("");
-    L.push("INDICADORES (A=atendeu, N=não atendeu, V=não avaliado, -=sem apuração; caixa = valores do último mês):");
+    L.push("INDICADORES, APURAÇÃO REAL MÊS A MÊS (números do painel; A=atendeu, N=não atendeu, V=não avaliado, -=sem apuração). A situação e os valores daqui mandam: o parecer e o comentário do gestor explicam, mas não mudam o número. Quando o parecer concluiu diferente da apuração, isso vem indicado; use a apuração e, se for relevante, diga que o parecer precisa ser revisto:");
     C.inds.forEach(function (x) {
-      L.push("#" + x.id + " " + x.nome + " | " + x.strip.split("").map(function (ch, i) { return MES[i + 1] + ":" + ch; }).join(" ") + " | caixa: " + (x.val || "–"));
+      var vs = x.vals || [];
+      L.push("#" + x.id + " " + x.nome + " | " + x.strip.split("").map(function (ch, i) { return MES[i + 1] + ":" + ch + (vs[i] ? " (" + vs[i].slice(0, 110) + ")" : ""); }).join(" · ") +
+        (x.diverge && x.diverge.length ? " | parecer divergente da apuração em: " + x.diverge.join(", ") : ""));
     });
     L.push("");
-    L.push("PLANOS INFORMADOS x PARECER DO SETOR DE PERFORMANCE, mês a mês (G = o que o gestor escreveu no comentário: ações e justificativas; P = parecer do Setor de Performance; caixa = valores do indicador no mês; letra = situação):");
-    C.inds.forEach(function (x) {
-      var temN = x.strip.indexOf("N") >= 0, linhas = [];
-      for (var m3 = 1; m3 <= mes; m3++) {
-        var pr = ata(os, x.id, m3), g3 = limparAta(ata(os, x.id, m3, "GESTOR")), p3 = limparAta(pr, true), cx3 = primeiraLinha(pr).replace(/\s+/g, " ");
-        if (!g3 && !p3) continue;
-        linhas.push("  " + MES[m3] + " [" + (x.strip.charAt(m3 - 1) || "-") + "]" + (cx3 ? " caixa: " + cx3.slice(0, 150) : "") + " | G: " + (g3 ? g3.slice(0, 240) : "nenhuma ação informada") + (p3 ? " | P: " + p3.slice(0, 220) : ""));
-      }
-      if (!linhas.length) { if (temN) L.push("#" + x.id + " " + x.nome + ": não atendeu em " + (x.strip.split("N").length - 1) + " mês(es) e não há comentário do gestor nem parecer."); return; }
-      L.push("#" + x.id + " " + x.nome + ":");
-      (temN ? linhas : linhas.slice(-2)).forEach(function (l) { L.push(l); });
-    });
+    // 16/11/2026 (usuario): as duas vozes separadas -- o que o responsavel respondeu e o que o Setor de
+    // Performance apontou -- e o resumo do mes (#24) de todos os meses, que ja destaca o que mais afetou.
+    L.push("RESUMO DO MÊS DO SETOR DE PERFORMANCE (#24, a última caixa de cada mês: já destaca o que mais afetou o mês):");
+    var tem24 = false;
+    for (var m2 = 1; m2 <= mes; m2++) { var s24 = ata(os, 24, m2); if (s24) { tem24 = true; L.push("[" + MESF[m2] + "] " + s24.replace(/\s+/g, " ").slice(0, 900)); } }
+    if (!tem24) L.push("nenhum resumo do mês registrado; apoie-se nos pareceres por indicador e na apuração.");
     var obs = ata(os, 23, mes); if (obs) L.push("#23 Observações gerais (" + MES[mes] + "): " + obs.replace(/\s+/g, " ").slice(0, 700));
-    L.push("SÍNTESE DO MÊS (#24), últimos meses:");
-    for (var m2 = Math.max(1, mes - 3); m2 <= mes; m2++) { var s24 = ata(os, 24, m2); if (s24) L.push("[" + MESF[m2] + "] " + s24.replace(/\s+/g, " ").slice(0, 1200)); }
+    L.push("");
+    L.push("O QUE O SETOR DE PERFORMANCE APONTOU, por indicador e mês (parecer técnico; a situação [letra] é a da apuração real):");
+    var vozG = [];
+    C.inds.forEach(function (x) {
+      var temN = x.strip.indexOf("N") >= 0, lp = [], lg = [];
+      for (var m3 = 1; m3 <= mes; m3++) {
+        var p3 = limparAta(ata(os, x.id, m3), true), g3 = limparAta(ata(os, x.id, m3, "GESTOR")), st3 = "[" + (x.strip.charAt(m3 - 1) || "-") + "]";
+        if (p3) lp.push("  " + MES[m3] + " " + st3 + " " + p3.slice(0, 260));
+        if (g3) lg.push("  " + MES[m3] + " " + st3 + " " + g3.slice(0, 260));
+      }
+      if (lp.length) { L.push("#" + x.id + " " + x.nome + ":"); (temN ? lp : lp.slice(-2)).forEach(function (l) { L.push(l); }); }
+      if (lg.length) { vozG.push("#" + x.id + " " + x.nome + ":"); (temN ? lg : lg.slice(-2)).forEach(function (l) { vozG.push(l); }); }
+      else if (temN) vozG.push("#" + x.id + " " + x.nome + ": não atendeu em " + (x.strip.split("N").length - 1) + " mês(es) e o responsável não respondeu nada.");
+    });
+    L.push("");
+    L.push("O QUE O RESPONSÁVEL RESPONDEU, por indicador e mês (comentário do gestor do contrato: ações e justificativas; é a versão do contrato, não conclusão):");
+    if (vozG.length) vozG.forEach(function (l) { L.push(l); }); else L.push("nenhum comentário do responsável no período.");
     return L.join("\n");
   }
 
@@ -1141,7 +1174,7 @@
     var EF = { "FUNCIONANDO": "ok", "PARCIAL": "na", "AGUARDANDO": "na", "SEM EFEITO": "bad", "PIOROU": "bad", "SEM PLANO": "bad" };
     var pls = t.planos || [];
     h.push('<section class="rl-cap"><h2><span>6</span>Planos informados: estão mudando o cenário?</h2>' + (pls.length ?
-      '<p class="rl-nota">Comparação, indicador a indicador, entre o que o gestor informou nos comentários, o parecer do Setor de Performance e o que os números fizeram nos meses seguintes.</p><div class="rl-tab rl-tab-txt"><table><colgroup><col style="width:13%"><col style="width:24%"><col style="width:10%"><col style="width:31%"><col style="width:22%"></colgroup><thead><tr><th>Indicador</th><th>O que foi informado</th><th>Efeito</th><th>Evidência</th><th>O que fazer</th></tr></thead><tbody>' +
+      '<p class="rl-nota">O que o responsável informou nos comentários, confrontado pelo Setor de Performance com a apuração real dos meses seguintes.</p><div class="rl-tab rl-tab-txt"><table><colgroup><col style="width:13%"><col style="width:24%"><col style="width:10%"><col style="width:31%"><col style="width:22%"></colgroup><thead><tr><th>Indicador</th><th>O que o responsável informou</th><th>Efeito</th><th>Avaliação do Setor de Performance</th><th>O que fazer</th></tr></thead><tbody>' +
       pls.map(function (q) { var ef = String(q.efeito || "").toUpperCase().trim(); return "<tr><td>" + esc(q.indicador || "") + '</td><td class="rl-cx">' + esc(q.acao || "") + (q.desde ? "<br><i>desde " + esc(q.desde) + "</i>" : "") + '</td><td><span class="bk-pill ' + (EF[ef] || "na") + '">' + esc(ef || "–") + '</span></td><td class="rl-cx">' + rico(q.texto || "") + '</td><td class="rl-cx">' + rico(q.recomendacao || "") + "</td></tr>"; }).join("") + "</tbody></table></div>"
       : '<p class="rl-nota">Todos os indicadores atenderam no ano, ou este relatório foi gerado antes da análise dos planos.</p>') + "</section>");
     h.push('<section class="rl-cap"><h2><span>7</span>Diagnóstico: é gestão ou é orçamento?</h2>' + par(t.diagnostico) +
