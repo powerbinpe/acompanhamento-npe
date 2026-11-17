@@ -386,6 +386,8 @@
     var filtro = (cfg.os || []).map(function (x) { return String(x).toUpperCase(); });
     var meses = parseMeses(cfg.mes);
     var mesBase = meses[0] || ultimo || 1;
+    // Aba 6: um mes so = o mes do filtro do app (fechado ou nao); sem mes, o ultimo fechado
+    var mesBook = (meses.length === 1 ? meses[0] : 0) || ultimo;
     var base = (await listarOSs(cfg, ano, mesBase)).map(function (x) { return x.code; });
     var todas = filtro.length ? base.filter(function (c) { return filtro.indexOf(c.toUpperCase()) !== -1; }) : base;
     var plano = { etapa: et, tarefas: [], info: {}, log: [] };
@@ -454,29 +456,39 @@
       plano.tarefas.push({ etapa: "aba4", chave: "aba4_" + ano, os: todas[0], ano: ano, mes: ultimo });
       plano.log.push("Aba 4: uma tarefa (os tres quadros), aberta pela OS " + todas[0] + ".");
     } else if (et === "aba6") {
-      // Book da OS: uma tarefa por OS, ate o ultimo mes fechado. Roda depois das outras etapas, porque le os
-      // pareceres e o resumo anual ja gravados. OS sem dado nenhum devolve erro curto, sem travar a fila.
-      if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
-      todas.forEach(function (cod) { plano.tarefas.push({ etapa: "aba6", chave: "aba6_" + ano + "_" + ultimo, os: cod, ano: ano, mes: ultimo }); });
-      plano.log.push("Aba 6: " + todas.length + " OSs, book ate " + (MESES[ultimo - 1] || ultimo) + ".");
+      // Book da OS: uma tarefa por OS, ate o mes pedido (o do filtro do app; sem mes, o ultimo fechado).
+      // 17/11/2026: o mes pedido entra mesmo que nao esteja fechado. OS sem dado devolve erro curto, sem travar a fila.
+      if (mesBook < 1) { plano.aviso = "Nenhum mes informado nem fechado em " + ano + "."; return plano; }
+      todas.forEach(function (cod) { plano.tarefas.push({ etapa: "aba6", chave: "aba6_" + ano + "_" + mesBook, os: cod, ano: ano, mes: mesBook }); });
+      plano.log.push("Aba 6: " + todas.length + " OSs, book ate " + (MESES[mesBook - 1] || mesBook) + ".");
+    } else if (et === "aba6f") {
+      // 17/11/2026: books de OS que FALTAM para o mes pedido (sem book ou book de outro mes), antes do relatorio
+      // da gerencia/superintendencia. O filtro traz os codigos das OSs do grupo.
+      if (mesBook < 1) { plano.aviso = "Nenhum mes informado nem fechado em " + ano + "."; return plano; }
+      var qf = await abrirNoQuadro((await lerUrlOS(cfg, todas[0], ano, mesBook)) + "&NPE_DRY=1");
+      var mapaF = {};
+      try { mapaF = await qf.win.BOOK.lerNivel("os", true) || {}; } finally { fecharQuadro(qf); }
+      var faltam = todas.filter(function (cod) { var r0 = mapaF[String(cod).toUpperCase()], d0 = r0 && r0.d; return !(d0 && d0.ano === ano && d0.mes === mesBook); });
+      faltam.forEach(function (cod) { plano.tarefas.push({ etapa: "aba6", chave: "aba6_" + ano + "_" + mesBook, os: cod, ano: ano, mes: mesBook }); });
+      plano.log.push("Books de OS para " + (MESES[mesBook - 1] || mesBook) + ": " + faltam.length + " a gerar de " + todas.length + " OSs do grupo" + (faltam.length ? " (" + faltam.join(", ") + ")." : " (todas ja tem o book do mes)."));
     } else if (et === "aba6d") {
       // Relatorio da Diretoria: uma tarefa (empresa por negocio), aberta pela primeira OS elegivel.
-      if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
-      plano.tarefas.push({ etapa: "aba6d", chave: "aba6d_" + ano + "_" + ultimo, os: "EMPRESA", osUrl: todas[0] || base[0], ano: ano, mes: ultimo });
-      plano.log.push("Diretoria: um relatorio (empresa por negocio), ate " + (MESES[ultimo - 1] || ultimo) + ".");
+      if (mesBook < 1) { plano.aviso = "Nenhum mes informado nem fechado em " + ano + "."; return plano; }
+      plano.tarefas.push({ etapa: "aba6d", chave: "aba6d_" + ano + "_" + mesBook, os: "EMPRESA", osUrl: todas[0] || base[0], ano: ano, mes: mesBook });
+      plano.log.push("Diretoria: um relatorio (empresa por negocio), ate " + (MESES[mesBook - 1] || mesBook) + ".");
     } else if (et === "aba6g" || et === "aba6s") {
       // Relatorio da Gerencia / Superintendencia: uma tarefa por grupo das OSs elegiveis, com dados direto do painel.
-      if (ultimo < 1) { plano.aviso = "Nenhum mes fechado em " + ano + "."; return plano; }
+      if (mesBook < 1) { plano.aviso = "Nenhum mes informado nem fechado em " + ano + "."; return plano; }
       var nivelG = et === "aba6g" ? "ger" : "sup";
-      var qg = await abrirNoQuadro((await lerUrlOS(cfg, todas[0] || base[0], ano, ultimo)) + "&NPE_DRY=1");
+      var qg = await abrirNoQuadro((await lerUrlOS(cfg, todas[0] || base[0], ano, mesBook)) + "&NPE_DRY=1");
       var grupos;
       try {
         if (qg.win.NPE_APP && qg.win.NPE_APP.garantirHierarquia) await qg.win.NPE_APP.garantirHierarquia();
         grupos = qg.win.BOOK.listarGrupos(nivelG);
       } finally { fecharQuadro(qg); }
       if (filtro.length) grupos = grupos.filter(function (g) { return filtro.indexOf(g.nome) !== -1 || g.oss.some(function (c) { return filtro.indexOf(c) !== -1; }); });
-      grupos.forEach(function (g) { plano.tarefas.push({ etapa: et, chave: et + "_" + ano + "_" + ultimo, os: g.nome, osUrl: g.oss[0], ano: ano, mes: ultimo }); });
-      plano.log.push((nivelG === "ger" ? "Gerencias: " : "Superintendencias: ") + grupos.length + " relatorio(s), ate " + (MESES[ultimo - 1] || ultimo) + ".");
+      grupos.forEach(function (g) { plano.tarefas.push({ etapa: et, chave: et + "_" + ano + "_" + mesBook, os: g.nome, osUrl: g.oss[0], ano: ano, mes: mesBook }); });
+      plano.log.push((nivelG === "ger" ? "Gerencias: " : "Superintendencias: ") + grupos.length + " relatorio(s), ate " + (MESES[mesBook - 1] || mesBook) + ".");
     } else {
       plano.aviso = "Etapa desconhecida: " + et;
     }

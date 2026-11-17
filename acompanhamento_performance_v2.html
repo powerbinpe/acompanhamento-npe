@@ -1030,7 +1030,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-17 10:30";
+    window.NPE_BUILD = "2026-11-17 11:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -6889,7 +6889,7 @@ function hydrateFromPowerBI() {
       return merged;
     }
 
-    function calculateOSScoreUncached(contractRaw, monthNum) {
+    function calculateOSScoreUncached(contractRaw, monthNum, ignorarApuracao) {
       var contract = resolveContractForMonth(contractRaw, monthNum);
 
       // OS sem NENHUM comentário (Gestor ou Performance, em qualquer tópico) neste mês não
@@ -6910,7 +6910,9 @@ function hydrateFromPowerBI() {
       var anoApur = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10) || 0;
       var noFluxoDoPrazo = (anoApur * 100 + monthNum) >= COMPETENCIA_INICIO_PRAZO;
       var foraDaApuracao = noFluxoDoPrazo ? !mesAbertoPeloPrazo(monthNum) : monthNum < primeiroMesPreenchido(contract.code);
-      if (foraDaApuracao) {
+      // 17/11/2026: o book avalia TODO mes pelos valores do sistema (ignorarApuracao), com ou sem comentario;
+      // a nota da Aba 1/Aba 5 continua com a regra de apuracao acima.
+      if (foraDaApuracao && !ignorarApuracao) {
         // topics precisa ter a MESMA forma que o cálculo normal produz -- cada um dos 23
         // tópicos com {earned:0, max:0, applicable:false} -- e não um objeto vazio. Código
         // que lê sc.topics.prazo.earned direto (sem checar se a chave existe, ex.:
@@ -11563,6 +11565,7 @@ function hydrateFromPowerBI() {
     window.saveAndCloseQualModal = saveAndCloseQualModal;
     window.getQualitativeEval = getQualitativeEval;
     window.calculateOSScore = calculateOSScore;
+    window.calculateOSScoreDados = function (c, m) { return calculateOSScoreUncached(c, m, true); };
     window.safeGetStorage = safeGetStorage;
     window.safeSetStorage = safeSetStorage;
     window.checkPerformanceAccess = checkPerformanceAccess;
@@ -11640,6 +11643,6 @@ function hydrateFromPowerBI() {
 
   
     </script>
-  <script src="book.js?v=2026-11-17_1030"></script>
+  <script src="book.js?v=2026-11-17_1130"></script>
 </body>
 </html>

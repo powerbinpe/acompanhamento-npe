@@ -138,12 +138,13 @@
     return c.trim().length >= 20 || g.trim().length >= 20;
   }
   // Sem chave de IA no navegador, o book e gerado pelo agente da nuvem (mesmo fluxo do "Fechar o mes com IA").
-  async function pedirAoAgente(os, etapas) {
+  // 17/11/2026 (usuario): o agente gera para o MES DO FILTRO (fechado ou nao), nao o ultimo mes fechado.
+  async function pedirAoAgente(os, etapas, mes) {
     var url = A.urlIniciarAgente ? A.urlIniciarAgente() : "";
     if (url.indexOf("https://") !== 0) throw new Error("O fluxo NPE-Iniciar-Agente nao esta configurado.");
     var tk = await obterToken();
     var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ login: tk.login, token: tk.token, etapas: etapas || "aba6", ano: String(anoAtivo()), mes: "", gravar: true, refazer: true, permitir_mes_fechado: false, os: os || "" }) });
+      body: JSON.stringify({ login: tk.login, token: tk.token, etapas: etapas || "aba6", ano: String(anoAtivo()), mes: String(mes || mesAtivo() || ""), gravar: true, refazer: true, permitir_mes_fechado: false, os: os || "" }) });
     var j = null; try { j = await r.json(); } catch (e) {}
     if (r.status === 401) { window._NPE_TOKEN_BOOK = null; throw new Error("Sem permiss\u00e3o para acionar o agente."); }
     if (!(r.ok && j && j.ok === true)) throw new Error("O GitHub recusou o pedido (c\u00f3digo " + ((j && j.status) || r.status) + ").");
@@ -283,7 +284,7 @@
   function statusApurado(contract, m, id) {
     var sc = SCORE[id]; if (!sc) return "";
     try {
-      var tp = window.calculateOSScore(contract, m).topics[sc];
+      var tp = (window.calculateOSScoreDados || window.calculateOSScore)(contract, m).topics[sc];   // 17/11: todo mes pelos valores do sistema
       if (!tp) return "";
       if (!tp.applicable) return "na";
       return tp.earned >= tp.max - 0.01 ? "ok" : "bad";
@@ -367,7 +368,15 @@
     var contract = contratoDa(os);
     if (!contract || !contract.monthHistory) throw new Error("Os dados da OS " + os + " não chegaram ao app. Selecione uma única OS no Power BI.");
     var H = hier()[os] || {};
-    var p0 = A.primeiroMesPreenchido ? A.primeiroMesPreenchido(os) : 1;
+    // 17/11/2026 (usuario): nenhum mes fica de fora. Todo mes ate o do filtro e avaliado pelos valores do sistema,
+    // fechado ou nao, com ou sem comentario. Sem comentario faltam so a justificativa e o plano -- e isso conta contra.
+    var p0 = 1;
+    var semTrat = [];
+    for (var mt = 1; mt <= mes; mt++) {
+      var temT = false;
+      for (var it = 1; it <= 24 && !temT; it++) if (limparAta(ata(os, it, mt)) || limparAta(ata(os, it, mt, "GESTOR"))) temT = true;
+      if (!temT) semTrat.push(mt);
+    }
     var mesesVal = A.mesesValidadosDaOS ? A.mesesValidadosDaOS(os, mes) : [];
     var S = montarSeries(dados, mes);
     S.fin = montarFin(dados, mes, S);
@@ -407,6 +416,10 @@
         return { st: h.acima > 0 ? "bad" : "ok", txt: fmt(h.acima) + (h.acima === 1 ? " pessoa" : " pessoas") + " acima do limite de hora extra no mês (55 h rotina, 60 h parada)" + (h.pessoas != null ? " · " + fmt(h.pessoas) + " pessoas com HE · " + fmt(h.horas || 0) + " h" : "") }; }
       if (id === 14) { if (m !== mes || S.qual.fer45 == null) return null;
         return { st: S.qual.fer45 > 0 ? "bad" : "ok", txt: fmt(S.qual.fer45) + (S.qual.fer45 === 1 ? " pessoa" : " pessoas") + " com mais de 45 dias de férias (posição de hoje, painel RH)" }; }
+      // 17/11/2026: SAF e CAF tem o numero no sistema; sem a validacao do Master, vale a contagem do mes
+      if (id === 15 || id === 16) { var mh0 = contract && contract.monthHistory ? contract.monthHistory[m] : null; if (!mh0) return null;
+        var nq = id === 15 ? mh0.safCount : mh0.cafCount; if (nq == null) return null;
+        return { st: nq > 0 ? "bad" : "ok", txt: fmt(nq) + (nq === 1 ? " ocorrência " : " ocorrências ") + (id === 15 ? "SAF" : "CAF") + " no mês (sistema)" }; }
       if (id === 7) { var t = ptM[m]; if (!t || !t.ideal) return null; var pc = t.perda / t.ideal;
         return { st: pc > 0.04 ? "bad" : "ok", txt: "perda " + moeda(t.perda) + " = " + fmt(pc * 100, 2) + "% da Receita Ideal " + moeda(t.ideal) + " (referência 4%)" }; }
       return null;
@@ -421,7 +434,7 @@
           var st0 = m < p0 ? "" : statusMes(contract, m, id, os), v0 = m < p0 ? "" : valorApurado(contract, m, id);
           var q0 = m < p0 ? null : apuraQual(id, m);
           if (q0) {
-            if (/ainda n\u00e3o avaliada/.test(v0)) { st0 = q0.st; v0 = q0.txt; }       // Master nao marcou: vale o numero do painel
+            if (/ainda n\u00e3o avaliada/.test(v0) || ((id === 15 || id === 16) && (!st0 || st0 === "na"))) { st0 = q0.st; v0 = q0.txt; }       // Master nao marcou: vale o numero do painel
             else if (v0.indexOf("painel RH") < 0) v0 = (v0 ? v0 + " | " : "") + "apurado: " + q0.txt   // 17/11: a caixa da Aba 1 ja traz o numero do painel RH (#13/#14)
                + (st0 && st0 !== "na" && st0 !== q0.st ? " (a marcação diverge do número)" : "");
           }
@@ -437,7 +450,7 @@
           val: (vMes || caixa.replace(/\s\|\s/g, " · ")).slice(0, 260) });
       });
     });
-    return { contract: contract, H: H, p0: p0, mesesVal: mesesVal, S: S, kpi: kpi, inds: inds };
+    return { contract: contract, H: H, p0: p0, mesesVal: mesesVal, semTrat: semTrat, S: S, kpi: kpi, inds: inds };
   }
 
   // ------------------------------------------------------------------ prompt da OS (relatório v2)
@@ -649,7 +662,8 @@
     L.push("Contrato (CTT): " + ((C.H.rotulo && C.H.rotulo.indexOf("|") > 0 && C.H.grupo) ? C.H.grupo + " (bloco: valores somados das OSs " + C.H.rotulo.split("|").join(" + ") + ")" : (C.H.desc || os)) + " | Negócio " + (C.H.neg || "–") +
       " | Gestor do contrato " + txtLinha(hOS.gestor, C.H.gestor) + " | Gerente " + txtLinha(hOS.ger, C.H.ger) + " | Superintendente " + txtLinha(hOS.sup, C.H.sup));
     if (trocasTxt(hOS).length) L.push("TROCA DE RESPONSÁVEIS NO ANO (cadastro com vigência): " + trocasTxt(hOS).join("; ") + ". Diga quem era o anterior, até quando ficou e desde quando o novo responde, e atribua cada período a quem respondia.");
-    L.push("Período: janeiro a " + MESF[mes] + "/" + ano + ", analisado mês a mês. Todos os meses do período estão fechados; não comente fechamento, validação ou meses provisórios.");
+    L.push("Período: janeiro a " + MESF[mes] + "/" + ano + ", analisado mês a mês. Todos os meses do período entram na análise e são avaliados pelos números do sistema, estejam fechados ou não; não comente fechamento nem validação.");
+    if (C.semTrat && C.semTrat.length) L.push("MESES SEM TRATATIVA (nenhum comentário do responsável e nenhum parecer do Setor de Performance em nenhum indicador): " + C.semTrat.map(function (m) { return MESF[m]; }).join(", ") + ". Nesses meses avalie todos os indicadores pelos números, do mesmo jeito que os outros; diga com todas as letras que no mês não houve tratativa (sem justificativa e sem plano de ação) e conte isso contra a avaliação do contrato.");
     if (fi) {
       L.push("JAN A " + MES[mes].toUpperCase() + " (contábil): faturamento real " + rs(fi.FR) + " x executivo " + rs(fi.FE) + " | resultado real " + rs(fi.resReal) + " x executivo " + rs(fi.resExec) +
         " | margem real " + pct(fi.FR ? fi.resReal / fi.FR : null) + " x executivo " + pct(fi.FE ? fi.resExec / fi.FE : null) + ".");
@@ -925,7 +939,7 @@
     if (!C.S.fin) throw new Error("O fluxo NPE-Ler-Dados-Book não devolveu o contábil da OS (consulta de custos).");
     var book = {
       v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: (H.rotulo && H.rotulo.indexOf("|") > 0 && H.grupo) ? H.grupo : (H.desc || C.contract.name || ""), descCtt: !!H.ctt, hist: hist, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
-      ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal,
+      ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal, semTrat: C.semTrat,
       kpi: C.kpi, S: C.S, inds: C.inds, valoresSemOrigem: gc.semOrigem, coerJust: (function () { var o = {}; coerenciaEfetivo(C.S).rows.forEach(function (r) { if (r.ruim) o[r.m] = justificouMes(os, r.m); }); return o; })(),
       txt: { coerencia: Array.isArray(j.coerencia) ? j.coerencia.slice(0, 12) : [], sumario: j.sumario, receita: j.receita, custos: j.custos, pessoas: j.pessoas, eventos: j.eventos, ssma: j.ssma, diagnostico: j.diagnostico, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
         gestao: j.gestao.slice(0, 5), premissas: j.premissas.slice(0, 5), plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10) }
@@ -1083,8 +1097,8 @@
     var S = b.S, k = b.kpi, t = b.txt, h = [];
     var valid = (b.mesesVal || []).length;
     h.push('<header class="bk-capa"><div><div class="bk-eyebrow">Book do contrato · acumulado do acompanhamento</div><h1>' + esc(b.rotulo.replace("|", " + ")) + " - " + esc(b.desc) + '</h1><div class="bk-chips">' +
-      [b.neg].filter(Boolean).map(function (c) { return '<span class="bk-chip">' + esc(c) + "</span>"; }).join("") + '</div><div class="bk-periodo">Período analisado: <b>jan a ' + MES[b.mes] + "/" + b.ano + "</b> (" + b.mes + " meses fechados) · Meses validados pelo Máster: <b>" + valid + " de " + Math.max(0, b.mes - (b.p0 > 1 ? b.p0 - 1 : 0)) + "</b>" +
-      (valid ? "" : ", a leitura usa os pareceres ainda não validados") + '.</div></div><dl class="bk-ficha"><dt>Gerente</dt><dd>' + esc(b.ger || "–") + "</dd><dt>Superintendente</dt><dd>" + esc(b.sup || "–") + "</dd><dt>Gerado em</dt><dd>" +
+      [b.neg].filter(Boolean).map(function (c) { return '<span class="bk-chip">' + esc(c) + "</span>"; }).join("") + '</div><div class="bk-periodo">Período analisado: <b>jan a ' + MES[b.mes] + "/" + b.ano + "</b> (" + b.mes + " meses, todos avaliados pelos números) · Meses validados pelo Máster: <b>" + valid + " de " + b.mes + "</b>" +
+      (b.semTrat && b.semTrat.length ? " · Sem tratativa (sem comentário nem parecer): <b>" + b.semTrat.map(function (m) { return MES[m]; }).join(", ") + "</b>" : "") + '.</div></div><dl class="bk-ficha"><dt>Gerente</dt><dd>' + esc(b.ger || "–") + "</dd><dt>Superintendente</dt><dd>" + esc(b.sup || "–") + "</dd><dt>Gerado em</dt><dd>" +
       esc(new Date(b.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })) + "</dd><dt>Por</dt><dd>" + esc(b.por || "–") + "</dd></dl></header>");
     var marg = k.margReal != null ? k.margReal : (k.fatAno ? k.resAno / k.fatAno : null), margMeta = k.margMeta != null ? k.margMeta : (k.fatMeta ? k.resMeta / k.fatMeta : null);
     function kpi(cls, l, v, s, sp) { return '<div class="bk-kpi ' + cls + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s + "</span>" + (sp || "") + "</div>"; }
@@ -1414,6 +1428,7 @@
     h.push('<header class="rl-capa"><div class="rl-capa-top"><span class="rl-tag">Relatório gerencial do contrato</span><span class="rl-per">janeiro a ' + mesN + " de " + b.ano + "</span></div>" +
       '<h1>' + (b.descCtt ? esc(b.desc) : esc(b.rotulo.replace("|", " + ")) + " · " + esc(b.desc)) + "</h1>" +
       '<div class="rl-ficha"><span>' + esc(b.neg || "") + "</span><span>Gestor do contrato: <b>" + esc(txtLinha(b.hist && b.hist.gestor, b.gestor)) + "</b></span><span>Gerente: <b>" + esc(txtLinha(b.hist && b.hist.ger, b.ger)) + "</b></span><span>Superintendente: <b>" + esc(txtLinha(b.hist && b.hist.sup, b.sup)) + "</b></span></div>" +
+      (b.semTrat && b.semTrat.length ? '<p class="rl-nota">Meses sem tratativa (nenhum comentário do responsável nem parecer do Setor de Performance): <b>' + b.semTrat.map(function (m) { return MES[m]; }).join(", ") + "</b>. Foram avaliados pelos números do sistema; não há justificativa nem plano de ação para eles.</p>" : "") +
       "</header>");
     // numeros-chave: o que ja aconteceu x para onde o ano vai
     function cel(l, v, s, cls) { return '<div class="rl-num ' + (cls || "") + '"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s + "</span></div>"; }
@@ -1580,7 +1595,7 @@
   function promptGrupo(nivel, nome, ano, mes, G, extra) {
     var L = [], ger = nivel === "ger", an = analisarCustos(G), quem = ger ? "Gerência " + nome : "Superintendência " + nome;
     function pf(v) { return G.FR ? fmt(v / G.FR * 100, 2) + "%" : "–"; }
-    L.push("Você é o controller sênior do Setor de Performance da NPE. Escreva o RELATÓRIO da " + quem + " de janeiro a " + MESF[mes] + "/" + ano + ", analisado mês a mês, com os dados de todas as OSs elegíveis do acompanhamento. Todos os meses do período estão fechados; não comente fechamento nem validação.");
+    L.push("Você é o controller sênior do Setor de Performance da NPE. Escreva o RELATÓRIO da " + quem + " de janeiro a " + MESF[mes] + "/" + ano + ", analisado mês a mês, com os dados de todas as OSs elegíveis do acompanhamento. Todos os meses do período entram, fechados ou não, avaliados pelos números do sistema; não comente fechamento nem validação.");
     L.push(ger ? "É para o gerente: mais resumido que o da OS, por OS. Mostre os contratos piores e melhores, as alavancas (custo, faturamento, perda, absenteísmo, folha) e a solução, sempre dizendo quais OSs causam cada impacto."
       : "É para o superintendente: estratégico e mais resumido que o da gerência, por gerência. Mostre onde estão os impactos globais, quais gerências e OSs os causam e as decisões que cabem a ele.");
     L.push("");
@@ -1686,7 +1701,7 @@
     // planos de acao avaliados no book de cada OS (gerado antes, na mesma rodada)
     try {
       var mapaOS = await lerNivel("os", true);
-      res.forEach(function (b) { var r0 = mapaOS[String(b.os).toUpperCase()]; var d0 = r0 && r0.d; if (d0 && d0.ano === ano && d0.txt && Array.isArray(d0.txt.planos)) b.planos = d0.txt.planos.map(function (q) { return { indicador: q.indicador || "", efeito: String(q.efeito || "").toUpperCase().trim(), acao: q.acao || "", recomendacao: q.recomendacao || "" }; }); });
+      res.forEach(function (b) { var r0 = mapaOS[String(b.os).toUpperCase()]; var d0 = r0 && r0.d; if (d0 && d0.ano === ano && d0.mes === mes && d0.txt && Array.isArray(d0.txt.planos)) b.planos = d0.txt.planos.map(function (q) { return { indicador: q.indicador || "", efeito: String(q.efeito || "").toUpperCase().trim(), acao: q.acao || "", recomendacao: q.recomendacao || "" }; }); });
     } catch (e) {}
     var G = agregarGrupo(res), extra = { semBook: semDados };
     if (nivel === "sup") extra.porGer = porGerencia(G.linhasOS);
@@ -1839,7 +1854,7 @@
   function promptDiretoria(ano, mes, D) {
     var L = [], T = { FR: 0, FE: 0, RR: 0, RE: 0, fatAno: 0, fatMeta: 0, resAno: 0, resMeta: 0 };
     D.forEach(function (z) { Object.keys(T).forEach(function (q) { T[q] += z[q] || 0; }); });
-    L.push("Você é o controller sênior do Setor de Performance da NPE. Escreva o RELATÓRIO DA DIRETORIA de janeiro a " + MESF[mes] + "/" + ano + ": o resultado da empresa por negócio (ROTINA, PARADA, LOCACOES, OFICINA e OVERHEAD), analisado mês a mês, contra o Executivo e o FCST do mês anterior. Todos os meses do período estão fechados; não comente fechamento nem validação.");
+    L.push("Você é o controller sênior do Setor de Performance da NPE. Escreva o RELATÓRIO DA DIRETORIA de janeiro a " + MESF[mes] + "/" + ano + ": o resultado da empresa por negócio (ROTINA, PARADA, LOCACOES, OFICINA e OVERHEAD), analisado mês a mês, contra o Executivo e o FCST do mês anterior. Todos os meses do período entram, fechados ou não, avaliados pelos números do sistema; não comente fechamento nem validação.");
     L.push("É estratégico e o mais resumido de todos: mostre onde a empresa ganha e perde resultado, quais negócios e quais OSs (com código e descrição) explicam, e as decisões que cabem à diretoria.");
     L.push("");
     L.push("REGRAS");
@@ -2063,7 +2078,7 @@
     if (nome === "nuvemdir") {
       if (st.carregando) return;
       st.carregando = true;
-      try { progresso("Pedindo ao agente da nuvem o relatório da Diretoria…"); await pedirAoAgente("", "aba6d"); progresso("☁ Pedido enviado. O agente monta e grava o relatório em alguns minutos; depois é só abrir esta aba de novo."); }
+      try { progresso("Pedindo ao agente da nuvem o relatório da Diretoria…"); await pedirAoAgente("", "aba6d", mesAtivo()); progresso("☁ Pedido enviado. O agente monta e grava o relatório em alguns minutos; depois é só abrir esta aba de novo."); }
       catch (e) { progresso("⚠ " + (e.message || e)); }
       finally { st.carregando = false; }
       return;
@@ -2080,7 +2095,11 @@
     if (nome === "nuvemgrp") {
       if (st.carregando) return;
       st.carregando = true;
-      try { progresso("Pedindo ao agente da nuvem os relatórios de " + (st.nivel === "ger" ? "gerência" : "superintendência") + "…"); await pedirAoAgente("", st.nivel === "ger" ? "aba6g" : "aba6s"); progresso("☁ Pedido enviado. O agente monta e grava os relatórios em alguns minutos; depois é só abrir esta aba de novo."); }
+      var gSel = st.sel[st.nivel], gr = gSel ? listarGrupos(st.nivel).filter(function (x) { return x.nome === String(gSel).toUpperCase(); })[0] : null;
+      if (!gr || !gr.oss.length) { progresso("⚠ Escolha a " + (st.nivel === "ger" ? "gerência" : "superintendência") + " na lista antes de pedir ao agente."); st.carregando = false; return; }
+      // o agente recebe os CODIGOS das OSs do grupo (o nome tem espaco e o campo os e separado por espaco/virgula):
+      // aba6f = book de cada OS que ainda nao tem o book deste mes; depois o relatorio do grupo
+      try { progresso("Pedindo ao agente da nuvem o relatório de " + gSel + " (" + MESF[mesAtivo()] + "), gerando antes os books de OS que faltam…"); await pedirAoAgente(gr.oss.join(","), (st.nivel === "ger" ? "aba6f,aba6g" : "aba6f,aba6s"), mesAtivo()); progresso("☁ Pedido enviado. O agente gera os books de OS que faltam e depois o relatório (de 10 a 30 minutos, conforme o número de OSs); depois é só abrir esta aba de novo."); }
       catch (e) { progresso("⚠ " + (e.message || e)); }
       finally { st.carregando = false; }
       return;
@@ -2091,7 +2110,7 @@
     if (nome === "nuvem") {
       if (st.carregando || !st.sel.os) return;
       st.carregando = true;
-      try { progresso("Pedindo ao agente da nuvem o book de " + st.sel.os + "…"); await pedirAoAgente(st.sel.os); progresso("☁ Pedido enviado. O agente gera e grava o book de " + st.sel.os + " em alguns minutos; depois é só abrir esta aba de novo."); }
+      try { progresso("Pedindo ao agente da nuvem o book de " + st.sel.os + "…"); await pedirAoAgente(st.sel.os, "aba6", mesAtivo()); progresso("☁ Pedido enviado. O agente gera e grava o book de " + st.sel.os + " em alguns minutos; depois é só abrir esta aba de novo."); }
       catch (e) { progresso("⚠ " + (e.message || e)); }
       finally { st.carregando = false; }
       return;
