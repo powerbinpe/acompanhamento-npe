@@ -2215,7 +2215,7 @@
     var outroMes = d.mes !== mesPauta ? '<div class="pa-alerta">Book de ' + MES[d.mes] + ", não de " + MES[mesPauta] + ": gere o book desta OS para o mês do filtro.</div>" : "";
     return '<section class="pa-os" id="pa-os-' + esc(d.os) + '"><header><span class="pa-n">' + (n + 1) + "</span><div><h2>" + esc(d.desc || d.os) + "</h2><p>Responsável <b>" + esc(d.gestor || "–") + "</b> · Estágio <b>" + esc(d.estagio || "–") + "</b>" +
       (semAtiv.length ? " · Sem atividade <b>" + semAtiv.map(function (m) { return MES[m]; }).join(", ") + "</b>" : "") + (semTrat.length ? " · Sem tratativa <b>" + semTrat.map(function (m) { return MES[m]; }).join(", ") + "</b>" : "") + "</p></div></header>" +
-      outroMes + ca.html + paPonte(d) + paGrafico(d, semAtiv) +
+      outroMes + ca.html + paPonte(d) +
       "<h3>Indicadores do mês · " + MES[d.mes] + " · não atendidos e não avaliados</h3>" + paIndicadores(d, cob, semAtiv) +
       '<div class="pa-box pa-larga"><h5>Pontos fortes a manter</h5>' + ((t.positivos || []).length ? paLista(t.positivos.map(function (p) { return [esc(p.titulo), esc(p.texto)]; })) : '<p class="pa-nota">Sem destaques no book desta OS.</p>') + "</div>" +
       '<div class="pa-duas"><div class="pa-box"><h5>BMSI · custos transferidos entre OSs</h5>' + paLista([["Saldo", esc(bmsiTxt)]].concat(bmsiComp ? [["Compensação", esc(bmsiComp)]] : [])) + "</div>" + paRedutores(d) + "</div>" +
