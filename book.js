@@ -422,7 +422,8 @@
           var q0 = m < p0 ? null : apuraQual(id, m);
           if (q0) {
             if (/ainda n\u00e3o avaliada/.test(v0)) { st0 = q0.st; v0 = q0.txt; }       // Master nao marcou: vale o numero do painel
-            else v0 = (v0 ? v0 + " | " : "") + "apurado: " + q0.txt + (st0 && st0 !== "na" && st0 !== q0.st ? " (a marcação diverge do número)" : "");
+            else if (v0.indexOf("painel RH") < 0) v0 = (v0 ? v0 + " | " : "") + "apurado: " + q0.txt   // 17/11: a caixa da Aba 1 ja traz o numero do painel RH (#13/#14)
+               + (st0 && st0 !== "na" && st0 !== q0.st ? " (a marcação diverge do número)" : "");
           }
           sts.push(st0); vals.push(v0);
           strip += (m < p0) ? "-" : ({ ok: "A", bad: "N", na: "V" }[st0] || "-");
