@@ -501,6 +501,98 @@
   function justificouMes(os, m) {
     return IDS_JUST_COER.some(function (id) { return !!limparAta(ata(os, id, m, "GESTOR")); });
   }
+  // 17/11/2026 (usuario): a classificacao do plano e calculada aqui, nao pela IA (variava a cada geracao).
+  // Episodio atual = meses seguidos sem atender ate o ultimo mes apurado (V nao interrompe). O plano comeca no
+  // primeiro mes do episodio em que o responsavel escreveu algo no indicador. Regras:
+  //   ultimo mes atendeu                         -> FUNCIONANDO
+  //   nao atende e o responsavel nada escreveu   -> SEM PLANO
+  //   plano comecou no ultimo mes                -> AGUARDANDO
+  //   depois do plano, numero do indicador melhorou mais de 5% -> PARCIAL; piorou mais de 5% -> PIOROU; senao SEM EFEITO
+  //   sem numero para comparar                   -> SEM EFEITO (seguiu sem atender depois da acao)
+  var TOL_PLANO = 0.05;
+  function metricaPlano(id, m, C) {
+    var mh = C.contract && C.contract.monthHistory ? C.contract.monthHistory[m] : null, q = (C.S && C.S.qual) || {};
+    function n(v) { return typeof v === "number" && !isNaN(v) ? v : null; }
+    function r(a, b) { a = n(a); b = n(b); return a != null && b ? a / b : null; }
+    var v = null, rot = "", cont = false, f = function (x) { return pct(x, 2); };
+    if (id === 13) { var h = q.hex && q.hex[m]; v = h ? n(h.acima) : null; rot = "pessoas acima do limite de HE"; cont = true; f = function (x) { return fmt(x, 0); }; }
+    else if (id === 7) { var t = q.pt && q.pt[m]; v = t && t.ideal ? t.perda / t.ideal : null; rot = "perda sobre a Receita Ideal"; }
+    else if (mh) {
+      if (id === 1) { var a1 = r(mh.fatAnoRealV, mh.fatAnoExecV); v = a1 == null ? null : Math.max(0, 1 - a1); rot = "faturamento do ano abaixo do executivo"; }
+      else if (id === 2) { var e2 = n(mh.resAnoExecV), x2 = n(mh.resAnoRealV); v = e2 && x2 != null ? Math.max(0, (e2 - x2) / Math.abs(e2)) : null; rot = "resultado do ano abaixo do executivo"; }
+      else if (id === 4) { v = n(mh.resDifMesPct) == null ? null : Math.abs(mh.resDifMesPct); rot = "desvio da margem contra o FCST anterior"; }
+      else if (id === 6) { v = n(mh.perdaPctAcum); rot = "perda acumulada"; }
+      else if (id === 8) { v = n(mh.indenizAcumV); rot = "indenização acumulada"; f = moeda; }
+      else if (id === 9) { var a9 = r(mh.efetivoRealV, mh.efetivoExecV); v = a9 == null ? null : Math.abs(a9 - 1); rot = "desvio do efetivo"; }
+      else if (id === 10) { var a10 = r(mh.hhtRealV, mh.hhtExecV); v = a10 == null ? null : Math.abs(a10 - 1); rot = "desvio do HHT"; }
+      else if (id === 11) { v = n(mh.absenteismoPct); rot = "absenteísmo"; }
+      else if (id === 12) { v = n(mh.turnoverPct); rot = "turnover"; }
+      else if (id === 15) { v = n(mh.safCount); rot = "ocorrências SAF"; cont = true; f = function (x) { return fmt(x, 0); }; }
+      else if (id === 16) { v = n(mh.cafCount); rot = "ocorrências CAF"; cont = true; f = function (x) { return fmt(x, 0); }; }
+    }
+    return v == null ? null : { v: v, rot: rot, cont: cont, f: f };
+  }
+  function classificarPlanos(os, mes, C) {
+    var out = {};
+    (C.inds || []).forEach(function (x) {
+      var s = x.strip || "";
+      if (s.indexOf("N") < 0) return;
+      var L = 0, i;
+      for (i = s.length; i >= 1; i--) { var c = s.charAt(i - 1); if (c === "A" || c === "N") { L = i; break; } }
+      if (!L) return;
+      function gest(m) { return limparAta(ata(os, x.id, m, "GESTOR")) ? true : false; }
+      var r = { id: x.id, nome: x.nome, ultimo: L };
+      var vL = String((x.vals || [])[L - 1] || ""), div = /diverge do número/.test(vL) ? "; a marcação do Master diverge do número apurado (" + vL.replace(/^.*apurado:\s*/, "").replace(/\s*\(a marca.*$/, "").slice(0, 140) + ")" : "";
+      if (s.charAt(L - 1) === "A") {
+        var teve = false, k = L, ulN = 0;
+        for (i = 1; i < L; i++) if (s.charAt(i - 1) === "N") { ulN = i; if (gest(i)) teve = true; }
+        for (i = ulN + 1; i <= L; i++) if (s.charAt(i - 1) === "A") { k = i; break; }
+        r.efeito = "FUNCIONANDO"; r.motivo = "não atendeu pela última vez em " + MES[ulN] + " e atende desde " + MES[k] + (k === L ? " (só o último mês)" : "") +
+          (teve ? "; havia ação informada" : "; sem ação informada pelo responsável") + div;
+        r.diverge = !!div;
+        out[x.id] = r; return;
+      }
+      var ini = L;
+      for (i = L - 1; i >= 1; i--) { var c2 = s.charAt(i - 1); if (c2 === "N" || c2 === "V") ini = i; else break; }
+      while (ini < L && s.charAt(ini - 1) !== "N") ini++;
+      // reincidencia: se ja nao atendeu antes deste episodio, a acao conta desde a primeira vez (ela nao segurou o indicador)
+      var pri = 0; for (i = 1; i <= L; i++) if (s.charAt(i - 1) === "N") { pri = i; break; }
+      var d = 0; for (i = pri; i <= L; i++) if (s.charAt(i - 1) === "N" && gest(i)) { d = i; break; }
+      r.desde = d ? MES[d] : ""; r.inicio = MES[ini];
+      var base = (pri < ini ? "voltou a não atender em " + MES[ini] + " (já não tinha atendido desde " + MES[pri] + ")" : "não atende desde " + MES[ini]) + div;
+      if (!d) { r.efeito = "SEM PLANO"; r.motivo = base + " e o responsável não informou ação"; out[x.id] = r; return; }
+      if (d === L) { r.efeito = "AGUARDANDO"; r.motivo = base + "; a ação foi informada em " + MES[d] + ", o último mês apurado, e ainda não há mês seguinte para medir"; out[x.id] = r; return; }
+      var a = metricaPlano(x.id, d, C), b = metricaPlano(x.id, L, C);
+      if (!a || !b) { r.efeito = "SEM EFEITO"; r.motivo = base + "; ação desde " + MES[d] + " e seguiu sem atender até " + MES[L]; out[x.id] = r; return; }
+      var melhor = a.cont ? b.v < a.v : b.v < a.v * (1 - TOL_PLANO), pior = a.cont ? b.v > a.v : b.v > a.v * (1 + TOL_PLANO);
+      if (!a.cont && a.v === 0) { melhor = false; pior = b.v > 0; }
+      r.efeito = melhor ? "PARCIAL" : pior ? "PIOROU" : "SEM EFEITO";
+      r.motivo = base + "; ação desde " + MES[d] + "; " + a.rot + " " + a.f(a.v) + " em " + MES[d] + " → " + b.f(b.v) + " em " + MES[L] +
+        (melhor ? " (melhorou, mas ainda não atende)" : pior ? " (piorou)" : " (não mudou o cenário)");
+      out[x.id] = r;
+    });
+    return out;
+  }
+  // aplica a classificacao calculada sobre o que a IA devolveu (a IA escreve a evidencia e a recomendacao)
+  function aplicarClassePlanos(j, CL) {
+    if (!j || !Array.isArray(j.planos)) return;
+    j.planos.forEach(function (pl) {
+      var id = parseInt(String(pl.indicador || "").replace(/[^0-9]/g, ""), 10), c = CL[id];
+      if (!c) return;
+      pl.efeito = c.efeito; if (c.desde) pl.desde = c.desde; if (c.diverge) pl.diverge = true;
+    });
+  }
+  // recomendacao que manda trocar plano que nao e para trocar (ou manter um que e para trocar)
+  function recomendacoesIndevidas(j) {
+    var trocar = { "SEM EFEITO": 1, "PIOROU": 1, "SEM PLANO": 1 }, ruins = [];
+    (Array.isArray(j.planos) ? j.planos : []).forEach(function (pl) {
+      var rec = semAcento(pl.recomendacao), ef = String(pl.efeito || "").toUpperCase();
+      if (pl.diverge) return;   // marcacao do Master diverge do numero: a recomendacao pode pedir revisao
+      if (!trocar[ef] && /troc/.test(rec)) ruins.push(pl.indicador + " (" + ef + ": a recomendação manda trocar)");
+      else if ((ef === "SEM EFEITO" || ef === "PIOROU") && /^\s*manter/.test(rec)) ruins.push(pl.indicador + " (" + ef + ": a recomendação manda manter)");
+    });
+    return ruins;
+  }
   function promptOS(os, ano, mes, C) {
     var S = C.S, k = C.kpi, fi = S.fin, an = analisarCustos(fi), L = [];
     function pf(v) { return fi && fi.FR ? fmt(v / fi.FR * 100, 2) + "%" : "–"; }
@@ -519,7 +611,7 @@
     L.push("7. Dissídio e reoneração da folha (janeiro/" + (ano + 1) + ") são premissas básicas do orçamento: NÃO os trate como premissa a rever nem como item para o Orçamento. O que o orçamento não consegue prever é o tamanho do ACÚMULO DE FÉRIAS, que multiplica esses dois efeitos; é isso que deve ser apontado, com as pessoas com 30 e com 45 dias ou mais. Não estime valor que não esteja nos DADOS.");
     L.push("8. Para o ORÇAMENTO, as observações que importam são: absenteísmo e turnover altos (realidade do contrato e da região), custos que ficam acima do executivo de forma padronizada, mês após mês (use RECORRÊNCIA), e acúmulo de férias (30 e 45 dias ou mais). Cada observação com o número que a sustenta.");
     L.push("10. Projeção dos próximos meses. Faça a análise futura com os números que o contrato projetou (EFETIVO PR, HHT PR, faturamento e resultado projetados). Se houver ALERTA DE PROJEÇÃO, diga com clareza que a projeção não acompanha a movimentação do último mês e peça a correção: quem admitiu tem que projetar mais efetivo e HHT (e o faturamento correspondente); quem desligou, menos.");
-    L.push("11. Planos de ação informados. Para cada indicador que não atendeu em algum mês, leia mês a mês o que o RESPONSÁVEL respondeu e o que o SETOR DE PERFORMANCE apontou (blocos separados nos DADOS) e compare com a APURAÇÃO REAL dos meses seguintes. Classifique o plano: FUNCIONANDO (depois da ação o indicador melhorou ou voltou a atender), PARCIAL (melhorou, mas ainda não atende), SEM EFEITO (a mesma ação se repete há 2 meses ou mais e o cenário não muda: diga com todas as letras que o que está sendo feito não está mudando o cenário e que o plano precisa ser trocado), PIOROU, AGUARDANDO (a ação começou no último mês e ainda não há mês seguinte para medir o efeito) ou SEM PLANO (não atende e o gestor não informou nenhuma ação: cobre o plano; se há ação informada, nunca use SEM PLANO). Use o parecer do Setor de Performance como referência técnica; quando o gestor disser uma coisa e os números ou o parecer mostrarem outra, aponte. Vale para todos os indicadores, inclusive os de SSMA.");
+    L.push("11. Planos de ação informados. Para cada indicador que não atendeu em algum mês, leia mês a mês o que o RESPONSÁVEL respondeu e o que o SETOR DE PERFORMANCE apontou (blocos separados nos DADOS) e compare com a APURAÇÃO REAL dos meses seguintes. A classificação de cada plano JÁ VEM CALCULADA no bloco CLASSIFICAÇÃO DOS PLANOS: use exatamente a mesma (e o mesmo mês de início), não reclassifique; o seu trabalho é mostrar a evidência e recomendar de acordo com ela. As definições são: FUNCIONANDO (depois da ação o indicador melhorou ou voltou a atender), PARCIAL (melhorou, mas ainda não atende), SEM EFEITO (a mesma ação se repete há 2 meses ou mais e o cenário não muda: diga com todas as letras que o que está sendo feito não está mudando o cenário e que o plano precisa ser trocado), PIOROU, AGUARDANDO (a ação começou no último mês e ainda não há mês seguinte para medir o efeito) ou SEM PLANO (não atende e o gestor não informou nenhuma ação: cobre o plano; se há ação informada, nunca use SEM PLANO). Use o parecer do Setor de Performance como referência técnica; quando o gestor disser uma coisa e os números ou o parecer mostrarem outra, aponte. Vale para todos os indicadores, inclusive os de SSMA.");
     L.push("13. Indicadores que dependiam da marcação do Máster agora vêm apurados pelos números dos painéis: #13 Excesso de Hora Extra = pessoas acima do limite no mês (55 h rotina, 60 h parada; painel RH); #14 Acúmulo de Férias = qualquer pessoa com mais de 45 dias está fora (painel RH; só a posição de hoje); #7 Receita Ideal = perda acima de 4% da Receita Ideal não é aderente (painel Receita Ideal). Quando o Máster já marcou, vale a marcação; se o número apurado diverge dela, diga. Ao citar a série de um desses indicadores, cite TODOS os meses em que ficou fora (ex.: no #13, todo mês com pessoa acima do limite), sem pular nenhum. PBI/PBD: só o que o Máster apurou.");
     L.push("15. Coerência: o sumário, o diagnóstico e o plano seguem a classificação que você deu em planos. Só diga trocar o plano quando ele estiver SEM EFEITO, PIOROU ou SEM PLANO; PARCIAL é ajustar; FUNCIONANDO e AGUARDANDO é manter. Nunca recomende trocar no sumário um plano que você classificou como PARCIAL.");
     L.push("16. Normalidade e justificativa: tudo o que fugir da normalidade (indicador fora, variação de faturamento, custo ou resultado de um mês para o outro, número fora da proporção) precisa de justificativa do responsável. Para cada desvio diga se ele justificou; se não justificou, aponte a falta de justificativa com todas as letras; se justificou, diga se a justificativa é coerente com os números e, se não for, aponte e diga o que falta responder. Vale para todos os indicadores e valores.");
@@ -663,6 +755,13 @@
     L.push("");
     // 16/11/2026 (usuario): as duas vozes separadas -- o que o responsavel respondeu e o que o Setor de
     // Performance apontou -- e o resumo do mes (#24) de todos os meses, que ja destaca o que mais afetou.
+    // 17/11/2026: classificacao dos planos calculada no app (a IA so descreve a evidencia e recomenda)
+    var CLP = classificarPlanos(os, mes, C), clk = Object.keys(CLP);
+    if (clk.length) {
+      L.push("CLASSIFICAÇÃO DOS PLANOS (calculada pelo app a partir da apuração real e dos comentários do responsável; use exatamente esta classificação e este \"desde\" no campo planos, não reclassifique):");
+      clk.forEach(function (k) { var c = CLP[k]; L.push("  #" + c.id + " " + c.nome + ": " + c.efeito + (c.desde ? " (ação desde " + c.desde + ")" : "") + " -- " + c.motivo); });
+      L.push("");
+    }
     L.push("RESUMO DO MÊS DO SETOR DE PERFORMANCE (#24, a última caixa de cada mês: já destaca o que mais afetou o mês):");
     var tem24 = false;
     for (var m2 = 1; m2 <= mes; m2++) { var s24 = ata(os, 24, m2); if (s24) { tem24 = true; L.push("[" + MESF[m2] + "] " + s24.replace(/\s+/g, " ").slice(0, 900)); } }
@@ -744,7 +843,7 @@
     var ok = { "SEM EFEITO": 1, "PIOROU": 1, "SEM PLANO": 1 }, ruins = [];
     var frases = [j.sumario, j.diagnostico, j.parecerOrcamento].map(semAcento).join(" ").split(/[.;:]/).filter(function (f) { return /troc/.test(f); });
     (Array.isArray(j.planos) ? j.planos : []).forEach(function (pl) {
-      if (ok[String(pl.efeito || "").toUpperCase()]) return;
+      if (ok[String(pl.efeito || "").toUpperCase()] || pl.diverge) return;
       var id = parseInt(String(pl.indicador || "").replace(/[^0-9]/g, ""), 10), ch = CHAVES_PLANO[id];
       if (!ch) return;
       if (frases.some(function (f) { return ch.some(function (c) { return f.indexOf(c) >= 0; }); })) ruins.push(pl.indicador + " (" + pl.efeito + ")");
@@ -805,8 +904,12 @@
     var coeOS = coerenciaEfetivo(C.S), nFora = coeOS.fora.length;
     var MESF = ["", "janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
     var mesesAbaixo = coeOS.rows.filter(function (r) { return r.custoSt === "abaixo"; }).map(function (r) { return r.m; });
+    var CLP = classificarPlanos(os, mes, C);
     var gc = await gerarConferido(prompt, function (jj) {
+      aplicarClassePlanos(jj, CLP);
       var f = conferirOS(jj, temNx);
+      var ri = recomendacoesIndevidas(jj);
+      if (ri.length) f.push("planos: a recomendação não segue a classificação calculada em " + ri.join(", ") + " (trocar só SEM EFEITO, PIOROU ou SEM PLANO; PARCIAL = ajustar; FUNCIONANDO e AGUARDANDO = manter)");
       if (nFora && (!Array.isArray(jj.coerencia) || !jj.coerencia.length)) f.push("coerencia (um item por mês fora da proporção)");
       var cx = semAcento(jj.custos).split(/[.;]/), semAbx = mesesAbaixo.filter(function (m) { return !cx.some(function (fr) { var tk = fr.split(/[^a-z]+/); return (tk.indexOf(MES[m]) >= 0 || tk.indexOf(MESF[m]) >= 0) && /abaixo|menos que o efetivo|caiu mais/.test(fr); }); });
       if (semAbx.length) f.push("custos: aponte também o custo ABAIXO da proporção do efetivo em " + semAbx.map(function (m) { return MES[m]; }).join(", ") + " (custo não lançado, lançado em outro mês ou estorno) e se o responsável explicou");
@@ -814,7 +917,8 @@
       if (tr.length) f.push("coerência do sumário com os planos: o texto manda trocar o plano de " + tr.join(", ") + ", mas trocar é só para SEM EFEITO, PIOROU ou SEM PLANO (PARCIAL = ajustar; FUNCIONANDO e AGUARDANDO = manter)");
       return f;
     }), j = gc.j, falta = gc.falta;
-    if (falta.length && falta.every(function (x) { return /^coerência do sumário|^custos: aponte também/.test(x); })) falta = [];   // nao derruba o book por isso; a regra ja foi cobrada na nova tentativa
+    aplicarClassePlanos(j, CLP);
+    if (falta.length && falta.every(function (x) { return /^coerência do sumário|^custos: aponte também|^planos: a recomendação/.test(x); })) falta = [];   // nao derruba o book por isso; a regra ja foi cobrada na nova tentativa
     if (falta.length) throw new Error("A IA não completou o book (faltou: " + falta.join(", ") + ").");
     var s = A.sessaoAcesso ? A.sessaoAcesso() : null;
     if (!C.S.fin) throw new Error("O fluxo NPE-Ler-Dados-Book não devolveu o contábil da OS (consulta de custos).");
