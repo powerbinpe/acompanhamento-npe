@@ -697,6 +697,41 @@ function htmlLinhasPainelRH(id, m, cor) {
     }).join("") + '</tbody></table><div style="font-size: 0.7rem; color: #64748b; padding: 4px 10px 6px;">N\u00famero do painel RH. A ader\u00eancia continua sendo a marca\u00e7\u00e3o do M\u00e1ster.</div></div>';
 }
 
+// 17/11/2026: perda do painel Receita Ideal (fluxo NPE-Ler-Perda-RI) contra a perda lancada na PR, que e o que o #6 apura.
+// Diferenca = PR - Receita Ideal; qualquer diferenca precisa de justificativa do responsavel.
+function perdaRIAcum(m) {
+  var P = window.PERDA_RI; if (!P) return null;
+  var s = 0, tem = false; for (var i = 1; i <= m; i++) if (P[i]) { s += P[i].perda; tem = true; }
+  return tem ? s : null;
+}
+function linhasPerdaRI(osCode, m) {
+  var P = window.PERDA_RI; if (!P || !P[m]) return [];
+  var ex = function (c) { return (typeof extractPrimaryOSCode === "function") ? extractPrimaryOSCode(c) : c; };
+  var cat = window.ACTIVE_CONTRACTS_CATALOG || [], c = null;
+  for (var i = 0; i < cat.length; i++) if (ex(cat[i].code) === ex(osCode)) { c = cat[i]; break; }
+  var mh = c && c.monthHistory ? c.monthHistory[m] : null;
+  var prMes = mh ? mh.perdaMesV : null, prAc = mh ? mh.perdaAcumV : null, riMes = P[m].perda, riAc = perdaRIAcum(m);
+  if (prMes == null && prAc != null) prMes = 0;
+  var rs = function (v) { if (v == null) return "\u2013"; var r = Math.round(v); return (r < 0 ? "-" : "") + "R$ " + Math.abs(r).toLocaleString("pt-BR"); };
+  var sg = function (v) { return v == null ? "\u2013" : (Math.round(v) > 0 ? "+" : "") + rs(v); };
+  var dM = prMes == null ? null : prMes - riMes, dA = (prAc == null || riAc == null) ? null : prAc - riAc;
+  return [
+    { label: "Perda no painel Receita Ideal (M\u00eas)", val: rs(riMes) },
+    { label: "Perda no painel Receita Ideal Acum. Ano", val: rs(riAc) },
+    { label: "Diferen\u00e7a PR \u2212 Receita Ideal (M\u00eas)", val: sg(dM), aviso: dM != null && Math.abs(dM) >= 1 },
+    { label: "Diferen\u00e7a PR \u2212 Receita Ideal Acum. Ano", val: sg(dA), aviso: dA != null && Math.abs(dA) >= 1 }
+  ];
+}
+function htmlLinhasPerdaRI(osCode, m, cor) {
+  var ls = linhasPerdaRI(osCode, m);
+  if (!ls.length) return "";
+  return '<div style="border: 2px solid ' + (cor || "#0f2b5c") + '; border-radius: 8px; overflow: hidden; margin-top: 6px;"><table style="width: 100%; border-collapse: collapse; background: #ffffff; table-layout: fixed;"><tbody>' +
+    ls.map(function (l, i) {
+      return '<tr style="background:' + (i % 2 ? "#f8fafc" : "#ffffff") + ';"><td style="padding: 7px 10px; font-size: 0.8rem; color: #475569; font-weight: 700;">' + l.label +
+        '</td><td style="padding: 7px 10px; font-size: 0.92rem; font-weight: 800; text-align: right; width: 34%; color:' + (l.aviso ? "#b45309" : "#0f2b5c") + ';">' + l.val + "</td></tr>";
+    }).join("") + '</tbody></table><div style="font-size: 0.7rem; color: #64748b; padding: 4px 10px 6px;">O #6 apura a perda lan\u00e7ada na PR. Diferen\u00e7a para o painel Receita Ideal precisa de justificativa.</div></div>';
+}
+
 function hydrateOSMonthHistoryFromPowerBI(params) {
   // 17/11/2026: #13 Excesso de HE e #14 Acumulo de Ferias pela regra do painel RH (a mesma do book).
   // Medida: &QualRH=acima.pessoas,acima.pessoas,... (jan ao mes selecionado) ; pessoas com mais de 45 dias de ferias (posicao de hoje)
@@ -995,7 +1030,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-17 10:15";
+    window.NPE_BUILD = "2026-11-17 10:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -1937,6 +1972,7 @@ function hydrateFromPowerBI() {
     // depender do modelo (so atualiza com refresh manual) ou de storage do navegador (nao
     // sobrevive a troca de OS: o slicer recria o visual do zero a cada filtro).
     window.FLOW_LER_PRAZO_URL = safeGetStorage("npe_flow_ler_prazo_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/21/workflows/9495a32361f54098aa49394fe749776d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=D57OfQGcGWAXogMiBYCGXxKoC-lIW4XlD_z_uxsvJCg");
+    window.FLOW_LER_PERDA_RI_URL = safeGetStorage("npe_flow_ler_perda_ri_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/2c593a8c89d04587b113d0293044041f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Jt0h1Zl9Z1i3UE1c_Nsg3iZ5AOayiSqPRb_UbBV7nLQ");
     window.FLOW_GRAVAR_PRAZO_URL = safeGetStorage("npe_flow_gravar_prazo_url", "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/18/workflows/ee07482a9bb043fcbb81dbd848e34ffd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pOSlwplpLkS5QHvTZzk2-QiJOlMIDqEXYyXxLeFFD1U");
 
     // Semeia os campos de edicao a partir da ATA. Antes isso vinha pela URL (AtaComments),
@@ -2109,6 +2145,26 @@ function hydrateFromPowerBI() {
     // nem de storage do navegador (nenhum dos dois atravessa a recriacao do visual).
     window.PRAZO_LIMITE_CACHE = {};
     window.PRAZO_LIMITE_PRONTO = false;
+    // 17/11/2026: perda do painel Receita Ideal para o #6 (fluxo aberto, so leitura). Chega depois da tela; repinta como a ATA.
+    window.PERDA_RI = null;
+    async function carregarPerdaRI() {
+      var params = new URLSearchParams(window.location.search);
+      var rawOS = params.get("SelectedOS") || "";
+      var ano = parseInt(params.get("SelectedAno"), 10);
+      var url = window.FLOW_LER_PERDA_RI_URL;
+      var oss = String(rawOS).split("|").map(function (x) { return x.trim(); }).filter(Boolean);
+      if (!oss.length || /^TODAS/.test(oss[0]) || !ano || !url) return;
+      try {
+        var resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ os: oss.join("|"), ano: ano }) });
+        if (!resp.ok) { console.warn("Perda RI: HTTP " + resp.status); return; }
+        var j = JSON.parse(await resp.text());
+        var rows = (j && j.results && j.results[0] && j.results[0].tables && j.results[0].tables[0] && j.results[0].tables[0].rows) || (j && j.firstTableRows) || [];
+        var out = {}, tem = false;
+        rows.forEach(function (r) { var m = parseInt(r["[mes]"], 10), pe = r["[perda]"], id = r["[ideal]"]; if (!m || (pe == null && id == null)) return; out[m] = { perda: +pe || 0, ideal: +id || 0 }; tem = true; });
+        window.PERDA_RI = tem ? out : null;
+        if (tem && !window.USUARIO_DIGITOU && typeof renderRows === "function") { try { renderRows(); } catch (e) {} }
+      } catch (e) { console.warn("Perda RI: falha ao consultar o fluxo --", e); }
+    }
     async function carregarPrazoLimite() {
       var params = new URLSearchParams(window.location.search);
       var mes = getMonthNumberFromParams(params);
@@ -2703,7 +2759,7 @@ function hydrateFromPowerBI() {
         lines = [
           { label: "Perda de Receita (Mês)", val: mh.perdaMesV === null ? "R$ 0" : fmtMo(mh.perdaMesV) },
           { label: "Perda Receita Acum. Ano", val: mh.perdaAcumV === null ? "R$ 0" : fmtMo(mh.perdaAcumV) }
-        ];
+        ].concat(linhasPerdaRI(osCode, mNum).map(function (x) { return { label: x.label, val: x.val }; }));
       } else if (topic.id === 8) { // Indenização
         if (!mh) return semDados();
         lines = [
@@ -3353,6 +3409,7 @@ function hydrateFromPowerBI() {
           });
 
           linesHTML += '</tbody></table></div>';
+          if (topic.id === 6) linesHTML += htmlLinhasPerdaRI(activeOS, monthNum, catInfoForRow.color);
         }
 
         var gestorStatusPill = isMultiOS ? 
@@ -4209,7 +4266,13 @@ function hydrateFromPowerBI() {
         case "t4": return (typeof monthData.resDifMesPct === "number")
                           ? "Margem " + formatPctBR(monthData.resDifMesPct) + " vs FCST ant."
                           : "Margem não apurada vs FCST anterior";
-        case "t6": return "Perda acum. " + formatPctBR(monthData.perdaPctAcum);
+        case "t6": {
+          var t6 = "Perda acum. " + formatPctBR(monthData.perdaPctAcum);
+          // 17/11/2026: a perda da PR contra a do painel Receita Ideal (vai para a caixa, o historico e o prompt da IA)
+          var riA = (typeof perdaRIAcum === "function") ? perdaRIAcum(m) : null;
+          if (riA != null && typeof monthData.perdaAcumV === "number") t6 += " \u00b7 PR acum. " + formatCompactBRL(monthData.perdaAcumV) + " x painel Receita Ideal " + formatCompactBRL(riA) + " (diferen\u00e7a " + formatCompactBRL(monthData.perdaAcumV - riA) + "; diferen\u00e7a precisa de justificativa)";
+          return t6;
+        }
         case "t8": {
           // O valor sempre esteve aqui (indenizMesV/indenizAcumV, indices 33 e 34 da URL);
           // so nao era usado, e o parecer saia sem numero para citar.
@@ -8559,170 +8622,170 @@ function hydrateFromPowerBI() {
     }
     window.processarOSAtual = processarOSAtual;
 
-
-    // ---- Fechamento do mes: Aba 5 (notas do ano) e Aba 3 (resumo anual) por OS, sem tela ----
-
-    // Aba 5: grava a nota consolidada (TopicoId 0) de cada mes fechado da OS desta pagina -- o mesmo
-    // que o botao "Gravar Notas do Ano" faz, mas sem confirmacao e devolvendo o resultado.
-    // Com opts.gravar === false so calcula e devolve as notas que seriam gravadas.
-    async function processarNotasAnoAtual(opts) {
-      opts = opts || {};
-      var pp = new URLSearchParams(window.location.search);
-      var os = extractPrimaryOSCode(pp.get("SelectedOS") || "");
-      var ano = parseInt(pp.get("SelectedAno"), 10);
-      if (!os || !ano) throw new Error("OS ou ano não identificados na página.");
-      var ultimoMes = ultimoMesFechado(ano);
-      if (ultimoMes < 1) return { os: os, ultimoMes: 0, meses: [], gravado: null, aviso: "nenhum mês fechado em " + ano };
-      if (!window.HISTORICO_PRONTO) { try { await historicoCarregado(); } catch (e) {} window._scoreCache = {}; }
-      if (!window.HISTORICO_PRONTO) throw new Error("Não consegui ler a ATA; nada foi feito.");
-      var inicio = 0;
-      for (var mi = 1; mi <= ultimoMes && !inicio; mi++) {
-        if (getOSCompletionStatus(os, mi).filledCount > 0) inicio = mi;
-      }
-      if (!inicio) return { os: os, ultimoMes: ultimoMes, meses: [], gravado: null, aviso: "nenhum mês preenchido ainda (a apuração começa no primeiro mês com registro)" };
-      var meses = [];
-      for (var m = inicio; m <= ultimoMes; m++) {
+
+    // ---- Fechamento do mes: Aba 5 (notas do ano) e Aba 3 (resumo anual) por OS, sem tela ----
+
+    // Aba 5: grava a nota consolidada (TopicoId 0) de cada mes fechado da OS desta pagina -- o mesmo
+    // que o botao "Gravar Notas do Ano" faz, mas sem confirmacao e devolvendo o resultado.
+    // Com opts.gravar === false so calcula e devolve as notas que seriam gravadas.
+    async function processarNotasAnoAtual(opts) {
+      opts = opts || {};
+      var pp = new URLSearchParams(window.location.search);
+      var os = extractPrimaryOSCode(pp.get("SelectedOS") || "");
+      var ano = parseInt(pp.get("SelectedAno"), 10);
+      if (!os || !ano) throw new Error("OS ou ano não identificados na página.");
+      var ultimoMes = ultimoMesFechado(ano);
+      if (ultimoMes < 1) return { os: os, ultimoMes: 0, meses: [], gravado: null, aviso: "nenhum mês fechado em " + ano };
+      if (!window.HISTORICO_PRONTO) { try { await historicoCarregado(); } catch (e) {} window._scoreCache = {}; }
+      if (!window.HISTORICO_PRONTO) throw new Error("Não consegui ler a ATA; nada foi feito.");
+      var inicio = 0;
+      for (var mi = 1; mi <= ultimoMes && !inicio; mi++) {
+        if (getOSCompletionStatus(os, mi).filledCount > 0) inicio = mi;
+      }
+      if (!inicio) return { os: os, ultimoMes: ultimoMes, meses: [], gravado: null, aviso: "nenhum mês preenchido ainda (a apuração começa no primeiro mês com registro)" };
+      var meses = [];
+      for (var m = inicio; m <= ultimoMes; m++) {
         var n = notasDaOS(os, m, mesesValidadosDaOS(os, m));
-        if (n) meses.push({ mes: m, notaMes: n.notaMes, notaAcum: n.notaAcum, temDado: !!n.temDado, validado: statusValidacaoDoMes(os, m) === "Validado" });
-      }
-      if (opts.gravar === false) return { os: os, ultimoMes: ultimoMes, inicio: inicio, meses: meses, gravado: null };
-      var sess = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
-      var quem = sess ? (sess.login || "") : (pp.get("UserEmail") || "");
-      var ok = 0, falhou = [];
-      for (var i = 0; i < meses.length; i++) {
-        var gravou = await gravarNotaDoMes(os, meses[i].mes, ano, quem);
-        if (gravou) ok++; else falhou.push(meses[i].mes);
-      }
-      return { os: os, ultimoMes: ultimoMes, inicio: inicio, meses: meses, ok: ok, falhou: falhou, gravado: falhou.length === 0 };
-    }
-    window.processarNotasAnoAtual = processarNotasAnoAtual;
-
-    // Confere o resumo anual de UM indicador: devolve os motivos (vazio = pode usar).
-    function conferirResumoAnual(texto) {
-      var t = String(texto || "").trim();
-      var motivos = [];
-      if (t.length < 40) motivos.push("vazio ou curto demais");
-      if (t.length > 1800) motivos.push("longo demais");
-      if (/[\[\]]/.test(t)) motivos.push("tem colchetes");
-      if (/^\s*\|.*\|\s*$/m.test(t) || /^\s*#{1,6}\s/m.test(t)) motivos.push("formato fora do padrão (cabeçalho/tabela)");
-      return motivos;
-    }
-
-    // Grava o resumo anual da OS (SNAPSHOT_FECHAMENTO, ano 9996) a partir de textos ja prontos:
-    // troca so os indicadores recebidos e preserva os demais que ja estavam gravados.
-    async function gravarResumoAnualDireto(os, mesRef, textos, mesesVal) {
-      var s = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
-      var quem = s ? (s.login || "") : (new URLSearchParams(window.location.search).get("UserEmail") || "");
-      if (!window.RESUMOS_ANUAIS) await carregarResumosAnuais();
-      var reg = (window.RESUMOS_ANUAIS || {})[os] || { id: 0, resumos: {} };
-      var resumos = {};
-      Object.keys(reg.resumos || {}).forEach(function(k) {
-        var v = reg.resumos[k];
-        resumos[k] = (typeof v === "string") ? { t: v } : v;
-      });
-      Object.keys(textos).forEach(function(k) {
-        var r2 = { t: textos[k] };
-        try {
-          var tx = _taxaAtendimento(os, parseInt(k, 10), mesRef, mesesVal);
-          if (tx) { r2.ok = tx.ok; r2.n = tx.n; }
-        } catch (e) {}
-        resumos[k] = r2;
-      });
-      var r = await fetch(window.FLOW_GRAVAR_SNAPSHOT_URL, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: reg.id || 0,
-          titulo: "RESUMO_ANUAL " + os,
-          ano: 9996, mes: 1,
-          dados: JSON.stringify({ os: os, resumos: resumos, meses: mesesVal || null }),
-          geradoPor: quem
-        })
-      });
-      if (!(r.ok || r.status === 202)) return false;
+        if (n) meses.push({ mes: m, notaMes: n.notaMes, notaAcum: n.notaAcum, temDado: !!n.temDado, validado: statusValidacaoDoMes(os, m) === "Validado" });
+      }
+      if (opts.gravar === false) return { os: os, ultimoMes: ultimoMes, inicio: inicio, meses: meses, gravado: null };
+      var sess = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
+      var quem = sess ? (sess.login || "") : (pp.get("UserEmail") || "");
+      var ok = 0, falhou = [];
+      for (var i = 0; i < meses.length; i++) {
+        var gravou = await gravarNotaDoMes(os, meses[i].mes, ano, quem);
+        if (gravou) ok++; else falhou.push(meses[i].mes);
+      }
+      return { os: os, ultimoMes: ultimoMes, inicio: inicio, meses: meses, ok: ok, falhou: falhou, gravado: falhou.length === 0 };
+    }
+    window.processarNotasAnoAtual = processarNotasAnoAtual;
+
+    // Confere o resumo anual de UM indicador: devolve os motivos (vazio = pode usar).
+    function conferirResumoAnual(texto) {
+      var t = String(texto || "").trim();
+      var motivos = [];
+      if (t.length < 40) motivos.push("vazio ou curto demais");
+      if (t.length > 1800) motivos.push("longo demais");
+      if (/[\[\]]/.test(t)) motivos.push("tem colchetes");
+      if (/^\s*\|.*\|\s*$/m.test(t) || /^\s*#{1,6}\s/m.test(t)) motivos.push("formato fora do padrão (cabeçalho/tabela)");
+      return motivos;
+    }
+
+    // Grava o resumo anual da OS (SNAPSHOT_FECHAMENTO, ano 9996) a partir de textos ja prontos:
+    // troca so os indicadores recebidos e preserva os demais que ja estavam gravados.
+    async function gravarResumoAnualDireto(os, mesRef, textos, mesesVal) {
+      var s = (typeof sessaoAcesso === "function") ? sessaoAcesso() : null;
+      var quem = s ? (s.login || "") : (new URLSearchParams(window.location.search).get("UserEmail") || "");
+      if (!window.RESUMOS_ANUAIS) await carregarResumosAnuais();
+      var reg = (window.RESUMOS_ANUAIS || {})[os] || { id: 0, resumos: {} };
+      var resumos = {};
+      Object.keys(reg.resumos || {}).forEach(function(k) {
+        var v = reg.resumos[k];
+        resumos[k] = (typeof v === "string") ? { t: v } : v;
+      });
+      Object.keys(textos).forEach(function(k) {
+        var r2 = { t: textos[k] };
+        try {
+          var tx = _taxaAtendimento(os, parseInt(k, 10), mesRef, mesesVal);
+          if (tx) { r2.ok = tx.ok; r2.n = tx.n; }
+        } catch (e) {}
+        resumos[k] = r2;
+      });
+      var r = await fetch(window.FLOW_GRAVAR_SNAPSHOT_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: reg.id || 0,
+          titulo: "RESUMO_ANUAL " + os,
+          ano: 9996, mes: 1,
+          dados: JSON.stringify({ os: os, resumos: resumos, meses: mesesVal || null }),
+          geradoPor: quem
+        })
+      });
+      if (!(r.ok || r.status === 202)) return false;
       reg.resumos = resumos;
       reg.meses = mesesVal || null;
-      window.RESUMOS_ANUAIS = window.RESUMOS_ANUAIS || {};
-      window.RESUMOS_ANUAIS[os] = reg;
-      if (!reg.id) { window.RESUMOS_ANUAIS = null; window._RESUMOS_CARREGANDO = false; await carregarResumosAnuais(); }
-      return true;
-    }
-
-    // Aba 3: resumo do ano por indicador da OS desta pagina, de janeiro ate o ULTIMO MES FECHADO (o mes
-    // corrente nunca entra). Le os pareceres ja gravados na ATA; GPT-4.1 (mini so com opts.modelo); o que reprovar volta
-    // no GPT-4.1. Com opts.gravar === false devolve os textos sem gravar.
-    async function processarResumoAnualAtual(opts) {
-      opts = opts || {};
-      function passo(t) { try { if (typeof opts.onStatus === "function") opts.onStatus(t); } catch (e) {} }
-      var pp = new URLSearchParams(window.location.search);
-      var os = extractPrimaryOSCode(pp.get("SelectedOS") || "");
-      var ano = parseInt(pp.get("SelectedAno"), 10);
-      var mesPedido = getMonthNumberFromParams(pp);
-      if (!os || !ano || !mesPedido) throw new Error("OS, ano ou mês não identificados na página.");
-      var mesRef = Math.min(mesPedido, ultimoMesFechado(ano));
-      if (mesRef < 1) return { os: os, mesRef: 0, textos: 0, revisar: [], gravado: null, aviso: "nenhum mês fechado em " + ano };
-      if (!window.HISTORICO_PRONTO) { passo("lendo a ATA"); try { await historicoCarregado(); } catch (e) {} }
-      if (!window.HISTORICO_PRONTO) throw new Error("Não consegui ler a ATA; nada foi feito.");
+      window.RESUMOS_ANUAIS = window.RESUMOS_ANUAIS || {};
+      window.RESUMOS_ANUAIS[os] = reg;
+      if (!reg.id) { window.RESUMOS_ANUAIS = null; window._RESUMOS_CARREGANDO = false; await carregarResumosAnuais(); }
+      return true;
+    }
+
+    // Aba 3: resumo do ano por indicador da OS desta pagina, de janeiro ate o ULTIMO MES FECHADO (o mes
+    // corrente nunca entra). Le os pareceres ja gravados na ATA; GPT-4.1 (mini so com opts.modelo); o que reprovar volta
+    // no GPT-4.1. Com opts.gravar === false devolve os textos sem gravar.
+    async function processarResumoAnualAtual(opts) {
+      opts = opts || {};
+      function passo(t) { try { if (typeof opts.onStatus === "function") opts.onStatus(t); } catch (e) {} }
+      var pp = new URLSearchParams(window.location.search);
+      var os = extractPrimaryOSCode(pp.get("SelectedOS") || "");
+      var ano = parseInt(pp.get("SelectedAno"), 10);
+      var mesPedido = getMonthNumberFromParams(pp);
+      if (!os || !ano || !mesPedido) throw new Error("OS, ano ou mês não identificados na página.");
+      var mesRef = Math.min(mesPedido, ultimoMesFechado(ano));
+      if (mesRef < 1) return { os: os, mesRef: 0, textos: 0, revisar: [], gravado: null, aviso: "nenhum mês fechado em " + ano };
+      if (!window.HISTORICO_PRONTO) { passo("lendo a ATA"); try { await historicoCarregado(); } catch (e) {} }
+      if (!window.HISTORICO_PRONTO) throw new Error("Não consegui ler a ATA; nada foi feito.");
       // Regra de 10/10: o resumo anual usa SO os meses validados; sem nenhum, nao ha o que resumir.
       var mesesVal = mesesValidadosDaOS(os, mesRef);
       if (!mesesVal.length) return { os: os, mesRef: mesRef, textos: 0, revisar: [], gravado: null, aviso: "nenhum m\u00eas validado at\u00e9 o m\u00eas " + mesRef + " - sem resumo a gerar" };
       // OS sem nenhum mes preenchido ate o mes de referencia nao tem o que resumir: nao gasta IA.
       if (primeiroMesPreenchido(os) > mesRef) return { os: os, mesRef: mesRef, textos: 0, revisar: [], gravado: null, aviso: "nenhum mês preenchido até o mês " + mesRef + " - sem resumo a gerar" };
-
-      var tids = [];
-      TOPIC_INDICATOR_MAP.concat(ACOMP_INDICATOR_MAP).forEach(function(t) {
-        tids.push(t.id === "prazo" ? 26 : (t.id === "preenchimento" ? 27 : t.id));
-      });
-      var prompt = buildFullYearExportText(os, mesRef);
-      if (!prompt || prompt.length < 200) throw new Error("Não consegui montar o texto do resumo anual de " + os + ".");
-
-      var textos = {}, motivos = {}, chamadas = 0, refeitos = 0;
-      async function rodar(modelo, soTids) {
-        passo("resumo anual (" + modelo + ")");
-        var out = await chamarGerarTexto(modelo, prompt);
-        chamadas++;
-        var achados = separarPorIndicador(out);
-        tids.forEach(function(tid) {
-          if (soTids && soTids.indexOf(tid) === -1) return;
-          if (achados[String(tid)]) textos[tid] = String(achados[String(tid)]).trim();
-        });
-      }
-      function reprovados() {
-        return tids.filter(function(tid) {
-          var m = textos[tid] ? conferirResumoAnual(textos[tid]) : ["bloco ausente na resposta"];
-          motivos[tid] = m;
-          return m.length > 0;
-        });
-      }
+
+      var tids = [];
+      TOPIC_INDICATOR_MAP.concat(ACOMP_INDICATOR_MAP).forEach(function(t) {
+        tids.push(t.id === "prazo" ? 26 : (t.id === "preenchimento" ? 27 : t.id));
+      });
+      var prompt = buildFullYearExportText(os, mesRef);
+      if (!prompt || prompt.length < 200) throw new Error("Não consegui montar o texto do resumo anual de " + os + ".");
+
+      var textos = {}, motivos = {}, chamadas = 0, refeitos = 0;
+      async function rodar(modelo, soTids) {
+        passo("resumo anual (" + modelo + ")");
+        var out = await chamarGerarTexto(modelo, prompt);
+        chamadas++;
+        var achados = separarPorIndicador(out);
+        tids.forEach(function(tid) {
+          if (soTids && soTids.indexOf(tid) === -1) return;
+          if (achados[String(tid)]) textos[tid] = String(achados[String(tid)]).trim();
+        });
+      }
+      function reprovados() {
+        return tids.filter(function(tid) {
+          var m = textos[tid] ? conferirResumoAnual(textos[tid]) : ["bloco ausente na resposta"];
+          motivos[tid] = m;
+          return m.length > 0;
+        });
+      }
       await rodar(opts.modelo === "mini" ? "mini" : "gpt41");
-      var falhas = reprovados();
-      var primeiraRodada = falhas.map(function(tid) { return { tid: tid, motivos: (motivos[tid] || []).slice() }; });
-      if (falhas.length) {
-        refeitos = falhas.length;
-        await rodar("gpt41", falhas);
-        falhas = reprovados();
-      }
-      // Bloco que nunca veio nao entra na gravacao (preserva o que ja existia); o que veio mas ainda
-      // reprova entra e volta marcado para revisao.
-      var paraGravar = {};
-      Object.keys(textos).forEach(function(k) { if (textos[k]) paraGravar[k] = textos[k]; });
-
-      var gravado = null;
-      if (opts.gravar !== false) {
-        passo("gravando o resumo anual");
-        gravado = await gravarResumoAnualDireto(os, mesRef, paraGravar, mesesVal);
-      }
-      return {
-        os: os, mesRef: mesRef, textos: Object.keys(paraGravar).length, chamadas: chamadas, refeitos: refeitos,
-        revisar: falhas.map(function(tid) { return { tid: tid, motivos: motivos[tid] }; }),
+      var falhas = reprovados();
+      var primeiraRodada = falhas.map(function(tid) { return { tid: tid, motivos: (motivos[tid] || []).slice() }; });
+      if (falhas.length) {
+        refeitos = falhas.length;
+        await rodar("gpt41", falhas);
+        falhas = reprovados();
+      }
+      // Bloco que nunca veio nao entra na gravacao (preserva o que ja existia); o que veio mas ainda
+      // reprova entra e volta marcado para revisao.
+      var paraGravar = {};
+      Object.keys(textos).forEach(function(k) { if (textos[k]) paraGravar[k] = textos[k]; });
+
+      var gravado = null;
+      if (opts.gravar !== false) {
+        passo("gravando o resumo anual");
+        gravado = await gravarResumoAnualDireto(os, mesRef, paraGravar, mesesVal);
+      }
+      return {
+        os: os, mesRef: mesRef, textos: Object.keys(paraGravar).length, chamadas: chamadas, refeitos: refeitos,
+        revisar: falhas.map(function(tid) { return { tid: tid, motivos: motivos[tid] }; }),
         primeiraRodada: primeiraRodada, gravado: gravado,
         resumos: opts.devolverTextos ? paraGravar : undefined
-      };
-    }
-    window.processarResumoAnualAtual = processarResumoAnualAtual;
-
-
-    // ---- Lista de situacao (modal) e botoes de IA da Aba 3 ----
-
+      };
+    }
+    window.processarResumoAnualAtual = processarResumoAnualAtual;
+
+
+    // ---- Lista de situacao (modal) e botoes de IA da Aba 3 ----
+
     // ---- Grade de situacao (Abas 1, 3, 4 e 5): colunas, filtros, busca, ordenacao e CSV ----------------------------
 
     function escH(t) {
@@ -8892,8 +8955,8 @@ function hydrateFromPowerBI() {
     }
 
 
-
-    // Aba 3: quais OSs ja tem o resumo anual gravado (SNAPSHOT ano 9996) e quais faltam.
+
+    // Aba 3: quais OSs ja tem o resumo anual gravado (SNAPSHOT ano 9996) e quais faltam.
     async function situacaoResumosAnuais() {
       if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
       var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
@@ -8929,9 +8992,9 @@ function hydrateFromPowerBI() {
 
 
 
-    window.situacaoResumosAnuais = situacaoResumosAnuais;
-
-
+    window.situacaoResumosAnuais = situacaoResumosAnuais;
+
+
     // Aba 5: por OS, as notas gravadas dos MESES VALIDADOS (so eles contam) e o acumulado sobre eles.
     async function situacaoNotasAno() {
       if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
@@ -8974,8 +9037,8 @@ function hydrateFromPowerBI() {
         });
       } catch (err) { showToast("\u26a0\ufe0f " + (err && err.message ? err.message : "Falha ao conferir as notas.")); }
     }
-    window.situacaoNotasAno = situacaoNotasAno;
-
+    window.situacaoNotasAno = situacaoNotasAno;
+
     // Aba 1: para o mes selecionado (so ele), quantos pareceres, validacoes e justificativas cada OS tem.
     async function situacaoPareceresMes() {
       if (!window.isMaster) { showToast("\u26a0\ufe0f Apenas usuários Máster."); return; }
@@ -9021,8 +9084,8 @@ function hydrateFromPowerBI() {
         idxSit: 4, larguras: [10, 20, 8, 16, 8, 12, 12, 14], arquivo: "pareceres_" + (MESES_PT[mes - 1] || mes).toLowerCase() + "_aba1", linhas: linhas
       });
     }
-    window.situacaoPareceresMes = situacaoPareceresMes;
-
+    window.situacaoPareceresMes = situacaoPareceresMes;
+
 
     // Fecha o mes com o agente na nuvem (GitHub Actions). O app so manda o pedido ao fluxo
     // NPE-Iniciar-Agente com login + token da sessao; o fluxo confere o perfil e dispara o agente.
@@ -11434,6 +11497,7 @@ function hydrateFromPowerBI() {
         window._historicoPromessa = carregarHistoricoCompleto();
       }
       if (typeof carregarPrazoLimite === "function") carregarPrazoLimite();
+      if (typeof carregarPerdaRI === "function") carregarPerdaRI();
       if (typeof carregarDataLimiteDosMeses === "function") carregarDataLimiteDosMeses();
       if (typeof carregarMetasDoFluxo === "function") carregarMetasDoFluxo();
       if (typeof updateFromURLParams === "function") updateFromURLParams();
@@ -11576,6 +11640,6 @@ function hydrateFromPowerBI() {
 
   
     </script>
-  <script src="book.js?v=2026-11-17_1015"></script>
+  <script src="book.js?v=2026-11-17_1030"></script>
 </body>
 </html>
