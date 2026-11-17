@@ -206,6 +206,7 @@
       else if (x.tipo === "X") hex.push({ m: parseInt(x.mes, 10) || 0, acima: x.r == null ? null : +x.r, pessoas: x.e == null ? null : +x.e, horas: x.f == null ? null : +x.f });
       else if (x.tipo === "Y") ferRH = { f45: x.r == null ? null : +x.r };
       else if (x.tipo === "T1" || x.tipo === "T2" || x.tipo === "T3") pr[x.tipo.toLowerCase()] = { c: x.c, r: numOuNulo(x.r), e: numOuNulo(x.e), f: numOuNulo(x.f), g: numOuNulo(x.g) };
+      else if (x.tipo === "KA") pr.kAno = true;
       else if (x.tipo === "K") { var cc0 = String(x.c || "").split("|"); pr.k.push({ nivel: String(x.a || ""), conta: String(x.b || ""), sub: cc0[0], desc: cc0.slice(1).join("|"), r: +x.r || 0, e: +x.e || 0 }); }
       else if (x.tipo === "H") { var cc = String(x.b || "").toUpperCase(); ctt[cc] = ctt[cc] || {}; if (ctt[cc][x.a] == null) ctt[cc][x.a] = x.c == null ? "" : String(x.c); }
     });
@@ -971,7 +972,7 @@
     if (!C.S.fin) throw new Error("O fluxo NPE-Ler-Dados-Book não devolveu o contábil da OS (consulta de custos).");
     var book = {
       v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: (H.rotulo && H.rotulo.indexOf("|") > 0 && H.grupo) ? H.grupo : (H.desc || C.contract.name || ""), descCtt: !!H.ctt, hist: hist, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
-      ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal, semTrat: C.semTrat, semAtiv: C.semAtiv, estagio: (C.contract && C.contract.estagio) || "", pauta: montarPauta(dados.pautaRaw),
+      ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal, semTrat: C.semTrat, semAtiv: C.semAtiv, estagio: (C.contract && C.contract.estagio) || "", pauta: montarPauta(dados.pautaRaw, dados.custos, mes),
       kpi: C.kpi, S: C.S, inds: C.inds, valoresSemOrigem: gc.semOrigem, coerJust: (function () { var o = {}; coerenciaEfetivo(C.S).rows.forEach(function (r) { if (r.ruim) o[r.m] = justificouMes(os, r.m); }); return o; })(),
       txt: { coerencia: Array.isArray(j.coerencia) ? j.coerencia.slice(0, 12) : [], situacao: j.situacao, positivos: j.positivos.slice(0, 5), receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
         plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10), repetidos: valoresRepetidos({ situacao: j.situacao, positivos: j.positivos, receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, foco: j.plano }) }
@@ -2022,24 +2023,34 @@
   // Le os books das OSs do MES DO FILTRO. Cobranca so com registro no mes, pela regra de cada indicador; acoes no fim
   // de cada OS, sempre com o dado. Valores: FCST anterior (mes e acumulado = arquivo FCST do mes), realizado projetado
   // (BASE CONSOLIDADA), contrato (CD) e ponte da margem por conta -- vindos do fluxo (linhas T1/T2/T3/K).
-  function montarPauta(P) {
-    if (!P || !P.t1) return null;
-    var isFat = function (k) { return /^3\.1\.1\.11\.|^3\.1\.1\.51\./.test(k.sub) || k.conta === "31131006" || k.conta === "31131010"; };
-    var FR = 0, FE = 0, TR = 0, TE = 0;
-    P.k.forEach(function (k) { TR += k.r; TE += k.e; if (isFat(k)) { FR += k.r; FE += k.e; } });
+  // ponte da margem por grupo de custo: linhas {nivel, sub, conta, desc, r, b} -> realizado (r) x base (b)
+  function ponteGrupos(rows) {
+    var isFat = function (x) { return /^3\.1\.1\.[15]/.test(x.sub) || x.conta === "31131006" || x.conta === "31131010"; };
+    var FR = 0, FB = 0, TR = 0, TB = 0;
+    rows.forEach(function (x) { TR += x.r; TB += x.b; if (isFat(x)) { FR += x.r; FB += x.b; } });
+    if (!FR || !FB) return { vazio: !FR ? "fat" : "base" };
     var G = {};
-    P.k.filter(function (k) { return !isFat(k); }).forEach(function (k) {
-      var g = /^3\./.test(k.nivel) ? "3.1.1. DEDUCOES DA RECEITA" : k.nivel, x = G[g] = G[g] || { g: g, pp: 0, contas: [] };
-      var pp = FR ? (k.r / FR - (FE ? k.e / FE : 0)) * 100 : 0;
-      x.pp += pp; x.contas.push([k.desc, pp, k.r - k.e * (FE ? FR / FE : 0)]);
+    rows.filter(function (x) { return !isFat(x); }).forEach(function (x) {
+      var g = /^3\./.test(x.nivel) ? "3.1.1. DEDUCOES DA RECEITA" : x.nivel, o = G[g] = G[g] || { g: g, pp: 0, contas: [] };
+      var pp = (x.r / FR - x.b / FB) * 100;
+      o.pp += pp; o.contas.push([x.desc, pp, x.r - x.b * FR / FB]);
     });
-    var grupos = Object.keys(G).map(function (k) { return G[k]; }).sort(function (a, b) { return Math.abs(b.pp) - Math.abs(a.pp); })
+    var grupos = Object.keys(G).map(function (q) { return G[q]; }).sort(function (a, b) { return Math.abs(b.pp) - Math.abs(a.pp); })
       .map(function (g) { return { g: g.g, pp: g.pp, top: g.contas.filter(function (c) { return Math.abs(c[1]) >= 0.05; }).sort(function (a, b) { return Math.abs(b[1]) - Math.abs(a[1]); }).slice(0, 4) }; });
+    return { FR: FR, FB: FB, mR: TR / FR * 100, mB: TB / FB * 100, grupos: grupos };
+  }
+  function montarPauta(P, custos, mes) {
+    if (!P || !P.t1) return null;
     var tp = String(P.t1.c || "");
+    // ano: contas do ano inteiro (BASE CONSOLIDADA) x executivo do ano -- o fluxo devolve sempre o ano em K
+    var pAno = ponteGrupos(P.k.map(function (x) { return { nivel: x.nivel, sub: x.sub, conta: x.conta, desc: x.desc, r: x.r, b: x.e }; }));
+    // mes: contas do mes do filtro, realizado x FCST anterior (consulta de custos do book)
+    var pMes = ponteGrupos((custos || []).filter(function (x) { return +x.MesNo === +mes; }).map(function (x) {
+      var dsc = String(x["C.Contabil - Descricao"] || ""); return { nivel: String(x["Nível"] || ""), sub: String(x["Sub Nível I"] || ""), conta: dsc.split(" ")[0], desc: dsc, r: +x.r || 0, b: +x.f || 0 }; }));
     return { tp: tp, fatAno: P.t1.r, resAno: P.t1.e, fatFcAc: P.t1.f, resFcAc: P.t1.g,
       ct: P.t2 ? { fatR: P.t2.r, resR: P.t2.e, fatE: P.t2.f, resE: P.t2.g } : null,
       ind: P.t3 ? { mes: P.t3.r, ac: P.t3.e, custo: P.t3.f, meta: P.t3.g } : null,
-      ponte: FR ? { escopo: tp === "CD" ? "contrato" : "ano", FR: FR, FE: FE, mR: TR / FR * 100, mE: FE ? TE / FE * 100 : null, grupos: grupos } : null };
+      ponteMes: pMes, ponteAno: pAno, ponteAnoOk: P.kAno === true };
   }
   var PA_LIM_EXEC = 0.20;
   function paRs(v) { return v == null || !isFinite(v) ? "–" : (Math.round(v) < 0 ? "R$ (" + fmt(Math.abs(v), 0) + ")" : "R$ " + fmt(Math.abs(v), 0)); }
@@ -2080,20 +2091,29 @@
     return { html: (d.pauta ? "" : '<div class="pa-alerta">Este book foi gerado antes da pauta: FCST anterior acumulado, realizado projetado, contrato e ponte da margem aparecem depois de gerar o book da OS de novo.</div>') + alerta +
       '<div class="pa-cartao">' + c1 + c2 + '</div><div class="pa-cartao">' + c3 + c4 + "</div>", desat: desat ? { fcst: X.fatAno, exec: k.fatMeta, desv: desv } : null };
   }
-  function paPonte(d) {
-    var P = d.pauta && d.pauta.ponte; if (!P || P.mE == null) return "";
-    var dm = P.mR - P.mE, dF = P.FR - P.FE, sinal = function (v) { return (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v), 2) + " p.p."; };
+  function paPonteCaixa(P, o) {
+    var dm = P.mR - P.mB, dF = P.FR - P.FB, sinal = function (v) { return (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v), 2) + " p.p."; };
     var linhas = P.grupos.filter(function (g) { return Math.abs(g.pp) >= 0.05; }).map(function (g) {
       return [esc(g.g.replace(/^[\d.]+\s*/, "")), '<span class="pa-ppv ' + (g.pp < 0 ? "pa-neg" : "pa-pos") + '">' + sinal(g.pp) + "</span>",
         g.top.map(function (c) { return esc(String(c[0]).replace(/^\d+\s*-\s*/, "")) + ' <span class="' + (c[1] < 0 ? "pa-neg" : "pa-pos") + '">' + sinal(c[1]) + "</span> <small>(" + (c[2] < 0 ? paRs(-c[2]) + " acima" : paRs(c[2]) + " abaixo") + " da proporção)</small>"; }).join("<br>")];
     });
-    var ct0 = P.escopo === "contrato", esc0 = ct0 ? "do contrato" : "do ano";
-    var per = ct0 ? "contrato inteiro, do início ao fim (sem corte de ano)" : "ano " + (d.ano || "") + " inteiro, jan a dez (BASE CONSOLIDADA)";
-    return '<div class="pa-box pa-larga pa-ponte"><h5>Margem ' + esc0 + " por grupo de custo</h5>" +
-      '<p class="pa-esc"><span><b>Período:</b> ' + per + '</span><span><b>Comparação:</b> realizado projetado × EXECUTIVO (o FCST não entra)</span><span>sem encargos financeiros</span></p>' +
-      '<p class="pa-ponte-res">Executivo <b>' + paPc(P.mE / 100) + "</b> → realizado projetado <b>" + paPc(P.mR / 100) + '</b> = <span class="' + (dm < 0 ? "pa-neg" : "pa-pos") + '">' + sinal(dm) + "</span></p>" +
-      '<p class="pa-nota">Faturamento ' + esc0 + " " + paRs(P.FR) + " × executivo " + paRs(P.FE) + (P.FE ? " (" + (dF >= 0 ? "+" : "−") + paPc(Math.abs(dF / P.FE)) + ")" : "") + ". <b>Pontos de margem</b> = peso do custo no faturamento do executivo menos o peso no realizado projetado: (+) o grupo aumentou a margem, (−) reduziu. <b>R$</b> = quanto o custo ficou acima ou abaixo do que o executivo gastaria com o faturamento realizado.</p>" +
-      paLista(linhas, ["Grupo de custo", "Pontos de margem", "Principais contas"]) + "</div>";
+    return '<div class="pa-box pa-larga pa-ponte"><h5>' + o.nome + "</h5>" +
+      '<p class="pa-esc"><span><b>Período:</b> ' + o.per + '</span><span><b>Comparação:</b> ' + o.cmp + '</span><span>sem encargos financeiros</span></p>' +
+      '<p class="pa-ponte-res">' + o.base + ' <b>' + paPc(P.mB / 100) + "</b> → " + o.real + " <b>" + paPc(P.mR / 100) + '</b> = <span class="' + (dm < 0 ? "pa-neg" : "pa-pos") + '">' + sinal(dm) + "</span></p>" +
+      '<p class="pa-nota">Faturamento ' + paRs(P.FR) + " × " + o.baseTxt + " " + paRs(P.FB) + " (" + (dF >= 0 ? "+" : "−") + paPc(Math.abs(dF / P.FB)) + "). <b>Pontos de margem</b> = peso do custo no faturamento do " + o.baseTxt + " menos o peso no " + o.real + ": (+) o grupo aumentou a margem, (−) reduziu. <b>R$</b> = quanto o custo ficou acima ou abaixo do que o " + o.baseTxt + " gastaria com o faturamento " + o.real + ".</p>" +
+      (linhas.length ? paLista(linhas, ["Grupo de custo", "Pontos de margem", "Principais contas"]) : '<p class="pa-nota">Nenhum grupo moveu a margem em 0,05 p.p. ou mais.</p>') + "</div>";
+  }
+  function paPonte(d) {
+    var X = d.pauta; if (!X) return "";
+    if (!X.ponteMes && !X.ponteAno) return X.ponte ? '<div class="pa-alerta">A explicação da margem por grupo de custo agora é do mês (× FCST anterior) e do ano (× executivo): gere o book desta OS de novo para aparecer.</div>' : "";
+    var m = MES[d.mes], h = "";
+    var vz = X.ponteMes && X.ponteMes.vazio;
+    h += X.ponteMes && !vz ? paPonteCaixa(X.ponteMes, { nome: "Margem do mês por grupo de custo · " + m, per: m + " (só o mês)", cmp: "realizado × FCST ANTERIOR (o FCST feito no mês anterior para " + m + ")", base: "FCST anterior", baseTxt: "FCST anterior", real: "realizado" })
+      : '<div class="pa-box pa-larga"><h5>Margem do mês por grupo de custo · ' + m + '</h5><p class="pa-nota">' + (vz === "fat" ? "Sem faturamento realizado em " + m + ": não há margem do mês para explicar." : "Sem FCST anterior por conta para " + m + ": não há com o que comparar.") + "</p></div>";
+    if (X.ponteAno && X.ponteAno.vazio) h += '<div class="pa-box pa-larga"><h5>Margem do ano por grupo de custo · ' + (d.ano || "") + '</h5><p class="pa-nota">' + (X.ponteAno.vazio === "fat" ? "Sem faturamento no ano." : "Sem executivo do ano por conta: não há com o que comparar.") + "</p></div>";
+    else if (X.ponteAno && X.ponteAnoOk) h += paPonteCaixa(X.ponteAno, { nome: "Margem do ano por grupo de custo · " + (d.ano || ""), per: "ano " + (d.ano || "") + " inteiro, jan a dez (realizado até " + m + " + projetado)", cmp: "realizado projetado × EXECUTIVO do ano", base: "Executivo", baseTxt: "executivo", real: "realizado projetado" });
+    else if (X.ponteAno) h += '<div class="pa-alerta">A margem do ano por grupo de custo aparece depois de gerar o book desta OS de novo.</div>';
+    return h;
   }
   function paGrafico(d, semAtiv) {
     var f = d.S.fin || {}, m = d.mes, ms = []; for (var i = 1; i <= m; i++) ms.push(i);

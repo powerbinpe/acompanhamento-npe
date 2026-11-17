@@ -468,7 +468,7 @@
       var qf = await abrirNoQuadro((await lerUrlOS(cfg, todas[0], ano, mesBook)) + "&NPE_DRY=1");
       var mapaF = {};
       try { mapaF = await qf.win.BOOK.lerNivel("os", true) || {}; } finally { fecharQuadro(qf); }
-      var faltam = todas.filter(function (cod) { var r0 = mapaF[String(cod).toUpperCase()], d0 = r0 && r0.d; return !(d0 && d0.ano === ano && d0.mes === mesBook && d0.txt && d0.txt.situacao && d0.pauta); });   // book no formato antigo (sem situacao) tambem e refeito
+      var faltam = todas.filter(function (cod) { var r0 = mapaF[String(cod).toUpperCase()], d0 = r0 && r0.d; return !(d0 && d0.ano === ano && d0.mes === mesBook && d0.txt && d0.txt.situacao && d0.pauta && ("ponteMes" in d0.pauta) && d0.pauta.ponteAnoOk); });   // book no formato antigo (sem situacao) tambem e refeito
       faltam.forEach(function (cod) { plano.tarefas.push({ etapa: "aba6", chave: "aba6_" + ano + "_" + mesBook, os: cod, ano: ano, mes: mesBook }); });
       plano.log.push("Books de OS para " + (MESES[mesBook - 1] || mesBook) + ": " + faltam.length + " a gerar de " + todas.length + " OSs do grupo" + (faltam.length ? " (" + faltam.join(", ") + ")." : " (todas ja tem o book do mes)."));
     } else if (et === "aba6d") {
