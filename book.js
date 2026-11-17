@@ -2093,14 +2093,17 @@
   }
   function paPonteCaixa(P, o) {
     var dm = P.mR - P.mB, dF = P.FR - P.FB, sinal = function (v) { return (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v), 2) + " p.p."; };
+    var semReal = o.semReal || {}, nSR = 0;
     var linhas = P.grupos.filter(function (g) { return Math.abs(g.pp) >= 0.05; }).map(function (g) {
-      return [esc(g.g.replace(/^[\d.]+\s*/, "")), '<span class="pa-ppv ' + (g.pp < 0 ? "pa-neg" : "pa-pos") + '">' + sinal(g.pp) + "</span>",
+      var sr = semReal[g.g]; if (sr) nSR++;
+      return [esc(g.g.replace(/^[\d.]+\s*/, "")) + (sr ? '<br><small class="pa-prov">sem lançamento real no mês · ' + o.baseTxt + " previa " + paRs(-sr) + "</small>" : ""), '<span class="pa-ppv ' + (g.pp < 0 ? "pa-neg" : "pa-pos") + '">' + sinal(g.pp) + "</span>",
         g.top.map(function (c) { return esc(String(c[0]).replace(/^\d+\s*-\s*/, "")) + ' <span class="' + (c[1] < 0 ? "pa-neg" : "pa-pos") + '">' + sinal(c[1]) + "</span> <small>(" + (c[2] < 0 ? paRs(-c[2]) + " acima" : paRs(c[2]) + " abaixo") + " da proporção)</small>"; }).join("<br>")];
     });
     return '<div class="pa-box pa-larga pa-ponte"><h5>' + o.nome + "</h5>" +
       '<p class="pa-esc"><span><b>Período:</b> ' + o.per + '</span><span><b>Comparação:</b> ' + o.cmp + '</span><span>sem encargos financeiros</span></p>' +
       '<p class="pa-ponte-res">' + o.base + ' <b>' + paPc(P.mB / 100) + "</b> → " + o.real + " <b>" + paPc(P.mR / 100) + '</b> = <span class="' + (dm < 0 ? "pa-neg" : "pa-pos") + '">' + sinal(dm) + "</span></p>" +
       '<p class="pa-nota">Faturamento ' + paRs(P.FR) + " × " + o.baseTxt + " " + paRs(P.FB) + " (" + (dF >= 0 ? "+" : "−") + paPc(Math.abs(dF / P.FB)) + "). <b>Pontos de margem</b> = peso do custo no faturamento do " + o.baseTxt + " menos o peso no " + o.real + ": (+) o grupo aumentou a margem, (−) reduziu. <b>R$</b> = quanto o custo ficou acima ou abaixo do que o " + o.baseTxt + " gastaria com o faturamento " + o.real + ".</p>" +
+      (nSR ? '<p class="pa-alerta">Há grupo sem nenhum lançamento real no mês (marcado abaixo): confirmar com a OS se o custo ainda vai entrar (lançamento atrasado) ou se de fato não houve gasto. Se o lançamento entrar depois, a margem do mês muda.</p>' : "") +
       (linhas.length ? paLista(linhas, ["Grupo de custo", "Pontos de margem", "Principais contas"]) : '<p class="pa-nota">Nenhum grupo moveu a margem em 0,05 p.p. ou mais.</p>') + "</div>";
   }
   function paPonte(d) {
@@ -2108,7 +2111,13 @@
     if (!X.ponteMes && !X.ponteAno) return X.ponte ? '<div class="pa-alerta">A explicação da margem por grupo de custo agora é do mês (× FCST anterior) e do ano (× executivo): gere o book desta OS de novo para aparecer.</div>' : "";
     var m = MES[d.mes], h = "";
     var vz = X.ponteMes && X.ponteMes.vazio;
-    h += X.ponteMes && !vz ? paPonteCaixa(X.ponteMes, { nome: "Margem do mês por grupo de custo · " + m, per: m + " (só o mês)", cmp: "realizado × FCST ANTERIOR (o FCST feito no mês anterior para " + m + ")", base: "FCST anterior", baseTxt: "FCST anterior", real: "realizado" })
+    // grupo sem lancamento real no mes (ex.: deducoes ainda nao lancadas) -- pelas linhas do mes do book
+    var semReal = {}, acc = {};
+    ((d.S.fin || {}).linhas || []).forEach(function (l) {
+      var niv = String(l[0] || ""), sub = String(l[1] || ""); if (/^3\.1\.1\.[15]/.test(sub)) return;
+      var g = /^3\./.test(niv) ? "3.1.1. DEDUCOES DA RECEITA" : niv, a = acc[g] = acc[g] || { r: 0, f: 0 }; a.r += +l[4] || 0; a.f += +l[5] || 0; });
+    Object.keys(acc).forEach(function (g) { if (Math.abs(acc[g].r) < 1 && acc[g].f <= -1) semReal[g] = acc[g].f; });
+    h += X.ponteMes && !vz ? paPonteCaixa(X.ponteMes, { nome: "Margem do mês por grupo de custo · " + m, per: m + " (só o mês)", cmp: "realizado × FCST ANTERIOR (o FCST feito no mês anterior para " + m + ")", base: "FCST anterior", baseTxt: "FCST anterior", real: "realizado", semReal: semReal })
       : '<div class="pa-box pa-larga"><h5>Margem do mês por grupo de custo · ' + m + '</h5><p class="pa-nota">' + (vz === "fat" ? "Sem faturamento realizado em " + m + ": não há margem do mês para explicar." : "Sem FCST anterior por conta para " + m + ": não há com o que comparar.") + "</p></div>";
     if (X.ponteAno && X.ponteAno.vazio) h += '<div class="pa-box pa-larga"><h5>Margem do ano por grupo de custo · ' + (d.ano || "") + '</h5><p class="pa-nota">' + (X.ponteAno.vazio === "fat" ? "Sem faturamento no ano." : "Sem executivo do ano por conta: não há com o que comparar.") + "</p></div>";
     else if (X.ponteAno && X.ponteAnoOk) h += paPonteCaixa(X.ponteAno, { nome: "Margem do ano por grupo de custo · " + (d.ano || ""), per: "ano " + (d.ano || "") + " inteiro, jan a dez (realizado até " + m + " + projetado)", cmp: "realizado projetado × EXECUTIVO do ano", base: "Executivo", baseTxt: "executivo", real: "realizado projetado" });
@@ -2242,7 +2251,7 @@
     "col.pa-c-ind{width:17%}col.pa-c-strip{width:140px}col.pa-c-sit{width:118px}col.pa-c-val{width:27%}col.pa-c-cob{width:34%}td.pa-cob{color:var(--pa-bad);font-weight:600}td.pa-sem{color:#B8C0CE}.pa-reg{margin-top:12px}.pa-reg{table-layout:auto}.pa-reg td:not(:first-child),.pa-reg th:not(:first-child){text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}" +
     ".pa-strip{display:inline-flex;gap:2px;vertical-align:middle}.pa-strip i{width:12px;height:12px;border-radius:2px;background:#E2E6EE}.pa-strip i.pa-sa{background:#2F8F6B}.pa-strip i.pa-sn{background:#C2434A}.pa-strip i.pa-sv{background:#E3C766}" +
     ".pa-pill{display:inline-block;border-radius:10px;padding:0 7px;font-size:14px;font-weight:700;white-space:nowrap}.pa-ok{background:var(--pa-okb);color:var(--pa-ok)}.pa-bad{background:var(--pa-badb);color:var(--pa-bad)}.pa-na{background:var(--pa-nab);color:var(--pa-na)}.pa-x{background:#EEF1F5;color:#8A94A6}" +
-    ".pa-duas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.pa-box{border:1px solid var(--pa-line);border-radius:10px;padding:8px 12px;min-width:0}.pa-box.pa-larga{margin-top:12px}.pa-box h5{margin:0 0 4px;font-size:15.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--pa-navy)}.pa-esc{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}.pa-esc span{background:var(--pa-bg);border:1px solid var(--pa-line);border-radius:6px;padding:2px 8px;font-size:14px;color:var(--pa-ink)}.pa-ponte-res{margin:0 0 4px;font-size:18px}.pa-ponte-res span{font-weight:700}" +
+    ".pa-duas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.pa-box{border:1px solid var(--pa-line);border-radius:10px;padding:8px 12px;min-width:0}.pa-box.pa-larga{margin-top:12px}.pa-box h5{margin:0 0 4px;font-size:15.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--pa-navy)}.pa-esc{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}.pa-esc span{background:var(--pa-bg);border:1px solid var(--pa-line);border-radius:6px;padding:2px 8px;font-size:14px;color:var(--pa-ink)}.pa-ponte-res{margin:0 0 4px;font-size:18px}.pa-prov{color:#7C2D12;font-weight:600}.pa-ponte-res span{font-weight:700}" +
     ".pa-std{width:100%;border-collapse:collapse;table-layout:fixed}.pa-std col.pa-cn{width:40px}.pa-std col.pa-clab{width:290px}.pa-std col.pa-c3{width:34%}.pa-std th{text-align:left;font-size:14px;color:var(--pa-mut);font-weight:600;padding:3px 6px;border-bottom:1px solid var(--pa-line)}.pa-std td{padding:6px;border-top:1px solid var(--pa-line);vertical-align:top;line-height:1.4}.pa-std td.pa-num{color:var(--pa-mut);text-align:right;padding-right:10px}.pa-std td.pa-lab{font-weight:700;color:var(--pa-navy)}" +
     ".pa-acoes em{color:var(--pa-navy);font-style:normal;font-weight:700;text-decoration:underline}.pa-cnt{background:var(--pa-badb);color:var(--pa-bad);border-radius:10px;padding:0 7px;font-size:15px}.pa-nota{font-size:14px;color:var(--pa-mut);margin:4px 0 0}.pa-ponte .pa-std col.pa-c3{width:auto}.pa-ponte .pa-std.pa-t4 col:nth-child(3){width:160px}.pa-ppv{font-size:19px;font-weight:700}.pa-ponte td small{color:var(--pa-mut)}" +
     ".bk-vista{display:inline-flex;border:1px solid #CBD5E1;border-radius:8px;overflow:hidden;margin-left:8px}.bk-vista button{border:0;background:#fff;padding:6px 12px;font-size:15.5px;cursor:pointer;color:#14204A}.bk-vista button.on{background:#14204A;color:#fff}" +
