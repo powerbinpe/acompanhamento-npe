@@ -36,7 +36,7 @@
   CSS += ".rl-tab small.rl-v{display:block;font-size:10.5px;color:#5B6B82;font-weight:600;line-height:1.2}.rl-coer td{vertical-align:top}.rl-coer td .bk-pill{margin-left:0}.rl-coer td:last-child{white-space:normal;min-width:180px;text-align:left}.rl-coer th,.rl-coer td{padding-left:6px;padding-right:6px}.rl-coer small.rl-vn{display:block;font-size:11px;color:#334155;line-height:1.35;margin-top:3px}";
   (function () { var s = document.createElement("style"); s.id = "bkCss"; s.textContent = CSS; document.head.appendChild(s); })();
 
-  var st = { nivel: "os", sel: { os: "", ger: "", sup: "" }, linhas: { os: null, ger: null, sup: null, dir: null }, carregando: false, msg: "" };
+  var st = { nivel: "os", vista: "pauta", sel: { os: "", ger: "", sup: "" }, linhas: { os: null, ger: null, sup: null, dir: null }, carregando: false, msg: "" };
 
   // ------------------------------------------------------------------ utilidades
   function el(id) { return document.getElementById(id); }
@@ -193,7 +193,8 @@
     var j = await r.json();
     if (!j || j.ok !== true) throw new Error("O fluxo não devolveu os dados.");
     // fin = contabil numa tabela so: C = conta x mes (real, executivo, FCST anterior), E = eventos da folha (CT2), M = executivo/FCST do mes
-    var custos = [], evt = [], mesx = [], proj = [], projx = [], fer = null, ctt = {}, resp = [], hex = [], ferRH = null;
+    var custos = [], evt = [], mesx = [], proj = [], projx = [], fer = null, ctt = {}, resp = [], hex = [], ferRH = null, pr = { t1: null, t2: null, t3: null, k: [] };
+    var numOuNulo = function (v) { return v == null || v === "" ? null : +v; };
     norm(j.fin).forEach(function (x) {
       if (x.tipo === "C") custos.push({ "Nível": x.a, "Sub Nível I": x.b, "C.Contabil - Descricao": x.c, MesNo: x.mes, r: x.r, e: x.e, f: x.f });
       else if (x.tipo === "E") evt.push({ "C.Contábil": x.a, "Histórico de Lançamento": x.c, MesNo: x.mes, v: x.r });
@@ -204,9 +205,11 @@
       else if (x.tipo === "F") fer = { f30: x.r, f45: x.e, saldo: x.f, tot: x.g };
       else if (x.tipo === "X") hex.push({ m: parseInt(x.mes, 10) || 0, acima: x.r == null ? null : +x.r, pessoas: x.e == null ? null : +x.e, horas: x.f == null ? null : +x.f });
       else if (x.tipo === "Y") ferRH = { f45: x.r == null ? null : +x.r };
+      else if (x.tipo === "T1" || x.tipo === "T2" || x.tipo === "T3") pr[x.tipo.toLowerCase()] = { c: x.c, r: numOuNulo(x.r), e: numOuNulo(x.e), f: numOuNulo(x.f), g: numOuNulo(x.g) };
+      else if (x.tipo === "K") { var cc0 = String(x.c || "").split("|"); pr.k.push({ nivel: String(x.a || ""), conta: String(x.b || ""), sub: cc0[0], desc: cc0.slice(1).join("|"), r: +x.r || 0, e: +x.e || 0 }); }
       else if (x.tipo === "H") { var cc = String(x.b || "").toUpperCase(); ctt[cc] = ctt[cc] || {}; if (ctt[cc][x.a] == null) ctt[cc][x.a] = x.c == null ? "" : String(x.c); }
     });
-    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, proj: proj, projx: projx, fer: fer, ctt: ctt, resp: resp, ri2: norm(j.ri2), dir: norm(j.dir), hex: hex, ferRH: ferRH };
+    return { rh: norm(j.rh), ri: norm(j.ri), hist: norm(j.hist), custos: custos, evt: evt, mesx: mesx, proj: proj, projx: projx, fer: fer, ctt: ctt, resp: resp, ri2: norm(j.ri2), dir: norm(j.dir), hex: hex, ferRH: ferRH, pautaRaw: pr };
   }
   function configurarFluxo() {
     var f = document.createElement("div");
@@ -968,7 +971,7 @@
     if (!C.S.fin) throw new Error("O fluxo NPE-Ler-Dados-Book não devolveu o contábil da OS (consulta de custos).");
     var book = {
       v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: (H.rotulo && H.rotulo.indexOf("|") > 0 && H.grupo) ? H.grupo : (H.desc || C.contract.name || ""), descCtt: !!H.ctt, hist: hist, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
-      ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal, semTrat: C.semTrat, semAtiv: C.semAtiv, estagio: (C.contract && C.contract.estagio) || "",
+      ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal, semTrat: C.semTrat, semAtiv: C.semAtiv, estagio: (C.contract && C.contract.estagio) || "", pauta: montarPauta(dados.pautaRaw),
       kpi: C.kpi, S: C.S, inds: C.inds, valoresSemOrigem: gc.semOrigem, coerJust: (function () { var o = {}; coerenciaEfetivo(C.S).rows.forEach(function (r) { if (r.ruim) o[r.m] = justificouMes(os, r.m); }); return o; })(),
       txt: { coerencia: Array.isArray(j.coerencia) ? j.coerencia.slice(0, 12) : [], situacao: j.situacao, positivos: j.positivos.slice(0, 5), receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
         plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10), repetidos: valoresRepetidos({ situacao: j.situacao, positivos: j.positivos, receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, foco: j.plano }) }
@@ -2014,6 +2017,215 @@
     return '<article class="rl">' + h.join("") + "</article>";
   }
 
+  // ------------------------------------------------------------------ Pauta da reuniao (Gerencia / Superintendencia)
+  // 17/11/2026 (usuario): a reuniao mensal e OS a OS; a regional fica no fim. Tudo sem encargos financeiros.
+  // Le os books das OSs do MES DO FILTRO. Cobranca so com registro no mes, pela regra de cada indicador; acoes no fim
+  // de cada OS, sempre com o dado. Valores: FCST anterior (mes e acumulado = arquivo FCST do mes), realizado projetado
+  // (BASE CONSOLIDADA), contrato (CD) e ponte da margem por conta -- vindos do fluxo (linhas T1/T2/T3/K).
+  function montarPauta(P) {
+    if (!P || !P.t1) return null;
+    var isFat = function (k) { return /^3\.1\.1\.11\.|^3\.1\.1\.51\./.test(k.sub) || k.conta === "31131006" || k.conta === "31131010"; };
+    var FR = 0, FE = 0, TR = 0, TE = 0;
+    P.k.forEach(function (k) { TR += k.r; TE += k.e; if (isFat(k)) { FR += k.r; FE += k.e; } });
+    var G = {};
+    P.k.filter(function (k) { return !isFat(k); }).forEach(function (k) {
+      var g = /^3\./.test(k.nivel) ? "3.1.1. DEDUCOES DA RECEITA" : k.nivel, x = G[g] = G[g] || { g: g, pp: 0, contas: [] };
+      var pp = FR ? (k.r / FR - (FE ? k.e / FE : 0)) * 100 : 0;
+      x.pp += pp; x.contas.push([k.desc, pp, k.r - k.e * (FE ? FR / FE : 0)]);
+    });
+    var grupos = Object.keys(G).map(function (k) { return G[k]; }).sort(function (a, b) { return Math.abs(b.pp) - Math.abs(a.pp); })
+      .map(function (g) { return { g: g.g, pp: g.pp, top: g.contas.filter(function (c) { return Math.abs(c[1]) >= 0.05; }).sort(function (a, b) { return Math.abs(b[1]) - Math.abs(a[1]); }).slice(0, 4) }; });
+    var tp = String(P.t1.c || "");
+    return { tp: tp, fatAno: P.t1.r, resAno: P.t1.e, fatFcAc: P.t1.f, resFcAc: P.t1.g,
+      ct: P.t2 ? { fatR: P.t2.r, resR: P.t2.e, fatE: P.t2.f, resE: P.t2.g } : null,
+      ind: P.t3 ? { mes: P.t3.r, ac: P.t3.e, custo: P.t3.f, meta: P.t3.g } : null,
+      ponte: FR ? { escopo: tp === "CD" ? "contrato" : "ano", FR: FR, FE: FE, mR: TR / FR * 100, mE: FE ? TE / FE * 100 : null, grupos: grupos } : null };
+  }
+  var PA_LIM_EXEC = 0.20;
+  function paRs(v) { return v == null || !isFinite(v) ? "–" : (Math.round(v) < 0 ? "R$ (" + fmt(Math.abs(v), 0) + ")" : "R$ " + fmt(Math.abs(v), 0)); }
+  function paPc(v) { return v == null || !isFinite(v) ? "–" : fmt(v * 100, 2) + "%"; }
+  function paPp(v) { return v == null || !isFinite(v) ? "–" : (v >= 0 ? "+" : "−") + fmt(Math.abs(v * 100), 2) + " p.p."; }
+  function paMg(r, f) { return f ? r / f : null; }
+  function paDif(a, b) { return a == null || b == null ? null : a - b; }
+  function paNeg(v) { return /^R\$ \(|^−|^-/.test(v) ? " pa-neg" : ""; }
+  function paLista(linhas, cab) {
+    var n3 = linhas.some(function (l) { return l.length > 2; });
+    return '<table class="pa-std' + (n3 ? " pa-t4" : "") + '"><colgroup><col class="pa-cn"><col class="pa-clab"><col>' + (n3 ? '<col class="pa-c3">' : "") + "</colgroup>" +
+      (cab ? "<thead><tr><th></th>" + cab.map(function (c) { return "<th>" + c + "</th>"; }).join("") + "</tr></thead>" : "") + "<tbody>" +
+      linhas.map(function (l, i) { return '<tr><td class="pa-num">' + (i + 1) + '</td><td class="pa-lab">' + l[0] + "</td><td>" + l[1] + "</td>" + (n3 ? "<td>" + (l[2] || "") + "</td>" : "") + "</tr>"; }).join("") + "</tbody></table>";
+  }
+  function paGrade(tit, sub, cab, linhas, gaps) {
+    return '<div class="pa-col"><h4>' + tit + '</h4><p class="pa-sub">' + sub + '</p><table class="pa-gr"><thead><tr><th></th>' + cab.map(function (c) { return "<th>" + c + "</th>"; }).join("") + "</tr></thead><tbody>" +
+      linhas.map(function (l) { return '<tr><td class="pa-l">' + l[0] + "</td>" + l.slice(1).map(function (v, i) { return '<td class="' + (i === 0 ? "pa-rl" : i === 1 ? "pa-fc" : "pa-ex") + paNeg(v) + '">' + v + "</td>"; }).join("") + "</tr>"; }).join("") +
+      '</tbody></table><div class="pa-gap">' + gaps.map(function (g) { return "<div><span>" + g[0] + '</span><b class="' + (g[1] == null ? "" : g[1] < 0 ? "pa-neg" : "pa-pos") + '">' + paPp(g[1]) + "</b></div>"; }).join("") + "</div></div>";
+  }
+  function paSemAtiv(d) { if (d.semAtiv) return d.semAtiv; var s = []; for (var m = 1; m <= d.mes; m++) if (!mesComAtividade(d.S, m)) s.push(m); return s; }
+  function paCartao(d) {
+    var f = d.S.fin || {}, k = d.kpi || {}, m = d.mes, X = d.pauta || {}, fcm = (f.fc || []).filter(function (x) { return x.m === m; })[0] || {};
+    var fatM = d.S.rh.fat[m - 1], resM = d.S.rh.res[m - 1], arq = "FCST" + (m < 10 ? "0" : "") + m;
+    var c1 = paGrade(MES[m] + " · mês", "FCST anterior = o FCST feito no mês anterior para " + MES[m] + " (base da assertividade)", ["Realizado", "FCST anterior", "Executivo"],
+      [["Faturamento", paRs(fatM), paRs(fcm.fatFc), paRs(fcm.fatEx)], ["Resultado", paRs(resM), paRs(fcm.resFc), paRs(fcm.resEx)], ["Margem", paPc(paMg(resM, fatM)), paPc(paMg(fcm.resFc, fcm.fatFc)), paPc(paMg(fcm.resEx, fcm.fatEx))]],
+      [["Realizado − FCST anterior", paDif(paMg(resM, fatM), paMg(fcm.resFc, fcm.fatFc))], ["Realizado − executivo", paDif(paMg(resM, fatM), paMg(fcm.resEx, fcm.fatEx))]]);
+    var c2 = paGrade("Acumulado jan–" + MES[m], "FCST anterior = arquivo " + arq + ", de jan a " + MES[m], ["Realizado", "FCST anterior", "Executivo"],
+      [["Faturamento", paRs(f.FR), paRs(X.fatFcAc), paRs(f.FE)], ["Resultado", paRs(f.resReal), paRs(X.resFcAc), paRs(f.resExec)], ["Margem", paPc(paMg(f.resReal, f.FR)), paPc(paMg(X.resFcAc, X.fatFcAc)), paPc(paMg(f.resExec, f.FE))]],
+      [["Realizado − FCST anterior", paDif(paMg(f.resReal, f.FR), paMg(X.resFcAc, X.fatFcAc))], ["Realizado − executivo", paDif(paMg(f.resReal, f.FR), paMg(f.resExec, f.FE))]]);
+    var c3 = paGrade("Ano", "Faturamento Ano e Resultado Ano da BASE CONSOLIDADA (realizado + projetado até dez)", ["Realizado até " + MES[m], "Realizado projetado", "Executivo"],
+      [["Faturamento", paRs(f.FR), paRs(X.fatAno), paRs(k.fatMeta)], ["Resultado", paRs(f.resReal), paRs(X.resAno), paRs(k.resMeta)], ["Margem", paPc(paMg(f.resReal, f.FR)), paPc(paMg(X.resAno, X.fatAno)), paPc(paMg(k.resMeta, k.fatMeta))]],
+      [["Realizado projetado − executivo", paDif(paMg(X.resAno, X.fatAno), paMg(k.resMeta, k.fatMeta))]]);
+    var ct = X.ct, c4 = X.tp === "CD" && ct ? paGrade("Contrato · do início ao fim (CD)", "BASE CONSOLIDADA e EXECUTIVO do contrato, sem corte de ano · sem encargos financeiros", ["Realizado projetado", "Executivo", ""],
+      [["Faturamento", paRs(ct.fatR), paRs(ct.fatE), ""], ["Resultado", paRs(ct.resR), paRs(ct.resE), ""], ["Margem", paPc(paMg(ct.resR, ct.fatR)), paPc(paMg(ct.resE, ct.fatE)), ""]],
+      [["Realizado projetado − executivo", paDif(paMg(ct.resR, ct.fatR), paMg(ct.resE, ct.fatE))]]) : "<div></div>";
+    var desv = k.fatMeta && X.fatAno != null ? X.fatAno / k.fatMeta - 1 : null, desat = desv != null && Math.abs(desv) > PA_LIM_EXEC;
+    var alerta = desat ? '<div class="pa-alerta"><b>Executivo possivelmente desatualizado:</b> realizado projetado do ano ' + paRs(X.fatAno) + " × executivo " + paRs(k.fatMeta) + " (" + (desv > 0 ? "+" : "−") + paPc(Math.abs(desv)) + "). Se houve aditivo com aumento ou redução de efetivo, a <b>solicitação de revisão do executivo é responsabilidade da Operação responsável pela OS</b>.</div>" : "";
+    return { html: (d.pauta ? "" : '<div class="pa-alerta">Este book foi gerado antes da pauta: FCST anterior acumulado, realizado projetado, contrato e ponte da margem aparecem depois de gerar o book da OS de novo.</div>') + alerta +
+      '<div class="pa-cartao">' + c1 + c2 + '</div><div class="pa-cartao">' + c3 + c4 + "</div>", desat: desat ? { fcst: X.fatAno, exec: k.fatMeta, desv: desv } : null };
+  }
+  function paPonte(d) {
+    var P = d.pauta && d.pauta.ponte; if (!P || P.mE == null) return "";
+    var dm = P.mR - P.mE, dF = P.FR - P.FE, sinal = function (v) { return (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v), 2) + " p.p."; };
+    var linhas = P.grupos.filter(function (g) { return Math.abs(g.pp) >= 0.05; }).map(function (g) {
+      return [esc(g.g.replace(/^[\d.]+\s*/, "")), '<span class="pa-ppv ' + (g.pp < 0 ? "pa-neg" : "pa-pos") + '">' + sinal(g.pp) + "</span>",
+        g.top.map(function (c) { return esc(String(c[0]).replace(/^\d+\s*-\s*/, "")) + ' <span class="' + (c[1] < 0 ? "pa-neg" : "pa-pos") + '">' + sinal(c[1]) + "</span> <small>(" + (c[2] < 0 ? paRs(-c[2]) + " acima" : paRs(c[2]) + " abaixo") + " da proporção)</small>"; }).join("<br>")];
+    });
+    var esc0 = P.escopo === "contrato" ? "do contrato" : "do ano";
+    return '<div class="pa-box pa-larga pa-ponte"><h5>Por que a margem ' + esc0 + " foi de " + paPc(P.mE / 100) + " (executivo) para " + paPc(P.mR / 100) + ' (realizado projetado): <span class="' + (dm < 0 ? "pa-neg" : "pa-pos") + '">' + sinal(dm) + "</span></h5>" +
+      '<p class="pa-nota">Faturamento ' + esc0 + " " + paRs(P.FR) + " × executivo " + paRs(P.FE) + (P.FE ? " (" + (dF >= 0 ? "+" : "−") + paPc(Math.abs(dF / P.FE)) + ")" : "") + ". Cada grupo mostra quantos pontos de margem somou (+) ou tirou (−): custo do grupo sobre o faturamento, executivo × realizado projetado. Base sem encargos financeiros nos dois lados.</p>" +
+      paLista(linhas, ["Grupo de custo", "Pontos de margem", "Principais contas"]) + "</div>";
+  }
+  function paGrafico(d, semAtiv) {
+    var f = d.S.fin || {}, m = d.mes, ms = []; for (var i = 1; i <= m; i++) ms.push(i);
+    var fcd = function (mm, k) { var x = (f.fc || []).filter(function (z) { return z.m === mm; })[0]; return x ? x[k] : null; };
+    var r = ms.map(function (mm) { return semAtiv.indexOf(mm) >= 0 ? null : d.S.rh.res[mm - 1]; }), fc = ms.map(function (mm) { return fcd(mm, "resFc"); }), ex = ms.map(function (mm) { return fcd(mm, "resEx"); });
+    var vals = r.concat(fc, ex).filter(function (v) { return v != null; }); var mx = Math.max.apply(null, [0].concat(vals)), mn = Math.min.apply(null, [0].concat(vals)), H = 140, W = 1100, l = 8, bw = (W - l * 2) / ms.length;
+    var y = function (v) { return 12 + (mx - v) / ((mx - mn) || 1) * (H - 28); };
+    var s = '<line x1="' + l + '" x2="' + (W - l) + '" y1="' + y(0) + '" y2="' + y(0) + '" class="pa-ax"/>';
+    ms.forEach(function (mm, i) {
+      var x = l + i * bw + bw * 0.3, w = bw * 0.4;
+      if (r[i] != null) s += '<rect x="' + x + '" y="' + Math.min(y(r[i]), y(0)) + '" width="' + w + '" height="' + Math.max(1.5, Math.abs(y(r[i]) - y(0))) + '" rx="2" class="' + (r[i] < 0 ? "pa-bneg" : "pa-bpos") + '"><title>' + MES[mm] + ": realizado " + paRs(r[i]) + (fc[i] != null ? " · FCST anterior " + paRs(fc[i]) : "") + (ex[i] != null ? " · executivo " + paRs(ex[i]) : "") + "</title></rect>";
+      if (fc[i] != null) s += '<line x1="' + (x - 6) + '" x2="' + (x + w + 6) + '" y1="' + y(fc[i]) + '" y2="' + y(fc[i]) + '" class="pa-mfc"/>';
+      if (ex[i] != null) s += '<circle cx="' + (x + w / 2) + '" cy="' + y(ex[i]) + '" r="3.4" class="pa-mex"/>';
+      s += '<text x="' + (x + w / 2) + '" y="' + (H - 2) + '" text-anchor="middle" class="pa-tx">' + MES[mm] + (semAtiv.indexOf(mm) >= 0 ? " ·" : "") + "</text>";
+    });
+    return '<figure class="pa-fig"><figcaption>Resultado mês a mês · barra = realizado (vermelho = negativo) · traço = FCST anterior · ponto = executivo' + (semAtiv.length ? " · “·” = sem atividade" : "") + '</figcaption><svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" role="img">' + s + "</svg></figure>";
+  }
+  var PA_EFP = { "SEM PLANO": "criar plano", "SEM EFEITO": "trocar o plano", "PIOROU": "trocar o plano", "PARCIAL": "ajustar o plano" };
+  function paCobranca(d, x) {
+    var m = d.mes, i = m - 1, c = (x.strip || "").charAt(i), S = d.S, rh = S.rh, efet = rh.efet[i];
+    if (c !== "N") return null;
+    var projFut = (S.proj && S.proj.meses) || [], semProj = projFut.length && projFut.every(function (p) { return p.efet == null; });
+    var fcm = (S.fin && S.fin.fc || []).filter(function (z) { return z.m === m; })[0] || {}, dd;
+    switch (x.id) {
+      case 9: dd = "efetivo real " + fmt(efet, 0) + " × projetado " + fmt(rh.efetPR[i], 0) + (semProj ? "; sem projeção de " + MES[projFut[0].m] + " a " + MES[projFut[projFut.length - 1].m] : "");
+        return { txt: "Revisar a projeção: " + dd, dado: dd, acao: "revisar a projeção de efetivo" };
+      case 10: dd = "HHT real " + fmt(rh.hht[i], 0) + " h × projetado " + fmt(rh.hhtPR[i], 0) + " h"; return { txt: "Revisar a projeção: " + dd, dado: dd, acao: "revisar a projeção de HHT" };
+      case 13: { var h = S.qual && S.qual.hex && S.qual.hex[m]; if (!h || !h.acima) return null; var lim = /PARADA/i.test(d.neg || "") ? 60 : 55;
+        dd = fmt(h.acima, 0) + (h.acima === 1 ? " funcionário" : " funcionários") + " acima do limite legal de " + lim + " h = " + paPc(efet ? h.acima / efet : null) + " do efetivo (" + fmt(efet, 0) + ")";
+        return { txt: dd, acao: "reduzir o número de funcionários acima do limite legal de hora extra" }; }
+      case 14: { var q = S.qual && S.qual.fer45 != null ? S.qual.fer45 : rh.fer45; if (!q) return null;
+        dd = fmt(q, 0) + (q === 1 ? " pessoa" : " pessoas") + " com mais de 45 dias de férias = " + paPc(efet ? q / efet : null) + " do efetivo (" + fmt(efet, 0) + ")";
+        return { txt: dd, acao: "programar a saída de férias de quem passa de 45 dias" }; }
+      case 4: { var mr = paMg(rh.res[i], rh.fat[i]), mf = paMg(fcm.resFc, fcm.fatFc); dd = "margem real " + paPc(mr) + " × FCST anterior " + paPc(mf) + " (" + paPp(paDif(mr, mf)) + ")";
+        return { txt: dd, acao: "justificar o desvio do FCST de " + MES[m] }; }
+      case 11: if (emDesmobilizacao(d.estagio)) return null; dd = "absenteísmo " + paPc(rh.abs[i] != null ? rh.abs[i] / 100 : null) + " × referência " + paPc(d.kpi && d.kpi.absMeta); return { txt: dd, acao: "reduzir o absenteísmo" };
+      case 8: { var I = d.pauta && d.pauta.ind; if (!I || I.ac == null) return { txt: String(x.val || ""), acao: "explicar a indenização: " + String(x.val || "") };
+        var kp = I.custo ? I.ac / I.custo : null, li = I.custo ? I.meta * I.custo : null;
+        dd = "indenização acumulada " + paRs(I.ac) + " = " + paPc(kp) + " do custo de obra (" + paRs(I.custo) + ") × meta " + paPc(I.meta) + " (limite " + paRs(li) + ")" + (I.mes ? "; em " + MES[m] + " " + paRs(I.mes) : "");
+        return { txt: dd, acao: "explicar as indenizações" + (I.mes ? " de " + MES[m] + " (" + paRs(I.mes) + ")" : "") + " e trazer o acumulado de " + paPc(kp) + " para a meta de " + paPc(I.meta) + " do custo de obra" }; }
+      default: return { txt: String(x.val || ""), acao: String(x.nome || "").toLowerCase() + ": " + String(x.val || "") };
+    }
+  }
+  function paPlanoDe(d, id) { var p = ((d.txt && d.txt.planos) || []).filter(function (q) { return new RegExp("#" + id + "\\b").test(q.indicador); })[0]; return p ? String(p.efeito || "").toUpperCase() : null; }
+  function paIndicadores(d, cob, semAtiv) {
+    var M = { A: "pa-sa", N: "pa-sn", V: "pa-sv" }, i = d.mes - 1;
+    return '<table class="pa-ind"><colgroup><col class="pa-c-ind"><col class="pa-c-strip"><col class="pa-c-sit"><col class="pa-c-val"><col class="pa-c-cob"></colgroup><thead><tr><th>Indicador</th><th>jan → ' + MES[d.mes] + "</th><th>" + MES[d.mes] + "</th><th>Valor do mês</th><th>Cobrança do mês</th></tr></thead><tbody>" +
+      d.inds.map(function (x) {
+        var strip = String(x.strip || "").split("").map(function (ch, k) { return semAtiv.indexOf(k + 1) >= 0 ? "-" : ch; }).join(""), st = strip.charAt(i), co = cob[x.id];
+        var pill = st === "A" ? '<span class="pa-pill pa-ok">atendeu</span>' : st === "N" ? '<span class="pa-pill pa-bad">não atendeu</span>' : st === "-" ? '<span class="pa-pill pa-x">' + (semAtiv.indexOf(d.mes) >= 0 ? "sem atividade" : "sem apuração") + "</span>" : '<span class="pa-pill pa-na">não avaliado</span>';
+        var val = st === "-" ? "–" : String((x.vals && x.vals[i]) || x.val || "");
+        return "<tr><td>#" + x.id + " " + esc(x.nome) + '</td><td><span class="pa-strip">' + strip.split("").map(function (ch, k) { return '<i class="' + (M[ch] || "") + '" title="' + MES[k + 1] + '"></i>'; }).join("") + "</span></td><td>" + pill + "</td><td>" + esc(val) + '</td><td class="' + (co ? "pa-cob" : "pa-sem") + '">' + (co ? esc(co.txt) : "–") + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  }
+  function paBmsi(d) {
+    var an = analisarCustos(d.S.fin); var b = an && an.contas.filter(function (c) { return /BMSI/i.test(c.conta); })[0]; var v = b ? b.real : 0;
+    var comp = an ? an.contas.filter(function (c) { return /SALARIO|LOCA/i.test(c.conta) && !/BMSI/i.test(c.conta) && c.desvio < 0; }).slice(0, 3) : [];
+    return { v: v, comp: comp };
+  }
+  function paRedutores(d) {
+    var ind = function (id) { return d.inds.filter(function (x) { return x.id === id; })[0] || {}; };
+    var nN = function (id) { return String(ind(id).strip || "").split("").filter(function (c) { return c === "N"; }).length; };
+    var s4 = String(ind(4).strip || "").split(""), aval = s4.filter(function (c) { return c === "A" || c === "N"; }).length, ass = s4.filter(function (c) { return c === "A"; }).length;
+    var it = [["SSMA · SAF", nN(15) ? nN(15) + " mês(es) com ocorrência" : "sem ocorrência no ano", nN(15) ? "bad" : "ok"],
+      ["SSMA · CAF", nN(16) ? nN(16) + " mês(es) com ocorrência" : "sem ocorrência no ano", nN(16) ? "bad" : "ok"],
+      ["Cliente", ind(17).st === "na" || !ind(17).st ? "sem pesquisa no ano" : String(ind(17).val || ""), ind(17).st || "na"],
+      ["Boas Práticas", String(ind(20).val || "–"), ind(20).st || "na"],
+      ["Assertividade", aval ? ass + " de " + aval + " mês(es) assertivo(s) = " + paPc(ass / aval) : "sem mês com FCST para comparar", aval ? (ass / aval >= 0.5 ? "ok" : "bad") : "na"]];
+    return '<div class="pa-box"><h5>Redutores da Meritocracia</h5>' + paLista(it.map(function (x) { return [x[0], '<span class="pa-pill pa-' + x[2] + '">' + (x[2] === "ok" ? "dentro" : x[2] === "bad" ? "em risco" : "sem dado") + "</span> " + esc(x[1])]; })) + '<p class="pa-nota">Faixa de cada redutor pela lista MERITOCRACIA.</p></div>';
+  }
+  function paBlocoOS(d, n, mesPauta) {
+    if (!d) return "";
+    var semAtiv = paSemAtiv(d), semTrat = (d.semTrat || []).filter(function (m) { return semAtiv.indexOf(m) < 0; }), t = d.txt || {}, ca = paCartao(d), cob = {};
+    d.inds.forEach(function (x) { var dx = Object.assign({}, x, { strip: String(x.strip || "").split("").map(function (ch, k) { return semAtiv.indexOf(k + 1) >= 0 ? "-" : ch; }).join("") }); var c = paCobranca(d, dx); if (c) cob[x.id] = c; });
+    var b = paBmsi(d), ac = [];
+    if (ca.desat) ac.push(["Executivo", "realizado projetado do ano " + paRs(ca.desat.fcst) + " × executivo " + paRs(ca.desat.exec) + " (" + (ca.desat.desv > 0 ? "+" : "−") + paPc(Math.abs(ca.desat.desv)) + ")", "solicitar a revisão do executivo (responsabilidade da Operação responsável pela OS)"]);
+    d.inds.forEach(function (x) { var c = cob[x.id]; if (!c) return; var pl = (x.id === 9 || x.id === 10) ? null : PA_EFP[paPlanoDe(d, x.id)]; ac.push(["#" + x.id + " " + esc(x.nome), esc(c.dado || c.txt), esc(c.acao) + (pl ? " · <em>" + pl + "</em>" : "")]); });
+    var coS = (t.coerencia || []).filter(function (c) { return c.mes === MES[d.mes] && c.avaliacao !== "COERENTE"; })[0];
+    if (coS) ac.push(["Justificativa de " + MES[d.mes], esc(coS.nota), coS.avaliacao === "INCOERENTE" ? "refazer a justificativa: a atual não explica a variação" : "justificar a variação de faturamento, custo e efetivo do mês"]);
+    if (semTrat.indexOf(d.mes) >= 0) ac.push(["Tratativa", "nenhum comentário nem parecer em " + MES[d.mes], "registrar comentários e planos do mês"]);
+    var bmsiTxt = !b.v ? "Sem BMSI no período." : b.v < 0 ? "Débito de " + paRs(-b.v) + ": a OS recebeu custo de outras OSs." : "Crédito de " + paRs(b.v) + ": a OS repassou custo para outras OSs.";
+    var bmsiComp = b.v && b.comp.length ? (b.v > 0 ? "O crédito pode compensar: " : "Contas acima da proporção (o débito não compensa): ") + b.comp.map(function (c) { return String(c.conta).replace(/^\d+\s*-\s*/, "") + " " + paRs(-c.desvio); }).join(" · ") : "";
+    var outroMes = d.mes !== mesPauta ? '<div class="pa-alerta">Book de ' + MES[d.mes] + ", não de " + MES[mesPauta] + ": gere o book desta OS para o mês do filtro.</div>" : "";
+    return '<section class="pa-os" id="pa-os-' + esc(d.os) + '"><header><span class="pa-n">' + (n + 1) + "</span><div><h2>" + esc(d.desc || d.os) + "</h2><p>Responsável <b>" + esc(d.gestor || "–") + "</b> · Estágio <b>" + esc(d.estagio || "–") + "</b>" +
+      (semAtiv.length ? " · Sem atividade <b>" + semAtiv.map(function (m) { return MES[m]; }).join(", ") + "</b>" : "") + (semTrat.length ? " · Sem tratativa <b>" + semTrat.map(function (m) { return MES[m]; }).join(", ") + "</b>" : "") + "</p></div></header>" +
+      outroMes + ca.html + paPonte(d) + paGrafico(d, semAtiv) +
+      "<h3>Indicadores e cobrança de " + MES[d.mes] + "</h3>" + paIndicadores(d, cob, semAtiv) +
+      '<div class="pa-box pa-larga"><h5>Manter</h5>' + ((t.positivos || []).length ? paLista(t.positivos.map(function (p) { return [esc(p.titulo), esc(p.texto)]; })) : '<p class="pa-nota">Sem destaques no book desta OS.</p>') + "</div>" +
+      '<div class="pa-duas"><div class="pa-box"><h5>BMSI</h5>' + paLista([["Saldo", esc(bmsiTxt)]].concat(bmsiComp ? [["Compensação", esc(bmsiComp)]] : [])) + "</div>" + paRedutores(d) + "</div>" +
+      '<div class="pa-box pa-larga pa-acoes"><h5>O que a OS precisa fazer <span class="pa-cnt">' + ac.length + "</span></h5>" + (ac.length ? paLista(ac, ["Item", "Situação em " + MES[d.mes], "O que fazer"]) : '<p class="pa-nota">Nada a cobrar em ' + MES[d.mes] + ".</p>") + "</div></section>";
+  }
+  function renderPauta(nivel, nome, oss, mapaOS, mesPauta) {
+    var books = oss.map(function (c) { var r = mapaOS[String(c).toUpperCase()]; return r && r.d && r.d.v >= 2 ? r.d : null; });
+    var falta = oss.filter(function (c, i) { return !books[i]; });
+    var ds = books.filter(Boolean).sort(function (a, b) { var ga = (a.S.fin ? a.S.fin.resReal - a.S.fin.resExec : 0), gb = (b.S.fin ? b.S.fin.resReal - b.S.fin.resExec : 0); return ga - gb; });
+    if (!ds.length) return '<p class="bk-vazio">Ainda não há book das OSs de ' + esc(nome) + ". Use “☁ Gerar pela nuvem”: o agente gera os books das OSs do mês e a pauta fica pronta.</p>";
+    var idx = ds.map(function (d, i) { var nc = d.inds.filter(function (x) { return x.strip && x.strip.charAt(d.mes - 1) === "N"; }).length, X = d.pauta || {}, dv = d.kpi && d.kpi.fatMeta && X.fatAno != null ? X.fatAno / d.kpi.fatMeta - 1 : 0;
+      return '<a href="#pa-os-' + esc(d.os) + '" onclick="var e=document.getElementById(\'pa-os-' + esc(d.os) + '\');if(e){e.scrollIntoView({block:\'start\'});}return false;"><span class="pa-n">' + (i + 1) + "</span><b>" + esc(d.desc || d.os) + "</b><small>" + nc + " indicador(es) fora em " + MES[d.mes] + (Math.abs(dv) > PA_LIM_EXEC ? " · <em>executivo a revisar</em>" : "") + "</small></a>"; }).join("");
+    // regional: soma das OSs (sem encargos financeiros)
+    var T = { FR: 0, FE: 0, RR: 0, RE: 0, fa: 0, ra: 0, fm: 0, rm: 0, bm: 0, cr: 0 };
+    ds.forEach(function (d) { var f = d.S.fin || {}, X = d.pauta || {}, k = d.kpi || {}; T.FR += f.FR || 0; T.FE += f.FE || 0; T.RR += f.resReal || 0; T.RE += f.resExec || 0; T.fa += X.fatAno || 0; T.ra += X.resAno || 0; T.fm += k.fatMeta || 0; T.rm += k.resMeta || 0; var b = paBmsi(d).v; T.bm += b; if (b > 0) T.cr++; });
+    var reg = '<section class="pa-os" id="pa-regional"><header><span class="pa-n">R</span><div><h2>Resultado da ' + (nivel === "ger" ? "regional" : "superintendência") + "</h2><p>" + esc(nome) + " · " + ds.length + " OSs · jan a " + MES[mesPauta] + "</p></div></header>" +
+      '<div class="pa-cartao">' + paGrade("Acumulado jan–" + MES[mesPauta], "somando as OSs", ["Realizado", "Executivo", ""], [["Faturamento", paRs(T.FR), paRs(T.FE), ""], ["Resultado", paRs(T.RR), paRs(T.RE), ""], ["Margem", paPc(paMg(T.RR, T.FR)), paPc(paMg(T.RE, T.FE)), ""]], [["Realizado − executivo", paDif(paMg(T.RR, T.FR), paMg(T.RE, T.FE))]]) +
+      paGrade("Ano", "realizado projetado somando as OSs", ["Realizado projetado", "Executivo", ""], [["Faturamento", paRs(T.fa), paRs(T.fm), ""], ["Resultado", paRs(T.ra), paRs(T.rm), ""], ["Margem", paPc(paMg(T.ra, T.fa)), paPc(paMg(T.rm, T.fm)), ""]], [["Realizado projetado − executivo", paDif(paMg(T.ra, T.fa), paMg(T.rm, T.fm))]]) + "</div>" +
+      '<table class="pa-ind pa-reg"><thead><tr><th>OS</th><th>Faturamento</th><th>Resultado</th><th>Margem</th><th>Realizado projetado</th><th>Executivo ano</th><th>BMSI</th></tr></thead><tbody>' +
+      ds.map(function (d) { var f = d.S.fin || {}, X = d.pauta || {}, b = paBmsi(d).v; return "<tr><td>" + esc(d.desc || d.os) + "</td><td>" + paRs(f.FR) + '</td><td class="' + (f.resReal < 0 ? "pa-neg" : "") + '">' + paRs(f.resReal) + "</td><td>" + paPc(paMg(f.resReal, f.FR)) + "</td><td>" + paRs(X.fatAno) + "</td><td>" + paRs(d.kpi && d.kpi.fatMeta) + "</td><td>" + (b ? (b < 0 ? "débito " + paRs(-b) : "crédito " + paRs(b)) : "–") + "</td></tr>"; }).join("") + "</tbody></table>" +
+      '<div class="pa-box pa-larga"><h5>BMSI no grupo</h5>' + paLista([["Saldo", (T.bm < 0 ? "Débito de " + paRs(-T.bm) : "Crédito de " + paRs(T.bm)) + (T.bm && !T.cr ? ". Nenhuma OS do grupo tem crédito: a contrapartida está em OSs de outras regionais." : "")]]) + "</div></section>";
+    return '<div class="pa"><div class="pa-top"><h1>Pauta da reunião · ' + (nivel === "ger" ? "Gerência " : "Superintendência ") + esc(nome) + "</h1><p>" + MES[mesPauta] + "/" + anoAtivo() + " · " + ds.length + " OSs · começa pelas OSs; o resultado do grupo fica no fim · todos os valores sem encargos financeiros</p>" +
+      (falta.length ? '<div class="pa-alerta">Sem book gerado: ' + esc(falta.join(", ")) + ". Use “☁ Gerar pela nuvem” para gerar os books que faltam.</div>" : "") + "</div>" +
+      '<nav class="pa-idx">' + idx + '<a href="#pa-regional" onclick="var e=document.getElementById(\'pa-regional\');if(e){e.scrollIntoView({block:\'start\'});}return false;"><span class="pa-n">R</span><b>Resultado do grupo</b><small>consolidado e BMSI</small></a></nav>' +
+      ds.map(function (d, i) { return paBlocoOS(d, i, mesPauta); }).join("") + reg + "</div>";
+  }
+  var PA_CSS = "\n.pa{--pa-ink:#16233F;--pa-mut:#5B6B82;--pa-line:#E2E7F0;--pa-bg:#F4F6FA;--pa-navy:#14204A;--pa-ok:#0B7A55;--pa-okb:#E3F4EC;--pa-bad:#B4232A;--pa-badb:#FBE7E8;--pa-na:#7A5B00;--pa-nab:#FFF4D6;color:var(--pa-ink);font-size:13.5px;line-height:1.45}" +
+    ".pa-top h1{font-size:21px;margin:0 0 2px;color:var(--pa-navy)}.pa-top p{margin:0 0 8px;color:var(--pa-mut)}" +
+    ".pa-idx{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin:8px 0 16px}.pa-idx a{display:grid;grid-template-columns:28px 1fr;gap:0 8px;background:#fff;border:1px solid var(--pa-line);border-radius:10px;padding:8px 10px;color:var(--pa-ink);text-decoration:none}.pa-idx small{grid-column:2;color:var(--pa-mut)}.pa-idx em{color:var(--pa-navy);font-style:normal;font-weight:700}" +
+    ".pa-n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--pa-navy);color:#fff;font-weight:700;font-size:13px}" +
+    ".pa-os{background:#fff;border:1px solid var(--pa-line);border-radius:14px;padding:18px 20px;margin-bottom:18px}.pa-os>header{display:flex;gap:12px;align-items:center;margin-bottom:12px}.pa-os h2{margin:0;font-size:18px;color:var(--pa-navy)}.pa-os>header p{margin:1px 0 0;color:var(--pa-mut)}" +
+    ".pa-cartao{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.pa-col{border:1px solid var(--pa-line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;min-width:0}.pa-col h4{margin:0;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--pa-navy)}.pa-sub{margin:0 0 4px;font-size:11px;color:var(--pa-mut);min-height:30px}" +
+    ".pa-gr{width:100%;border-collapse:collapse;table-layout:fixed}.pa-gr th{font-size:10.5px;color:var(--pa-mut);font-weight:600;text-align:right;padding:2px 4px}.pa-gr th:first-child{width:19%}.pa-gr td{padding:5px 4px;border-top:1px dashed var(--pa-line);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;font-size:12.5px}.pa-gr td.pa-l{text-align:left;color:var(--pa-mut)}.pa-gr td.pa-rl{font-size:14px;font-weight:700}.pa-gr td.pa-fc{font-weight:600}.pa-gr td.pa-ex{color:var(--pa-mut)}" +
+    ".pa-gap{display:flex;gap:8px;margin-top:auto;padding-top:8px}.pa-gap div{flex:1;background:var(--pa-bg);border-radius:8px;padding:5px 8px}.pa-gap span{display:block;font-size:10.5px;color:var(--pa-mut)}.pa-gap b{font-size:19px;font-variant-numeric:tabular-nums}" +
+    ".pa-neg,.pa-gr td.pa-neg{color:var(--pa-bad)}.pa-pos{color:var(--pa-ok)}.pa-alerta{background:#FFF1E8;border:1px solid #F5C6A5;color:#7C2D12;border-radius:10px;padding:8px 12px;margin:0 0 10px}" +
+    ".pa-fig{margin:10px 0 2px}.pa-fig figcaption{font-size:11.5px;color:var(--pa-mut)}.pa-fig svg{width:100%;height:120px;display:block}.pa-ax{stroke:#AAB4C5}.pa-bpos{fill:#2F8F6B}.pa-bneg{fill:#C2434A}.pa-mfc{stroke:#334155;stroke-width:3}.pa-mex{fill:#fff;stroke:var(--pa-navy);stroke-width:2}.pa-tx{font-size:11px;fill:var(--pa-mut)}" +
+    ".pa h3{font-size:14px;margin:14px 0 6px;color:var(--pa-navy)}" +
+    ".pa-ind{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px}.pa-ind th{text-align:left;color:var(--pa-mut);font-weight:600;border-bottom:1px solid var(--pa-line);padding:4px 6px}.pa-ind td{border-bottom:1px solid var(--pa-line);padding:5px 6px;vertical-align:middle;line-height:1.35}.pa-ind td:nth-child(2),.pa-ind td:nth-child(3){white-space:nowrap}" +
+    "col.pa-c-ind{width:17%}col.pa-c-strip{width:12%}col.pa-c-sit{width:10%}col.pa-c-val{width:27%}col.pa-c-cob{width:34%}td.pa-cob{color:var(--pa-bad);font-weight:600}td.pa-sem{color:#B8C0CE}.pa-reg{margin-top:12px}.pa-reg td:not(:first-child),.pa-reg th:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}" +
+    ".pa-strip{display:inline-flex;gap:2px;vertical-align:middle}.pa-strip i{width:10px;height:10px;border-radius:2px;background:#E2E6EE}.pa-strip i.pa-sa{background:#2F8F6B}.pa-strip i.pa-sn{background:#C2434A}.pa-strip i.pa-sv{background:#E3C766}" +
+    ".pa-pill{display:inline-block;border-radius:10px;padding:0 7px;font-size:11px;font-weight:700;white-space:nowrap}.pa-ok{background:var(--pa-okb);color:var(--pa-ok)}.pa-bad{background:var(--pa-badb);color:var(--pa-bad)}.pa-na{background:var(--pa-nab);color:var(--pa-na)}.pa-x{background:#EEF1F5;color:#8A94A6}" +
+    ".pa-duas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.pa-box{border:1px solid var(--pa-line);border-radius:10px;padding:8px 12px;min-width:0}.pa-box.pa-larga{margin-top:12px}.pa-box h5{margin:0 0 4px;font-size:13px;color:var(--pa-navy)}" +
+    ".pa-std{width:100%;border-collapse:collapse;table-layout:fixed}.pa-std col.pa-cn{width:34px}.pa-std col.pa-clab{width:240px}.pa-std col.pa-c3{width:34%}.pa-std th{text-align:left;font-size:11px;color:var(--pa-mut);font-weight:600;padding:3px 6px;border-bottom:1px solid var(--pa-line)}.pa-std td{padding:6px;border-top:1px solid var(--pa-line);vertical-align:top;line-height:1.4}.pa-std td.pa-num{color:var(--pa-mut);text-align:right;padding-right:10px}.pa-std td.pa-lab{font-weight:700;color:var(--pa-navy)}" +
+    ".pa-acoes em{color:var(--pa-navy);font-style:normal;font-weight:700;text-decoration:underline}.pa-cnt{background:var(--pa-badb);color:var(--pa-bad);border-radius:10px;padding:0 7px;font-size:12px}.pa-nota{font-size:11px;color:var(--pa-mut);margin:4px 0 0}.pa-ponte .pa-std col.pa-c3{width:auto}.pa-ponte .pa-std.pa-t4 col:nth-child(3){width:130px}.pa-ppv{font-size:15px;font-weight:700}.pa-ponte td small{color:var(--pa-mut)}" +
+    ".bk-vista{display:inline-flex;border:1px solid #CBD5E1;border-radius:8px;overflow:hidden;margin-left:8px}.bk-vista button{border:0;background:#fff;padding:6px 12px;font-size:12.5px;cursor:pointer;color:#14204A}.bk-vista button.on{background:#14204A;color:#fff}" +
+    "@media(max-width:900px){.pa-cartao,.pa-duas{grid-template-columns:1fr}}";
+  (function () { var s = document.createElement("style"); s.id = "paCss"; s.textContent = PA_CSS; document.head.appendChild(s); })();
+
+
   // ------------------------------------------------------------------ book da Diretoria (empresa por negócio)
   var NEGOCIOS = ["ROTINA", "PARADA", "LOCACOES", "OFICINA", "OVERHEAD"];
   function montarDiretoria(dir, mes) {
@@ -2205,6 +2417,7 @@
     box.innerHTML = '<div class="bk-wrap"><div class="bk-nav"><span class="bk-marca">BOOK</span>' + abas() +
       '<div class="bk-dd"><span class="bk-dd-rot">' + rot + '</span><button type="button" class="bk-dd-btn" data-action="book:dd" aria-haspopup="listbox">' + esc(sel || "Nenhum grupo") + '</button>' +
       '<div class="bk-dd-pan" id="bkDdPan" style="display:none"><input type="text" id="bkDdBusca" placeholder="Buscar…" autocomplete="off"><div class="bk-dd-lista" id="bkDdLista" role="listbox">' + (itens || '<p class="bk-dd-vazio">Nenhum grupo.</p>') + "</div></div></div>" +
+      '<span class="bk-vista"><button type="button" class="' + (st.vista === "pauta" ? "on" : "") + '" data-action="book:vista:pauta">Pauta da reunião</button><button type="button" class="' + (st.vista !== "pauta" ? "on" : "") + '" data-action="book:vista:rel">Relatório</button></span>' +
       (master() ? '<span class="bk-acoes">' + (temChaveIA() ? '<button type="button" class="bk-bt sec" data-action="book:gerargrp"' + (sel ? "" : " disabled") + ">🤖 Gerar agora (neste navegador)</button>" : "") +
         '<button type="button" class="bk-bt" data-action="book:nuvemgrp" title="O agente da nuvem gera e grava os relatórios de todas as ' + (nivel === "ger" ? "gerências" : "superintendências") + '">☁ Gerar pela nuvem</button></span>' : "") +
       '</div><div id="bkProgresso" class="bk-prog" style="display:none"></div><div class="bk-dica">O relatório da ' + rot.toLowerCase() + " usa os dados de todas as OSs elegíveis do acompanhamento, direto do painel.</div>" + '<div id="bkConteudo"></div></div>';
@@ -2213,6 +2426,13 @@
     if (_prog) progresso(_prog);
     var c = el("bkConteudo"); if (!c) return;
     var reg = sel ? mapa[sel] : null;
+    if (sel && st.vista === "pauta") {
+      // pauta: books das OSs do grupo, no mes do filtro
+      c.innerHTML = '<p class="bk-vazio">Montando a pauta…</p>';
+      try { var mapaOS = await lerNivel("os"), gr0 = gs.filter(function (g) { return g.nome === sel; })[0] || { oss: [] }; var c3 = el("bkConteudo"); if (c3) c3.innerHTML = renderPauta(nivel, sel, gr0.oss, mapaOS, mesAtivo() || mes); }
+      catch (e) { var c4 = el("bkConteudo"); if (c4) c4.innerHTML = '<p class="bk-vazio">Não consegui montar a pauta: ' + esc(e.message || e) + "</p>"; }
+      return;
+    }
     c.innerHTML = !sel ? '<p class="bk-vazio">Nenhuma OS elegível encontrada.</p>' : (reg && reg.d ? renderRelatorioGrupo(reg.d) : '<p class="bk-vazio">Ainda não há relatório gravado para ' + esc(sel) + ".</p>");
   }
   async function render() {
@@ -2269,6 +2489,7 @@
   document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") abrirLista(false); });
   async function acao(nome, alvo) {
     if (nome === "nivel:os" || nome === "nivel:ger" || nome === "nivel:sup" || nome === "nivel:dir") { st.nivel = nome.slice(6); render(); return; }
+    if (nome === "vista:pauta" || nome === "vista:rel") { st.vista = nome === "vista:pauta" ? "pauta" : "rel"; render(); return; }
     if (nome === "gerardir") {
       if (st.carregando) return;
       st.carregando = true;
@@ -2326,5 +2547,5 @@
     }
   }
 
-  window.BOOK = { render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao, gerarGrupo: gerarGrupo, listarGrupos: listarGrupos, gerarDiretoria: gerarDiretoria, _montarDiretoria: montarDiretoria, _renderRelatorioDir: renderRelatorioDir, _agregarGrupo: agregarGrupo, _promptGrupo: promptGrupo, _renderRelatorioGrupo: renderRelatorioGrupo };
+  window.BOOK = { render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao, gerarGrupo: gerarGrupo, listarGrupos: listarGrupos, gerarDiretoria: gerarDiretoria, _montarDiretoria: montarDiretoria, _renderRelatorioDir: renderRelatorioDir, _agregarGrupo: agregarGrupo, _promptGrupo: promptGrupo, _renderRelatorioGrupo: renderRelatorioGrupo, _renderPauta: renderPauta, _montarPauta: montarPauta };
 })();
