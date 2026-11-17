@@ -670,6 +670,33 @@ function hydrateOSScoreDataFromPowerBI(params) {
 // Parseia o histórico mensal real (só existe/é enviado quando exatamente 1 OS está selecionada
 // no Power BI) -- cada mês tem seus próprios valores reais, ao invés de reaproveitar o snapshot
 // do mês atualmente selecionado para todos os meses.
+// 17/11/2026: linhas de valor do painel RH para os cards #13 e #14 (a caixa continua sendo de comentarios + marcacao do Master)
+function linhasPainelRH(id, m) {
+  var QR = window.QUAL_RH;
+  if (!QR) return [];
+  if (id === 13 && QR.he && QR.he[m]) {
+    var h = QR.he[m];
+    return [
+      { label: "Pessoas acima do limite de HE (55 h rotina, 60 h parada)", val: String(h.acima), ruim: h.acima > 0 },
+      { label: "Pessoas com hora extra no m\u00eas", val: String(h.pessoas) }
+    ];
+  }
+  if (id === 14 && QR.fer45 !== null) {
+    if (m !== QR.mesRef) return [{ label: "Pessoas com mais de 45 dias de f\u00e9rias", val: "s\u00f3 a posi\u00e7\u00e3o de hoje (m\u00eas " + QR.mesRef + ")" }];
+    return [{ label: "Pessoas com mais de 45 dias de f\u00e9rias (hoje)", val: String(QR.fer45), ruim: QR.fer45 > 0 }];
+  }
+  return [];
+}
+function htmlLinhasPainelRH(id, m, cor) {
+  var ls = linhasPainelRH(id, m);
+  if (!ls.length) return "";
+  return '<div style="border: 2px solid ' + (cor || "#0f2b5c") + '; border-radius: 8px; overflow: hidden; margin-top: 6px;"><table style="width: 100%; border-collapse: collapse; background: #ffffff; table-layout: fixed;"><tbody>' +
+    ls.map(function (l, i) {
+      return '<tr style="background:' + (i % 2 ? "#f8fafc" : "#ffffff") + ';"><td style="padding: 7px 10px; font-size: 0.8rem; color: #475569; font-weight: 700;">' + l.label +
+        '</td><td style="padding: 7px 10px; font-size: 0.92rem; font-weight: 800; text-align: right; width: 34%; color:' + (l.ruim === true ? "#b91c1c" : l.ruim === false ? "#15803d" : "#0f2b5c") + ';">' + l.val + "</td></tr>";
+    }).join("") + '</tbody></table><div style="font-size: 0.7rem; color: #64748b; padding: 4px 10px 6px;">N\u00famero do painel RH. A ader\u00eancia continua sendo a marca\u00e7\u00e3o do M\u00e1ster.</div></div>';
+}
+
 function hydrateOSMonthHistoryFromPowerBI(params) {
   // 17/11/2026: #13 Excesso de HE e #14 Acumulo de Ferias pela regra do painel RH (a mesma do book).
   // Medida: &QualRH=acima.pessoas,acima.pessoas,... (jan ao mes selecionado) ; pessoas com mais de 45 dias de ferias (posicao de hoje)
@@ -968,7 +995,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-17 10:00";
+    window.NPE_BUILD = "2026-11-17 10:15";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -2741,6 +2768,7 @@ function hydrateFromPowerBI() {
         lines = [{ label: "Tipo de Controle", val: "Observações & Recomendações Gerais" }];
       } else {
         lines = [{ label: "Tipo de Controle", val: "Acompanhamento via Comentários da OS" }];
+        if (topic.id === 13 || topic.id === 14) { var lpr = linhasPainelRH(topic.id, mNum); if (lpr.length) lines = lpr.map(function (x) { return { label: x.label, val: x.val }; }); }
       }
 
       // No histórico o card precisa ser enxuto: mantemos até 4 linhas
@@ -3308,7 +3336,7 @@ function hydrateFromPowerBI() {
           linesHTML = '<div style="width: 100%; box-sizing: border-box; margin-top: 6px; background: #f8fafc; border: 2px solid ' + catInfoForRow.color + '; border-radius: 8px; padding: 12px 14px;">' +
             '<div style="font-size: 0.82rem; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Tipo de Controle:</div>' +
             '<div style="font-size: 0.98rem; font-weight: 700; color: #0f2b5c;">📝 Acompanhamento via Comentários da OS</div>' +
-            '</div>';
+            '</div>' + (topic.id === 13 || topic.id === 14 ? htmlLinhasPainelRH(topic.id, monthNum, catInfoForRow.color) : '');
         } else {
           linesHTML = '<div style="border: 2px solid ' + catInfoForRow.color + '; border-radius: 8px; overflow: hidden; margin-top: 6px;">' +
             '<table style="width: 100%; border-collapse: collapse; background: #ffffff; table-layout: fixed;"><tbody>';
@@ -11548,6 +11576,6 @@ function hydrateFromPowerBI() {
 
   
     </script>
-  <script src="book.js?v=2026-11-17_1000"></script>
+  <script src="book.js?v=2026-11-17_1015"></script>
 </body>
 </html>
