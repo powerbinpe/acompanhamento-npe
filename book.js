@@ -2169,13 +2169,20 @@
   function paPlanoDe(d, id) { var p = ((d.txt && d.txt.planos) || []).filter(function (q) { return new RegExp("#" + id + "\\b").test(q.indicador); })[0]; return p ? String(p.efeito || "").toUpperCase() : null; }
   function paIndicadores(d, cob, semAtiv) {
     var M = { A: "pa-sa", N: "pa-sn", V: "pa-sv" }, i = d.mes - 1;
+    var stDe = function (x) { return String(x.strip || "").split("").map(function (ch, k) { return semAtiv.indexOf(k + 1) >= 0 ? "-" : ch; }).join("").charAt(i); };
+    // so entra o que nao atendeu ou ainda nao foi avaliado no mes (ou tem cobranca); o que atendeu sai da lista
+    var lista = d.inds.filter(function (x) { var st = stDe(x); return cob[x.id] || (st !== "A" && st !== "-"); });
+    var ok = d.inds.filter(function (x) { return stDe(x) === "A" && !cob[x.id]; }), sa = d.inds.filter(function (x) { return stDe(x) === "-" && !cob[x.id]; });
+    var rod = '<p class="pa-nota">' + (ok.length ? "Atenderam em " + MES[d.mes] + " e ficaram fora da lista (" + ok.length + "): " + ok.map(function (x) { return "#" + x.id + " " + esc(x.nome); }).join(", ") + "." : "") +
+      (sa.length ? (ok.length ? " " : "") + (semAtiv.indexOf(d.mes) >= 0 ? "Sem atividade em " : "Sem apuração em ") + MES[d.mes] + " (" + sa.length + "): " + sa.map(function (x) { return "#" + x.id + " " + esc(x.nome); }).join(", ") + "." : "") + "</p>";
+    if (!lista.length) return '<p class="pa-nota">Nenhum indicador fora ou pendente de avaliação em ' + MES[d.mes] + ".</p>" + rod;
     return '<table class="pa-ind"><colgroup><col class="pa-c-ind"><col class="pa-c-strip"><col class="pa-c-sit"><col class="pa-c-val"><col class="pa-c-cob"></colgroup><thead><tr><th>Indicador</th><th>jan → ' + MES[d.mes] + "</th><th>" + MES[d.mes] + "</th><th>Valor do mês</th><th>Cobrança do mês</th></tr></thead><tbody>" +
-      d.inds.map(function (x) {
+      lista.map(function (x) {
         var strip = String(x.strip || "").split("").map(function (ch, k) { return semAtiv.indexOf(k + 1) >= 0 ? "-" : ch; }).join(""), st = strip.charAt(i), co = cob[x.id];
         var pill = st === "A" ? '<span class="pa-pill pa-ok">atendeu</span>' : st === "N" ? '<span class="pa-pill pa-bad">não atendeu</span>' : st === "-" ? '<span class="pa-pill pa-x">' + (semAtiv.indexOf(d.mes) >= 0 ? "sem atividade" : "sem apuração") + "</span>" : '<span class="pa-pill pa-na">não avaliado</span>';
         var val = st === "-" ? "–" : String((x.vals && x.vals[i]) || x.val || "");
         return "<tr><td>#" + x.id + " " + esc(x.nome) + '</td><td><span class="pa-strip">' + strip.split("").map(function (ch, k) { return '<i class="' + (M[ch] || "") + '" title="' + MES[k + 1] + '"></i>'; }).join("") + "</span></td><td>" + pill + "</td><td>" + esc(val) + '</td><td class="' + (co ? "pa-cob" : "pa-sem") + '">' + (co ? esc(co.txt) : "–") + "</td></tr>";
-      }).join("") + "</tbody></table>";
+      }).join("") + "</tbody></table>" + rod;
   }
   function paBmsi(d) {
     var an = analisarCustos(d.S.fin); var b = an && an.contas.filter(function (c) { return /BMSI/i.test(c.conta); })[0]; var v = b ? b.real : 0;
@@ -2209,7 +2216,7 @@
     return '<section class="pa-os" id="pa-os-' + esc(d.os) + '"><header><span class="pa-n">' + (n + 1) + "</span><div><h2>" + esc(d.desc || d.os) + "</h2><p>Responsável <b>" + esc(d.gestor || "–") + "</b> · Estágio <b>" + esc(d.estagio || "–") + "</b>" +
       (semAtiv.length ? " · Sem atividade <b>" + semAtiv.map(function (m) { return MES[m]; }).join(", ") + "</b>" : "") + (semTrat.length ? " · Sem tratativa <b>" + semTrat.map(function (m) { return MES[m]; }).join(", ") + "</b>" : "") + "</p></div></header>" +
       outroMes + ca.html + paPonte(d) + paGrafico(d, semAtiv) +
-      "<h3>Indicadores do mês · " + MES[d.mes] + "</h3>" + paIndicadores(d, cob, semAtiv) +
+      "<h3>Indicadores do mês · " + MES[d.mes] + " · não atendidos e não avaliados</h3>" + paIndicadores(d, cob, semAtiv) +
       '<div class="pa-box pa-larga"><h5>Pontos fortes a manter</h5>' + ((t.positivos || []).length ? paLista(t.positivos.map(function (p) { return [esc(p.titulo), esc(p.texto)]; })) : '<p class="pa-nota">Sem destaques no book desta OS.</p>') + "</div>" +
       '<div class="pa-duas"><div class="pa-box"><h5>BMSI · custos transferidos entre OSs</h5>' + paLista([["Saldo", esc(bmsiTxt)]].concat(bmsiComp ? [["Compensação", esc(bmsiComp)]] : [])) + "</div>" + paRedutores(d) + "</div>" +
       '<div class="pa-box pa-larga pa-acoes"><h5>O que a OS precisa fazer <span class="pa-cnt">' + ac.length + "</span></h5>" + (ac.length ? paLista(ac, ["Item", "Situação em " + MES[d.mes], "O que fazer"]) : '<p class="pa-nota">Nada a cobrar em ' + MES[d.mes] + ".</p>") + "</div></section>";
