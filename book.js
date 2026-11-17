@@ -361,7 +361,7 @@
     }
     if (saldo > 0 && hhtR != null && prox.hht != null && prox.hht < hhtR) a.problemas.push("com mais gente, o HHT PR de " + MES[prox.m] + " (" + fmt(prox.hht) + " h) está abaixo do HHT realizado em " + MES[m] + " (" + fmt(hhtR) + " h)");
     var iguais = proj.length > 1 && proj.every(function (x) { return x.efet === proj[0].efet; });
-    if (iguais && (proj[0].efet == null ? saldo > 0 : saldo !== 0)) a.problemas.push(proj[0].efet == null   // 17/11: OS reduzindo/encerrando sem PR nao e alerta
+    if (iguais && saldo !== 0) a.problemas.push(proj[0].efet == null   // 17/11 (usuario): projecao em branco ou mantida com admissao/demissao -> cobrar a revisao
       ? "não há EFETIVO PR projetado de " + MES[proj[0].m] + " a " + MES[proj[proj.length - 1].m] + ", apesar de " + adm + " admissões e " + dem + " demissões em " + MES[m]   // 17/11: sem projecao saia "fixo em –"
       : "o EFETIVO PR está fixo em " + fmt(proj[0].efet) + " de " + MES[proj[0].m] + " a " + MES[proj[proj.length - 1].m] + ", sem refletir a movimentação");
     return { meses: proj, alerta: a.problemas.length ? a : null, base: a };
