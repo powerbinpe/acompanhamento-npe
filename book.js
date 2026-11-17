@@ -361,7 +361,7 @@
     }
     if (saldo > 0 && hhtR != null && prox.hht != null && prox.hht < hhtR) a.problemas.push("com mais gente, o HHT PR de " + MES[prox.m] + " (" + fmt(prox.hht) + " h) está abaixo do HHT realizado em " + MES[m] + " (" + fmt(hhtR) + " h)");
     var iguais = proj.length > 1 && proj.every(function (x) { return x.efet === proj[0].efet; });
-    if (iguais && saldo !== 0) a.problemas.push(proj[0].efet == null
+    if (iguais && (proj[0].efet == null ? saldo > 0 : saldo !== 0)) a.problemas.push(proj[0].efet == null   // 17/11: OS reduzindo/encerrando sem PR nao e alerta
       ? "não há EFETIVO PR projetado de " + MES[proj[0].m] + " a " + MES[proj[proj.length - 1].m] + ", apesar de " + adm + " admissões e " + dem + " demissões em " + MES[m]   // 17/11: sem projecao saia "fixo em –"
       : "o EFETIVO PR está fixo em " + fmt(proj[0].efet) + " de " + MES[proj[0].m] + " a " + MES[proj[proj.length - 1].m] + ", sem refletir a movimentação");
     return { meses: proj, alerta: a.problemas.length ? a : null, base: a };
@@ -386,6 +386,11 @@
     if (dados.fer) { S.rh.fer30 = dados.fer.f30; S.rh.fer45 = dados.fer.f45; S.rh.ferSaldo = dados.fer.saldo; S.rh.ferTot = dados.fer.tot; }
     if (dados.ferRH && dados.ferRH.f45 != null) S.rh.fer45 = dados.ferRH.f45;   // 16/11: mais de 45 dias pela regra do painel RH (igual ao #14)
     S.proj = conferirProjecao(S, (dados.proj || []).slice().sort(function (a, b) { return a.m - b.m; }));
+    var semAtiv = [];
+    for (var ma = 1; ma <= mes; ma++) if (!mesComAtividade(S, ma)) semAtiv.push(ma);
+    function inat(m) { return semAtiv.indexOf(m) >= 0; }
+    semTrat = semTrat.filter(function (m) { return !inat(m); });
+    for (var m1 = 1; m1 <= mes; m1++) if (!inat(m1)) { p0 = m1; break; }
     var md = contract.monthHistory[mes] || {};
     // Valores das caixas: vem na URL so para o mes selecionado; fora dele, o historico mensal.
     var P = params(), cx = (mes === mesAtivo());
@@ -434,17 +439,17 @@
         var caixa = primeiraLinha(ata(os, id, mes));
         var vals = [], diverge = [];
         for (m = 1; m <= mes; m++) {
-          var st0 = m < p0 ? "" : statusMes(contract, m, id, os), v0 = m < p0 ? "" : valorApurado(contract, m, id);
-          var q0 = m < p0 ? null : apuraQual(id, m);
+          var st0 = inat(m) ? "" : statusMes(contract, m, id, os), v0 = inat(m) ? "sem atividade no mês (sem faturamento, custo nem efetivo)" : valorApurado(contract, m, id);
+          var q0 = inat(m) ? null : apuraQual(id, m);
           if (q0) {
             if (/ainda n\u00e3o avaliada/.test(v0) || ((id === 15 || id === 16) && (!st0 || st0 === "na"))) { st0 = q0.st; v0 = q0.txt; }       // Master nao marcou: vale o numero do painel
             else if (v0.indexOf("painel RH") < 0) v0 = (v0 ? v0 + " | " : "") + "apurado: " + q0.txt   // 17/11: a caixa da Aba 1 ja traz o numero do painel RH (#13/#14)
                + (st0 && st0 !== "na" && st0 !== q0.st ? " (a marcação diverge do número)" : "");
           }
           sts.push(st0); vals.push(v0);
-          strip += (m < p0) ? "-" : ({ ok: "A", bad: "N", na: "V" }[st0] || "-");
+          strip += inat(m) ? "-" : ({ ok: "A", bad: "N", na: "V" }[st0] || "-");
           var ap = statusApurado(contract, m, id), pc = statusCaixa(os, m, id);
-          if (m >= p0 && ap && pc && ap !== "na" && pc !== "na" && ap !== pc) diverge.push(MES[m] + " (parecer: " + ({ ok: "atendeu", bad: "não atendeu", na: "não avaliado" }[pc]) + ")");
+          if (!inat(m) && ap && pc && ap !== "na" && pc !== "na" && ap !== pc) diverge.push(MES[m] + " (parecer: " + ({ ok: "atendeu", bad: "não atendeu", na: "não avaliado" }[pc]) + ")");
         }
         var s = sts[sts.length - 1];
         var vMes = vals[vals.length - 1];
@@ -453,7 +458,7 @@
           val: (vMes || caixa.replace(/\s\|\s/g, " · ")).slice(0, 260) });
       });
     });
-    return { contract: contract, H: H, p0: p0, mesesVal: mesesVal, semTrat: semTrat, S: S, kpi: kpi, inds: inds };
+    return { contract: contract, H: H, p0: p0, mesesVal: mesesVal, semTrat: semTrat, semAtiv: semAtiv, S: S, kpi: kpi, inds: inds };
   }
 
   // ------------------------------------------------------------------ prompt da OS (relatório v2)
@@ -528,6 +533,18 @@
   //   sem numero para comparar                   -> SEM EFEITO (seguiu sem atender depois da acao)
   // 17/11/2026 (usuario): OS desmobilizando ou encerrando -- absenteismo sobe e nao se cobra acao
   function emDesmobilizacao(est) { return /DESMOBILIZ|DEMOBILIZ|FINALIZ|ENCERR/i.test(String(est || "")); }
+  // 17/11/2026 (usuario): so ha o que apurar (e tratativa a cobrar) no mes em que a OS teve faturamento, custo ou efetivo na folha.
+  // Antes de comecar (ou depois de terminar) o mes fica sem atividade: nao e avaliado nem entra como sem tratativa.
+  function mesComAtividade(S, m) {
+    var i = m - 1, fat = S.rh.fat[i], res = S.rh.res[i], efet = S.rh.efet[i];
+    var custo = (fat || 0) - (res || 0);
+    return (fat != null && Math.abs(fat) >= 1) || (res != null && Math.abs(custo) >= 1000) || (efet != null && efet > 0);
+  }
+  // absenteismo do ano ponderado pelo efetivo do mes (a media simples deixava 1 pessoa com 90% pesar como o mes cheio)
+  function absPonderado(S) {
+    var sp = 0, se = 0; (S.rh.abs || []).forEach(function (a, i) { var e = S.rh.efet[i]; if (a != null && e > 0) { sp += a * e; se += e; } });
+    return se ? sp / se : null;
+  }
   var TOL_PLANO = 0.05;
   function metricaPlano(id, m, C) {
     var mh = C.contract && C.contract.monthHistory ? C.contract.monthHistory[m] : null, q = (C.S && C.S.qual) || {};
@@ -660,6 +677,7 @@
     L.push("Período: janeiro a " + MESF[mes] + "/" + ano + ", analisado mês a mês. Todos os meses do período entram na análise e são avaliados pelos números do sistema, estejam fechados ou não; não comente fechamento nem validação.");
     var estOS = (C.contract && C.contract.estagio) || "";
     L.push("ESTÁGIO DA OS (CTT): " + (estOS || "não informado") + "." + (emDesmobilizacao(estOS) ? " OS EM DESMOBILIZAÇÃO OU FINALIZADA: o aumento de absenteísmo nesse período é próprio da desmobilização. Não cobre ação nem plano para o absenteísmo dessa OS: diga que a causa é a desmobilização e que não há tratativa nem ação a cobrar. Os demais indicadores seguem a análise normal." : ""));
+    if (C.semAtiv && C.semAtiv.length) L.push("MESES SEM ATIVIDADE (sem faturamento, sem custo e sem efetivo na folha): " + C.semAtiv.map(function (m) { return MESF[m]; }).join(", ") + ". A OS " + (C.semAtiv[0] === 1 && C.p0 > 1 ? "começou a ter atividade em " + MESF[C.p0] : "não teve atividade nesses meses") + ". Nesses meses não há o que apurar nem tratativa a cobrar: não os cite como meses sem tratativa e não avalie indicador neles.");
     if (C.semTrat && C.semTrat.length) L.push("MESES SEM TRATATIVA (nenhum comentário do responsável e nenhum parecer do Setor de Performance em nenhum indicador): " + C.semTrat.map(function (m) { return MESF[m]; }).join(", ") + ". Nesses meses avalie todos os indicadores pelos números, do mesmo jeito que os outros; diga com todas as letras que no mês não houve tratativa (sem justificativa e sem plano de ação) e conte isso contra a avaliação do contrato.");
     if (fi) {
       L.push("JAN A " + MES[mes].toUpperCase() + " (contábil): faturamento real " + rs(fi.FR) + " x executivo " + rs(fi.FE) + " | resultado real " + rs(fi.resReal) + " x executivo " + rs(fi.resExec) +
@@ -950,7 +968,7 @@
     if (!C.S.fin) throw new Error("O fluxo NPE-Ler-Dados-Book não devolveu o contábil da OS (consulta de custos).");
     var book = {
       v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: (H.rotulo && H.rotulo.indexOf("|") > 0 && H.grupo) ? H.grupo : (H.desc || C.contract.name || ""), descCtt: !!H.ctt, hist: hist, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
-      ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal, semTrat: C.semTrat, estagio: (C.contract && C.contract.estagio) || "",
+      ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal, semTrat: C.semTrat, semAtiv: C.semAtiv, estagio: (C.contract && C.contract.estagio) || "",
       kpi: C.kpi, S: C.S, inds: C.inds, valoresSemOrigem: gc.semOrigem, coerJust: (function () { var o = {}; coerenciaEfetivo(C.S).rows.forEach(function (r) { if (r.ruim) o[r.m] = justificouMes(os, r.m); }); return o; })(),
       txt: { coerencia: Array.isArray(j.coerencia) ? j.coerencia.slice(0, 12) : [], situacao: j.situacao, positivos: j.positivos.slice(0, 5), receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
         plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10), repetidos: valoresRepetidos({ situacao: j.situacao, positivos: j.positivos, receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, foco: j.plano }) }
@@ -1439,6 +1457,7 @@
     h.push('<header class="rl-capa"><div class="rl-capa-top"><span class="rl-tag">Relatório gerencial do contrato</span><span class="rl-per">janeiro a ' + mesN + " de " + b.ano + "</span></div>" +
       '<h1>' + (b.descCtt ? esc(b.desc) : esc(b.rotulo.replace("|", " + ")) + " · " + esc(b.desc)) + "</h1>" +
       '<div class="rl-ficha"><span>' + esc(b.neg || "") + "</span><span>Gestor do contrato: <b>" + esc(txtLinha(b.hist && b.hist.gestor, b.gestor)) + "</b></span><span>Gerente: <b>" + esc(txtLinha(b.hist && b.hist.ger, b.ger)) + "</b></span><span>Superintendente: <b>" + esc(txtLinha(b.hist && b.hist.sup, b.sup)) + "</b></span></div>" +
+      (b.semAtiv && b.semAtiv.length ? '<p class="rl-nota">Sem atividade (sem faturamento, custo nem efetivo na folha): <b>' + b.semAtiv.map(function (m) { return MES[m]; }).join(", ") + "</b>. Esses meses não são avaliados.</p>" : "") +
       (b.semTrat && b.semTrat.length ? '<p class="rl-nota">Meses sem tratativa (nenhum comentário do responsável nem parecer do Setor de Performance): <b>' + b.semTrat.map(function (m) { return MES[m]; }).join(", ") + "</b>. Foram avaliados pelos números do sistema; não há justificativa nem plano de ação para eles.</p>" : "") +
       "</header>");
     // numeros-chave: o que ja aconteceu x para onde o ano vai
@@ -1549,7 +1568,7 @@
     function med(a) { var v = a.filter(function (x) { return x != null; }); return v.length ? soma(v) / v.length / 100 : null; }
     var kpi = { fatAno: f.FR + soma(proj.map(function (x) { return x.fat; })), resAno: f.resReal + soma(proj.map(function (x) { return x.res; })),
       fatMeta: f.FE + soma((dados.projx || []).map(function (x) { return x.fe; })), resMeta: f.resExec + soma((dados.projx || []).map(function (x) { return x.re; })),
-      absAcum: med(S.rh.abs), turnAcum: null };
+      absAcum: absPonderado(S), turnAcum: null };
     return { v: 2, os: o.codigo, rotulo: o.rotulo || o.codigo, hist: hist, desc: (blocoCod.indexOf("|") > 0 && ct.grupo) ? ct.grupo : (ct.desc || o.desc || o.codigo), gestor: atualDe(hist.gestor) || ct.gestor || "", ger: atualDe(hist.ger) || ct.gerente || "", sup: atualDe(hist.sup) || ct.sup || "", neg: ct.neg || "", ano: ano, mes: mes, S: S, kpi: kpi };
   }
   // Ferias contadas em pessoas: efetivo, quantas com 30+ dias (ja tem direito) e, dentro delas, quantas com 45+ (atencao).
@@ -1650,7 +1669,7 @@
     G.linhasOS.forEach(function (o) {
       L.push("  " + (String(o.desc).indexOf(o.os) === 0 ? o.desc : o.os + " " + o.desc) + (ger ? "" : " [" + o.ger + "]") + " | gestor " + (o.gestor || "–") + (o.estagio ? " | estágio " + o.estagio : "") + " | faturamento " + rs(o.FR) + " x " + rs(o.FE) + " | resultado " + rs(o.res) + " x " + rs(o.rex) + " (diferença " + rs(o.gap) + ") | margem " + pct(o.FR ? o.res / o.FR : null) + " x " + pct(o.FE ? o.rex / o.FE : null) +
         " | perdas " + rs(o.perda) + " | SLA " + rs(o.sla) + " | não faturáveis " + rs(o.nf) + " | diluídos (informativo) " + rs(o.dil) + " | HE " + (o.heDesvio < 0 ? moeda(-o.heDesvio) + " acima da proporção" : "na proporção") + " | rescisões " + rs(o.rescTot) +
-        " | efetivo " + fmt(o.efet) + " (" + o.adm + " admissões, " + o.dem + " demissões no ano, " + o.demTurn + " contam no turnover) | absenteísmo médio mensal " + pct(o.abs) + " | férias: " + feriasTxt(o.ferTot, o.f30, o.f45) + (o.alerta ? " | ALERTA DE PROJEÇÃO: " + o.alerta.join("; ") : "") + (o.trocas && o.trocas.length ? " | TROCA DE RESPONSÁVEIS NO ANO: " + o.trocas.join("; ") : ""));
+        " | efetivo " + fmt(o.efet) + " (" + o.adm + " admissões, " + o.dem + " demissões no ano, " + o.demTurn + " contam no turnover) | absenteísmo do ano (ponderado pelo efetivo) " + pct(o.abs) + " | férias: " + feriasTxt(o.ferTot, o.f30, o.f45) + (o.alerta ? " | ALERTA DE PROJEÇÃO: " + o.alerta.join("; ") : "") + (o.trocas && o.trocas.length ? " | TROCA DE RESPONSÁVEIS NO ANO: " + o.trocas.join("; ") : ""));
       L.push("    resultado mês a mês (real x executivo): " + o.mm.map(function (x) { return MES[x[0]] + " " + rs(x[2]) + " x " + rs(x[4]); }).join(" · "));
       if (o.planos) { var pr0 = o.planos.filter(function (q) { return q.efeito !== "FUNCIONANDO"; }); L.push("    planos informados: " + (o.planos.length ? o.planos.map(function (q) { return q.indicador + " " + q.efeito; }).join("; ") : "todos os indicadores atenderam") + (pr0.length ? " | detalhe: " + pr0.slice(0, 5).map(function (q) { return q.indicador + ": " + String(q.acao).slice(0, 110) + " -> " + String(q.recomendacao).slice(0, 110); }).join(" / ") : "")); }
       else L.push("    planos informados: sem avaliação no book da OS");
@@ -1809,7 +1828,7 @@
       '<div class="rl-duas rl-duas-txt"><div class="rl-txt">' + par(t.impactos) + "</div>" + figura("As contas que mais pesaram", "", tabC) + "</div>" +
       (an ? '<div class="rl-duas">' + figura("Ponte da margem do grupo", "pontos percentuais de margem por grupo de custo, somando as OSs", chPonte(an)) + fPot + "</div>" : fPot)));
     // pessoas
-    var tabP = '<div class="rl-tab"><table><thead><tr><th>OS</th><th>Efetivo</th><th>Adm./dem. no ano</th><th>HE no mês</th><th>Absenteísmo médio</th><th>Demissões (turnover)</th><th>Férias 30+</th><th>Férias 45+</th><th>Projeção</th></tr></thead><tbody>' +
+    var tabP = '<div class="rl-tab"><table><thead><tr><th>OS</th><th>Efetivo</th><th>Adm./dem. no ano</th><th>HE no mês</th><th>Absenteísmo do ano</th><th>Demissões (turnover)</th><th>Férias 30+</th><th>Férias 45+</th><th>Projeção</th></tr></thead><tbody>' +
       G.linhasOS.map(function (o) { return "<tr><td>" + esc(nm(o)) + "</td><td>" + fmt(o.efet) + "</td><td>" + o.adm + " / " + o.dem + "</td><td>" + (o.he == null ? "–" : fmt(o.he, 2) + "%") + "</td><td>" + pct(o.abs) + "</td><td>" + o.demTurn + "</td><td>" + fmt(o.f30) + (o.ferTot && o.f30 != null ? " (" + fmt(o.f30 / o.ferTot * 100, 2) + "%)" : "") + '</td><td class="' + ((o.f45 || 0) > 0 ? "neg" : "") + '">' + fmt(o.f45) + (o.ferTot && o.f45 != null ? " (" + fmt(o.f45 / o.ferTot * 100, 2) + "%)" : "") + '</td><td class="' + (o.alerta ? "neg" : "") + '">' + (o.alerta ? "corrigir" : "ok") + "</td></tr>"; }).join("") + "</tbody></table></div>";
     var al = G.linhasOS.filter(function (o) { return o.alerta; });
     h.push(cap(++nc, "Pessoas, férias e projeção", (al.length ? '<div class="rl-alerta"><b>Projeção a corrigir em ' + al.length + (al.length > 1 ? " OSs" : " OS") + "</b>" + al.map(function (o) { return esc(nm(o) + ": " + o.alerta[0]); }).join("<br>") + "</div>" : "") + par(t.pessoas) + figura("Pessoas por OS", "férias em pessoas: com 30 dias ou mais de saldo (já têm direito) e com 45 dias ou mais (ponto de atenção), entre parênteses o % das pessoas no contrato (ativos e em férias; afastados e demitidos fora)", tabP)));
@@ -1848,6 +1867,7 @@
     h.push('<header class="rl-capa"><div class="rl-capa-top"><span class="rl-tag">Relatório gerencial do contrato</span><span class="rl-per">janeiro a ' + mesN + " de " + b.ano + "</span></div>" +
       '<h1>' + (b.descCtt ? esc(b.desc) : esc(b.rotulo.replace("|", " + ")) + " · " + esc(b.desc)) + "</h1>" +
       '<div class="rl-ficha"><span>' + esc(b.neg || "") + "</span><span>Gestor do contrato: <b>" + esc(txtLinha(b.hist && b.hist.gestor, b.gestor)) + "</b></span><span>Gerente: <b>" + esc(txtLinha(b.hist && b.hist.ger, b.ger)) + "</b></span><span>Superintendente: <b>" + esc(txtLinha(b.hist && b.hist.sup, b.sup)) + "</b></span></div>" +
+      (b.semAtiv && b.semAtiv.length ? '<p class="rl-nota">Sem atividade (sem faturamento, custo nem efetivo na folha): <b>' + b.semAtiv.map(function (m) { return MES[m]; }).join(", ") + "</b>. Esses meses não são avaliados.</p>" : "") +
       (b.semTrat && b.semTrat.length ? '<p class="rl-nota">Meses sem tratativa (nenhum comentário do responsável nem parecer do Setor de Performance): <b>' + b.semTrat.map(function (m) { return MES[m]; }).join(", ") + "</b>. Foram avaliados pelos números do sistema; não há justificativa nem plano de ação para eles.</p>" : "") +
       "</header>");
     // 1. onde o contrato esta
@@ -1974,7 +1994,7 @@
       G.contas.filter(function (c) { return c.desvio < 0; }).slice(0, 8).map(function (c) { return "<tr><td>" + esc(String(c.conta).replace(/^\d+\s*-\s*/, "")) + '</td><td class="neg">' + moeda(-c.desvio) + '</td><td class="rl-cx">' + esc(c.oss.filter(function (o) { return o[1] < 0; }).map(function (o) { return (MN[o[0]] || o[0]) + " " + moeda(-o[1]); }).join(" · ")) + "</td></tr>"; }).join("") + "</tbody></table></div>";
     p4 += sub("Custos e margem") + '<div class="rl-duas rl-duas-txt"><div class="rl-txt">' + par(t.custos) + "</div>" + figura("As contas que mais pesaram", "", tabC) + "</div>" +
       (an ? figura("Ponte da margem do grupo", "pontos percentuais de margem por grupo de custo, somando as OSs", chPonte(an)) : "");
-    var tabP = '<div class="rl-tab"><table><thead><tr><th>OS</th><th>Efetivo</th><th>Adm./dem. no ano</th><th>HE no mês</th><th>Absenteísmo médio</th><th>Demissões (turnover)</th><th>Férias 30+</th><th>Férias 45+</th><th>Projeção</th></tr></thead><tbody>' +
+    var tabP = '<div class="rl-tab"><table><thead><tr><th>OS</th><th>Efetivo</th><th>Adm./dem. no ano</th><th>HE no mês</th><th>Absenteísmo do ano</th><th>Demissões (turnover)</th><th>Férias 30+</th><th>Férias 45+</th><th>Projeção</th></tr></thead><tbody>' +
       G.linhasOS.map(function (o) { return "<tr><td>" + esc(nm(o)) + "</td><td>" + fmt(o.efet) + "</td><td>" + o.adm + " / " + o.dem + "</td><td>" + (o.he == null ? "–" : fmt(o.he, 2) + "%") + "</td><td>" + pct(o.abs) + "</td><td>" + o.demTurn + "</td><td>" + fmt(o.f30) + (o.ferTot && o.f30 != null ? " (" + fmt(o.f30 / o.ferTot * 100, 2) + "%)" : "") + '</td><td class="' + ((o.f45 || 0) > 0 ? "neg" : "") + '">' + fmt(o.f45) + (o.ferTot && o.f45 != null ? " (" + fmt(o.f45 / o.ferTot * 100, 2) + "%)" : "") + '</td><td class="' + (o.alerta ? "neg" : "") + '">' + (o.alerta ? "corrigir" : "ok") + "</td></tr>"; }).join("") + "</tbody></table></div>";
     var al = G.linhasOS.filter(function (o) { return o.alerta; });
     p4 += sub("Pessoas, férias e projeção") + (al.length ? '<div class="rl-alerta"><b>Projeção a corrigir em ' + al.length + (al.length > 1 ? " OSs" : " OS") + "</b>" + al.map(function (o) { return esc(nm(o) + ": " + o.alerta[0]); }).join("<br>") + "</div>" : "") + par(t.pessoas) +
