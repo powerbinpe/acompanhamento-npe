@@ -2487,6 +2487,14 @@
     Object.keys(mapa).forEach(function (k) { if (!gs.some(function (g) { return g.nome === k; }) && (master() || false)) gs.push({ nome: k, oss: [] }); });
     var sel = st.sel[nivel] && gs.some(function (g) { return g.nome === st.sel[nivel]; }) ? st.sel[nivel] : (gs[0] ? gs[0].nome : "");
     st.sel[nivel] = sel;
+    // 18/11/2026: rede de seguranca da hierarquia (copia diaria do fluxo NPE-Atualizar-Hierarquia): OS elegivel do painel que nao esta em nenhum grupo
+    var avisoHier = "";
+    if (master()) {
+      var naHier = {}; elegiveis().forEach(function (o) { (String(o.codigo || "") + " " + String(o.rotulo || "")).replace(/[A-Z]\d{5}/g, function (c) { naHier[c] = 1; return c; }); });
+      var faltam = [];
+      (window.ACTIVE_CONTRACTS_CATALOG || []).forEach(function (c) { var cods = String(c.code || "").match(/[A-Z]\d{5}/g) || []; if (cods.length && !cods.some(function (x) { return naHier[x]; }) && faltam.indexOf(cods[0]) < 0) faltam.push(cods[0]); });
+      if (faltam.length) avisoHier = '<div class="bk-prog">OS elegível sem gerência/superintendência na hierarquia: <b>' + esc(faltam.sort(porCodigoOS).join(", ")) + "</b>. A hierarquia é atualizada todo dia às 6h pelo fluxo NPE-Atualizar-Hierarquia; se a OS for nova, ela entra na próxima atualização.</div>";
+    }
     var itens = gs.map(function (g) { return '<button type="button" class="bk-dd-it' + (g.nome === sel ? " on" : "") + '" data-action="book:grp:' + esc(g.nome) + '" data-busca="' + esc(g.nome) + '">' + esc(g.nome) + (g.oss.length ? " · " + g.oss.length + " OSs" : "") + "</button>"; }).join("");
     box.innerHTML = '<div class="bk-wrap"><div class="bk-nav"><span class="bk-marca">BOOK</span>' + abas() +
       '<div class="bk-dd"><span class="bk-dd-rot">' + rot + '</span><button type="button" class="bk-dd-btn" data-action="book:dd" aria-haspopup="listbox">' + esc(sel || "Nenhum grupo") + '</button>' +
@@ -2499,6 +2507,7 @@
     if (busca) busca.oninput = function () { var q = String(busca.value || "").toUpperCase().trim(); Array.prototype.forEach.call(document.querySelectorAll("#bkDdLista .bk-dd-it"), function (b) { b.style.display = (!q || b.getAttribute("data-busca").indexOf(q) >= 0) ? "" : "none"; }); };
     if (_prog) progresso(_prog);
     var c = el("bkConteudo"); if (!c) return;
+    if (avisoHier) { var cxH = el("bkConteudo"); if (cxH) cxH.insertAdjacentHTML("beforebegin", avisoHier); }
     var reg = sel ? mapa[sel] : null;
     if (sel && st.vista === "pauta") {
       // pauta: books das OSs do grupo, no mes do filtro
