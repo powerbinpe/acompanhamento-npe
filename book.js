@@ -196,6 +196,22 @@
     if (!out.length) throw new Error("o fluxo não devolveu a lista de gestores");
     return out.sort();
   }
+  // 18/11/2026: % acumulada de meses assertivos (diferenca de margem real x FCST anterior dentro de +-5 p.p.).
+  // O modelo as vezes devolve o mes apurado sem o acumulado (M01014 set/26: 1 mes apurado e acumulado vazio);
+  // nesse caso calcula pelos meses apurados, igual a Aba 1 (computeAssertividadeAccumPct).
+  function preencherAssertAcum(dm, ac) {
+    var tol = (window.NPE_APP && window.NPE_APP.tol ? window.NPE_APP.tol("TOL_ASSERTIV_MARGEM", 0.05) : 0.05) * 100, n = 0, ok = 0;
+    return dm.map(function (v, i) {
+      if (v != null) { n++; if (Math.abs(v) <= tol) ok++; }
+      return ac[i] != null ? ac[i] : (n ? ok / n * 100 : null);
+    });
+  }
+  function assertAcumDe(k, S) {
+    if (k && k.assertAcum != null) return k.assertAcum;
+    var a = S && S.assert; if (!a) return null;
+    var c = preencherAssertAcum(a.dmarg, a.dmarg.map(function () { return null; }));
+    return c[c.length - 1];
+  }
   async function lerDadosFluxo(rotulo, ano, mes, tk, urlOpt, extra) {
     rotulo = codigosBloco(rotulo);
     var url = String(urlOpt || urlFluxo() || "").trim();
@@ -362,7 +378,7 @@
     });
     S.anos.sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
     S.sat.sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
-    if (temA) S.assert = { dmarg: dm, acum: ac };
+    if (temA) S.assert = { dmarg: dm, acum: preencherAssertAcum(dm, ac) };
     return S;
   }
 
@@ -1153,7 +1169,7 @@
       kpi(k.fatAno >= k.fatMeta ? "ok" : "bad", "Faturamento ano", mi(k.fatAno), "meta " + mi(k.fatMeta) + (k.fatMeta ? " · " + (k.fatAno >= k.fatMeta ? "+" : "") + fmt((k.fatAno / k.fatMeta - 1) * 100, 2) + "%" : "")) +
       kpi(k.resAno >= k.resMeta ? "ok" : "bad", "Resultado ano", mi(k.resAno), "margem " + pct(marg) + " · meta " + pct(margMeta)) +
       kpi("bad", "Perda de receita", mi(k.perdaAcum), pct(k.perdaPct) + " do faturamento", spark(S.rh.perdaPR)) +
-      kpi(k.assertAcum != null && k.assertAcum >= 80 ? "ok" : "warn", "Assertividade acum.", k.assertAcum == null ? "–" : fmt(k.assertAcum, 2) + "%", "diferença de margem real x FCST", S.assert ? spark(S.assert.acum) : "") +
+      kpi(assertAcumDe(k, S) != null && assertAcumDe(k, S) >= 80 ? "ok" : "warn", "Assertividade acum.", assertAcumDe(k, S) == null ? "–" : fmt(assertAcumDe(k, S), 2) + "%", "diferença de margem real x FCST", S.assert ? spark(S.assert.acum) : "") +
       kpi("warn", "Hora extra " + MES[b.mes], k.heMes == null ? "–" : fmt(k.heMes, 2) + "%", "média do ano " + (k.heMedia == null ? "–" : fmt(k.heMedia, 2) + "%"), spark(S.rh.he)) +
       kpi(k.absAcum != null && k.absMeta != null && k.absAcum <= k.absMeta ? "ok" : "bad", "Absenteísmo ano", pct(k.absAcum), "referência " + pct(k.absMeta), spark(S.rh.abs)) + "</div>");
     h.push('<div class="bk-prior">' + (t.prioridades || []).map(function (p) { return "<div><span class=\"rank\">" + esc(p.rank || "") + "</span><h3>" + esc(p.titulo || "") + "</h3><p>" + rico(p.texto || "") + "</p></div>"; }).join("") + "</div></section>");
