@@ -478,9 +478,12 @@
   var FUNC_OP = { c: "COORDENADORES OPERACIONAIS", g: "GERENTES OPERACIONAIS", s: "SUPERINTENDENTES OPERACIONAIS" };
   var FUNCOES_IMPORTAVEIS = ["SUPERINTENDENTES APOIOS", "SUPERINTENDENTES COMERCIAIS", "GERENTES APOIOS", "GERENTES COMERCIAIS", "COORDENADORES APOIOS"];
   function todosMeses() { var o = {}; for (var m = 1; m <= 12; m++) o[m] = 1; return o; }
-  function escolhaCoord(os, ym) {
-    return linhasDoTipo("COORD_OS").filter(function (d) { return d.Indicador === os && Math.round(+d.VigenciaAnoMes) === ym; })
-      .sort(function (a, b) { return b.ID - a.ID; })[0] || null;
+  function escolhaCoord(os, vc) {
+    var doOS = linhasDoTipo("COORD_OS").filter(function (d) { return d.Indicador === os; }).sort(function (a, b) { return b.ID - a.ID; });
+    // 18/11/2026: o mes em que a pessoa assumiu pode ser corrigido no cadastro de responsaveis; a escolha gravada
+    // continua valendo para a MESMA troca (mesmo nome registrado nela), mesmo com o mes trocado
+    return doOS.filter(function (d) { return Math.round(+d.VigenciaAnoMes) === vc.ym; })[0] ||
+      doOS.filter(function (d) { return String(d.Valor || "").trim().toUpperCase() === String(vc.nome || "").trim().toUpperCase(); })[0] || null;
   }
   function pessoaRow(cod) {
     return linhasDoTipo("PESSOA").filter(function (d) { return pad6(d.CodPessoa) === cod; }).sort(function (a, b) { return b.ID - a.ID; })[0] || null;
@@ -514,11 +517,15 @@
     OSS.forEach(function (os) {
       for (var m = 1; m <= 12; m++) {
         var ym = ANO * 100 + m;
-        var vc = vigente(VIG.coord[os.cod], ym);
-        if (!vc || vc.ym <= ANO * 100 + 1) add(os.gestor, NOMES_G[os.gestor] || "", FUNC_OP.c, os.cod, m);
-        else {
-          var esc = escolhaCoord(os.cod, vc.ym);
+        // 18/11/2026: antes, o registro de janeiro levava o gestor de HOJE da CTT para os meses anteriores a troca
+        // (M01013 jan-ago creditava quem assumiu em set). Agora: escolha gravada do Master; se o nome do cadastro e
+        // o gestor atual da CTT (grafia exata), o codigo dele; senao fica pendente para o Master escolher.
+        var lc = VIG.coord[os.cod], vc = vigente(lc, ym);
+        if (!lc || !lc.length) add(os.gestor, NOMES_G[os.gestor] || "", FUNC_OP.c, os.cod, m);
+        else if (vc) {
+          var esc = escolhaCoord(os.cod, vc), nomeCTT = String(NOMES_G[os.gestor] || "").trim().toUpperCase();
           if (esc) add(pad6(esc.CodPessoa), esc.Nome || "", FUNC_OP.c, os.cod, m);
+          else if (nomeCTT && String(vc.nome || "").trim().toUpperCase() === nomeCTT) add(os.gestor, NOMES_G[os.gestor] || "", FUNC_OP.c, os.cod, m);
           else if (!pend.some(function (x) { return x.os === os.cod && x.ym === vc.ym; })) pend.push({ os: os.cod, desc: os.desc, ym: vc.ym, nome: vc.nome });
         }
         var vg = vigente(VIG.ger[os.cod], ym), cg = vg ? vg.cod : os.ger;
@@ -1178,23 +1185,26 @@
       // Metas = aba Metas do app da pagina DESTAQUES (lista META_FINANCEIRA). Coordenador: meta das OSs dele e o
       // realizado SO das OSs que tem meta (14/10/2026: 22 OSs elegiveis ainda sem meta; comparar igual com igual).
       // Gerente e superintendente: meta propria (fixa) contra o realizado de todas as OSs.
-      var meta = null, metaOS = null;
+      // 18/11/2026 (usuario): a meta e a media das metas de margem das OSs, ponderada pelos MESES que a pessoa
+      // respondeu por cada uma -- vale para gestor do contrato, gerente e superintendente. Realizado so das OSs com meta.
+      var metaOS = {}, porOS = {}, somaMeta = 0, somaMeses = 0;
       r.osSemMeta = [];
-      if (p.funcao === FUNC_OP.c) {
-        var porOS = {};
-        osMeses.forEach(function (x) { porOS[x.os] = (porOS[x.os] || 0) + 1; });
-        var mf = 0, mr = 0, n = 0;
-        metaOS = {};
-        metasRPCO.forEach(function (x) {
-          if (String(x.Nivel || "").toUpperCase() !== "OS" || +x.Ano !== ANO || !porOS[x.CodOS]) return;
-          var w = porOS[x.CodOS] / 12; mf += (+x.FatMeta || 0) * w; mr += (+x.ResMeta || 0) * w; n++; metaOS[x.CodOS] = 1;
-        });
-        meta = n ? { fat: mf, res: mr, linhas: n } : null;
-        r.osSemMeta = Object.keys(porOS).filter(function (o) { return !metaOS[o]; }).sort();
-      } else meta = p.funcao === FUNC_OP.g ? metaNivel("GERENTE", "CodGerente", p.cod) : metaNivel("SUPERINTENDENTE", "CodSuperintendente", p.cod);
+      osMeses.forEach(function (x) { porOS[x.os] = (porOS[x.os] || 0) + 1; });
+      var somaOS = {};
+      metasRPCO.forEach(function (x) {
+        if (String(x.Nivel || "").toUpperCase() !== "OS" || +x.Ano !== ANO || !porOS[x.CodOS]) return;
+        var o = somaOS[x.CodOS] = somaOS[x.CodOS] || { fat: 0, res: 0 }; o.fat += +x.FatMeta || 0; o.res += +x.ResMeta || 0;
+      });
+      Object.keys(somaOS).forEach(function (c) {
+        if (!somaOS[c].fat) return;
+        metaOS[c] = { margem: somaOS[c].res / somaOS[c].fat, meses: porOS[c] };
+        somaMeta += metaOS[c].margem * porOS[c]; somaMeses += porOS[c];
+      });
+      r.osSemMeta = Object.keys(porOS).filter(function (o) { return !metaOS[o]; }).sort();
+      r.metaPorOS = Object.keys(metaOS).sort().map(function (o) { return { os: o, margem: metaOS[o].margem, meses: metaOS[o].meses }; });
       var rf = 0, rr = 0;
-      osMeses.forEach(function (x) { if (metaOS && !metaOS[x.os]) return; var o = OS_POR_COD[x.os], v = o && o.fr[x.m - 1]; if (v) { rf += v.fat; rr += v.res; } });
-      r.AG = meta && meta.fat ? meta.res / meta.fat : null; r.metaLinhas = meta ? meta.linhas : 0;
+      osMeses.forEach(function (x) { if (!metaOS[x.os]) return; var o = OS_POR_COD[x.os], v = o && o.fr[x.m - 1]; if (v) { rf += v.fat; rr += v.res; } });
+      r.AG = somaMeses ? somaMeta / somaMeses : null; r.metaLinhas = r.metaPorOS.length;
       r.AH = rf ? rr / rf : null;
       if (r.AG === null) r.pend.push("sem meta na aba Metas");
       var q = (r.AG && r.AH !== null) ? r.AH / r.AG : null;
@@ -1377,7 +1387,7 @@
       ' (' + p.mesesValidos.length + ' meses' + (p.dados.adm ? ', admissão ' + esc(p.dados.adm) : '') + (p.motivoZero ? ', ' + esc(p.motivoZero) : '') + ') = ' + rs(r.base));
     l.push('<b>Coletivas:</b> lucro ' + (r.AA === null ? "–" : fmtPct(r.AA, 1)) + ' · caixa ' + (r.AB === null ? "–" : fmtPct(r.AB, 1)) + ' → ' + fmtPct(r.AC, 1));
     if (NIVEL_OP(p.funcao)) l.push('<b>Individual:</b> margem real ' + (r.AH === null ? "–" : fmtPct(r.AH, 2)) + ' ÷ meta ' + (r.AG === null ? "–" : fmtPct(r.AG, 2)) +
-      (r.metaLinhas ? ' (' + r.metaLinhas + ' linha(s) da aba Metas da página DESTAQUES)' : '') + ' → ' + fmtPct(r.AK, 1) +
+      (r.metaPorOS && r.metaPorOS.length ? ' (média das metas das OSs pelos meses: ' + r.metaPorOS.map(function (x) { return esc(x.os) + ' ' + fmtPct(x.margem, 2) + ' × ' + x.meses + (x.meses === 1 ? ' mês' : ' meses'); }).join(' · ') + ')' : '') + ' → ' + fmtPct(r.AK, 1) +
       (r.osSemMeta && r.osSemMeta.length ? ' · fora do individual por não ter meta: ' + esc(r.osSemMeta.join(", ")) : ''));
     else if (r.AI !== undefined) l.push('<b>Individual:</b> orçamento ' + (r.AI === null ? "–" : fmtPct(r.AI, 1)) + ' · OKR ' + (r.AJ === null || r.AJ === undefined ? "–" : fmtPct(r.AJ, 1)) + ' → ' + fmtPct(r.AK, 1));
     if (Object.keys(p.oss).length) l.push('<b>OSs:</b> ' + esc(resumoOSs(p)));
