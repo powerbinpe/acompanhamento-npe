@@ -182,6 +182,20 @@
   }
   // bloco de OSs vai ao fluxo como "A|B" (o app mostra "A + B")
   function codigosBloco(rot) { return String(rot || "").split(/[|+]/).map(function (x) { return x.trim().toUpperCase(); }).filter(Boolean).join("|"); }
+  // 18/11/2026: todos os GESTOR DO CONTRATO da CTT (qualquer OS, inclusive encerrada) para o cadastro de
+  // responsaveis. O mesmo fluxo do book devolve as linhas "G" quando chamado sem OS (so Master/Proprietario).
+  async function lerGestoresCTT() {
+    var tk = await obterToken(), url = urlFluxo();
+    if (url.indexOf("http") !== 0) throw new Error("fluxo NPE-Ler-Dados-Book sem URL");
+    var r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login: tk.login, token: tk.token, os: "", ano: new Date().getFullYear(), mes: 1 }) });
+    if (r.status === 401) { window._NPE_TOKEN_BOOK = null; throw new Error("sessão expirada"); }
+    if (!r.ok) throw new Error("o fluxo respondeu " + r.status);
+    var j = await r.json(), vistos = {}, out = [];
+    norm(j && j.fin).forEach(function (x) { if (x.tipo !== "G") return; var n = String(x.c || "").trim(); if (n && !vistos[n]) { vistos[n] = true; out.push(n); } });
+    if (!out.length) throw new Error("o fluxo não devolveu a lista de gestores");
+    return out.sort();
+  }
   async function lerDadosFluxo(rotulo, ano, mes, tk, urlOpt, extra) {
     rotulo = codigosBloco(rotulo);
     var url = String(urlOpt || urlFluxo() || "").trim();
@@ -2587,5 +2601,5 @@
     }
   }
 
-  window.BOOK = { render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao, gerarGrupo: gerarGrupo, listarGrupos: listarGrupos, gerarDiretoria: gerarDiretoria, _montarDiretoria: montarDiretoria, _renderRelatorioDir: renderRelatorioDir, _agregarGrupo: agregarGrupo, _promptGrupo: promptGrupo, _renderRelatorioGrupo: renderRelatorioGrupo, _renderPauta: renderPauta, _montarPauta: montarPauta };
+  window.BOOK = { lerGestoresCTT: lerGestoresCTT, render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao, gerarGrupo: gerarGrupo, listarGrupos: listarGrupos, gerarDiretoria: gerarDiretoria, _montarDiretoria: montarDiretoria, _renderRelatorioDir: renderRelatorioDir, _agregarGrupo: agregarGrupo, _promptGrupo: promptGrupo, _renderRelatorioGrupo: renderRelatorioGrupo, _renderPauta: renderPauta, _montarPauta: montarPauta };
 })();
