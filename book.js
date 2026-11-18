@@ -2469,21 +2469,45 @@
   // ------------------------------------------------------------------ tela
   var _prog = "";
   function progresso(t) { _prog = t; var p = el("bkProgresso"); if (p) { p.style.display = t ? "block" : "none"; p.textContent = t; } }
+  // 18/11/2026 -- acesso por nivel pelo filtro de seguranca do BiExplorer (parametro PortalOS da medida:
+  // OSs liberadas pelo portal, ignorando os filtros da pagina; "*" = sem filtro do portal).
+  //   gestor do contrato: so a aba OS (as suas)  |  gerente: OS + Gerencia (a sua)
+  //   superintendente: OS + Gerencia + Superintendencia (as suas)  |  Negocio/Diretoria: so Master
+  // Um grupo so e liberado quando TODAS as OSs dele estao no portal do usuario.
+  function acessoPortal() {
+    var p = new URLSearchParams(window.location.search), raw = p.get("PortalOS");
+    if (raw === null) raw = p.get("AllowedOSList") || "";   // medida antiga: o que esta visivel
+    raw = String(raw || "").trim();
+    var set = {}; (raw.toUpperCase().match(/[A-Z]\d{5}/g) || []).forEach(function (c) { set[c] = 1; });
+    return { todos: raw === "*", oss: set };
+  }
+  function cobre(grupo, ac) { var cods = (grupo.oss || []).join(" ").toUpperCase().match(/[A-Z]\d{5}/g) || []; return cods.length > 0 && cods.every(function (c) { return ac.oss[c]; }); }
+  function gruposLiberados(nivel) {
+    var gs = listarGrupos(nivel); if (master()) return gs;
+    var ac = acessoPortal(); if (ac.todos) return gs;
+    return gs.filter(function (g) { return cobre(g, ac); });
+  }
+  function nivelLiberado(nivel) {
+    if (nivel === "os") return true;
+    if (nivel === "dir") return master();
+    return master() || acessoPortal().todos || gruposLiberados(nivel).length > 0;
+  }
   function osPermitidas() {
     var lista = [];
-    try { lista = master() ? A.tab5OSElegiveis() : A.tab5OSDoUsuario(); } catch (e) { lista = []; }
-    return lista || [];
+    try { lista = A.tab5OSElegiveis() || []; } catch (e) { lista = []; }
+    if (master()) return lista;
+    var ac = acessoPortal(); if (ac.todos) return lista;
+    return lista.filter(function (o) { var cods = (String(o.codigo || "") + " " + String(o.rotulo || "")).toUpperCase().match(/[A-Z]\d{5}/g) || []; return cods.some(function (c) { return ac.oss[c]; }); });
   }
   function abas() {
-    return '<div class="bk-tabs"><button type="button" class="' + (st.nivel === "os" ? "on" : "") + '" data-action="book:nivel:os">OS</button><button type="button" class="' + (st.nivel === "ger" ? "on" : "") + '" data-action="book:nivel:ger">Gerência</button><button type="button" class="' + (st.nivel === "sup" ? "on" : "") + '" data-action="book:nivel:sup">Superintendência</button>' + (master() ? '<button type="button" class="' + (st.nivel === "dir" ? "on" : "") + '" data-action="book:nivel:dir">Diretoria</button>' : "") + '</div>';
+    return '<div class="bk-tabs"><button type="button" class="' + (st.nivel === "os" ? "on" : "") + '" data-action="book:nivel:os">OS</button>' + (nivelLiberado("ger") ? '<button type="button" class="' + (st.nivel === "ger" ? "on" : "") + '" data-action="book:nivel:ger">Gerência</button>' : "") + (nivelLiberado("sup") ? '<button type="button" class="' + (st.nivel === "sup" ? "on" : "") + '" data-action="book:nivel:sup">Superintendência</button>' : "") + (master() ? '<button type="button" class="' + (st.nivel === "dir" ? "on" : "") + '" data-action="book:nivel:dir">Diretoria</button>' : "") + '</div>';
   }
   async function renderGrupo(box) {
     var nivel = st.nivel, ano = anoAtivo(), mes = A.ultimoMesFechado ? A.ultimoMesFechado(ano) : 0, rot = nivel === "ger" ? "Gerência" : "Superintendência";
     box.innerHTML = '<div class="bk-wrap"><div class="bk-nav"><span class="bk-marca">BOOK</span>' + abas() + '</div><div id="bkConteudo"><p class="bk-vazio">Carregando…</p></div></div>';
     var gs = [], mapa = {};
-    try { gs = listarGrupos(nivel); mapa = await lerNivel(nivel); } catch (e) { var c0 = el("bkConteudo"); if (c0) c0.innerHTML = '<p class="bk-vazio">Não consegui ler os books: ' + esc(e.message || e) + "</p>"; return; }
+    try { gs = gruposLiberados(nivel); mapa = await lerNivel(nivel); } catch (e) { var c0 = el("bkConteudo"); if (c0) c0.innerHTML = '<p class="bk-vazio">Não consegui ler os books: ' + esc(e.message || e) + "</p>"; return; }
     // acesso pela hierarquia: Master ve todos; os demais, os grupos das suas OSs
-    if (!master()) { var minhas = osPermitidas().map(function (o) { return o.codigo; }); gs = gs.filter(function (g) { return g.oss.some(function (os) { return minhas.indexOf(os) >= 0; }); }); }
     Object.keys(mapa).forEach(function (k) { if (!gs.some(function (g) { return g.nome === k; }) && (master() || false)) gs.push({ nome: k, oss: [] }); });
     var sel = st.sel[nivel] && gs.some(function (g) { return g.nome === st.sel[nivel]; }) ? st.sel[nivel] : (gs[0] ? gs[0].nome : "");
     st.sel[nivel] = sel;
@@ -2521,6 +2545,7 @@
   async function render() {
     var box = el("tabBookContainer"); if (!box) return;
     if (A.garantirHierarquia) { try { await A.garantirHierarquia(); } catch (e) {} }
+    if (!nivelLiberado(st.nivel)) st.nivel = "os";
     if (st.nivel === "dir") return renderDir(box);
     if (st.nivel !== "os") return renderGrupo(box);
     var lista = osPermitidas();
@@ -2571,7 +2596,7 @@
   });
   document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") abrirLista(false); });
   async function acao(nome, alvo) {
-    if (nome === "nivel:os" || nome === "nivel:ger" || nome === "nivel:sup" || nome === "nivel:dir") { st.nivel = nome.slice(6); render(); return; }
+    if (nome === "nivel:os" || nome === "nivel:ger" || nome === "nivel:sup" || nome === "nivel:dir") { st.nivel = nivelLiberado(nome.slice(6)) ? nome.slice(6) : "os"; render(); return; }
     if (nome === "vista:pauta" || nome === "vista:rel") { st.vista = nome === "vista:pauta" ? "pauta" : "rel"; render(); return; }
     if (nome === "gerardir") {
       if (st.carregando) return;
@@ -2630,5 +2655,5 @@
     }
   }
 
-  window.BOOK = { lerGestoresCTT: lerGestoresCTT, render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao, gerarGrupo: gerarGrupo, listarGrupos: listarGrupos, gerarDiretoria: gerarDiretoria, _montarDiretoria: montarDiretoria, _renderRelatorioDir: renderRelatorioDir, _agregarGrupo: agregarGrupo, _promptGrupo: promptGrupo, _renderRelatorioGrupo: renderRelatorioGrupo, _renderPauta: renderPauta, _montarPauta: montarPauta };
+  window.BOOK = { lerGestoresCTT: lerGestoresCTT, render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao, gerarGrupo: gerarGrupo, listarGrupos: listarGrupos, gerarDiretoria: gerarDiretoria, _montarDiretoria: montarDiretoria, _renderRelatorioDir: renderRelatorioDir, _agregarGrupo: agregarGrupo, _promptGrupo: promptGrupo, _renderRelatorioGrupo: renderRelatorioGrupo, _renderPauta: renderPauta, _gruposLiberados: gruposLiberados, _nivelLiberado: nivelLiberado, _osPermitidas: osPermitidas, _montarPauta: montarPauta };
 })();
