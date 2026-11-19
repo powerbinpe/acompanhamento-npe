@@ -1030,7 +1030,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-19 19:00";
+    window.NPE_BUILD = "2026-11-19 20:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -2880,7 +2880,8 @@ function hydrateFromPowerBI() {
       4:  { campo: "resDifMesPct",   dir: "modulo",  fmt: "pct", taxa: true },
       6:  { campo: "perdaPctAcum",   dir: "menor",  fmt: "pct", jaAcumulado: true },
       8:  { campo: "indenizOk",      dir: "bool",   fmt: "bool", jaAcumulado: true },
-      9:  { campo: "efetivoDifPct",  dir: "modulo", fmt: "pct", taxa: true },
+      // 19/11/2026: a regra do efetivo e em PESSOAS (real x projetado, arredondados), nao em %.
+      9:  { campo: "_efDifPax",      dir: "modulo", fmt: "pax", taxa: true },
       10: { campo: "hhtDifPct",      dir: "modulo", fmt: "pct", taxa: true },
       11: { campo: "absenteismoPct", dir: "menor",  fmt: "pct", acum: "absenteismoAcumPct" },
       12: { campo: "turnoverPct",    dir: "menor",  fmt: "pct", acum: "turnoverAcumPct" },
@@ -2908,9 +2909,27 @@ function hydrateFromPowerBI() {
       "preenchimento":  { binario: true, taxa: true }  // mesmo tópico, chave usada na Aba 3/4
     };
 
+    // 19/11/2026: Boas Praticas pelo periodo da regra (LD = semestre, CD = evento, demais = ano).
+    // Antes somava o acumulado do ANO: 16 em set com 0 no semestre, e a IA cobrava o gestor.
+    function _valTend(osCode, m, campo) {
+      if (campo === "_bpTotal" && typeof _bpPerio === "function") {
+        var cB = _contratoDe(osCode);
+        if (cB && cB.monthHistory && cB.monthHistory[m]) {
+          var pB = _bpPerio(cB);
+          var xB = pB === "S" ? _bpSemestreAte(cB, m) : (pB === "E" ? _bpEventoAte(cB, m) : null);
+          if (xB) return (xB.aprov || 0) + (xB.recon || 0);
+        }
+      }
+      return _valorTendencia(getMonthHistoryRow(osCode, m), campo);
+    }
+
     function _valorTendencia(linha, campo) {
       if (!linha) return null;
       // Boas Praticas nao tem um campo unico: a meta e 3 aprovadas + 1 reconhecida.
+      if (campo === "_efDifPax") {
+        if (typeof linha.efetivoRealV !== "number" || typeof linha.efetivoExecV !== "number") return null;
+        return Math.round(linha.efetivoRealV) - Math.round(linha.efetivoExecV);
+      }
       if (campo === "_bpTotal") {
         var a = Number(linha.bpAprovAcum), r = Number(linha.bpReconAcum);
         if (!isFinite(a) && !isFinite(r)) return null;
@@ -2926,6 +2945,7 @@ function hydrateFromPowerBI() {
     function _fmtTendencia(v, fmt) {
       if (v === null) return "-";
       if (fmt === "pct") return (v * 100).toFixed(2).replace(".", ",") + "%";
+      if (fmt === "pax") return (v > 0 ? "+" : "") + Math.round(v) + " pax";
       // indenizOk vem de COR INDENIZACAO ACU -- e uma comparacao contra a META, nao uma
       // deteccao de existencia. Dizer "Sem indenizacao -> Com indenizacao" fazia parecer que
       // a primeira indenizacao do ano tinha acontecido naquele mes, quando na F09900 ela
@@ -2963,7 +2983,9 @@ function hydrateFromPowerBI() {
     // O rotulo visivel da a leitura ("Melhorou vs jun") e o title traz os numeros.
     function textoTendencia(osCode, topicId, mNum) {
       var html = "";
-      try { html = seloTendencia(osCode, topicId, mNum) || ""; } catch (e) { return ""; }
+      // 19/11/2026: Satisfacao e anual -- o selo da tela ja usava seloTendenciaSatisfacao, mas o texto
+      // que vai para a IA usava o mensal (vazio) e o parecer dizia "nao ha tendencia apurada".
+      try { html = (topicId === 17 && typeof seloTendenciaSatisfacao === "function") ? (seloTendenciaSatisfacao() || "") : (seloTendencia(osCode, topicId, mNum) || ""); } catch (e) { return ""; }
       if (!html) return "";
       var d = document.createElement("div");
       d.innerHTML = html;
@@ -3059,12 +3081,12 @@ function hydrateFromPowerBI() {
             "  \u2192  " + _mesCurto(mNum) + ": " + (agoraBin ? "Aderente" : "N\u00e3o aderente"));
         }
       } else {
-        var atualBruto = _valorTendencia(getMonthHistoryRow(osCode, mNum), meta.campo);
+        var atualBruto = _valTend(osCode, mNum, meta.campo);
         if (atualBruto === null) return "";
         var atual = _normTendencia(atualBruto, meta);
 
         // --- vs mes anterior ---
-        var antBruto = _valorTendencia(getMonthHistoryRow(osCode, mNum - 1), meta.campo);
+        var antBruto = _valTend(osCode, mNum - 1, meta.campo);
         if (antBruto !== null) {
           var cmp = _compararTendencia(atual, _normTendencia(antBruto, meta), meta);
           var vis = cmp === 1
@@ -3073,7 +3095,7 @@ function hydrateFromPowerBI() {
               ? { ico: "\u25bc", txt: "Piorou", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
               : { ico: "\u25ac", txt: "Est\u00e1vel", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
           out += _chipTendencia(vis, "vs " + _mesCurto(mNum - 1),
-            (meta.jaAcumulado ? "Valor acumulado do ano. " : "") +
+            (meta.campo === "_bpTotal" ? "Acumulado no per\u00edodo da regra de Boas Pr\u00e1ticas. " : (meta.jaAcumulado ? "Valor acumulado do ano. " : "")) +
             _mesCurto(mNum - 1) + ": " + _fmtTendencia(antBruto, meta.fmt) +
             "  \u2192  agora: " + _fmtTendencia(atualBruto, meta.fmt));
         }
@@ -3112,13 +3134,13 @@ function hydrateFromPowerBI() {
               " (" + Math.round(tx.taxa * 100) + "%). " + _mesCurto(mNum) + ": " +
               (noMes ? "atendeu" : "n\u00e3o atendeu") + extra);
         }
-      } else if (meta.jaAcumulado) {
+      } else if (meta.jaAcumulado && meta.campo !== "_bpTotal") {
         // O valor ja e o do ano. A variacao do ano e, entao, a distancia entre onde ele esta
         // agora e onde COMECOU -- o primeiro mes com apuracao. Responde uma pergunta que o
         // selo do mes anterior nao responde: o acumulado melhorou ou piorou desde o inicio.
         var mIni = 0, iniBruto = null;
         for (var mm = 1; mm <= mNum - 1 && iniBruto === null; mm++) {
-          var vv = _valorTendencia(getMonthHistoryRow(osCode, mm), meta.campo);
+          var vv = _valTend(osCode, mm, meta.campo);
           if (vv !== null) { iniBruto = vv; mIni = mm; }
         }
         if (iniBruto !== null && mIni < mNum) {
@@ -4053,7 +4075,9 @@ function hydrateFromPowerBI() {
     // entram mais no denominador do Preenchimento. Decisao de 18/09/2026.
     var TOPICOS_PREENCHIMENTO = (function () {
       var a = [];
-      for (var i = 1; i <= 21; i++) a.push(i);
+      // 19/11/2026 (usuario): #5, #18, #19 e #21 sao manuais e ficam fora da aderencia e do parecer
+      // -- tambem nao contam no preenchimento (0 de 17, nao 0 de 21).
+      for (var i = 1; i <= 21; i++) if ([5, 18, 19, 21].indexOf(i) === -1) a.push(i);
       return a;
     })();
 
@@ -4233,9 +4257,13 @@ function hydrateFromPowerBI() {
       if (topicId === "prazo") {
         var pStatus = getSlaPeriodStatus(contract.code, m);
         var deadline = getPrazoLimite(m, parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10));
-        var deadlineTxt = deadline ? (" (entrega: " + formatDateBR(deadline) + ")") : "";
-        if (pStatus === "NO_PRAZO") return "No prazo" + deadlineTxt;
-        if (pStatus === "FORA_PRAZO") return "Fora do prazo" + deadlineTxt;
+        // 19/11/2026: a data e o PRAZO LIMITE do mes, nao a data de entrega (dizia "entrega:" e a IA
+        // concluia que o gestor tinha entregado nesse dia).
+        var deadlineTxt = deadline ? (" (prazo limite: " + formatDateBR(deadline) + ")") : "";
+        var compP = (typeof getOSCompletionStatus === "function") ? getOSCompletionStatus(contract.code, m) : null;
+        var nadaP = compP && compP.filledCount === 0 ? " \u00b7 o Gestor n\u00e3o preencheu nenhuma justificativa do m\u00eas" : "";
+        if (pStatus === "NO_PRAZO") return "No prazo" + deadlineTxt + nadaP;
+        if (pStatus === "FORA_PRAZO") return "Fora do prazo" + deadlineTxt + nadaP;
         if (pStatus === "INATIVO") return "Período inativo";
         return "Sem período definido";
       }
@@ -4262,6 +4290,14 @@ function hydrateFromPowerBI() {
           : evQ === "NAO_ADERENTE" ? "Apura\u00e7\u00e3o qualitativa: N\u00e3o aderente"
           : evQ === "NA" ? "Apura\u00e7\u00e3o qualitativa: N/A (n\u00e3o se aplica no m\u00eas)"
           : "Apura\u00e7\u00e3o qualitativa: ainda n\u00e3o avaliada";
+        // 19/11/2026: #7, #13 e #14 sao automaticos (painel Receita Ideal / painel RH). Sem marcacao,
+        // o cabecalho dizia "ainda nao avaliada" e a IA cobrava o Setor de Performance.
+        if (evQ === "PENDENTE" && (topicId === "t7" || topicId === "t13" || topicId === "t14")) {
+          var scA = null; try { scA = calculateOSScore(contract, m); } catch (eA) { scA = null; }
+          var tpA = scA && scA.topics ? scA.topics[topicId] : null;
+          qTxt = !tpA || !tpA.applicable ? "Apura\u00e7\u00e3o autom\u00e1tica: sem dado para apurar no m\u00eas"
+            : (tpA.earned >= tpA.max - 0.001 ? "Apura\u00e7\u00e3o autom\u00e1tica: Aderente" : "Apura\u00e7\u00e3o autom\u00e1tica: N\u00e3o aderente");
+        }
         // 17/11/2026: o numero do painel RH vai junto da marcacao (a marcacao do Master continua valendo)
         var QR = window.QUAL_RH, qNum = "", qRuim = null;
         if (QR && topicId === "t13" && QR.he && QR.he[m]) {
@@ -7731,7 +7767,7 @@ function hydrateFromPowerBI() {
       lines.push("  - #26 Pontualidade VARIA por natureza -- depende da data em que o acompanhamento foi entregue. Aqui cabe analisar o porqu\u00ea do atraso.");
       lines.push("Escreva um parecer para cada um, com o valor apurado DAQUELE indicador na primeira linha (o de #26 \u00e9 a situa\u00e7\u00e3o de prazo; o de #27 \u00e9 quantos de 21 foram preenchidos). N\u00e3o repita o mesmo texto nos dois.");
       lines.push("CASO MAIS GRAVE: fora do prazo E sem justificativa registrada. N\u00e3o entregou e n\u00e3o explicou. Diga isso com todas as letras e cobre as duas coisas -- a entrega e a explica\u00e7\u00e3o -- em vez de diluir numa observa\u00e7\u00e3o gen\u00e9rica.");
-      lines.push("ATEN\u00c7\u00c3O: a falta de justificativa nos indicadores #1 a #21 NUNCA \u00e9 admiss\u00edvel, nem quando a meta foi atendida -- cada um deles \u00e9 uma das causas diretas de o Preenchimento n\u00e3o fechar 100%. Jamais escreva que a aus\u00eancia de justificativa \u00e9 aceit\u00e1vel porque o indicador atendeu: ela \u00e9, ela mesma, a falha que derruba o indicador seguinte. #26 e #27 continuam precisando do PR\u00d3PRIO parecer (contam pra Nota Geral deles mesmos), s\u00f3 n\u00e3o contam mais pra conta do Preenchimento.");
+      lines.push("ATEN\u00c7\u00c3O: a falta de justificativa nos indicadores #1 a #21 (exceto os manuais) NUNCA \u00e9 admiss\u00edvel, nem quando a meta foi atendida -- cada um deles \u00e9 uma das causas diretas de o Preenchimento n\u00e3o fechar 100%. Jamais escreva que a aus\u00eancia de justificativa \u00e9 aceit\u00e1vel porque o indicador atendeu: ela \u00e9, ela mesma, a falha que derruba o indicador seguinte. #26 e #27 continuam precisando do PR\u00d3PRIO parecer (contam pra Nota Geral deles mesmos), s\u00f3 n\u00e3o contam mais pra conta do Preenchimento.");
       lines.push("");
       lines.push("FORMATO DA RESPOSTA (obrigat\u00f3rio -- o app importa por ele)");
       lines.push("REPETINDO O AVISO DO IN\u00cdCIO: tabela N\u00c3O \u00c9 UM FORMATO V\u00c1LIDO PARA ESTA RESPOSTA -- n\u00e3o existe, n\u00e3o \u00e9 uma op\u00e7\u00e3o entre outras, n\u00e3o pode ser oferecida nem sugerida. Isso vale mesmo que uma tabela pare\u00e7a mais organizada ou mais f\u00e1cil de ler: quem processa esta resposta \u00e9 um parser de texto, que s\u00f3 reconhece o padr\u00e3o \"### #N\" abaixo. NUNCA use tabela (markdown, HTML ou qualquer variante), slide, planilha, bullet points soltos ou qualquer outro formato -- s\u00f3 o texto corrido no padr\u00e3o \"### #N\" abaixo, para os 23 indicadores, sem exce\u00e7\u00e3o. Qualquer outro formato quebra a importa\u00e7\u00e3o e apaga os resumos j\u00e1 existentes. N\u00c3O pergunte se prefiro outro formato (tabela, resumo executivo, slide) nem ofere\u00e7a essa alternativa ao final da resposta: devolva direto os 23 blocos, sem nenhum texto antes ou depois deles.");
@@ -8415,7 +8451,7 @@ function hydrateFromPowerBI() {
       lines.push("  - APURA\u00c7\u00c3O QUALITATIVA AINDA N\u00c3O AVALIADA -> isto n\u00e3o \u00e9 falta de dado: \u00e9 o pr\u00f3prio Setor de Performance que ainda n\u00e3o apurou. Diga que a apura\u00e7\u00e3o est\u00e1 pendente do Setor e, se o Gestor tiver dado informa\u00e7\u00e3o \u00fatil, USE essa informa\u00e7\u00e3o no parecer em vez de descart\u00e1-la.");
       lines.push("  - T\u00d3PICO DE TEXTO LIVRE (marcado assim no cabe\u00e7alho) -> n\u00e3o tem valor a apurar. Comente o CONTE\u00daDO que o Gestor escreveu: se \u00e9 suficiente, o que falta, o que precisa ser acompanhado. Nunca escreva \"indicador n\u00e3o apurado\" nestes.");
       lines.push("");
-      lines.push("FATURAMENTO E RESULTADO SE EXPLICAM PELA MOVIMENTAÇÃO DE PESSOAL, NÃO SÓ PELO EXECUTIVO (o executivo não é corrigido de um mês para o outro). Use o bloco COERÊNCIA FATURAMENTO x EFETIVO x CUSTO nos pareceres de Faturamento, Resultado, Assertividade, Efetivo e HHT: o faturamento deve variar na proporção do efetivo e o custo deve cair quando o efetivo cai. No mês da redução de efetivo, o aumento de custo pelas demissões (rescisões, multa de 40%) é esperado, mas tem que ser apontado; nos demais meses, custo fora da proporção não é aceitável. Todo desvio de proporção precisa de justificativa do Gestor: se não houver, cobre; se houver e não for coerente com os números, aponte.");
+      lines.push("FATURAMENTO E RESULTADO SE EXPLICAM PELA MOVIMENTAÇÃO DE PESSOAL, NÃO SÓ PELO EXECUTIVO (o executivo não é corrigido de um mês para o outro). Use o bloco COERÊNCIA FATURAMENTO x EFETIVO x CUSTO só nos pareceres de Faturamento do Mês (#3), Assertividade (#4), Efetivo (#9) e HHT (#10) -- NUNCA no Faturamento Ano (#1) nem no Resultado Ano (#2), que tratam do ano. A análise do custo fica no #4; nos #3, #9 e #10 cite só a proporção que toca o indicador, sem repetir o custo. Não deduza causa que não esteja escrita (ex.: 'não houve demissões'): descreva a proporção e cobre a causa do Gestor. O faturamento deve variar na proporção do efetivo e o custo deve cair quando o efetivo cai. No mês da redução de efetivo, o aumento de custo pelas demissões (rescisões, multa de 40%) é esperado, mas tem que ser apontado; nos demais meses, custo fora da proporção não é aceitável. Todo desvio de proporção precisa de justificativa do Gestor: se não houver, cobre; se houver e não for coerente com os números, aponte.");
       lines.push("");
       lines.push("REGRA 3 -- A JUSTIFICATIVA DO GESTOR TAMB\u00c9M \u00c9 AVALIADA, N\u00c3O S\u00d3 O N\u00daMERO.");
       lines.push("O n\u00famero diz O QUE aconteceu; a justificativa deveria dizer POR QUE e O QUE FOI FEITO. Sem isso o resultado n\u00e3o se replica no ano seguinte, nem bom nem ruim.");
@@ -8444,14 +8480,24 @@ function hydrateFromPowerBI() {
       lines.push("Não cite documento, sistema, processo, prazo, valor ou responsável que não esteja escrito no bloco do indicador. Sem base para recomendar, escreva \"sem informação suficiente para recomendar\".");
       lines.push("Indicador que não bateu a meta e não tem justificativa: aponte a ausência como ponto a cobrar, não invente a causa.");
       lines.push("");
+      // 19/11/2026 (usuario, revisao da M01400 set): erros que a IA repetia
+      lines.push("REGRA 5 -- OS NÚMEROS DO BLOCO SÃO OS OFICIAIS.");
+      lines.push("Valor, situação e tendência vêm do sistema. NÃO aponte \"inconsistência\" entre eles, NÃO diga que \"os números não fecham\" e NÃO peça ao Gestor nem ao Setor para \"conferir o cálculo\" ou a meta. Analise o que está escrito.");
+      lines.push("Cada parecer trata do PRÓPRIO indicador: não traga para ele números de outro indicador.");
+      lines.push("Contagens de meses (\"atendeu X/Y meses\") e valores da tendência: copie exatamente como estão no bloco, sem recalcular.");
+      lines.push("\"Apuração automática: ...\" vem dos painéis (Receita Ideal, RH): o indicador JÁ está apurado. Nunca diga que está pendente do Setor de Performance.");
+      lines.push("Indenização (#8): a regra olha só a indenização do MÊS. O acumulado do ano vem de meses anteriores e o selo \"Dentro da meta\" compara esse acumulado com a meta do ano -- não é inconsistência, não cobre explicação dele como erro.");
+      lines.push("Boas Práticas (#20): a meta é por período da regra (LD = semestre, CD = evento). Use o número do período que está no bloco.");
+      lines.push("Pontualidade (#26): a data entre parênteses é o PRAZO LIMITE do mês, não a data da entrega.");
+      lines.push("");
       lines.push("PONTUALIDADE (#26) E PREENCHIMENTO (#27) -- LEIA COM ATEN\u00c7\u00c3O");
       lines.push("ENDERE\u00c7O -- ANTES DE TUDO: devolva estes dois textos como \"### #26\" e \"### #27\", exatamente como aparecem nos blocos acima. NUNCA como #22 ou #23. Esses dois n\u00fameros pertencem a OUTROS t\u00f3picos (#22 Renova\u00e7\u00e3o do Contrato e #23 Observa\u00e7\u00f5es Gerais): mandar o texto para l\u00e1 sobrescreve o conte\u00fado deles e deixa a Pontualidade e o Preenchimento em branco. Se o cabe\u00e7alho do bloco citar um n\u00famero \"na tela do app\", ele \u00e9 s\u00f3 posi\u00e7\u00e3o visual -- o endere\u00e7o de grava\u00e7\u00e3o \u00e9 sempre o que vem logo depois de \"### #\".");
       lines.push("Os dois dividem UMA \u00fanica nota de Gest\u00e3o e Acompanhamento, mas medem coisas de natureza oposta e NUNCA devem ser tratados como o mesmo assunto:");
-      lines.push("  - #27 Preenchimento deve SEMPRE fechar 100% (21 de 21 indicadores REAIS justificados -- #1 a #21; Pontualidade e o proprio Preenchimento NAO entram nessa conta). Qualquer n\u00famero menor que 21 \u00e9 falha de gest\u00e3o, sem atenuante.");
+      lines.push("  - #27 Preenchimento deve SEMPRE fechar 100% (" + TOPICOS_PREENCHIMENTO.length + " de " + TOPICOS_PREENCHIMENTO.length + " indicadores justificados -- #1 a #21, exceto os manuais #5, #18, #19 e #21; Pontualidade e o proprio Preenchimento NAO entram nessa conta). Qualquer n\u00famero menor \u00e9 falha de gest\u00e3o, sem atenuante.");
       lines.push("  - #26 Pontualidade VARIA por natureza -- depende da data em que o acompanhamento foi entregue. Aqui cabe analisar o porqu\u00ea do atraso.");
-      lines.push('Escreva a análise de cada um (o valor apurado do #26 é a situação de prazo; o do #27 é quantos de 21 foram preenchidos -- o aplicativo já os escreve na primeira linha). Não repita o mesmo texto nos dois.');
+      lines.push('Escreva a análise de cada um (o valor apurado do #26 é a situação de prazo; o do #27 é quantos de " + TOPICOS_PREENCHIMENTO.length + " foram preenchidos -- o aplicativo já os escreve na primeira linha). Não repita o mesmo texto nos dois.');
       lines.push("CASO MAIS GRAVE: fora do prazo E sem justificativa registrada. N\u00e3o entregou e n\u00e3o explicou. Diga isso com todas as letras e cobre as duas coisas -- a entrega e a explica\u00e7\u00e3o -- em vez de diluir numa observa\u00e7\u00e3o gen\u00e9rica.");
-      lines.push("ATEN\u00c7\u00c3O: a falta de justificativa nos indicadores #1 a #21 NUNCA \u00e9 admiss\u00edvel, nem quando a meta foi atendida -- cada um deles \u00e9 uma das causas diretas de o Preenchimento n\u00e3o fechar 100%. Jamais escreva que a aus\u00eancia de justificativa \u00e9 aceit\u00e1vel porque o indicador atendeu: ela \u00e9, ela mesma, a falha que derruba o indicador seguinte. #26 e #27 continuam precisando do PR\u00d3PRIO parecer (contam pra Nota Geral deles mesmos), s\u00f3 n\u00e3o contam mais pra conta do Preenchimento.");
+      lines.push("ATEN\u00c7\u00c3O: a falta de justificativa nos indicadores #1 a #21 (exceto os manuais) NUNCA \u00e9 admiss\u00edvel, nem quando a meta foi atendida -- cada um deles \u00e9 uma das causas diretas de o Preenchimento n\u00e3o fechar 100%. Jamais escreva que a aus\u00eancia de justificativa \u00e9 aceit\u00e1vel porque o indicador atendeu: ela \u00e9, ela mesma, a falha que derruba o indicador seguinte. #26 e #27 continuam precisando do PR\u00d3PRIO parecer (contam pra Nota Geral deles mesmos), s\u00f3 n\u00e3o contam mais pra conta do Preenchimento.");
       lines.push("A análise tem no máximo 4 linhas, é concreta e não repete o texto do Gestor.");
       lines.push("Não use colchetes em lugar nenhum da resposta -- o app os remove ao gravar.");
       lines.push("");
@@ -8493,6 +8539,8 @@ function hydrateFromPowerBI() {
       if (/\b(melhorou|piorou|melhora|piora|queda)\b|\brecuper/i.test(t) && !/[0-9]/.test(t)) motivos.push("afirma melhora/piora sem número");
       var det = String(it.detalhe || "");
       if (/Aderente/.test(det) && /pendente|ainda n[ãa]o avaliad/i.test(t)) motivos.push("diz que a apuração está pendente, mas já foi marcada");
+      if (/Apura\u00e7\u00e3o autom\u00e1tica/.test(det) && /pendente|ainda n[ãa]o (foi )?(feita|avaliad|apurad)/i.test(t)) motivos.push("diz que a apuração está pendente, mas é automática");
+      if (/n[ãa]o fecham|inconsist[êe]ncia|conferir o c[áa]lculo|conferir qual/i.test(t)) motivos.push("questiona os números oficiais do bloco");
       if (/casos|ocorr/i.test(det) && /n[ãa]o (foi )?apurad|sem apuração/i.test(t)) motivos.push("nega um valor que existe");
       if (it.gestor === "(sem justificativa)" && !/justificativ|coment[áa]rio|explica|n[ãa]o (registr|inform|apresent|descrev)/i.test(t)) motivos.push("não cobra a justificativa ausente");
       return motivos;
@@ -8758,6 +8806,9 @@ function hydrateFromPowerBI() {
       if (/[\[\]]/.test(t)) motivos.push("tem colchetes");
       if (/^\s*#{1,6}\s/m.test(t) || /^\s*\|.*\|\s*$/m.test(t)) motivos.push("formato fora do padrão (cabeçalho/tabela)");
       if (!/[0-9]/.test(t)) motivos.push("sem nenhum número");
+      if (/demais indicadores seguem|faixa esperada/i.test(t)) motivos.push("frase genérica de fechamento");
+      if (/#(5|18|19|21)\b|LTCAT|PBI\/PBD|Gest[ãa]o de Risco|Notifica[çc][ãa]o\/SLA/i.test(t)) motivos.push("cita indicador manual");
+      if (/n[ãa]o fecham|inconsist[êe]ncia|conferir o (c[áa]lculo|faturamento|resultado)/i.test(t)) motivos.push("questiona os números oficiais");
       var mDemais = /demais\s+(\d+)\s+indicadores/i.exec(t);
       if (mDemais && totalIndicadores && parseInt(mDemais[1], 10) > totalIndicadores) motivos.push("cita mais indicadores do que existem");
       return motivos;
@@ -8830,6 +8881,20 @@ function hydrateFromPowerBI() {
         Object.keys(res.analises).forEach(function(k) { res.textos[k] = montarParecerCompleto(parseInt(k, 10), res.analises[k], base2); });
       }
       var ap = aplicarTextosNasCaixas(activeOS, monthNum, res.textos, !!opts.preservarPreenchidos);
+      // 19/11/2026 (usuario): manuais ficam sem parecer -- o texto antigo (gerado antes da regra) sai.
+      var manuaisLimpos = [];
+      if (!opts.preservarPreenchidos) {
+        TOPICOS_MANUAIS_PARECER.forEach(function(tidM) {
+          var stM = safeGetStorage("status_" + activeOS + "_m" + monthNum + "_" + tidM, "");
+          if (stM === "Validado" || stM === "Homologado") return;
+          var elM = document.getElementById("master_" + tidM);
+          if (!elM || !String(elM.value || "").trim()) return;
+          elM.value = "";
+          if (typeof handleCommentInput === "function") handleCommentInput(tidM, "MASTER", "");
+          safeSetStorage("m_" + activeOS + "_m" + monthNum + "_" + tidM, "");
+          manuaisLimpos.push("#" + tidM);
+        });
+      }
 
       _marca("pareceres");
       passo("síntese do mês");
@@ -8871,6 +8936,7 @@ function hydrateFromPowerBI() {
         mantidos: ap.mantidos || [],
         vereditosAcao: vereditosGravados,
         aderenciasZeradas: aderenciasZeradas,
+        manuaisLimpos: manuaisLimpos,
         erroSalvar: gravado === false ? String(window.NPE_ERRO_SALVAR || "sem motivo registrado") : "",
         tempos: _tempos,
         gravado: gravado
@@ -9741,6 +9807,8 @@ function hydrateFromPowerBI() {
         TOPICOS_COM_CAIXA.forEach(function(tid) {
           var c = catDoTopico(tid);
           if (!c || c.key !== cat.key) return;
+          // 19/11/2026: manuais (#5, #18, #19, #21) ficam fora do parecer e da sintese
+          if (TOPICOS_MANUAIS_PARECER.indexOf(tid) !== -1) return;
           var topicObj = topicsData.find(function(x) { return x.id === tid; }) || { name: "T\u00f3pico #" + tid };
           var mEl = document.getElementById("master_" + tid);
           var mVal = mEl ? mEl.value : safeGetStorage("m_" + os + "_m" + mNum + "_" + tid, "");
@@ -9755,7 +9823,9 @@ function hydrateFromPowerBI() {
         });
         if (!blocos.length) return;
         var pts = PTSCAT[cat.key], max = MAXCAT[cat.key];
-        var nota = (typeof pts === "number" && max)
+        var algumApurado = !!(scS && scS.topics && cat.topics.some(function(sid) { var tp = scS.topics[sid]; return tp && tp.applicable; }));
+        var nota = !algumApurado ? "  \u2014  sem indicador apurado no m\u00eas (n\u00e3o \u00e9 0%: a categoria n\u00e3o entrou na nota)"
+          : (typeof pts === "number" && max)
           ? "  \u2014  " + (Math.round(pts * 1000 / max) / 10).toString().replace(".", ",") +
             "% da categoria (" + (Math.round(pts * 10) / 10).toString().replace(".", ",") + " de " + max + " pts)"
           : "";
@@ -9798,13 +9868,15 @@ function hydrateFromPowerBI() {
       lines.push("SEGUNDO MOTIVO DE ENTRADA: o parecer do indicador aponta falha na justificativa do Gestor. Se o parecer diz que o Gestor não justificou, justificou de forma que não condiz com o número, ou não descreveu a ação que produziu o resultado -- esse indicador ENTRA na síntese mesmo com o número sob controle. Número bom com justificativa fraca é ponto de governança, e a síntese é onde isso aparece nomeado, não só na linha geral dos \"sob controle\".");
       lines.push("Para cada destaque -- por desvio ou por falha de justificativa -- uma frase: o indicador, o número (de quanto para quanto, ou o valor contra a meta) e o encaminhamento. Agrupe numa frase só os que têm a MESMA causa (ex.: distrato afeta faturamento, resultado e efetivo ao mesmo tempo; ou: três indicadores sob controle sem o Gestor descrever a ação que sustentou o resultado).");
       lines.push("");
-      lines.push("OS INDICADORES SOB CONTROLE NÃO ENTRAM UM A UM. Os que estão dentro ou perto da meta, estáveis, sem desvio relevante -- viram UMA linha geral no fim: \"os demais indicadores seguem dentro da faixa esperada\" -- SEM dizer quantos são (você não tem como contar com segurança quais ficaram de fora). Nunca um parágrafo cada.");
+      lines.push("OS INDICADORES SOB CONTROLE NÃO ENTRAM UM A UM, e NÃO feche com frase genérica (\"os demais indicadores seguem dentro da faixa esperada\" e afins): se não há outro destaque, não diga nada sobre eles.");
       lines.push("A nota por categoria no cabeçalho de cada grupo diz por ONDE começar a olhar (a categoria com a pior nota concentra os desvios), não obriga a citar um indicador de cada categoria.");
       lines.push("");
       lines.push("TAMANHO: isso deve caber em meia página. Se passou disso, você está recapitulando indicador sob controle -- corte.");
       lines.push("");
       lines.push("O QUE FICA DE FORA. Sintetizar é ESCOLHER, não recapitular. NÃO liste os indicadores um a um, e NÃO cite indicador que não tem nada de novo a dizer -- \"pendente de apuração qualitativa\", \"não apurado no mês\" e afins não entram na síntese: quem quiser o detalhe abre o parecer do indicador. Entra o que muda uma decisão: o que exige ação, o que contradiz, o que se repete em vários indicadores.");
-      lines.push("Se sete indicadores estão pendentes de apuração, isso vira UMA linha (\"sete indicadores seguem pendentes de apuração qualitativa do Setor\"), nunca sete parágrafos.");
+      lines.push("Os indicadores manuais (#5 Notificação/SLA, #18 LTCAT/LIPAE, #19 PBI/PBD e #21 Gestão de Risco) ficam FORA da síntese: não os cite, nem como pendentes.");
+      lines.push("Categoria marcada \"sem indicador apurado no mês\" não está em 0%: não a chame de zerada nem a coloque como problema.");
+      lines.push("Os números dos pareceres são os oficiais do sistema: não aponte inconsistência entre eles nem peça para conferir cálculo ou meta.");
       lines.push("");
       lines.push("Organize por prioridade, não pela ordem dos indicadores: comece pelo que exige ação imediata.");
       lines.push("Junte indicadores que apontam para a mesma causa em vez de repeti-los separados.");
