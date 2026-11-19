@@ -1030,7 +1030,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-19 20:30";
+    window.NPE_BUILD = "2026-11-19 21:10";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -3095,7 +3095,9 @@ function hydrateFromPowerBI() {
               ? { ico: "\u25bc", txt: "Piorou", fg: "#b91c1c", bg: "#fee2e2", bd: "#fca5a5" }
               : { ico: "\u25ac", txt: "Est\u00e1vel", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
           out += _chipTendencia(vis, "vs " + _mesCurto(mNum - 1),
-            (meta.campo === "_bpTotal" ? "Acumulado no per\u00edodo da regra de Boas Pr\u00e1ticas. " : (meta.jaAcumulado ? "Valor acumulado do ano. " : "")) +
+            (meta.campo === "_bpTotal" ? "Acumulado no per\u00edodo da regra de Boas Pr\u00e1ticas. "
+              : (meta.campo === "fatDifAnoPct" || meta.campo === "resDifAnoPct") ? "Diferen\u00e7a do ano contra a meta (executivo), em %. "
+              : (meta.jaAcumulado ? "Valor acumulado do ano. " : "")) +
             _mesCurto(mNum - 1) + ": " + _fmtTendencia(antBruto, meta.fmt) +
             "  \u2192  agora: " + _fmtTendencia(atualBruto, meta.fmt));
         }
@@ -3152,7 +3154,7 @@ function hydrateFromPowerBI() {
               : { ico: "\u2248", txt: "Igual ao in\u00edcio", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
           out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
             _chipTendencia(visA, "vs " + _mesCurto(mIni),
-              "Acumulado do ano. " + _mesCurto(mIni) + ": " + _fmtTendencia(iniBruto, meta.fmt) +
+              ((meta.campo === "fatDifAnoPct" || meta.campo === "resDifAnoPct") ? "Diferen\u00e7a do ano contra a meta (executivo), em %. " : "Acumulado do ano. ") + _mesCurto(mIni) + ": " + _fmtTendencia(iniBruto, meta.fmt) +
               "  \u2192  " + _mesCurto(mNum) + ": " + _fmtTendencia(atualBruto, meta.fmt));
         }
       } else if (meta.acum) {
@@ -3227,7 +3229,7 @@ function hydrateFromPowerBI() {
         out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
           _chipTendencia(visM, "vs média " + outrosAnos.length + " ano" + (outrosAnos.length > 1 ? "s" : ""),
             "Média de " + outrosAnos.map(function(r) { return r.ano; }).join(", ") + ": " +
-            (media * 100).toFixed(2).replace(".", ",") + "%  →  " + anoAtual + ": " + atual.sat);
+            media.toFixed(2).replace(".", ",") + "%  →  " + anoAtual + ": " + atual.sat);
       }
 
       return out;
@@ -4263,7 +4265,9 @@ function hydrateFromPowerBI() {
         var compP = (typeof getOSCompletionStatus === "function") ? getOSCompletionStatus(contract.code, m) : null;
         var nadaP = compP && compP.filledCount === 0 ? " \u00b7 o Gestor n\u00e3o preencheu nenhuma justificativa do m\u00eas" : "";
         if (pStatus === "NO_PRAZO") return "No prazo" + deadlineTxt + nadaP;
-        if (pStatus === "FORA_PRAZO") return "Fora do prazo" + deadlineTxt + nadaP;
+        if (pStatus === "FORA_PRAZO") return nadaP
+          ? "N\u00e3o entregue: prazo limite de " + (deadline ? formatDateBR(deadline) : "?") + " vencido e o Gestor n\u00e3o preencheu nenhuma justificativa do m\u00eas"
+          : "Fora do prazo" + deadlineTxt;
         if (pStatus === "INATIVO") return "Período inativo";
         return "Sem período definido";
       }
@@ -8488,7 +8492,7 @@ function hydrateFromPowerBI() {
       lines.push("\"Apuração automática: ...\" vem dos painéis (Receita Ideal, RH): o indicador JÁ está apurado. Nunca diga que está pendente do Setor de Performance.");
       lines.push("Indenização (#8): a regra olha só a indenização do MÊS. O acumulado do ano vem de meses anteriores e o selo \"Dentro da meta\" compara esse acumulado com a meta do ano -- não é inconsistência, não cobre explicação dele como erro.");
       lines.push("Boas Práticas (#20): a meta é por período da regra (LD = semestre, CD = evento). Use o número do período que está no bloco.");
-      lines.push("Pontualidade (#26): a data entre parênteses é o PRAZO LIMITE do mês, não a data da entrega.");
+      lines.push("Pontualidade (#26): a data citada é o PRAZO LIMITE do mês, não a data da entrega. \"Não entregue\" quer dizer que o Gestor não preencheu nada: não escreva que foi entregue.");
       lines.push("");
       lines.push("PONTUALIDADE (#26) E PREENCHIMENTO (#27) -- LEIA COM ATEN\u00c7\u00c3O");
       lines.push("ENDERE\u00c7O -- ANTES DE TUDO: devolva estes dois textos como \"### #26\" e \"### #27\", exatamente como aparecem nos blocos acima. NUNCA como #22 ou #23. Esses dois n\u00fameros pertencem a OUTROS t\u00f3picos (#22 Renova\u00e7\u00e3o do Contrato e #23 Observa\u00e7\u00f5es Gerais): mandar o texto para l\u00e1 sobrescreve o conte\u00fado deles e deixa a Pontualidade e o Preenchimento em branco. Se o cabe\u00e7alho do bloco citar um n\u00famero \"na tela do app\", ele \u00e9 s\u00f3 posi\u00e7\u00e3o visual -- o endere\u00e7o de grava\u00e7\u00e3o \u00e9 sempre o que vem logo depois de \"### #\".");
@@ -8807,6 +8811,10 @@ function hydrateFromPowerBI() {
       if (/^\s*#{1,6}\s/m.test(t) || /^\s*\|.*\|\s*$/m.test(t)) motivos.push("formato fora do padrão (cabeçalho/tabela)");
       if (!/[0-9]/.test(t)) motivos.push("sem nenhum número");
       if (/demais indicadores seguem|faixa esperada/i.test(t)) motivos.push("frase genérica de fechamento");
+      (t.match(/at[ée] (\d{2})\/(\d{2})\/(\d{4})/g) || []).forEach(function(d) {
+        var md = /(\d{2})\/(\d{2})\/(\d{4})/.exec(d);
+        if (md && new Date(+md[3], +md[2] - 1, +md[1]) < new Date(new Date().toDateString())) motivos.push("prazo no passado (" + md[0] + ")");
+      });
       if (/#(5|18|19|21)\b|LTCAT|PBI\/PBD|Gest[ãa]o de Risco|Notifica[çc][ãa]o\/SLA/i.test(t)) motivos.push("cita indicador manual");
       if (/n[ãa]o fecham|inconsist[êe]ncia|conferir o (c[áa]lculo|faturamento|resultado)/i.test(t)) motivos.push("questiona os números oficiais");
       var mDemais = /demais\s+(\d+)\s+indicadores/i.exec(t);
@@ -9877,6 +9885,7 @@ function hydrateFromPowerBI() {
       lines.push("Os indicadores manuais (#5 Notificação/SLA, #18 LTCAT/LIPAE, #19 PBI/PBD e #21 Gestão de Risco) ficam FORA da síntese: não os cite, nem como pendentes.");
       lines.push("Categoria marcada \"sem indicador apurado no mês\" não está em 0%: não a chame de zerada nem a coloque como problema.");
       lines.push("Os números dos pareceres são os oficiais do sistema: não aponte inconsistência entre eles nem peça para conferir cálculo ou meta.");
+      lines.push("PRAZO DOS DIRECIONAMENTOS: nunca uma data que já passou (o prazo limite do mês é passado). Use \"até o fechamento do próximo mês\" ou \"neste ciclo\".");
       lines.push("");
       lines.push("Organize por prioridade, não pela ordem dos indicadores: comece pelo que exige ação imediata.");
       lines.push("Junte indicadores que apontam para a mesma causa em vez de repeti-los separados.");
