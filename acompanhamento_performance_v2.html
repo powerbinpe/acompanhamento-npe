@@ -1030,7 +1030,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-18 18:20";
+    window.NPE_BUILD = "2026-11-19 13:40";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -6872,7 +6872,7 @@ function hydrateFromPowerBI() {
       "fatDifAnoPct", "resDifAnoPct", "fatDifMesPct", "resDifMesPct", "perdaPctAcum", "indenizOk",
       "efetivoDifPct", "hhtDifPct", "absenteismoPct", "absenteismoMetaPct", "turnoverPct", "turnoverMetaPct",
       "safCount", "cafCount", "bpAprovAcum", "bpReconAcum", "bpAprovS1", "bpReconS1", "bpAprovS2", "bpReconS2",
-      "temComentarioMes"
+      "temComentarioMes", "perdaMesV", "perdaAcumV", "fatMesAtualV", "indenizMesV", "efetivoRealV", "efetivoExecV"
     ];
 
     // Quando existe histórico real por mês (só disponível com 1 OS selecionada no Power BI), usa
@@ -6972,6 +6972,27 @@ function hydrateFromPowerBI() {
         addTopic(id, weight, applicable && ok ? weight : 0, applicable);
       }
 
+      // 19/11/2026 (usuario): regras automaticas da Aba 1. Os indicadores que dependem de ACAO registrada
+      // (#6 perda, #15 SAF, #16 CAF, #17 Satisfacao) usam o veredito gravado na avaliacao do indicador
+      // (feito pela IA do parecer ou pelo Master): ADERENTE = ha acao clara; NAO_ADERENTE = nao ha.
+      // Sem comentario do Gestor = nao ha acao = nao aderente. Com comentario e sem veredito = aguardando parecer (fora).
+      var osPrim19 = (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(contract.code) : contract.code) || contract.code;
+      var selPrim19 = (function () { var so = String(new URLSearchParams(window.location.search).get("SelectedOS") || "").split("|")[0].trim(); return (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(so) : so) || so; })();
+      var dadosDaOS19 = selPrim19 && selPrim19 === osPrim19;   // PERDA_RI e QUAL_RH sao so da OS selecionada
+      function txtGestor19(tid) {
+        var rows = ((window.ATA_COMENTARIOS_DB || {})[osPrim19] || {})[String(tid)] || [];
+        var m = rows.filter(function(r) { return r.tipo === "GESTOR"; }).find(function(r) { return r.mes === monthNum; });
+        return String(safeGetStorage("g_" + osPrim19 + "_m" + monthNum + "_" + tid, m ? m.comentario : "") || "").trim();
+      }
+      function acao19(tid) {
+        if (txtGestor19(tid).length <= 3) return "SEM_COMENTARIO";
+        var v = getQualitativeEval(contract.code, monthNum, TOPIC_ID_TO_QUAL_KEY[tid]);
+        return (v === "ADERENTE" || v === "NAO_ADERENTE") ? v : "PENDENTE";
+      }
+      // ok=true soma o ponto; ok=false zera; ok=null fica fora (aguardando parecer / sem dado)
+      function addAuto19(id, weight, ok) { if (ok === null) addTopic(id, weight, 0, false); else addTopic(id, weight, ok ? weight : 0, true); }
+      function porAcao19(tid) { var a = acao19(tid); return a === "ADERENTE" ? true : (a === "PENDENTE" ? null : false); }
+
       // --- Prazo & Preenchimento (Governança/SLA da Aba "Painel de Preenchimentos & SLA") -- binário: preencheu tudo ou não ganha nada
       // "Sem Período Definido" e "Período Inativo" ficam de fora do score (não contam nem a favor
       // nem contra) -- só "No Prazo"/"Fora do Prazo" são avaliáveis.
@@ -7021,20 +7042,50 @@ function hydrateFromPowerBI() {
       var t4Ok = assertOverride === "Assertivo" ? true : (assertOverride === "Não Assertivo" ? false : t4AutoOk);
       addBinary("t4", TOPIC_WEIGHTS.t4, t4Applicable, t4Ok);
 
-      addQual("rec_ideal", "t7", TOPIC_WEIGHTS.t7);
-
-      // --- 6. Perda de Receita (≤2% acumulado = OK, senão 0 -- binário) ---
-      var perdaPct100 = (contract.perdaPctAcum || 0) * 100;
-      addBinary("t6", TOPIC_WEIGHTS.t6, true, perdaPct100 <= (_tol("MAX_PERDA_RECEITA", 0.02) * 100));
+      // --- 6/7. Perda de receita pelo painel de Receita Ideal (19/11/2026) ---
+      // Vale sempre o valor do painel. PR diferente do painel = nao aderente (#6 e #7). Sem perda = aderente.
+      // Com perda: precisa de acao registrada; acima de 4% do faturamento do mes so e aderente se caiu
+      // em relacao ao mes anterior (e tem acao). #7 = sem divergencia PR x painel.
+      var PRI19 = dadosDaOS19 ? window.PERDA_RI : null;
+      var riMes19 = PRI19 && PRI19[monthNum] ? PRI19[monthNum].perda : null;
+      var prMes19 = (typeof contract.perdaMesV === "number") ? contract.perdaMesV : (typeof contract.perdaAcumV === "number" ? 0 : null);
+      var divergente19 = riMes19 !== null && prMes19 !== null && Math.abs(prMes19 - riMes19) > Math.max(100, Math.abs(riMes19) * 0.01);
+      var perdaRef19 = riMes19 !== null ? riMes19 : prMes19;
+      var fatMes19 = (typeof contract.fatMesAtualV === "number") ? contract.fatMesAtualV : null;
+      var t6ok19;
+      if (perdaRef19 === null) t6ok19 = null;
+      else if (divergente19) t6ok19 = false;
+      else if (perdaRef19 <= 0) t6ok19 = true;
+      else {
+        var pct19 = fatMes19 ? perdaRef19 / fatMes19 : null;
+        var ac619 = porAcao19(6);
+        if (pct19 !== null && pct19 > 0.04) {
+          var riAnt19 = PRI19 && PRI19[monthNum - 1] ? PRI19[monthNum - 1].perda : null;
+          var mhAnt19 = contractRaw.monthHistory ? contractRaw.monthHistory[monthNum - 1] : null;
+          var fatAnt19 = mhAnt19 && typeof mhAnt19.fatMesAtualV === "number" ? mhAnt19.fatMesAtualV : null;
+          var pctAnt19 = (riAnt19 !== null && fatAnt19) ? riAnt19 / fatAnt19 : null;
+          var caiu19 = pctAnt19 !== null && pct19 < pctAnt19;
+          t6ok19 = !caiu19 ? false : ac619;
+        } else t6ok19 = ac619;
+      }
+      addAuto19("t6", TOPIC_WEIGHTS.t6, t6ok19);
+      if (riMes19 === null) addQual("rec_ideal", "t7", TOPIC_WEIGHTS.t7);
+      else addAuto19("t7", TOPIC_WEIGHTS.t7, !divergente19);
 
       // --- 8. Indenização (meta zero, usa a COR real do modelo já comparada ao acumulado do ano) ---
-      addBinary("t8", TOPIC_WEIGHTS.t8, true, contract.indenizOk);
+      // 19/11/2026: qualquer indenizacao lancada no mes = nao aderente
+      addAuto19("t8", TOPIC_WEIGHTS.t8, !(typeof contract.indenizMesV === "number" && Math.abs(contract.indenizMesV) >= 1));
 
       // --- 9/10. Efetivo / HHT (Real vs Executivo, tolerância ±10%) ---
       // Efetivo: 2% para mais ou para menos (era 10%). O valor vale mesmo e o da tabela de
       // metas -- este padrao so entra quando a tabela nao responde.
-      addBinary("t9", TOPIC_WEIGHTS.t9, typeof contract.efetivoDifPct === "number",
-        Math.abs(contract.efetivoDifPct) <= Math.abs(_tol("TOL_EFETIVO", 0.02)));
+      // 19/11/2026: diferenca em PESSOAS (real x projetado) pela faixa do efetivo:
+      // abaixo de 50 = 0; 50 a 100 = 1; 100 a 200 = 2; acima de 200 = ate 4
+      var efR19 = contract.efetivoRealV, efP19 = contract.efetivoExecV;
+      if (typeof efR19 === "number" && typeof efP19 === "number") {
+        var efTol19 = efR19 < 50 ? 0 : efR19 < 100 ? 1 : efR19 < 200 ? 2 : 4;
+        addBinary("t9", TOPIC_WEIGHTS.t9, true, Math.abs(Math.round(efR19) - Math.round(efP19)) <= efTol19);
+      } else addBinary("t9", TOPIC_WEIGHTS.t9, false, false);
       addBinary("t10", TOPIC_WEIGHTS.t10, typeof contract.hhtDifPct === "number",
         Math.abs(contract.hhtDifPct) <= Math.abs(_tol("TOL_HHT", 0.10)));
 
@@ -7050,21 +7101,34 @@ function hydrateFromPowerBI() {
       addBinary("t12", TOPIC_WEIGHTS.t12, turnTemMeta,
         turnTemMeta && (turnSemDemissao || contract.turnoverPct <= contract.turnoverMetaPct));
 
-      addQual("he", "t13", TOPIC_WEIGHTS.t13);
-      addQual("ferias", "t14", TOPIC_WEIGHTS.t14);
+      // 19/11/2026: #13 e #14 pelo painel RH (mesma regra do card): alguem acima do limite de HE
+      // (PARADA 60 h, ROTINA 55 h) ou com mais de 45 dias de ferias = nao aderente.
+      var QR19 = dadosDaOS19 ? window.QUAL_RH : null;
+      if (QR19 && QR19.he && QR19.he[monthNum]) addAuto19("t13", TOPIC_WEIGHTS.t13, !(QR19.he[monthNum].acima > 0));
+      else if (QR19) addAuto19("t13", TOPIC_WEIGHTS.t13, null);
+      else addQual("he", "t13", TOPIC_WEIGHTS.t13);
+      // ferias: o painel so tem a posicao de HOJE -> apura so o mes do filtro
+      if (QR19 && QR19.fer45 !== null && monthNum === QR19.mesRef) addAuto19("t14", TOPIC_WEIGHTS.t14, !(QR19.fer45 > 0));
+      else if (QR19) addAuto19("t14", TOPIC_WEIGHTS.t14, null);
+      else addQual("ferias", "t14", TOPIC_WEIGHTS.t14);
 
       // --- 15/16. SAF / CAF: validacao MANUAL (30/09/2026). O numero de ocorrencias continua na
       // caixa, mas o ponto so entra quando o Master avaliar pelo comentario do Gestor.
-      addQual(TOPIC_ID_TO_QUAL_KEY[15], "t15", TOPIC_WEIGHTS.t15);
-      addQual(TOPIC_ID_TO_QUAL_KEY[16], "t16", TOPIC_WEIGHTS.t16);
+      // 19/11/2026: ocorrencia = nao aderente; sem ocorrencia, precisa de acao registrada para manter o numero
+      addAuto19("t15", TOPIC_WEIGHTS.t15, (contract.safCount || 0) > 0 ? false : porAcao19(15));
+      addAuto19("t16", TOPIC_WEIGHTS.t16, (contract.cafCount || 0) > 0 ? false : porAcao19(16));
 
       // --- 17. Satisfação do Cliente (apuração anual; sem pesquisa no ano = N/A) ---
       // Validacao MANUAL (30/09/2026): o resultado da pesquisa aparece na caixa; o ponto depende
       // da avaliacao do Master sobre as acoes descritas no comentario.
-      addQual(TOPIC_ID_TO_QUAL_KEY[17], "t17", TOPIC_WEIGHTS.t17);
+      // 19/11/2026: sem pesquisa = fora; nota abaixo da meta = nao aderente; senao precisa de acao registrada
+      if (typeof contract.satVal === "number" && typeof contract.satMeta === "number")
+        addAuto19("t17", TOPIC_WEIGHTS.t17, contract.satVal < contract.satMeta ? false : porAcao19(17));
+      else addAuto19("t17", TOPIC_WEIGHTS.t17, null);
 
-      addQual("ltcat_lipae", "t18", TOPIC_WEIGHTS.t18);
-      addQual("pbi_pbd", "t19", TOPIC_WEIGHTS.t19);
+      // 19/11/2026: avaliacao manual (#5, #18, #19, #21) nao entra na aderencia nem no parecer
+      addTopic("t18", TOPIC_WEIGHTS.t18, 0, false);
+      addTopic("t19", TOPIC_WEIGHTS.t19, 0, false);
 
       // --- 20. Boas Praticas (04/10/2026): meta = 3 aprovadas + 1 reconhecida (META_BOAS_PRATICAS).
       // LD (semestre): o S1 (jan-jun) fecha no fechamento de JULHO e entra na nota de julho -- o mes a
@@ -7090,8 +7154,8 @@ function hydrateFromPowerBI() {
       }
       addBinary("t20", TOPIC_WEIGHTS.t20, bpApplicable, bpMet);
 
-      addQual("notificacao_sla", "t5", TOPIC_WEIGHTS.t5);
-      addQual("gestao_risco", "t21", TOPIC_WEIGHTS.t21);
+      addTopic("t5", TOPIC_WEIGHTS.t5, 0, false);
+      addTopic("t21", TOPIC_WEIGHTS.t21, 0, false);
 
       var finalNormalizedScore = maxPossiblePoints > 0 ? ((earnedPoints / maxPossiblePoints) * 100) : 0;
 
@@ -11684,6 +11748,6 @@ function hydrateFromPowerBI() {
 
   
     </script>
-  <script src="book.js?v=2026-11-18_1820"></script>
+  <script src="book.js?v=2026-11-19_1340"></script>
 </body>
 </html>
