@@ -1030,7 +1030,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-19 16:30";
+    window.NPE_BUILD = "2026-11-19 17:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -2537,6 +2537,10 @@ function hydrateFromPowerBI() {
       var s = String(rawVal).trim();
       var sLower = s.toLowerCase();
       var label = (line.label || "").toLowerCase();
+      if (topic.id === 3 && label.indexOf("dif. faturamento m") === 0 && s.indexOf("%") !== -1) {
+        var nFat = parseFloat(s.replace("%", "").replace(/[.]/g, "").replace(",", ".").replace("+", ""));
+        if (!isNaN(nFat)) return corFaixa(faixaFatMes(nFat));
+      }
 
       // Assertividade (±5.00% Rule) -- só se aplica a linhas de PERCENTUAL de margem; "dif" também
       // batia em "Dif. Resultado" (um valor em R$, não %), pintando de vermelho um resultado
@@ -2722,7 +2726,7 @@ function hydrateFromPowerBI() {
         lines = [
           { label: "Faturamento FCST Anterior", val: mh.fatMesAntV === null ? "-" : fmtMo(mh.fatMesAntV) },
           { label: "Faturamento FCST Atual", val: fmtMo(mh.fatMesAtualV) },
-          { label: "Dif. Faturamento Mês (%)", val: mh.fatDifMesPct === null ? "-" : (mh.fatDifMesPct >= 0 ? "+" : "") + fmtPct(mh.fatDifMesPct) }
+          { label: "Dif. Faturamento Mês (%)", val: mh.fatDifMesPct === null ? "-" : (mh.fatDifMesPct >= 0 ? "+" : "") + fmtPct(mh.fatDifMesPct) + (faixaFatMes(mh.fatDifMesPct * 100) === "TOL" ? " (na toler\u00e2ncia)" : ""), color: mh.fatDifMesPct === null ? undefined : corFaixa(faixaFatMes(mh.fatDifMesPct * 100)) }
         ];
       } else if (topic.id === 4) { // Assertividade
         if (!mh || mh.resDifMesPct === null) return semDados("Sem FCST anterior para comparação neste mês.");
@@ -3413,6 +3417,13 @@ function hydrateFromPowerBI() {
 
           linesHTML += '</tbody></table></div>';
           if (topic.id === 6) linesHTML += htmlLinhasPerdaRI(activeOS, monthNum, catInfoForRow.color);
+          if (topic.id === 3) {
+            var lFat = (topic.lines || []).find(function(x) { return /^Dif\. Faturamento M.s \(%\)/.test(x.label || ""); });
+            var nF = lFat ? parseFloat(String(lFat.val || "").replace("%", "").replace(/[.]/g, "").replace(",", ".").replace("+", "")) : NaN;
+            if (!isNaN(nF) && faixaFatMes(nF) === "TOL") {
+              linesHTML += '<div style="margin-top:8px; background:#fef3c7; border:1.5px solid #fcd34d; color:#9a5b00; border-radius:6px; padding:7px 12px; font-weight:800; font-size:0.9rem;">\ud83d\udfe0 Faturamento na toler\u00e2ncia: fora da meta de \u00b15,00%, dentro da toler\u00e2ncia de \u00b1' + txtTolFatMes() + '%</div>';
+            }
+          }
         }
 
         var gestorStatusPill = isMultiOS ? 
@@ -5336,6 +5347,12 @@ function hydrateFromPowerBI() {
     var META_ASSERTIV_PP = 5;
     function tolAssertivPP() { return Math.abs(_tol("TOL_ASSERTIV_MARGEM", 0.054)) * 100; }
     function faixaAssertiv(difPP) { var a = Math.abs(difPP); return a <= META_ASSERTIV_PP + 1e-9 ? "META" : (a <= tolAssertivPP() + 1e-9 ? "TOL" : "FORA"); }
+    // 19/11/2026 (usuario): #3 Faturamento do mes tambem tem META 5,00% e tolerancia (TOL_FAT_MES) ate 5,40%.
+    var META_FAT_MES_PCT = 5;
+    function tolFatMesPct() { return Math.abs(_tol("TOL_FAT_MES", -0.054)) * 100; }
+    function faixaFatMes(difPct) { var a = Math.abs(difPct); return a <= META_FAT_MES_PCT + 1e-9 ? "META" : (a <= tolFatMesPct() + 1e-9 ? "TOL" : "FORA"); }
+    function txtTolFatMes() { return tolFatMesPct().toFixed(2).replace(".", ","); }
+    function corFaixa(fx) { return fx === "META" ? "#15803d" : (fx === "TOL" ? "#b45309" : "#b91c1c"); }
     function txtTolAssertiv() { return tolAssertivPP().toFixed(2).replace(".", ","); }
     function _metaGeral() {
       var v = META.desemp ? parseFloat(META.desemp.META_GERAL) : NaN;
@@ -8125,7 +8142,7 @@ function hydrateFromPowerBI() {
       var R = {
         1: "aderente se o faturamento do ano ficar acima do executivo ou at\u00e9 " + pc("TOL_FAT_ANO", -0.01) + "% abaixo",
         2: "aderente se o resultado do ano ficar acima do executivo ou at\u00e9 " + pc("TOL_RES_ANO", -0.01) + "% abaixo",
-        3: "aderente se o faturamento do m\u00eas ficar a at\u00e9 " + pc("TOL_FAT_MES", -0.054) + "% do FCST, para mais ou para menos",
+        3: "meta: faturamento do m\u00eas a at\u00e9 5,00% do FCST, para mais ou para menos; toler\u00e2ncia: at\u00e9 " + txtTolFatMes() + "%. M\u00eas entre 5,00% e " + txtTolFatMes() + "% \u00e9 aderente PELA TOLER\u00c2NCIA: diga que ficou fora da meta e dentro da toler\u00e2ncia",
         4: "meta: margem do m\u00eas a at\u00e9 5,00 p.p. da margem do FCST, para mais ou para menos; toler\u00e2ncia: at\u00e9 " + txtTolAssertiv() + " p.p. M\u00eas entre 5,00 e " + txtTolAssertiv() + " \u00e9 aderente PELA TOLER\u00c2NCIA: diga que ficou fora da meta e dentro da toler\u00e2ncia",
         6: "vale o valor do painel de Receita Ideal; perda no PR diferente do painel = n\u00e3o aderente; qualquer perda sem a\u00e7\u00e3o registrada = n\u00e3o aderente; perda acima de 4% do faturamento s\u00f3 \u00e9 aderente se caiu contra o m\u00eas anterior e tem a\u00e7\u00e3o registrada",
         7: "n\u00e3o aderente quando a perda lan\u00e7ada no PR diverge do painel de Receita Ideal",
@@ -8214,6 +8231,9 @@ function hydrateFromPowerBI() {
             if (tid === 4 && monthData && typeof monthData.resDifMesPct === "number" && faixaAssertiv(monthData.resDifMesPct * 100) === "TOL" &&
                 safeGetStorage("assertiv_override_" + activeOS + "_m" + monthNum, "AUTOMATICO") === "AUTOMATICO") {
               situacao = "ATENDEU pela toler\u00e2ncia (fora da meta de \u00b15,00 p.p., dentro de \u00b1" + txtTolAssertiv() + " p.p.)"; mes = "ATENDEU na toler\u00e2ncia";
+            }
+            if (tid === 3 && monthData && typeof monthData.fatDifMesPct === "number" && faixaFatMes(monthData.fatDifMesPct * 100) === "TOL") {
+              situacao = "ATENDEU pela toler\u00e2ncia (fora da meta de \u00b15,00%, dentro de \u00b1" + txtTolFatMes() + "%)"; mes = "ATENDEU na toler\u00e2ncia";
             }
           }
           else { situacao = "NÃO atendeu a meta"; mes = "NÃO ATENDEU"; }
