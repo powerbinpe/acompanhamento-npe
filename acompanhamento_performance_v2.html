@@ -1030,7 +1030,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-19 18:10";
+    window.NPE_BUILD = "2026-11-19 19:00";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -8784,6 +8784,34 @@ function hydrateFromPowerBI() {
       if (!window.HISTORICO_PRONTO) throw new Error("Não consegui ler a ATA; nada foi feito.");
 
       _marca("ata");
+      // 19/11/2026 (usuario): "considere a aderencia conforme o modo automatico substituindo
+      // qualquer marcacao anterior". Com opts.aderenciaAutomatica, toda marcacao do mes (manual do
+      // Master ou veredito antigo da IA) volta para PENDENTE = Automatico, e a Assertividade para
+      // AUTOMATICO, ANTES dos pareceres -- assim a IA da de novo o veredito de acao clara e o
+      // Salvar grava o automatico na ATA. O status de prazo (Periodo Inativo) nao e aderencia.
+      var aderenciasZeradas = [];
+      if (opts.aderenciaAutomatica) {
+        var codsAder = [activeOS];
+        var cAder = (window.ACTIVE_CONTRACTS_CATALOG || []).find(function(c) { return extractPrimaryOSCode(c.code) === activeOS; });
+        if (cAder && codsAder.indexOf(cAder.code) === -1) codsAder.push(cAder.code);
+        codsAder.forEach(function(cod) {
+          Object.keys(TOPIC_ID_TO_QUAL_KEY).forEach(function(tidA) {
+            var kA = "qual_eval_" + cod + "_m" + monthNum + "_" + TOPIC_ID_TO_QUAL_KEY[tidA];
+            var vA = safeGetStorage(kA, "PENDENTE");
+            if (vA !== "PENDENTE") {
+              safeSetStorage(kA, "PENDENTE");
+              if (cod === activeOS) aderenciasZeradas.push("#" + tidA + " " + vA);
+            }
+          });
+          var kAs = "assertiv_override_" + cod + "_m" + monthNum;
+          var vAs = safeGetStorage(kAs, "AUTOMATICO");
+          if (vAs !== "AUTOMATICO") {
+            safeSetStorage(kAs, "AUTOMATICO");
+            if (cod === activeOS) aderenciasZeradas.push("#4 assertividade " + vAs);
+          }
+        });
+        window._scoreCache = {};
+      }
       passo("pareceres");
       var res = await gerarPareceresOS(activeOS, monthNum, monthName);
       var vereditosGravados = [];
@@ -8842,6 +8870,7 @@ function hydrateFromPowerBI() {
         sintese: { gerada: sinteseGerada, refeita: sinteseRefeita, motivos: motivosSintese, motivosMini: motivosSinteseMini, mantida: sinteseMantida },
         mantidos: ap.mantidos || [],
         vereditosAcao: vereditosGravados,
+        aderenciasZeradas: aderenciasZeradas,
         erroSalvar: gravado === false ? String(window.NPE_ERRO_SALVAR || "sem motivo registrado") : "",
         tempos: _tempos,
         gravado: gravado
