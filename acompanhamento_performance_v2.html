@@ -1030,7 +1030,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-19 23:00";
+    window.NPE_BUILD = "2026-11-19 23:20";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -7180,10 +7180,14 @@ function hydrateFromPowerBI() {
           t6ok19 = !caiu19 ? false : ac619;
         } else t6ok19 = ac619;
       }
-      addAuto19("t6", TOPIC_WEIGHTS.t6, t6ok19);
+      // 19/11/2026 (usuario): contrato CD -- Receita Ideal e Perda de Receita nao se aplicam (fora da nota e do parecer)
+      var cd19 = String(contractRaw.tpContrato || contract.tpContrato || "").toUpperCase() === "CD";
+      if (cd19) addTopic("t6", TOPIC_WEIGHTS.t6, 0, false);
+      else addAuto19("t6", TOPIC_WEIGHTS.t6, t6ok19);
       // 19/11/2026 (usuario): #7 Receita Ideal mede se a OS esta LANCANDO no modulo -- com dados no mes =
       // aderente, sem dados = nao aderente. A divergencia PR x painel fica so no #6 (Perda de Receita).
-      if (dadosDaOS19 && window.PERDA_RI_LIDO) {
+      if (cd19) addTopic("t7", TOPIC_WEIGHTS.t7, 0, false);
+      else if (dadosDaOS19 && window.PERDA_RI_LIDO) {
         var riLin19 = PRI19 && PRI19[monthNum] ? PRI19[monthNum] : null;
         addAuto19M("t7", TOPIC_WEIGHTS.t7, !!(riLin19 && ((riLin19.ideal || 0) > 0 || (riLin19.perda || 0) > 0)));
       } else addQual("rec_ideal", "t7", TOPIC_WEIGHTS.t7);
@@ -8232,8 +8236,8 @@ function hydrateFromPowerBI() {
         2: "aderente se o resultado do ano ficar acima do executivo ou at\u00e9 " + pc("TOL_RES_ANO", -0.01) + "% abaixo",
         3: "meta: faturamento do m\u00eas a at\u00e9 5,00% do FCST, para mais ou para menos; toler\u00e2ncia: at\u00e9 " + txtTolFatMes() + "%. M\u00eas entre 5,00% e " + txtTolFatMes() + "% \u00e9 aderente PELA TOLER\u00c2NCIA: diga que ficou fora da meta e dentro da toler\u00e2ncia",
         4: "meta: margem do m\u00eas a at\u00e9 5,00 p.p. da margem do FCST, para mais ou para menos; toler\u00e2ncia: at\u00e9 " + txtTolAssertiv() + " p.p. M\u00eas entre 5,00 e " + txtTolAssertiv() + " \u00e9 aderente PELA TOLER\u00c2NCIA: diga que ficou fora da meta e dentro da toler\u00e2ncia",
-        6: "vale o valor do painel de Receita Ideal; perda no PR diferente do painel = n\u00e3o aderente; qualquer perda sem a\u00e7\u00e3o registrada = n\u00e3o aderente; perda acima de 4% do faturamento s\u00f3 \u00e9 aderente se caiu contra o m\u00eas anterior e tem a\u00e7\u00e3o registrada",
-        7: "mede se a OS est\u00e1 fazendo o lan\u00e7amento no m\u00f3dulo Receita Ideal: com dados lan\u00e7ados no m\u00eas = aderente; sem dados = n\u00e3o aderente. A diverg\u00eancia entre a perda do PR e a do painel N\u00c3O \u00e9 deste indicador (\u00e9 do #6 Perda de Receita)",
+        6: "n\u00e3o se aplica a contrato CD. Nos demais, vale o valor do painel de Receita Ideal; perda no PR diferente do painel = n\u00e3o aderente; qualquer perda sem a\u00e7\u00e3o registrada = n\u00e3o aderente; perda acima de 4% do faturamento s\u00f3 \u00e9 aderente se caiu contra o m\u00eas anterior e tem a\u00e7\u00e3o registrada",
+        7: "n\u00e3o se aplica a contrato CD. Nos demais, mede se a OS est\u00e1 fazendo o lan\u00e7amento no m\u00f3dulo Receita Ideal: com dados lan\u00e7ados no m\u00eas = aderente; sem dados = n\u00e3o aderente. A diverg\u00eancia entre a perda do PR e a do painel N\u00c3O \u00e9 deste indicador (\u00e9 do #6 Perda de Receita)",
         8: "qualquer indeniza\u00e7\u00e3o lan\u00e7ada no m\u00eas = n\u00e3o aderente",
         9: "diferen\u00e7a em pessoas entre o efetivo realizado e o or\u00e7ado: nenhuma abaixo de 50 pessoas, at\u00e9 1 de 50 a 100, at\u00e9 2 de 100 a 200, at\u00e9 4 acima de 200",
         13: "n\u00e3o aderente se algu\u00e9m passar do limite de hora extra (PARADA 60 h, ROTINA 55 h)",
@@ -8246,9 +8250,14 @@ function hydrateFromPowerBI() {
       return R[tid] || "";
     }
     // Parecer so para indicador realizado no mes. Texto livre (#22, #23), Pontualidade e Preenchimento seguem como antes.
+    function osContratoCD(activeOS) {
+      var c = (window.ACTIVE_CONTRACTS_CATALOG || []).find(function(x) { return extractPrimaryOSCode(x.code) === extractPrimaryOSCode(activeOS); });
+      return !!c && String(c.tpContrato || "").toUpperCase() === "CD";
+    }
     function parecerElegivel(it) {
       if (!it) return false;
       if (it.manual) return false;
+      if (it.naoAplicaCD) return false;
       if (it.livre || it.tid === 26 || it.tid === 27) return true;
       return !!it.realizado;
     }
@@ -8348,6 +8357,7 @@ function hydrateFromPowerBI() {
 
         var it = {
           tid: tid,
+          naoAplicaCD: (tid === 6 || tid === 7) && osContratoCD(activeOS),
           cabecalho: cabecalhoExport(tid, topicObj.name),
           detalhe: detalhe, situacao: situacao, mes: mes, tendencia: tend,
           gestor: (gVal && gVal.trim()) ? gVal.trim() : "(sem justificativa)",
@@ -8950,7 +8960,7 @@ function hydrateFromPowerBI() {
       // 19/11/2026 (usuario): manuais ficam sem parecer -- o texto antigo (gerado antes da regra) sai.
       var manuaisLimpos = [];
       if (!opts.preservarPreenchidos) {
-        TOPICOS_MANUAIS_PARECER.forEach(function(tidM) {
+        TOPICOS_MANUAIS_PARECER.concat(osContratoCD(activeOS) ? [6, 7] : []).forEach(function(tidM) {
           var stM = safeGetStorage("status_" + activeOS + "_m" + monthNum + "_" + tidM, "");
           if (stM === "Validado" || stM === "Homologado") return;
           var elM = document.getElementById("master_" + tidM);
