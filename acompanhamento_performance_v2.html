@@ -1030,7 +1030,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-19 17:30";
+    window.NPE_BUILD = "2026-11-19 18:10";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -2876,8 +2876,8 @@ function hydrateFromPowerBI() {
     var TENDENCIA_METRICA = {
       1:  { campo: "fatDifAnoPct",   dir: "maior",  fmt: "pct", jaAcumulado: true },
       2:  { campo: "resDifAnoPct",   dir: "maior",  fmt: "pct", jaAcumulado: true },
-      3:  { campo: "fatDifMesPct",   dir: "maior",  fmt: "pct", taxa: true },
-      4:  { campo: "resDifMesPct",   dir: "maior",  fmt: "pct", taxa: true },
+      3:  { campo: "fatDifMesPct",   dir: "modulo",  fmt: "pct", taxa: true },
+      4:  { campo: "resDifMesPct",   dir: "modulo",  fmt: "pct", taxa: true },
       6:  { campo: "perdaPctAcum",   dir: "menor",  fmt: "pct", jaAcumulado: true },
       8:  { campo: "indenizOk",      dir: "bool",   fmt: "bool", jaAcumulado: true },
       9:  { campo: "efetivoDifPct",  dir: "modulo", fmt: "pct", taxa: true },
@@ -7023,6 +7023,16 @@ function hydrateFromPowerBI() {
       }
       // ok=true soma o ponto; ok=false zera; ok=null fica fora (aguardando parecer / sem dado)
       function addAuto19(id, weight, ok) { if (ok === null) addTopic(id, weight, 0, false); else addTopic(id, weight, ok ? weight : 0, true); }
+      // #7, #8, #13 e #14: a marcacao manual do Master vale por cima do automatico (igual ao addBinary).
+      // Nos #6, #15, #16 e #17 a avaliacao guarda o veredito de ACAO e e lida por porAcao19.
+      function addAuto19M(id, weight, ok) {
+        var ch = TOPIC_ID_TO_QUAL_KEY[parseInt(id.slice(1), 10)];
+        var ad = ch ? getQualitativeEval(contract.code, monthNum, ch) : "PENDENTE";
+        if (ad === "ADERENTE") return addTopic(id, weight, weight, true);
+        if (ad === "NAO_ADERENTE") return addTopic(id, weight, 0, true);
+        if (ad === "NA") return addTopic(id, weight, 0, false);
+        addAuto19(id, weight, ok);
+      }
       function porAcao19(tid) { var a = acao19(tid); return a === "ADERENTE" ? true : (a === "PENDENTE" ? null : false); }
 
       // --- Prazo & Preenchimento (Governança/SLA da Aba "Painel de Preenchimentos & SLA") -- binário: preencheu tudo ou não ganha nada
@@ -7102,11 +7112,11 @@ function hydrateFromPowerBI() {
       }
       addAuto19("t6", TOPIC_WEIGHTS.t6, t6ok19);
       if (riMes19 === null) addQual("rec_ideal", "t7", TOPIC_WEIGHTS.t7);
-      else addAuto19("t7", TOPIC_WEIGHTS.t7, !divergente19);
+      else addAuto19M("t7", TOPIC_WEIGHTS.t7, !divergente19);
 
       // --- 8. Indenização (meta zero, usa a COR real do modelo já comparada ao acumulado do ano) ---
       // 19/11/2026: qualquer indenizacao lancada no mes = nao aderente
-      addAuto19("t8", TOPIC_WEIGHTS.t8, !(typeof contract.indenizMesV === "number" && Math.abs(contract.indenizMesV) >= 1));
+      addAuto19M("t8", TOPIC_WEIGHTS.t8, !(typeof contract.indenizMesV === "number" && Math.abs(contract.indenizMesV) >= 1));
 
       // --- 9/10. Efetivo / HHT (Real vs Executivo, tolerância ±10%) ---
       // Efetivo: 2% para mais ou para menos (era 10%). O valor vale mesmo e o da tabela de
@@ -7136,12 +7146,12 @@ function hydrateFromPowerBI() {
       // 19/11/2026: #13 e #14 pelo painel RH (mesma regra do card): alguem acima do limite de HE
       // (PARADA 60 h, ROTINA 55 h) ou com mais de 45 dias de ferias = nao aderente.
       var QR19 = dadosDaOS19 ? window.QUAL_RH : null;
-      if (QR19 && QR19.he && QR19.he[monthNum]) addAuto19("t13", TOPIC_WEIGHTS.t13, !(QR19.he[monthNum].acima > 0));
-      else if (QR19) addAuto19("t13", TOPIC_WEIGHTS.t13, null);
+      if (QR19 && QR19.he && QR19.he[monthNum]) addAuto19M("t13", TOPIC_WEIGHTS.t13, !(QR19.he[monthNum].acima > 0));
+      else if (QR19) addAuto19M("t13", TOPIC_WEIGHTS.t13, null);
       else addQual("he", "t13", TOPIC_WEIGHTS.t13);
       // ferias: o painel so tem a posicao de HOJE -> apura so o mes do filtro
-      if (QR19 && QR19.fer45 !== null && monthNum === QR19.mesRef) addAuto19("t14", TOPIC_WEIGHTS.t14, !(QR19.fer45 > 0));
-      else if (QR19) addAuto19("t14", TOPIC_WEIGHTS.t14, null);
+      if (QR19 && QR19.fer45 !== null && monthNum === QR19.mesRef) addAuto19M("t14", TOPIC_WEIGHTS.t14, !(QR19.fer45 > 0));
+      else if (QR19) addAuto19M("t14", TOPIC_WEIGHTS.t14, null);
       else addQual("ferias", "t14", TOPIC_WEIGHTS.t14);
 
       // --- 15/16. SAF / CAF: validacao MANUAL (30/09/2026). O numero de ocorrencias continua na
