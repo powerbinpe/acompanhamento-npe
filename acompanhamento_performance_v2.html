@@ -1030,7 +1030,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-19 21:10";
+    window.NPE_BUILD = "2026-11-19 23:00";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -2162,6 +2162,8 @@ function hydrateFromPowerBI() {
         var out = {}, tem = false;
         rows.forEach(function (r) { var m = parseInt(r["[mes]"], 10), pe = r["[perda]"], id = r["[ideal]"]; if (!m || (pe == null && id == null)) return; out[m] = { perda: +pe || 0, ideal: +id || 0 }; tem = true; });
         window.PERDA_RI = tem ? out : null;
+        window.PERDA_RI_LIDO = true;
+        window._scoreCache = {};
         if (tem && !window.USUARIO_DIGITOU && typeof renderRows === "function") { try { renderRows(); } catch (e) {} }
       } catch (e) { console.warn("Perda RI: falha ao consultar o fluxo --", e); }
     }
@@ -2710,22 +2712,29 @@ function hydrateFromPowerBI() {
         lines = [
           { label: "Faturamento Meta Ano", val: fmtMo(mh.fatAnoExecV) },
           { label: "Faturamento Real Ano", val: mh.fatAnoRealV === null ? "Sem FCST no período" : fmtMo(mh.fatAnoRealV) },
+          { label: "Dif. Faturamento Ano", val: mh.fatAnoRealV === null ? "-" : (mh.fatAnoRealV - mh.fatAnoExecV >= 0 ? "+" : "") + fmtMo(mh.fatAnoRealV - mh.fatAnoExecV) },
           { label: "Dif. Faturamento Ano (%)", val: mh.fatDifAnoPct === null ? "-" : (mh.fatDifAnoPct >= 0 ? "+" : "") + fmtPct(mh.fatDifAnoPct) }
         ];
       } else if (topic.id === 2) { // Resultado Ano
         if (!mh || mh.resAnoExecV === null) return semDados();
+        // 19/11/2026 (usuario): a caixa mostra a MARGEM; o historico mostrava so a diferenca do resultado
+        // em % (que nem aparece na caixa) e o parecer ficava confuso. Agora: resultado e margem, como na caixa.
         var margReal = (mh.fatAnoRealV && mh.resAnoRealV !== null) ? (mh.resAnoRealV / mh.fatAnoRealV) : null;
+        var margMeta = (mh.fatAnoExecV && mh.resAnoExecV !== null) ? (mh.resAnoExecV / mh.fatAnoExecV) : null;
+        var margDif = (margReal !== null && margMeta !== null) ? margReal - margMeta : null;
         lines = [
           { label: "Resultado Meta Ano", val: fmtMo(mh.resAnoExecV) },
           { label: "Resultado Real Ano", val: mh.resAnoRealV === null ? "Sem FCST no período" : fmtMo(mh.resAnoRealV) },
+          { label: "Margem Meta (%)", val: margMeta === null ? "-" : fmtPct(margMeta) },
           { label: "Margem Real Ano (%)", val: margReal === null ? "-" : fmtPct(margReal) },
-          { label: "Dif. Resultado Ano (%)", val: mh.resDifAnoPct === null ? "-" : (mh.resDifAnoPct >= 0 ? "+" : "") + fmtPct(mh.resDifAnoPct) }
+          { label: "Dif. Margem Ano (%)", val: margDif === null ? "-" : (margDif >= 0 ? "+" : "") + fmtPct(margDif), color: margDif === null ? undefined : (margDif >= 0 ? "#15803d" : "#b91c1c") }
         ];
       } else if (topic.id === 3) { // Faturamento Mês
         if (!mh || mh.fatMesAtualV === null) return semDados("Sem FCST apurado neste mês.");
         lines = [
-          { label: "Faturamento FCST Anterior", val: mh.fatMesAntV === null ? "-" : fmtMo(mh.fatMesAntV) },
-          { label: "Faturamento FCST Atual", val: fmtMo(mh.fatMesAtualV) },
+          { label: "Faturamento FCST Proj.", val: mh.fatMesAntV === null ? "-" : fmtMo(mh.fatMesAntV) },
+          { label: "Faturamento Real Mês", val: fmtMo(mh.fatMesAtualV) },
+          { label: "Dif. Faturamento Mês", val: mh.fatMesAntV === null ? "-" : (mh.fatMesAtualV - mh.fatMesAntV >= 0 ? "+" : "") + fmtMo(mh.fatMesAtualV - mh.fatMesAntV) },
           { label: "Dif. Faturamento Mês (%)", val: mh.fatDifMesPct === null ? "-" : (mh.fatDifMesPct >= 0 ? "+" : "") + fmtPct(mh.fatDifMesPct) + (faixaFatMes(mh.fatDifMesPct * 100) === "TOL" ? " (na toler\u00e2ncia)" : ""), color: mh.fatDifMesPct === null ? undefined : corFaixa(faixaFatMes(mh.fatDifMesPct * 100)) }
         ];
       } else if (topic.id === 4) { // Assertividade
@@ -2793,15 +2802,15 @@ function hydrateFromPowerBI() {
         if (!mh || mh.absenteismoPct === null) return semDados();
         var absOk = (mh.absenteismoMetaPct !== null) ? (mh.absenteismoPct <= mh.absenteismoMetaPct) : null;
         lines = [
-          { label: "Absenteísmo Realizado", val: fmtPct(mh.absenteismoPct), color: absOk === null ? "#0f172a" : (absOk ? "#15803d" : "#b91c1c") },
-          { label: "Meta de Absenteísmo", val: mh.absenteismoMetaPct === null ? "-" : fmtPct(mh.absenteismoMetaPct), color: "#0f172a" }
+          { label: "Taxa Absenteísmo Mês (%)", val: fmtPct(mh.absenteismoPct), color: absOk === null ? "#0f172a" : (absOk ? "#15803d" : "#b91c1c") },
+          { label: "Referência", val: mh.absenteismoMetaPct === null ? "-" : fmtPct(mh.absenteismoMetaPct), color: "#0f172a" }
         ];
       } else if (topic.id === 12) { // Turnover
         if (!mh || mh.turnoverPct === null) return semDados();
         var turnOk = (mh.turnoverMetaPct !== null) ? (mh.turnoverPct <= mh.turnoverMetaPct) : null;
         lines = [
-          { label: "Turnover Realizado", val: fmtPct(mh.turnoverPct), color: turnOk === null ? "#0f172a" : (turnOk ? "#15803d" : "#b91c1c") },
-          { label: "Meta de Turnover", val: mh.turnoverMetaPct === null ? "-" : fmtPct(mh.turnoverMetaPct), color: "#0f172a" }
+          { label: "Taxa TurnOver Mês (%)", val: fmtPct(mh.turnoverPct), color: turnOk === null ? "#0f172a" : (turnOk ? "#15803d" : "#b91c1c") },
+          { label: "Referência", val: mh.turnoverMetaPct === null ? "-" : fmtPct(mh.turnoverMetaPct), color: "#0f172a" }
         ];
       } else if (topic.id === 15) { // SAF
         if (!mh) return semDados();
@@ -2836,8 +2845,8 @@ function hydrateFromPowerBI() {
 
       // No histórico o card precisa ser enxuto: mantemos até 4 linhas
       function compactarLinhas(todas) {
-        if (todas.length <= 4) return todas;
-        return todas.slice(0, 4);
+        if (todas.length <= 5) return todas;
+        return todas.slice(0, 5);
       }
       lines = compactarLinhas(lines);
 
@@ -2875,7 +2884,8 @@ function hydrateFromPowerBI() {
     //               separado, entao comparar com o mes anterior ja e a leitura do ano.
     var TENDENCIA_METRICA = {
       1:  { campo: "fatDifAnoPct",   dir: "maior",  fmt: "pct", jaAcumulado: true },
-      2:  { campo: "resDifAnoPct",   dir: "maior",  fmt: "pct", jaAcumulado: true },
+      // 19/11/2026 (usuario): a tendencia do Resultado Ano segue a MARGEM (diferenca contra a margem da meta, em p.p.)
+      2:  { campo: "_margDifAno",    dir: "maior",  fmt: "pp",  jaAcumulado: true },
       3:  { campo: "fatDifMesPct",   dir: "modulo",  fmt: "pct", taxa: true },
       4:  { campo: "resDifMesPct",   dir: "modulo",  fmt: "pct", taxa: true },
       6:  { campo: "perdaPctAcum",   dir: "menor",  fmt: "pct", jaAcumulado: true },
@@ -2926,6 +2936,10 @@ function hydrateFromPowerBI() {
     function _valorTendencia(linha, campo) {
       if (!linha) return null;
       // Boas Praticas nao tem um campo unico: a meta e 3 aprovadas + 1 reconhecida.
+      if (campo === "_margDifAno") {
+        if (!linha.fatAnoRealV || !linha.fatAnoExecV || typeof linha.resAnoRealV !== "number" || typeof linha.resAnoExecV !== "number") return null;
+        return linha.resAnoRealV / linha.fatAnoRealV - linha.resAnoExecV / linha.fatAnoExecV;
+      }
       if (campo === "_efDifPax") {
         if (typeof linha.efetivoRealV !== "number" || typeof linha.efetivoExecV !== "number") return null;
         return Math.round(linha.efetivoRealV) - Math.round(linha.efetivoExecV);
@@ -2945,6 +2959,7 @@ function hydrateFromPowerBI() {
     function _fmtTendencia(v, fmt) {
       if (v === null) return "-";
       if (fmt === "pct") return (v * 100).toFixed(2).replace(".", ",") + "%";
+      if (fmt === "pp") return (v > 0 ? "+" : "") + (v * 100).toFixed(2).replace(".", ",") + " p.p.";
       if (fmt === "pax") return (v > 0 ? "+" : "") + Math.round(v) + " pax";
       // indenizOk vem de COR INDENIZACAO ACU -- e uma comparacao contra a META, nao uma
       // deteccao de existencia. Dizer "Sem indenizacao -> Com indenizacao" fazia parecer que
@@ -3096,7 +3111,8 @@ function hydrateFromPowerBI() {
               : { ico: "\u25ac", txt: "Est\u00e1vel", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
           out += _chipTendencia(vis, "vs " + _mesCurto(mNum - 1),
             (meta.campo === "_bpTotal" ? "Acumulado no per\u00edodo da regra de Boas Pr\u00e1ticas. "
-              : (meta.campo === "fatDifAnoPct" || meta.campo === "resDifAnoPct") ? "Diferen\u00e7a do ano contra a meta (executivo), em %. "
+              : meta.campo === "fatDifAnoPct" ? "Diferen\u00e7a do faturamento do ano contra a meta (executivo), em %. "
+              : meta.campo === "_margDifAno" ? "Margem do ano menos a margem da meta (executivo), em p.p. "
               : (meta.jaAcumulado ? "Valor acumulado do ano. " : "")) +
             _mesCurto(mNum - 1) + ": " + _fmtTendencia(antBruto, meta.fmt) +
             "  \u2192  agora: " + _fmtTendencia(atualBruto, meta.fmt));
@@ -3154,7 +3170,7 @@ function hydrateFromPowerBI() {
               : { ico: "\u2248", txt: "Igual ao in\u00edcio", fg: "#1e40af", bg: "#dbeafe", bd: "#93c5fd" });
           out += (out ? '<span style="display:inline-block; width:6px;"></span>' : "") +
             _chipTendencia(visA, "vs " + _mesCurto(mIni),
-              ((meta.campo === "fatDifAnoPct" || meta.campo === "resDifAnoPct") ? "Diferen\u00e7a do ano contra a meta (executivo), em %. " : "Acumulado do ano. ") + _mesCurto(mIni) + ": " + _fmtTendencia(iniBruto, meta.fmt) +
+              (meta.campo === "fatDifAnoPct" ? "Diferen\u00e7a do faturamento do ano contra a meta (executivo), em %. " : meta.campo === "_margDifAno" ? "Margem do ano menos a margem da meta (executivo), em p.p. " : "Acumulado do ano. ") + _mesCurto(mIni) + ": " + _fmtTendencia(iniBruto, meta.fmt) +
               "  \u2192  " + _mesCurto(mNum) + ": " + _fmtTendencia(atualBruto, meta.fmt));
         }
       } else if (meta.acum) {
@@ -4308,6 +4324,12 @@ function hydrateFromPowerBI() {
           var hq = QR.he[m]; qRuim = hq.acima > 0;
           qNum = hq.pessoas === 0 ? "nenhuma pessoa com hora extra no m\u00eas (painel RH)"
             : hq.acima + (hq.acima === 1 ? " pessoa" : " pessoas") + " acima do limite de hora extra (55 h rotina, 60 h parada) de " + hq.pessoas + " com HE no m\u00eas (painel RH)";
+        } else if (topicId === "t7" && window.PERDA_RI_LIDO) {
+          var riL = window.PERDA_RI && window.PERDA_RI[m] ? window.PERDA_RI[m] : null;
+          var lanc = !!(riL && ((riL.ideal || 0) > 0 || (riL.perda || 0) > 0));
+          qRuim = !lanc;
+          qNum = lanc ? "OS com lan\u00e7amento no m\u00f3dulo Receita Ideal no m\u00eas (receita prevista " + formatCompactBRL(riL.ideal || 0) + ")"
+                      : "OS sem lan\u00e7amento no m\u00f3dulo Receita Ideal no m\u00eas";
         } else if (QR && topicId === "t14" && QR.fer45 !== null && m === QR.mesRef) {
           qRuim = QR.fer45 > 0;
           qNum = QR.fer45 + (QR.fer45 === 1 ? " pessoa" : " pessoas") + " com mais de 45 dias de f\u00e9rias (posi\u00e7\u00e3o de hoje, painel RH)";
@@ -5409,6 +5431,14 @@ function hydrateFromPowerBI() {
       return (p === "S" || p === "E" || p === "X") ? p : "X";
     }
     function _bpAtinge(x) { return !!x && x.aprov >= _bpAprov() && x.recon >= _bpRecon(); }
+    // 19/11/2026: mes em que a META de BP e apurada (LD: julho e janeiro; CD: mes em que o evento atinge a meta).
+    // Nos demais meses o #20 e apurado pela acao informada pelo Gestor (o que esta sendo criado).
+    function bpMesFechamento(c, m) {
+      var per = _bpPerio(c);
+      if (per === "S") return m === 7 || m === 1;
+      if (per === "E") return !!(c && _bpAtinge(_bpEventoAte(c, m)) && !_bpAtinge(_bpEventoAte(c, m - 1)));
+      return false;
+    }
     // CD: BPs do evento ate o fim do mes m (atravessa o ano). c = contrato do CATALOGO (bpAprovAcum
     // = ano inteiro); o que veio antes do ano = evento - ano. m = 0 -> so o que veio antes do ano.
     function _bpEventoAte(c, m) {
@@ -7151,8 +7181,12 @@ function hydrateFromPowerBI() {
         } else t6ok19 = ac619;
       }
       addAuto19("t6", TOPIC_WEIGHTS.t6, t6ok19);
-      if (riMes19 === null) addQual("rec_ideal", "t7", TOPIC_WEIGHTS.t7);
-      else addAuto19M("t7", TOPIC_WEIGHTS.t7, !divergente19);
+      // 19/11/2026 (usuario): #7 Receita Ideal mede se a OS esta LANCANDO no modulo -- com dados no mes =
+      // aderente, sem dados = nao aderente. A divergencia PR x painel fica so no #6 (Perda de Receita).
+      if (dadosDaOS19 && window.PERDA_RI_LIDO) {
+        var riLin19 = PRI19 && PRI19[monthNum] ? PRI19[monthNum] : null;
+        addAuto19M("t7", TOPIC_WEIGHTS.t7, !!(riLin19 && ((riLin19.ideal || 0) > 0 || (riLin19.perda || 0) > 0)));
+      } else addQual("rec_ideal", "t7", TOPIC_WEIGHTS.t7);
 
       // --- 8. Indenização (meta zero, usa a COR real do modelo já comparada ao acumulado do ano) ---
       // 19/11/2026: qualquer indenizacao lancada no mes = nao aderente
@@ -7234,7 +7268,11 @@ function hydrateFromPowerBI() {
           bpApplicable = true; bpMet = true;
         }
       }
-      addBinary("t20", TOPIC_WEIGHTS.t20, bpApplicable, bpMet);
+      // 19/11/2026 (usuario): apuracao MENSAL. Ate o prazo final do periodo a OS ainda pode alcancar a meta:
+      // fora do mes de fechamento o #20 e ADERENTE, e o parecer so reforca que o Gestor precisa informar o
+      // que esta planejando de boas praticas (nunca vira nao aderente por isso). No fechamento vale a meta (3 + 1).
+      if (bpApplicable) addBinary("t20", TOPIC_WEIGHTS.t20, true, bpMet);
+      else addAuto19M("t20", TOPIC_WEIGHTS.t20, true);
 
       addTopic("t5", TOPIC_WEIGHTS.t5, 0, false);
       addTopic("t21", TOPIC_WEIGHTS.t21, 0, false);
@@ -8195,14 +8233,15 @@ function hydrateFromPowerBI() {
         3: "meta: faturamento do m\u00eas a at\u00e9 5,00% do FCST, para mais ou para menos; toler\u00e2ncia: at\u00e9 " + txtTolFatMes() + "%. M\u00eas entre 5,00% e " + txtTolFatMes() + "% \u00e9 aderente PELA TOLER\u00c2NCIA: diga que ficou fora da meta e dentro da toler\u00e2ncia",
         4: "meta: margem do m\u00eas a at\u00e9 5,00 p.p. da margem do FCST, para mais ou para menos; toler\u00e2ncia: at\u00e9 " + txtTolAssertiv() + " p.p. M\u00eas entre 5,00 e " + txtTolAssertiv() + " \u00e9 aderente PELA TOLER\u00c2NCIA: diga que ficou fora da meta e dentro da toler\u00e2ncia",
         6: "vale o valor do painel de Receita Ideal; perda no PR diferente do painel = n\u00e3o aderente; qualquer perda sem a\u00e7\u00e3o registrada = n\u00e3o aderente; perda acima de 4% do faturamento s\u00f3 \u00e9 aderente se caiu contra o m\u00eas anterior e tem a\u00e7\u00e3o registrada",
-        7: "n\u00e3o aderente quando a perda lan\u00e7ada no PR diverge do painel de Receita Ideal",
+        7: "mede se a OS est\u00e1 fazendo o lan\u00e7amento no m\u00f3dulo Receita Ideal: com dados lan\u00e7ados no m\u00eas = aderente; sem dados = n\u00e3o aderente. A diverg\u00eancia entre a perda do PR e a do painel N\u00c3O \u00e9 deste indicador (\u00e9 do #6 Perda de Receita)",
         8: "qualquer indeniza\u00e7\u00e3o lan\u00e7ada no m\u00eas = n\u00e3o aderente",
         9: "diferen\u00e7a em pessoas entre o efetivo realizado e o or\u00e7ado: nenhuma abaixo de 50 pessoas, at\u00e9 1 de 50 a 100, at\u00e9 2 de 100 a 200, at\u00e9 4 acima de 200",
         13: "n\u00e3o aderente se algu\u00e9m passar do limite de hora extra (PARADA 60 h, ROTINA 55 h)",
         14: "n\u00e3o aderente se algu\u00e9m tiver mais de 45 dias de saldo de f\u00e9rias",
         15: "ocorr\u00eancia de SAF = n\u00e3o aderente; sem ocorr\u00eancia, s\u00f3 \u00e9 aderente com a\u00e7\u00e3o clara registrada para manter ou melhorar o n\u00famero",
         16: "ocorr\u00eancia de CAF = n\u00e3o aderente; sem ocorr\u00eancia, s\u00f3 \u00e9 aderente com a\u00e7\u00e3o clara registrada para manter ou melhorar o n\u00famero",
-        17: "nota abaixo da meta = n\u00e3o aderente; na meta, s\u00f3 \u00e9 aderente com a\u00e7\u00e3o clara registrada para manter ou melhorar a nota"
+        17: "nota abaixo da meta = n\u00e3o aderente; na meta, s\u00f3 \u00e9 aderente com a\u00e7\u00e3o clara registrada para manter ou melhorar a nota",
+        20: "apura\u00e7\u00e3o mensal. At\u00e9 o m\u00eas de fechamento do per\u00edodo (LD: julho e janeiro; CD: m\u00eas em que o evento atinge a meta) o indicador \u00e9 ADERENTE, porque a OS ainda pode alcan\u00e7ar a meta. O parecer deve REFOR\u00c7AR que o Gestor informe o que est\u00e1 planejando de boa pr\u00e1tica (a iniciativa pensada, documentada ou em cadastro) e, se ele n\u00e3o comentou, dizer que falta essa informa\u00e7\u00e3o -- sem chamar o indicador de n\u00e3o aderente. No m\u00eas de fechamento vale a meta: 3 aprovadas e 1 reconhecida no per\u00edodo"
       };
       return R[tid] || "";
     }
@@ -8256,6 +8295,11 @@ function hydrateFromPowerBI() {
             ? "sem comparação neste mês — a caixa não tem " + faltando.join(" nem ")
             : linhasCaixa.map(function(l) { var v = String(l.val || "").trim(); return l.label + ": " + (v || "-"); }).join(" | ");
         }
+        // 19/11/2026: o #6 e julgado contra o painel de Receita Ideal -- o valor do painel e a diferenca vao junto
+        if (tid === 6 && !faltando.length && typeof linhasPerdaRI === "function") {
+          var lri6 = linhasPerdaRI(activeOS, monthNum);
+          if (lri6.length) detalhe += " | " + lri6.map(function(x) { return x.label + ": " + x.val; }).join(" | ");
+        }
         var caixaVazia = faltando.length > 0;
         // realizado = a caixa tem o lado REAL do indicador (o orcado pode faltar); #7, #13 e #14 = entrou na apuracao
         var realizado = false;
@@ -8294,6 +8338,10 @@ function hydrateFromPowerBI() {
         var qk19 = TOPIC_ID_TO_QUAL_KEY[tid];
         var pedeAcao = TOPICOS_VEREDITO_ACAO.indexOf(tid) !== -1 && gTxt19.length > 3 && !!qk19 && !!contract &&
           getQualitativeEval(contract.code, monthNum, qk19) === "PENDENTE";
+        // 19/11/2026: #20 fora do fechamento e aderente porque o periodo ainda esta em andamento -- nao "atendeu a meta"
+        if (tid === 20 && contract && typeof bpMesFechamento === "function" && !bpMesFechamento(contract, monthNum) && tpMes && tpMes.applicable) {
+          situacao = "ADERENTE pelo período em andamento (a meta de 3 aprovadas e 1 reconhecida só é apurada no fechamento do período)"; mes = "ADERENTE (período em andamento)";
+        }
         if (pedeAcao && tpMes && !tpMes.applicable) {
           situacao = "depende do veredito de a\u00e7\u00e3o clara (voc\u00ea decide no final do bloco)"; mes = "";
         }
@@ -8490,6 +8538,7 @@ function hydrateFromPowerBI() {
       lines.push("Cada parecer trata do PRÓPRIO indicador: não traga para ele números de outro indicador.");
       lines.push("Contagens de meses (\"atendeu X/Y meses\") e valores da tendência: copie exatamente como estão no bloco, sem recalcular.");
       lines.push("\"Apuração automática: ...\" vem dos painéis (Receita Ideal, RH): o indicador JÁ está apurado. Nunca diga que está pendente do Setor de Performance.");
+      lines.push("Resultado Ano (#2): o atendimento é pelo resultado do ano contra a meta (executivo); a margem mostra a qualidade desse resultado. Cite os dois: o resultado (real x meta, em R$) e a margem (real x meta, diferença em p.p.). A tendência do #2 é a da MARGEM.");
       lines.push("Indenização (#8): a regra olha só a indenização do MÊS. O acumulado do ano vem de meses anteriores e o selo \"Dentro da meta\" compara esse acumulado com a meta do ano -- não é inconsistência, não cobre explicação dele como erro.");
       lines.push("Boas Práticas (#20): a meta é por período da regra (LD = semestre, CD = evento). Use o número do período que está no bloco.");
       lines.push("Pontualidade (#26): a data citada é o PRAZO LIMITE do mês, não a data da entrega. \"Não entregue\" quer dizer que o Gestor não preencheu nada: não escreva que foi entregue.");
@@ -8826,6 +8875,14 @@ function hydrateFromPowerBI() {
     // Sintese do mes e -- se opts.gravar for diferente de false -- grava na ATA e a nota do mes (Aba 5)
     // pelo mesmo caminho do botao Salvar Comentarios. Usado pelo fechamento do mes, que abre cada OS
     // numa pagina propria. Nao pede confirmacao: quem confirma e o orquestrador.
+    // Espera os dados que chegam por fluxo depois da carga da pagina (no maximo 60 s cada).
+    async function aguardarDadosDoMes() {
+      function ate(p, ms) { return Promise.race([Promise.resolve(p).catch(function() {}), new Promise(function(r) { setTimeout(r, ms); })]); }
+      await ate(window._perdaRIPromessa, 60000);
+      await ate(window._prazoPromessa, 60000);
+      window._scoreCache = {};
+    }
+
     async function processarOSAtual(opts) {
       opts = opts || {};
       function passo(t) { try { if (typeof opts.onStatus === "function") opts.onStatus(t); } catch (e) {} }
@@ -8841,6 +8898,7 @@ function hydrateFromPowerBI() {
         try { await historicoCarregado(); } catch (e) {}
       }
       if (!window.HISTORICO_PRONTO) throw new Error("Não consegui ler a ATA; nada foi feito.");
+      await aguardarDadosDoMes();
 
       _marca("ata");
       // 19/11/2026 (usuario): "considere a aderencia conforme o modo automatico substituindo
@@ -8968,6 +9026,7 @@ function hydrateFromPowerBI() {
       if (ultimoMes < 1) return { os: os, ultimoMes: 0, meses: [], gravado: null, aviso: "nenhum mês fechado em " + ano };
       if (!window.HISTORICO_PRONTO) { try { await historicoCarregado(); } catch (e) {} window._scoreCache = {}; }
       if (!window.HISTORICO_PRONTO) throw new Error("Não consegui ler a ATA; nada foi feito.");
+      await aguardarDadosDoMes();
       var inicio = 0;
       for (var mi = 1; mi <= ultimoMes && !inicio; mi++) {
         if (getOSCompletionStatus(os, mi).filledCount > 0) inicio = mi;
@@ -11869,8 +11928,10 @@ function hydrateFromPowerBI() {
       if (typeof carregarHistoricoCompleto === "function") {
         window._historicoPromessa = carregarHistoricoCompleto();
       }
-      if (typeof carregarPrazoLimite === "function") carregarPrazoLimite();
-      if (typeof carregarPerdaRI === "function") carregarPerdaRI();
+      // 19/11/2026: o fechamento (processarOSAtual / processarNotasAnoAtual) espera estes dois -- sem o
+      // painel de Receita Ideal o #7 saia "sem apuracao" e o #6 sem a divergencia (corrida de carregamento).
+      if (typeof carregarPrazoLimite === "function") window._prazoPromessa = carregarPrazoLimite();
+      if (typeof carregarPerdaRI === "function") window._perdaRIPromessa = carregarPerdaRI();
       if (typeof carregarDataLimiteDosMeses === "function") carregarDataLimiteDosMeses();
       if (typeof carregarMetasDoFluxo === "function") carregarMetasDoFluxo();
       if (typeof updateFromURLParams === "function") updateFromURLParams();
