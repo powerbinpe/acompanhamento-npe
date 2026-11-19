@@ -200,8 +200,15 @@
   // 18/11/2026: % acumulada de meses assertivos (diferenca de margem real x FCST anterior dentro de +-5 p.p.).
   // O modelo as vezes devolve o mes apurado sem o acumulado (M01014 set/26: 1 mes apurado e acumulado vazio);
   // nesse caso calcula pelos meses apurados, igual a Aba 1 (computeAssertividadeAccumPct).
+  // 19/11/2026: tolerancia da assertividade vem da tabela de metas (TOL_ASSERTIV_MARGEM; padrao 5,40 p.p.)
+  function tolAssert() { var t = window.NPE_APP && window.NPE_APP.tol ? window.NPE_APP.tol("TOL_ASSERTIV_MARGEM", 0.054) : 0.054; return Math.abs(t) * 100; }
+  function tolAssertTxt() { return tolAssert().toFixed(2).replace(".", ","); }
+  // 19/11/2026 (usuario): a META da assertividade e 5,0 p.p.; a tolerancia (tabela de metas) vai ate 5,40.
+  // Entre a meta e a tolerancia o mes conta como assertivo, mas sempre identificado como "na tolerancia".
+  var META_ASSERT_PP = 5;
+  function faixaAssert(v) { var a = Math.abs(v); return a <= META_ASSERT_PP + 1e-9 ? "meta" : (a <= tolAssert() + 1e-9 ? "tol" : "fora"); }
   function preencherAssertAcum(dm, ac) {
-    var tol = (window.NPE_APP && window.NPE_APP.tol ? window.NPE_APP.tol("TOL_ASSERTIV_MARGEM", 0.05) : 0.05) * 100, n = 0, ok = 0;
+    var tol = tolAssert(), n = 0, ok = 0;
     return dm.map(function (v, i) {
       if (v != null) { n++; if (Math.abs(v) <= tol) ok++; }
       return ac[i] != null ? ac[i] : (n ? ok / n * 100 : null);
@@ -753,7 +760,7 @@
       var pr = fi.promessa;
       if (pr && pr.meses.length) L.push("NO ANO (" + MES[pr.meses[0]] + " a " + MES[pr.meses[pr.meses.length - 1]] + "): os FCSTs somados prometeram " + rs(pr.fc) + " de resultado e o realizado foi " + rs(pr.res) + " (diferença " + rs(pr.res - pr.fc) + "). Por grupo: " +
         pr.grupos.slice().sort(function (a, b) { return a.v - b.v; }).map(function (x) { return x.nome + " " + (x.v < 0 ? "piorou " : "melhorou ") + moeda(Math.abs(x.v)); }).join("; ") + ".");
-      if (S.assert) L.push("ASSERTIVIDADE (diferença de margem real x FCST anterior, em p.p.; assertivo se dentro de ±5): " + linhaSerie(S.assert.dmarg, function (v) { return fmt(v, 2); }) + " | % acumulada: " + linhaSerie(S.assert.acum, function (v) { return fmt(v, 2) + "%"; }));
+      if (S.assert) L.push("ASSERTIVIDADE (diferença de margem real x FCST anterior, em p.p.; meta: dentro de ±5,00; tolerância: até ±" + tolAssertTxt() + ". Mês entre 5,00 e " + tolAssertTxt() + " é assertivo PELA TOLERÂNCIA: diga que ficou fora da meta e dentro da tolerância): " + linhaSerie(S.assert.dmarg, function (v) { return fmt(v, 2); }) + " | % acumulada: " + linhaSerie(S.assert.acum, function (v) { return fmt(v, 2) + "%"; }));
     }
     if (fi && fi.folha) {
       var fo = fi.folha;
@@ -1124,15 +1131,18 @@
     pts.forEach(function (p, i) { s += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3" fill="' + COR.navy + '"/>' + lbl(p[0], rotY(pts, i, f.m.t + topH + 12), fmt(p[2], p[2] % 1 ? 1 : 0) + "%", { s: 10.5, c: COR.navy }); });
     var vals = a.dmarg.filter(function (v) { return v != null; });
     var mn = Math.min(-10, Math.floor(Math.min.apply(null, vals.concat([0])) / 5) * 5 - 3), mx = Math.max(10, Math.ceil(Math.max.apply(null, vals.concat([0])) / 5) * 5 + 3);
-    var b0 = f.m.t + topH + 34, bh = f.ih - topH - 34, y = function (v) { return b0 + (mx - v) / (mx - mn) * bh; }, z = y(0);
-    s += '<text x="' + f.m.l + '" y="' + (b0 - 12) + '" font-size="14" font-weight="600" fill="' + COR.muted + '">DIFERENÇA DE MARGEM REAL x FCST (p.p.) · faixa verde = assertivo (±5 p.p.)</text>';
-    s += '<rect x="' + f.m.l + '" y="' + y(5) + '" width="' + f.iw + '" height="' + (y(-5) - y(5)) + '" fill="' + COR.okbg + '"/>';
+    var b0 = f.m.t + topH + 52, bh = f.ih - topH - 52, y = function (v) { return b0 + (mx - v) / (mx - mn) * bh; }, z = y(0);
+    s += '<text x="' + f.m.l + '" y="' + (b0 - 28) + '" font-size="14" font-weight="600" fill="' + COR.muted + '">DIFERENÇA DE MARGEM REAL x FCST (p.p.)</text>';
+    s += '<text x="' + f.m.l + '" y="' + (b0 - 10) + '" font-size="13" fill="' + COR.muted + '"><tspan fill="' + COR.okfg + '" font-weight="700">verde</tspan> = meta (±5,00 p.p.) · <tspan fill="' + COR.warnfg + '" font-weight="700">laranja</tspan> = tolerância (até ±' + tolAssertTxt() + ' p.p.)</text>';
+    var tA = tolAssert();
+    if (tA > META_ASSERT_PP) s += '<rect x="' + f.m.l + '" y="' + y(tA) + '" width="' + f.iw + '" height="' + (y(-tA) - y(tA)) + '" fill="#FBE3BC"/>';
+    s += '<rect x="' + f.m.l + '" y="' + y(META_ASSERT_PP) + '" width="' + f.iw + '" height="' + (y(-META_ASSERT_PP) - y(META_ASSERT_PP)) + '" fill="' + COR.okbg + '"/>';
     [mn, Math.round(mn / 2), 0, mx].forEach(function (v) { s += '<line x1="' + f.m.l + '" x2="' + (f.W - f.m.r) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="' + (v === 0 ? COR.muted : COR.line) + '"/><text x="' + (f.m.l - 6) + '" y="' + (y(v) + 3.5) + '" text-anchor="end" font-size="14" fill="' + COR.muted + '">' + fmt(v) + "</text>"; });
     a.dmarg.forEach(function (v, i) {
       if (v == null) { s += lbl(ex(i), z - 6, "sem FCST", { s: 9.5, w: 600, c: COR.muted }); return; }
-      var ok = Math.abs(v) <= 5, top = Math.min(y(v), z), h = Math.abs(y(v) - z);
-      s += '<rect x="' + (f.m.l + bw * i + bw * 0.25) + '" y="' + top + '" width="' + (bw * 0.5) + '" height="' + Math.max(h, 1.5) + '" fill="' + (ok ? COR.teal : COR.red) + '"/>';
-      s += lbl(ex(i), v >= 0 ? y(v) - 5 : y(v) + 13, (v > 0 ? "+" : "") + fmt(v, 2), { s: 10.5, c: ok ? COR.okfg : COR.badfg });
+      var fx = faixaAssert(v), top = Math.min(y(v), z), h = Math.abs(y(v) - z);
+      s += '<rect x="' + (f.m.l + bw * i + bw * 0.25) + '" y="' + top + '" width="' + (bw * 0.5) + '" height="' + Math.max(h, 1.5) + '" fill="' + (fx === "meta" ? COR.teal : fx === "tol" ? COR.orange : COR.red) + '"/>';
+      s += lbl(ex(i), v >= 0 ? y(v) - 5 : y(v) + 13, (v > 0 ? "+" : "") + fmt(v, 2) + (fx === "tol" ? " tol." : ""), { s: 10.5, c: fx === "meta" ? COR.okfg : fx === "tol" ? COR.warnfg : COR.badfg });
     });
     return svg(f, s + eixoX(f, meses.map(function (m) { return MES[m]; })), "Assertividade mês a mês");
   }

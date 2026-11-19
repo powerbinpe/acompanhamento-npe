@@ -1030,7 +1030,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-19 13:40";
+    window.NPE_BUILD = "2026-11-19 16:30";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -2545,7 +2545,8 @@ function hydrateFromPowerBI() {
         if (s.indexOf("%") !== -1 && (label.indexOf("diferença na margem") !== -1 || label.indexOf("dif") !== -1) && label.indexOf("acum") === -1) {
           var numVal = parseFloat(s.replace("%", "").replace(",", ".").replace("+", ""));
           if (!isNaN(numVal)) {
-            return (Math.abs(numVal) <= (_tol("TOL_ASSERTIV_MARGEM", 0.05) * 100)) ? "#15803d" : "#b91c1c";
+            var fxA = faixaAssertiv(numVal);
+            return fxA === "META" ? "#15803d" : (fxA === "TOL" ? "#b45309" : "#b91c1c");
           }
         }
         if (label.indexOf("assertividade calculada") !== -1 || label.indexOf("status") !== -1) {
@@ -2729,8 +2730,9 @@ function hydrateFromPowerBI() {
         var qualKeyAder = (typeof TOPIC_ID_TO_QUAL_KEY !== "undefined") ? TOPIC_ID_TO_QUAL_KEY[4] : "t4";
         var qualEval4 = (typeof getQualitativeEval === "function") ? getQualitativeEval(osCode, mNum, qualKeyAder) : "PENDENTE";
         
-        var isAutoAssertivo = (Math.abs(mh.resDifMesPct) <= 0.05);
-        var autoAss = isAutoAssertivo ? "Assertivo" : "Não Assertivo";
+        var fxAss = faixaAssertiv(mh.resDifMesPct * 100);
+        var isAutoAssertivo = fxAss !== "FORA";
+        var autoAss = fxAss === "META" ? "Assertivo" : (fxAss === "TOL" ? "Assertivo na tolerância (meta ±5,00; tolerância ±" + txtTolAssertiv() + ")" : "Não Assertivo");
         
         var finalAss = autoAss;
         if (assOverride !== "AUTOMATICO") {
@@ -2742,7 +2744,8 @@ function hydrateFromPowerBI() {
         }
 
         var assColor = (finalAss.indexOf("Não") !== -1 || finalAss.indexOf("nao") !== -1) ? "#b91c1c" : "#15803d";
-        var difMargemColor = isAutoAssertivo ? "#15803d" : "#b91c1c";
+        if (finalAss === autoAss && fxAss === "TOL") assColor = "#b45309";
+        var difMargemColor = fxAss === "META" ? "#15803d" : (fxAss === "TOL" ? "#b45309" : "#b91c1c");
 
         var resFcstProjVal = (mh.resMesAntV !== undefined && mh.resMesAntV !== null) ? fmtMo(mh.resMesAntV) : (mh.fatMesAntV !== null ? fmtMo(0) : "-");
         var resRealMesVal = (mh.resMesAtualV !== undefined && mh.resMesAtualV !== null) ? fmtMo(mh.resMesAtualV) : "-";
@@ -3447,7 +3450,8 @@ function hydrateFromPowerBI() {
           var difMargNum = parseFloat(difMargStr.replace("%", "").replace(",", "."));
           if (isNaN(difMargNum)) difMargNum = 9.77;
 
-          var autoAssertive = (Math.abs(difMargNum) <= (_tol("TOL_ASSERTIV_MARGEM", 0.05) * 100)) ? "Assertivo" : "Não Assertivo";
+          var fxSelo = faixaAssertiv(difMargNum);
+          var autoAssertive = fxSelo !== "FORA" ? "Assertivo" : "Não Assertivo";
           var calculatedStatus = autoAssertive;
 
           var savedOverride = safeGetStorage("assertiv_override_" + activeOS + "_m" + monthNum, "AUTOMATICO");
@@ -3460,6 +3464,11 @@ function hydrateFromPowerBI() {
           var statusBadgeBorder = isAssertivo ? "#86efac" : "#fca5a5";
           var statusIcon = isAssertivo ? "🟢" : "🔴";
           var statusSubText = isOverride ? "(Ajuste Manual / Override Máster)" : "(Apuração Automática)";
+          var naTolSelo = !isOverride && fxSelo === "TOL";
+          if (naTolSelo) {
+            statusBadgeColor = "#9a5b00"; statusBadgeBg = "#fef3c7"; statusBadgeBorder = "#fcd34d"; statusIcon = "🟠";
+            statusSubText = "(fora da meta de ±5,00 p.p., dentro da tolerância de ±" + txtTolAssertiv() + " p.p.)";
+          }
 
           var overrideButtonHTML = "";
           if (window.isMaster) {
@@ -3482,7 +3491,7 @@ function hydrateFromPowerBI() {
             '<div style="display:flex; align-items:center; gap:10px;">' +
               '<span style="font-weight:800; color:#0f2b5c; font-size:0.95rem;">Status Final Apurado (' + monthFmt + '):</span>' +
               '<span style="background:' + statusBadgeBg + '; color:' + statusBadgeColor + '; border:1.5px solid ' + statusBadgeBorder + '; padding:4px 12px; border-radius:6px; font-weight:800; font-size:0.90rem;">' +
-                statusIcon + ' ' + finalStatus + ' <span style="font-size:0.78rem; opacity:0.85;">' + statusSubText + '</span>' +
+                statusIcon + ' ' + (naTolSelo ? "Assertivo na tolerância" : finalStatus) + ' <span style="font-size:0.78rem; opacity:0.85;">' + statusSubText + '</span>' +
               '</span>' +
             '</div>' +
             '<div>' + overrideButtonHTML + '</div>' +
@@ -5322,6 +5331,12 @@ function hydrateFromPowerBI() {
     }
     var META = parseMetaParams(new URLSearchParams(window.location.search));
     function _tol(k, fb) { return (META.desemp && isFinite(META.desemp[k])) ? META.desemp[k] : fb; }
+    // 19/11/2026 (usuario): a META da assertividade e 5,0 p.p.; a tolerancia (TOL_ASSERTIV_MARGEM) vai ate 5,40.
+    // Entre as duas o mes e assertivo PELA TOLERANCIA e aparece assim. dif em p.p. (ex.: 5.2).
+    var META_ASSERTIV_PP = 5;
+    function tolAssertivPP() { return Math.abs(_tol("TOL_ASSERTIV_MARGEM", 0.054)) * 100; }
+    function faixaAssertiv(difPP) { var a = Math.abs(difPP); return a <= META_ASSERTIV_PP + 1e-9 ? "META" : (a <= tolAssertivPP() + 1e-9 ? "TOL" : "FORA"); }
+    function txtTolAssertiv() { return tolAssertivPP().toFixed(2).replace(".", ","); }
     function _metaGeral() {
       var v = META.desemp ? parseFloat(META.desemp.META_GERAL) : NaN;
       return isFinite(v) ? v : PERFORMANCE_TARGET_PCT;
@@ -8097,6 +8112,56 @@ function hydrateFromPowerBI() {
     // trocava a apuracao qualitativa pendente por "nao apurado", sumia com o "0 casos" de
     // SAF/CAF e escrevia ATENDEU onde a situacao era "nao avaliado". Valor, situacao e
     // tendencia ja existem no app: o codigo copia, o modelo escreve so a analise.
+    // 19/11/2026 (usuario): avaliacao manual fica fora do parecer; parecer so com indicador realizado;
+    // #6, #15, #16 e #17 dependem de ACAO CLARA registrada pelo Gestor -- a IA do parecer da o veredito.
+    var TOPICOS_MANUAIS_PARECER = [5, 18, 19, 21];
+    var TOPICOS_VEREDITO_ACAO = [6, 15, 16, 17];
+    var REAL_CAIXA = { 1: "Faturamento Real Ano", 2: "Resultado Real Ano", 3: "Faturamento Real M\u00eas", 4: "Resultado Real M\u00eas",
+      6: "% Perda de Receita (M\u00eas)", 8: "Indeniza\u00e7\u00e3o M\u00eas", 9: "Efetivo Realizado", 10: "HHT Realizado",
+      11: "Taxa Absente\u00edsmo M\u00eas (%)", 12: "Taxa TurnOver M\u00eas (%)", 15: "Ocorr\u00eancias SAF", 16: "Ocorr\u00eancias CAF",
+      17: "Satisfa\u00e7\u00e3o do Cliente", 20: "BP Aprovadas no M\u00eas" };
+    function regraAderenciaTexto(tid) {
+      function pc(k, fb) { return (Math.abs(_tol(k, fb)) * 100).toFixed(2).replace(".", ",").replace(",00", ""); }
+      var R = {
+        1: "aderente se o faturamento do ano ficar acima do executivo ou at\u00e9 " + pc("TOL_FAT_ANO", -0.01) + "% abaixo",
+        2: "aderente se o resultado do ano ficar acima do executivo ou at\u00e9 " + pc("TOL_RES_ANO", -0.01) + "% abaixo",
+        3: "aderente se o faturamento do m\u00eas ficar a at\u00e9 " + pc("TOL_FAT_MES", -0.054) + "% do FCST, para mais ou para menos",
+        4: "meta: margem do m\u00eas a at\u00e9 5,00 p.p. da margem do FCST, para mais ou para menos; toler\u00e2ncia: at\u00e9 " + txtTolAssertiv() + " p.p. M\u00eas entre 5,00 e " + txtTolAssertiv() + " \u00e9 aderente PELA TOLER\u00c2NCIA: diga que ficou fora da meta e dentro da toler\u00e2ncia",
+        6: "vale o valor do painel de Receita Ideal; perda no PR diferente do painel = n\u00e3o aderente; qualquer perda sem a\u00e7\u00e3o registrada = n\u00e3o aderente; perda acima de 4% do faturamento s\u00f3 \u00e9 aderente se caiu contra o m\u00eas anterior e tem a\u00e7\u00e3o registrada",
+        7: "n\u00e3o aderente quando a perda lan\u00e7ada no PR diverge do painel de Receita Ideal",
+        8: "qualquer indeniza\u00e7\u00e3o lan\u00e7ada no m\u00eas = n\u00e3o aderente",
+        9: "diferen\u00e7a em pessoas entre o efetivo realizado e o or\u00e7ado: nenhuma abaixo de 50 pessoas, at\u00e9 1 de 50 a 100, at\u00e9 2 de 100 a 200, at\u00e9 4 acima de 200",
+        13: "n\u00e3o aderente se algu\u00e9m passar do limite de hora extra (PARADA 60 h, ROTINA 55 h)",
+        14: "n\u00e3o aderente se algu\u00e9m tiver mais de 45 dias de saldo de f\u00e9rias",
+        15: "ocorr\u00eancia de SAF = n\u00e3o aderente; sem ocorr\u00eancia, s\u00f3 \u00e9 aderente com a\u00e7\u00e3o clara registrada para manter ou melhorar o n\u00famero",
+        16: "ocorr\u00eancia de CAF = n\u00e3o aderente; sem ocorr\u00eancia, s\u00f3 \u00e9 aderente com a\u00e7\u00e3o clara registrada para manter ou melhorar o n\u00famero",
+        17: "nota abaixo da meta = n\u00e3o aderente; na meta, s\u00f3 \u00e9 aderente com a\u00e7\u00e3o clara registrada para manter ou melhorar a nota"
+      };
+      return R[tid] || "";
+    }
+    // Parecer so para indicador realizado no mes. Texto livre (#22, #23), Pontualidade e Preenchimento seguem como antes.
+    function parecerElegivel(it) {
+      if (!it) return false;
+      if (it.manual) return false;
+      if (it.livre || it.tid === 26 || it.tid === 27) return true;
+      return !!it.realizado;
+    }
+    function podeAplicarParecer(activeOS, monthNum, tid, preservar) {
+      var st = safeGetStorage("status_" + activeOS + "_m" + monthNum + "_" + tid, "");
+      if (st === "Validado" || st === "Homologado") return false;
+      var el = document.getElementById("master_" + tid);
+      if (!el) return false;
+      if (preservar) { var atual = String(el.value || "").trim(); if (atual && atual !== "Sem parecer registrado") return false; }
+      return true;
+    }
+    // Tira da analise a linha "ACAO CLARA: SIM/NAO" e devolve o veredito separado.
+    function extrairVereditoAcao(analise) {
+      var re = /^[\s*_]*A[\u00c7C][\u00c3A]O CLARA[\s*_]*:[\s*_]*(SIM|N[\u00c3A]O)\b[^\n]*$/im;
+      var t = String(analise || ""), m = re.exec(t);
+      if (!m) return { texto: t.trim(), veredito: null };
+      return { texto: t.replace(re, "").replace(/\n{3,}/g, "\n\n").trim(), veredito: /^SIM$/i.test(m[1]) ? "ADERENTE" : "NAO_ADERENTE" };
+    }
+
     function coletarBaseParecer(activeOS, monthNum) {
       var contract = ACTIVE_CONTRACTS_CATALOG.find(function(c) { return extractPrimaryOSCode(c.code) === activeOS; });
       var monthData = contract && contract.monthHistory ? contract.monthHistory[monthNum] : null;
@@ -8125,6 +8190,13 @@ function hydrateFromPowerBI() {
             : linhasCaixa.map(function(l) { var v = String(l.val || "").trim(); return l.label + ": " + (v || "-"); }).join(" | ");
         }
         var caixaVazia = faltando.length > 0;
+        // realizado = a caixa tem o lado REAL do indicador (o orcado pode faltar); #7, #13 e #14 = entrou na apuracao
+        var realizado = false;
+        if (linhasCaixa && REAL_CAIXA[tid]) {
+          var lr = linhasCaixa.find(function(x) { return x.label === REAL_CAIXA[tid]; });
+          var vr = lr ? String(lr.val || "").trim() : "";
+          realizado = vr !== "" && vr !== "-";
+        }
 
         var gEl = document.getElementById("gestor_" + tid);
         var gVal = gEl ? gEl.value : safeGetStorage("g_" + activeOS + "_m" + monthNum + "_" + tid, "");
@@ -8136,17 +8208,36 @@ function hydrateFromPowerBI() {
           situacao = "não avaliado (falta valor na caixa para comparar)"; mes = "não avaliado";
         } else if (tpMes) {
           if (!tpMes.applicable) { situacao = "não avaliado (N/A ou sem apuração)"; mes = "não avaliado"; }
-          else if (tpMes.earned >= tpMes.max - 0.01) { situacao = "ATENDEU a meta"; mes = "ATENDEU"; }
+          else if (tpMes.earned >= tpMes.max - 0.01) {
+            situacao = "ATENDEU a meta"; mes = "ATENDEU";
+            // assertividade entre a meta (5,00) e a tolerancia: atendeu pela tolerancia, e diz isso
+            if (tid === 4 && monthData && typeof monthData.resDifMesPct === "number" && faixaAssertiv(monthData.resDifMesPct * 100) === "TOL" &&
+                safeGetStorage("assertiv_override_" + activeOS + "_m" + monthNum, "AUTOMATICO") === "AUTOMATICO") {
+              situacao = "ATENDEU pela toler\u00e2ncia (fora da meta de \u00b15,00 p.p., dentro de \u00b1" + txtTolAssertiv() + " p.p.)"; mes = "ATENDEU na toler\u00e2ncia";
+            }
+          }
           else { situacao = "NÃO atendeu a meta"; mes = "NÃO ATENDEU"; }
         }
         var tend = (!caixaVazia && typeof textoTendencia === "function") ? textoTendencia(activeOS, tid, monthNum) : "";
+        if (!REAL_CAIXA[tid] && tpMes && tpMes.applicable) realizado = true;
+        var gTxt19 = String(gVal || "").trim();
+        var qk19 = TOPIC_ID_TO_QUAL_KEY[tid];
+        var pedeAcao = TOPICOS_VEREDITO_ACAO.indexOf(tid) !== -1 && gTxt19.length > 3 && !!qk19 && !!contract &&
+          getQualitativeEval(contract.code, monthNum, qk19) === "PENDENTE";
+        if (pedeAcao && tpMes && !tpMes.applicable) {
+          situacao = "depende do veredito de a\u00e7\u00e3o clara (voc\u00ea decide no final do bloco)"; mes = "";
+        }
 
         var it = {
           tid: tid,
           cabecalho: cabecalhoExport(tid, topicObj.name),
           detalhe: detalhe, situacao: situacao, mes: mes, tendencia: tend,
           gestor: (gVal && gVal.trim()) ? gVal.trim() : "(sem justificativa)",
-          livre: TOPICOS_SEM_NUMERO.indexOf(tid) !== -1
+          livre: TOPICOS_SEM_NUMERO.indexOf(tid) !== -1,
+          manual: TOPICOS_MANUAIS_PARECER.indexOf(tid) !== -1,
+          realizado: realizado,
+          regra: regraAderenciaTexto(tid),
+          pedeAcao: pedeAcao
         };
         itens.push(it);
         porTid[tid] = it;
@@ -8189,7 +8280,8 @@ function hydrateFromPowerBI() {
       // base que o importador usa para escrever a primeira linha do parecer.
       var base = coletarBaseParecer(activeOS, monthNum);
       var contract = base.contract, monthData = base.monthData, sc = base.sc;
-      var itensSel = soTids ? base.itens.filter(function(i) { return soTids.indexOf(i.tid) !== -1; }) : base.itens;
+      var itensSel = (soTids ? base.itens.filter(function(i) { return soTids.indexOf(i.tid) !== -1; }) : base.itens).filter(parecerElegivel);
+      var comVeredito = itensSel.filter(function(i) { return i.pedeAcao; });
 
       var lines = [];
       lines.push("PARECERES DO SETOR DE PERFORMANCE -- OS " + activeOS + " -- " + (monthName || ("Mês " + monthNum)) + "/2026");
@@ -8210,8 +8302,10 @@ function hydrateFromPowerBI() {
         lines.push(it.cabecalho);
         if (it.detalhe) lines.push("Valor apurado: " + it.detalhe);
         if (it.situacao) lines.push("Situação no mês: " + it.situacao);
+        if (it.regra) lines.push("Regra de aderência: " + it.regra);
         if (it.tendencia) lines.push("Tendência: " + it.tendencia);
         lines.push("Gestor: " + it.gestor);
+        if (it.pedeAcao) lines.push("VEREDITO PEDIDO: o comentário do Gestor traz ação clara? Responda na última linha do bloco (veja AÇÃO CLARA na instrução).");
         lines.push("");
       });
 
@@ -8306,6 +8400,16 @@ function hydrateFromPowerBI() {
       lines.push("  c) N\u00c3O H\u00c1 JUSTIFICATIVA e o indicador est\u00e1 fora da meta. Diga o que precisa ser respondido, sem inventar a causa.");
       lines.push("Encerrar em \"\u00e9 ponto fraco\" ou \"pode levar a N\u00c3O ADERENTE\" sem dizer o que fazer \u00e9 diagn\u00f3stico sem encaminhamento: o m\u00eas seguinte recebe o mesmo problema intacto.");
       lines.push("");
+      lines.push("REGRA 3A -- INDICADOR FORA DA ADERÊNCIA SEM JUSTIFICATIVA OU SEM AÇÃO.");
+      lines.push("Cada bloco traz a Regra de aderência do indicador. Analise o número por ela. Quando o indicador não atendeu e o Gestor não justificou ou não registrou ação, diga isso com todas as letras: o que faltou explicar e qual ação precisa ser registrada. Sem comentário do Gestor, o parecer existe do mesmo jeito e relata a ausência.");
+      lines.push("");
+      if (comVeredito.length) {
+        lines.push("AÇÃO CLARA -- VEREDITO OBRIGATÓRIO NOS BLOCOS MARCADOS COM \"VEREDITO PEDIDO\" (" + comVeredito.map(function(i) { return "#" + i.tid; }).join(", ") + ").");
+        lines.push("Nesses indicadores a aderência depende de o Gestor ter registrado AÇÃO CLARA para manter ou melhorar o número (na Perda de Receita, para reduzir a perda). Termine o bloco com uma linha sozinha, exatamente: AÇÃO CLARA: SIM  ou  AÇÃO CLARA: NÃO");
+        lines.push("SIM só quando o comentário diz O QUE está sendo feito (ação concreta: treinamento, inspeção, reunião, tratativa com o cliente, plano com responsável ou prazo) e isso tem relação com o indicador. NÃO quando o comentário só constata o resultado (\"não houve acidente\", \"sem ocorrências\", \"indicador dentro da meta\", \"seguimos acompanhando\"), é genérico ou fala de outro assunto. Na dúvida, NÃO.");
+        lines.push("Sua análise tem de ser coerente com o veredito: com NÃO, diga que falta ação clara e qual ação o Gestor precisa registrar.");
+        lines.push("");
+      }
       lines.push("REGRA 4 -- NÃO INVENTE.");
       lines.push("Não cite documento, sistema, processo, prazo, valor ou responsável que não esteja escrito no bloco do indicador. Sem base para recomendar, escreva \"sem informação suficiente para recomendar\".");
       lines.push("Indicador que não bateu a meta e não tem justificativa: aponte a ausência como ponto a cobrar, não invente a causa.");
@@ -8329,6 +8433,7 @@ function hydrateFromPowerBI() {
       itensSel.forEach(function(it) {
         lines.push("  ### #" + it.tid);
         lines.push("  <análise e recomendação, até 4 linhas>");
+        if (it.pedeAcao) lines.push("  AÇÃO CLARA: SIM ou NÃO");
       });
       lines.push("A resposta tem de ter exatamente " + itensSel.length + " blocos, um para cada \"### #N\" acima, na mesma ordem. Nunca omita um bloco: se não há o que analisar, escreva em uma linha que não há e por quê.");
       lines.push("");
@@ -8548,8 +8653,9 @@ function hydrateFromPowerBI() {
       var r = construirPromptPareceres(activeOS, monthNum, monthName);
       var base = r.base;
       var tids = base.itens.map(function(i) { return i.tid; });
-      var analises = {}, motivos = {};
+      var analises = {}, motivos = {}, vereditos = {};
       var chamadas = 0, refeitos = 0;
+      tids = tids.filter(function(tid) { return parecerElegivel(base.porTid[tid]); });
 
       async function rodar(modelo, soTids) {
         var prompt = soTids ? construirPromptPareceres(activeOS, monthNum, monthName, soTids).texto : r.texto;
@@ -8558,12 +8664,17 @@ function hydrateFromPowerBI() {
         var achados = separarPorIndicador(texto);
         Object.keys(achados).forEach(function(k) {
           var tid = parseInt(k, 10);
-          if (!soTids || soTids.indexOf(tid) !== -1) analises[tid] = achados[k];
+          if (!soTids || soTids.indexOf(tid) !== -1) {
+            var ev = extrairVereditoAcao(achados[k]);
+            analises[tid] = ev.texto;
+            if (ev.veredito) vereditos[tid] = ev.veredito; else delete vereditos[tid];
+          }
         });
       }
       function reprovados() {
         return tids.filter(function(tid) {
           var m = analises[tid] ? conferirParecer(base.porTid[tid], analises[tid]) : ["bloco ausente na resposta"];
+          if (analises[tid] && base.porTid[tid] && base.porTid[tid].pedeAcao && !vereditos[tid]) m.push("sem o veredito AÇÃO CLARA");
           motivos[tid] = m;
           return m.length > 0;
         });
@@ -8582,7 +8693,7 @@ function hydrateFromPowerBI() {
       tids.forEach(function(tid) {
         if (analises[tid]) textos[tid] = montarParecerCompleto(tid, analises[tid], base);
       });
-      return { textos: textos, revisar: falhas.map(function(tid) { return { tid: tid, motivos: motivos[tid] }; }), chamadas: chamadas, refeitos: refeitos, primeiraRodada: primeiraRodada };
+      return { textos: textos, analises: analises, vereditos: vereditos, base: base, revisar: falhas.map(function(tid) { return { tid: tid, motivos: motivos[tid] }; }), chamadas: chamadas, refeitos: refeitos, primeiraRodada: primeiraRodada };
     }
 
 
@@ -8645,6 +8756,21 @@ function hydrateFromPowerBI() {
       _marca("ata");
       passo("pareceres");
       var res = await gerarPareceresOS(activeOS, monthNum, monthName);
+      var vereditosGravados = [];
+      Object.keys(res.vereditos || {}).forEach(function(k) {
+        var tid = parseInt(k, 10), it = res.base.porTid[tid];
+        if (!it || !it.pedeAcao || !res.base.contract) return;
+        if (!podeAplicarParecer(activeOS, monthNum, tid, !!opts.preservarPreenchidos)) return;
+        var qk = TOPIC_ID_TO_QUAL_KEY[tid];
+        if (getQualitativeEval(res.base.contract.code, monthNum, qk) !== "PENDENTE") return;
+        safeSetStorage("qual_eval_" + res.base.contract.code + "_m" + monthNum + "_" + qk, res.vereditos[k]);
+        vereditosGravados.push("#" + tid + " " + (res.vereditos[k] === "ADERENTE" ? "SIM" : "N\u00c3O"));
+      });
+      if (vereditosGravados.length) {
+        window._scoreCache = {};
+        var base2 = coletarBaseParecer(activeOS, monthNum);
+        Object.keys(res.analises).forEach(function(k) { res.textos[k] = montarParecerCompleto(parseInt(k, 10), res.analises[k], base2); });
+      }
       var ap = aplicarTextosNasCaixas(activeOS, monthNum, res.textos, !!opts.preservarPreenchidos);
 
       _marca("pareceres");
@@ -8685,6 +8811,7 @@ function hydrateFromPowerBI() {
         revisar: res.revisar, primeiraRodada: res.primeiraRodada || [],
         sintese: { gerada: sinteseGerada, refeita: sinteseRefeita, motivos: motivosSintese, motivosMini: motivosSinteseMini, mantida: sinteseMantida },
         mantidos: ap.mantidos || [],
+        vereditosAcao: vereditosGravados,
         erroSalvar: gravado === false ? String(window.NPE_ERRO_SALVAR || "sem motivo registrado") : "",
         tempos: _tempos,
         gravado: gravado
@@ -11748,6 +11875,6 @@ function hydrateFromPowerBI() {
 
   
     </script>
-  <script src="book.js?v=2026-11-19_1340"></script>
+  <script src="book.js?v=2026-11-19_1630"></script>
 </body>
 </html>
