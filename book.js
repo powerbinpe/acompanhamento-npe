@@ -351,7 +351,7 @@
     for (m = 1; m <= mes; m++) S.meses.push(m);
     var rh = {}; (dados.rh || []).forEach(function (r) { rh[parseInt(r.MesNo, 10)] = r; });
     function col(k, f) { return S.meses.map(function (mm) { var r = rh[mm]; var v = r ? r[k] : null; return v == null ? null : (f ? f(v) : v); }); }
-    S.rh = { efet: col("efetFolha"), efetPR: col("efetPR"), hht: col("hht"), hhtPR: col("hhtPR"), he: col("hePct", function (v) { return v * 100; }), abs: col("absPct", function (v) { return v * 100; }),
+    S.rh = { efet: col("efetFolha"), efetPR: col("efetPR"), efetEx: col("efetEx"), hht: col("hht"), hhtPR: col("hhtPR"), hhtEx: col("hhtEx"), he: col("hePct", function (v) { return v * 100; }), abs: col("absPct", function (v) { return v * 100; }),
       adm: col("adm"), dem: col("dem"), demTurn: col("demTurnover"), ativos: col("ativosFim"), tIn: col("transfEntra"), tOut: col("transfSai"),
       fat: col("fat"), res: col("res"), perdaPR: col("perdaPR") };
     var r1 = rh[S.meses[S.meses.length - 1]] || {};
@@ -560,6 +560,165 @@
     }
     return { linhas: out, fora: fora, rows: rows };
   }
+
+  // 23/11/2026 (usuario): diagnostico INTEGRADO de faturamento, efetivo e custo -- nao separar o faturamento do custo.
+  // ANO contra o EXECUTIVO: razao de volume = efetivo real / efetivo do executivo (tabela EFETIVO E HH (EX)); faturamento
+  // e custo esperados = executivo x razao. A diferenca de resultado fecha, sem sobra, em tres parcelas: VOLUME (o que o
+  // efetivo a mais ou a menos traria na margem do executivo = resultado exec x (razao - 1)), FATURAMENTO POR PESSOA
+  // (real - esperado) e CUSTO POR PESSOA (esperado - real; negativo = custou mais que a proporcao). Calculado mes a mes e
+  // somado (o efetivo do executivo pode mudar no ano). Meses sem efetivo no executivo ficam numa parcela propria.
+  // MES contra o FCST ANTERIOR: mesma conta com o efetivo do PR do mes (o PR nao guarda versao por FCST).
+  function diagEfetivo(S) {
+    if (!S || !S.fin || !S.fin.fc || !S.rh || !S.meses) return null;
+    var rh = S.rh, fo = S.fin.folha || {}, rows = [];
+    var A = { FR: 0, FE: 0, CR: 0, CE: 0, RR: 0, RE: 0, vol: 0, dFat: 0, dCus: 0, fatEsp: 0, cusEsp: 0, fatEspT: 0, cusEspT: 0, sEf: 0, sEx: 0, fV: 0, feV: 0, cV: 0, ceV: 0, n: 0, h: 0, hx: 0, hEf: 0, hEx: 0 };
+    S.fin.fc.forEach(function (o) {
+      var i = S.meses.indexOf(o.m);
+      if (i < 0 || o.fat == null || o.res == null || o.fatEx == null || o.resEx == null) return;
+      var ef = rh.efet[i], ex = (rh.efetEx || [])[i], cr = o.fat - o.res, ce = o.fatEx - o.resEx;
+      var r = { m: o.m, ef: ef, ex: ex, fat: o.fat, fe: o.fatEx, cr: cr, ce: ce, res: o.res, re: o.resEx, adm: (rh.adm || [])[i] || 0, dem: (rh.dem || [])[i] || 0,
+        tin: (rh.tIn || [])[i] || 0, tout: (rh.tOut || [])[i] || 0, h: (rh.hht || [])[i], hx: (rh.hhtEx || [])[i], resc: Math.abs((fo.rescTot || [])[i] || 0), pend: o.pend || null, ajuste: o.ajuste || null };
+      if (ef > 0 && ex > 0) {
+        r.v = ef / ex; r.fatEsp = o.fatEx * r.v; r.cusEsp = ce * r.v; r.vol = o.resEx * (r.v - 1); r.dFat = o.fat - r.fatEsp; r.dCus = r.cusEsp - cr;
+        A.vol += r.vol; A.dFat += r.dFat; A.dCus += r.dCus; A.fatEsp += r.fatEsp; A.cusEsp += r.cusEsp; A.fatEspT += r.fatEsp; A.cusEspT += r.cusEsp;
+        A.sEf += ef; A.sEx += ex; A.fV += o.fat; A.feV += o.fatEx; A.cV += cr; A.ceV += ce; A.n++;
+        if (r.h != null && r.hx) { A.h += r.h; A.hx += r.hx; A.hEf += ef; A.hEx += ex; }
+      } else { A.fatEspT += o.fatEx; A.cusEspT += ce; }
+      A.FR += o.fat; A.FE += o.fatEx; A.CR += cr; A.CE += ce; A.RR += o.res; A.RE += o.resEx;
+      rows.push(r);
+    });
+    if (!rows.length) return null;
+    A.semEx = rows.filter(function (r) { return r.v == null; }).map(function (r) { return r.m; });
+    A.resto = (A.RR - A.RE) - (A.vol + A.dFat + A.dCus);
+    A.efMed = A.n ? A.sEf / A.n : null; A.exMed = A.n ? A.sEx / A.n : null; A.v = A.sEx ? A.sEf / A.sEx : null;
+    A.fppR = A.sEf ? A.fV / A.sEf : null; A.fppE = A.sEx ? A.feV / A.sEx : null; A.cppR = A.sEf ? A.cV / A.sEf : null; A.cppE = A.sEx ? A.ceV / A.sEx : null;
+    A.hppR = A.hEf ? A.h / A.hEf : null; A.hppE = A.hEx ? A.hx / A.hEx : null;
+    var com = rows.filter(function (r) { return r.ef > 0; }), comX = rows.filter(function (r) { return r.ex > 0; });
+    var mov = { adm: soma(rows.map(function (r) { return r.adm; })), dem: soma(rows.map(function (r) { return r.dem; })), tin: soma(rows.map(function (r) { return r.tin; })), tout: soma(rows.map(function (r) { return r.tout; })),
+      resc: soma(rows.map(function (r) { return r.resc; })), ef0: com.length ? com[0].ef : null, ef1: com.length ? com[com.length - 1].ef : null, m0: com.length ? com[0].m : null, m1: com.length ? com[com.length - 1].m : null,
+      ex0: comX.length ? comX[0].ex : null, ex1: comX.length ? comX[comX.length - 1].ex : null };
+    var mm = S.meses[S.meses.length - 1], im = S.meses.length - 1, fm = S.fin.fc.filter(function (o) { return o.m === mm; })[0], M = null;
+    if (fm && fm.fatFc != null && fm.resFc != null && fm.fat != null && fm.res != null) {
+      var efm = rh.efet[im], epm = (rh.efetPR || [])[im], hm = (rh.hht || [])[im], hpm = (rh.hhtPR || [])[im], crm = fm.fat - fm.res, cfm = fm.fatFc - fm.resFc;
+      M = { m: mm, fat: fm.fat, ff: fm.fatFc, cr: crm, cf: cfm, res: fm.res, rf: fm.resFc, ef: efm, ep: epm, h: hm, hp: hpm, pend: fm.pend || null, ajuste: fm.ajuste || null,
+        adm: (rh.adm || [])[im] || 0, dem: (rh.dem || [])[im] || 0, resc: Math.abs((fo.rescTot || [])[im] || 0) };
+      if (efm > 0 && epm > 0) { M.v = efm / epm; M.fatEsp = fm.fatFc * M.v; M.cusEsp = cfm * M.v; M.vol = fm.resFc * (M.v - 1); M.dFat = fm.fat - M.fatEsp; M.dCus = M.cusEsp - crm; }
+      if (hm != null && hpm) M.vh = hm / hpm;
+    }
+    return { ano: A, meses: rows, mov: mov, mes: M };
+  }
+  function pcs(v) { return v == null || !isFinite(v) ? "–" : (v >= 0 ? "+" : "") + fmt(v * 100, 2) + "%"; }
+  function cusTxt(d) { return d == null ? "–" : (d < 0 ? "acima da proporção " + rs(-d) : "abaixo da proporção " + rs(d)); }
+  function diagLinhas(D) {
+    if (!D) return [];
+    var A = D.ano, L = [], ult = MES[D.meses[D.meses.length - 1].m], mv = D.mov;
+    L.push("DIAGNÓSTICO INTEGRADO EFETIVO x FATURAMENTO x CUSTO (calculado pelo app; use estes números e esta leitura; as parcelas somam exatamente a diferença de resultado):");
+    if (A.n) {
+      L.push("  ANO (jan a " + ult + ") contra o EXECUTIVO: efetivo médio real " + fmt(A.efMed, 0) + " pessoas x " + fmt(A.exMed, 0) + " no executivo (" + pcs(A.v - 1) + ").");
+      L.push("  Faturamento real " + rs(A.FR) + " x executivo " + rs(A.FE) + "; com o efetivo real, o faturamento esperado seria " + rs(A.fatEspT) + " (faturamento por pessoa-mês real " + rs(A.fppR) + " x executivo " + rs(A.fppE) + ").");
+      L.push("  Custo real " + rs(A.CR) + " x executivo " + rs(A.CE) + "; com o efetivo real, o custo esperado seria " + rs(A.cusEspT) + " (custo por pessoa-mês real " + rs(A.cppR) + " x executivo " + rs(A.cppE) + ").");
+      L.push("  Resultado real " + rs(A.RR) + " x executivo " + rs(A.RE) + " (diferença " + rs(A.RR - A.RE) + ") = volume de pessoas " + rs(A.vol) + " + faturamento por pessoa " + rs(A.dFat) +
+        " + custo por pessoa " + rs(A.dCus) + " (custo " + cusTxt(A.dCus) + ")" + (Math.abs(A.resto) >= 1 ? " + meses sem efetivo no executivo (" + A.semEx.map(function (m) { return MES[m]; }).join(", ") + ") " + rs(A.resto) : "") + ".");
+      if (A.hppR != null) L.push("  HHT: real " + fmt(A.h, 0) + " h x executivo " + fmt(A.hx, 0) + " h; horas por pessoa-mês real " + fmt(A.hppR, 1) + " x executivo " + fmt(A.hppE, 1) + ".");
+    } else L.push("  O executivo não tem efetivo cadastrado para esta OS: não dá para separar o efeito do volume de pessoas; compare faturamento e custo com o efetivo da folha mês a mês.");
+    L.push("  MOVIMENTAÇÃO DO PERÍODO: admissões " + mv.adm + ", demissões " + mv.dem + ", transferências entrando " + mv.tin + " e saindo " + mv.tout + "; efetivo da folha " + (mv.m0 ? MES[mv.m0] + " " + fmt(mv.ef0) + " → " + MES[mv.m1] + " " + fmt(mv.ef1) : "–") +
+      (mv.ex0 != null ? "; o executivo previa " + fmt(mv.ex0) + " → " + fmt(mv.ex1) + " (variação prevista " + (mv.ex1 - mv.ex0 >= 0 ? "+" : "") + fmt(mv.ex1 - mv.ex0) + " pessoas; realizada " + (mv.ef1 - mv.ef0 >= 0 ? "+" : "") + fmt(mv.ef1 - mv.ef0) + ")" : "; sem efetivo no executivo") +
+      "; rescisões no período " + rs(mv.resc) + ".");
+    L.push("  MÊS A MÊS (efetivo real x executivo | faturamento real x esperado pelo efetivo | custo real x esperado pelo efetivo | admissões/demissões | rescisões):");
+    D.meses.forEach(function (r) {
+      L.push("    " + MES[r.m] + ": " + fmt(r.ef) + " x " + (r.ex ? fmt(r.ex) : "–") + (r.v ? " (" + pcs(r.v - 1) + ")" : "") + " | " + rs(r.fat) + " x " + (r.fatEsp != null ? rs(r.fatEsp) + " (" + rs(r.dFat) + ")" : "–") +
+        " | " + rs(r.cr) + " x " + (r.cusEsp != null ? rs(r.cusEsp) + " (" + cusTxt(r.dCus) + ")" : "–") + " | " + r.adm + "/" + r.dem + (r.resc ? " | rescisões " + rs(r.resc) : "") +
+        (r.pend ? " | mês com grupos ainda sem lançamento" : "") + (r.ajuste ? " | receita em ajuste de emissão " + rs(r.ajuste) : ""));
+    });
+    var M = D.mes;
+    if (M) {
+      L.push("  MÊS DE " + MES[M.m].toUpperCase() + " contra o FCST ANTERIOR (efetivo e HHT contra o PR do mês): efetivo " + fmt(M.ef) + " x PR " + (M.ep ? fmt(M.ep) : "–") + (M.v ? " (" + pcs(M.v - 1) + ")" : "") +
+        "; HHT " + fmt(M.h, 0) + " h x PR " + (M.hp ? fmt(M.hp, 0) + " h" : "–") + (M.vh ? " (" + pcs(M.vh - 1) + ")" : "") + "; admissões " + M.adm + ", demissões " + M.dem + (M.resc ? ", rescisões " + rs(M.resc) : "") + ".");
+      L.push("    Faturamento " + rs(M.fat) + " x FCST " + rs(M.ff) + (M.fatEsp != null ? " (esperado pelo efetivo " + rs(M.fatEsp) + ")" : "") + "; custo " + rs(M.cr) + " x FCST " + rs(M.cf) + (M.cusEsp != null ? " (esperado pelo efetivo " + rs(M.cusEsp) + ")" : "") +
+        "; resultado " + rs(M.res) + " x FCST " + rs(M.rf) + " (diferença " + rs(M.res - M.rf) + ")" + (M.vol != null ? " = volume de pessoas " + rs(M.vol) + " + faturamento por pessoa " + rs(M.dFat) + " + custo por pessoa " + rs(M.dCus) + " (custo " + cusTxt(M.dCus) + ")" : "") +
+        (M.pend ? ". Há grupos de custo ainda sem lançamento no mês: compare com cautela" : "") + ".");
+    } else L.push("  MÊS: sem FCST anterior para comparar.");
+    return L;
+  }
+  var REGRA_DIAG = "DIAGNÓSTICO INTEGRADO (campo diagnostico): conte UMA história só, com o bloco DIAGNÓSTICO INTEGRADO. Comece pelo efetivo: quantas pessoas o executivo previa e quantas o contrato teve, e a movimentação (admissões, demissões e transferências) contra a variação prevista no executivo. Daí, o que o faturamento e o custo deveriam ser com esse efetivo e o que foram. Feche com a diferença de resultado contra o executivo dividida nas três parcelas: volume de pessoas, faturamento por pessoa e custo por pessoa, com os valores. Diga qual parcela explica a diferença e em quais meses ela apareceu (custo acima da proporção, faturamento por pessoa abaixo). Depois, o mês contra o FCST anterior com a mesma lógica (efetivo e HHT contra o PR do mês). Faturamento e custo NUNCA são analisados separados um do outro.";
+  function chDiag(base, A, real, rotBase) {
+    var p = [{ nome: rotBase, v: base / 1000, tipo: "base" }, { nome: "Volume de pessoas", v: A.vol / 1000, tipo: "passo" }, { nome: "Faturamento por pessoa", v: A.dFat / 1000, tipo: "passo" }, { nome: "Custo por pessoa", v: A.dCus / 1000, tipo: "passo" }];
+    if (Math.abs(A.resto || 0) >= 1000) p.push({ nome: "Meses sem efetivo no executivo", v: A.resto / 1000, tipo: "passo" });
+    p.push({ nome: "Resultado real", v: real / 1000, tipo: "base" });
+    return cascata(p, { fBase: function (v) { return moeda(v * 1000); }, fPasso: function (v) { return moeda(v * 1000).replace("R$ ", ""); }, fEixo: function (v) { return fmt(v * 1000); }, h: 300, titulo: "Ponte do resultado pelo efetivo" });
+  }
+  function difCel(d, f) { return '<td class="' + (d != null && d < 0 ? "neg" : "") + '">' + (d == null ? "–" : (d > 0 ? "+" : "") + f(d)) + "</td>"; }
+  function diagHTML(D, figura, mesN) {
+    if (!D) return "";
+    var A = D.ano, M = D.mes, h = "", fN = function (v) { return v == null ? "–" : fmt(v, 0); }, fH = function (v) { return v == null ? "–" : fmt(v, 1); };
+    if (A.n) {
+      var resEsp = A.RE + A.vol;
+      var lin = function (nome, ex, esp, re, f) { return "<tr><td>" + nome + "</td><td>" + f(ex) + "</td><td>" + (esp == null ? "–" : f(esp)) + "</td><td>" + f(re) + "</td>" + difCel(esp == null || re == null ? null : re - esp, f) + "</tr>"; };
+      var tab = '<div class="rl-tab"><table><thead><tr><th>Jan a ' + esc(mesN) + '</th><th>Executivo</th><th>Esperado com o efetivo real</th><th>Realizado</th><th>Realizado − esperado</th></tr></thead><tbody>' +
+        "<tr><td>Efetivo médio (pessoas)</td><td>" + fN(A.exMed) + "</td><td>–</td><td>" + fN(A.efMed) + "</td>" + difCel(A.efMed - A.exMed, fN) + "</tr>" +
+        lin("Faturamento", A.FE, A.fatEspT, A.FR, moeda) + lin("Faturamento por pessoa-mês", A.fppE, A.fppE, A.fppR, moeda) +
+        lin("Custo", A.CE, A.cusEspT, A.CR, moeda) + lin("Custo por pessoa-mês", A.cppE, A.cppE, A.cppR, moeda) +
+        lin("Resultado", A.RE, resEsp, A.RR, moeda) +
+        "<tr><td>Margem</td><td>" + pct(A.FE ? A.RE / A.FE : null) + "</td><td>" + pct(A.fatEspT ? resEsp / A.fatEspT : null) + "</td><td>" + pct(A.FR ? A.RR / A.FR : null) + "</td><td>–</td></tr>" +
+        (A.hppR != null ? "<tr><td>HHT (h)</td><td>" + fN(A.hx) + "</td><td>–</td><td>" + fN(A.h) + "</td>" + difCel(A.h - A.hx, fN) + "</tr>" + lin("Horas por pessoa-mês", A.hppE, A.hppE, A.hppR, fH) : "") +
+        "</tbody></table><p class=\"rl-nota\">Esperado = executivo × (efetivo real ÷ efetivo do executivo), mês a mês. Custo acima do esperado = custou mais que a proporção do efetivo.</p></div>";
+      h += '<div class="rl-duas">' + figura("Ano contra o executivo, com o efetivo real", "o que o faturamento e o custo deveriam ser com as pessoas que o contrato teve", tab) +
+        figura("De onde vem a diferença de resultado contra o executivo", "jan a " + mesN + " · as parcelas somam a diferença", chDiag(A.RE, A, A.RR, "Resultado executivo")) + "</div>";
+    } else h += '<p class="rl-nota rl-nota-caixa">O executivo não tem efetivo cadastrado para este contrato: a análise abaixo compara faturamento e custo com o efetivo da folha.</p>';
+    var mv = D.mov;
+    var tabM = '<div class="rl-tab"><table><thead><tr><th>Mês</th><th>Efetivo real</th><th>Executivo</th><th>Admissões</th><th>Demissões</th><th>Faturamento</th><th>Esperado</th><th>Custo</th><th>Esperado</th><th>Custo x esperado</th><th>Rescisões</th></tr></thead><tbody>' +
+      D.meses.map(function (r) {
+        return "<tr><td>" + MES[r.m] + "</td><td>" + fN(r.ef) + "</td><td>" + (r.ex ? fN(r.ex) : "–") + "</td><td>" + r.adm + "</td><td>" + r.dem + "</td><td>" + moeda(r.fat) + "</td><td>" + (r.fatEsp != null ? moeda(r.fatEsp) : "–") +
+          "</td><td>" + moeda(r.cr) + "</td><td>" + (r.cusEsp != null ? moeda(r.cusEsp) : "–") + '</td><td class="rl-cx">' + (r.dCus != null ? cusTxt(r.dCus) : "–") + "</td><td>" + (r.resc ? moeda(r.resc) : "–") + "</td></tr>";
+      }).join("") + "</tbody></table><p class=\"rl-nota\">Movimentação no período: " + mv.adm + " admissões, " + mv.dem + " demissões, " + mv.tin + " transferências entrando e " + mv.tout + " saindo" +
+      (mv.ex0 != null ? ". O executivo previa " + fN(mv.ex0) + " → " + fN(mv.ex1) + " pessoas; a folha foi de " + fN(mv.ef0) + " para " + fN(mv.ef1) : "") + ".</p></div>";
+    h += figura("Mês a mês: efetivo, faturamento e custo contra o esperado pelo efetivo", "esperado = executivo do mês na proporção do efetivo real", tabM);
+    if (M) {
+      var lm = function (nome, fc, esp, re, f) { return "<tr><td>" + nome + "</td><td>" + (fc == null ? "–" : f(fc)) + "</td><td>" + (esp == null ? "–" : f(esp)) + "</td><td>" + (re == null ? "–" : f(re)) + "</td>" + difCel(esp == null || re == null ? null : re - esp, f) + "</tr>"; };
+      var tabX = '<div class="rl-tab"><table><thead><tr><th>' + esc(MESF[M.m]) + '</th><th>FCST anterior / PR</th><th>Esperado com o efetivo real</th><th>Realizado</th><th>Realizado − esperado</th></tr></thead><tbody>' +
+        "<tr><td>Efetivo (pessoas)</td><td>" + fN(M.ep) + "</td><td>–</td><td>" + fN(M.ef) + "</td>" + difCel(M.ep ? M.ef - M.ep : null, fN) + "</tr>" +
+        "<tr><td>HHT (h)</td><td>" + fN(M.hp) + "</td><td>–</td><td>" + fN(M.h) + "</td>" + difCel(M.hp ? M.h - M.hp : null, fN) + "</tr>" +
+        lm("Faturamento", M.ff, M.fatEsp, M.fat, moeda) + lm("Custo", M.cf, M.cusEsp, M.cr, moeda) + lm("Resultado", M.rf, M.vol != null ? M.rf + M.vol : null, M.res, moeda) +
+        "</tbody></table><p class=\"rl-nota\">Efetivo e HHT contra o PR do mês; faturamento, custo e resultado contra o FCST do mês anterior." + (M.pend ? " Há grupos de custo ainda sem lançamento no mês." : "") + "</p></div>";
+      h += M.vol != null ? '<div class="rl-duas">' + figura("O mês contra o FCST anterior", "com o efetivo real", tabX) + figura("De onde vem a diferença do mês contra o FCST anterior", MESF[M.m] + " · as parcelas somam a diferença", chDiag(M.rf, { vol: M.vol, dFat: M.dFat, dCus: M.dCus, resto: 0 }, M.res, "Resultado no FCST")) + "</div>"
+        : figura("O mês contra o FCST anterior", "", tabX);
+    }
+    return h;
+  }
+  // resumo do diagnostico para os grupos e a Diretoria (somas)
+  function diagResumo(D) {
+    if (!D) return null;
+    var A = D.ano, M = D.mes || {};
+    return { n: A.n, FR: A.FR, FE: A.FE, CR: A.CR, CE: A.CE, RR: A.RR, RE: A.RE, fatEsp: A.fatEspT, cusEsp: A.cusEspT, vol: A.vol, dFat: A.dFat, dCus: A.dCus, resto: A.resto, sEf: A.sEf, sEx: A.sEx, nm: A.n,
+      efMed: A.efMed, exMed: A.exMed, adm: D.mov.adm, dem: D.mov.dem, resc: D.mov.resc,
+      mes: D.mes ? { res: M.res, rf: M.rf, vol: M.vol == null ? null : M.vol, dFat: M.dFat == null ? null : M.dFat, dCus: M.dCus == null ? null : M.dCus, ef: M.ef, ep: M.ep, h: M.h, hp: M.hp, fat: M.fat, ff: M.ff, cr: M.cr, cf: M.cf } : null };
+  }
+  function somarDiag(lista) {
+    var T = { FR: 0, FE: 0, CR: 0, CE: 0, RR: 0, RE: 0, fatEsp: 0, cusEsp: 0, vol: 0, dFat: 0, dCus: 0, resto: 0, adm: 0, dem: 0, resc: 0, efMed: 0, exMed: 0, n: 0, semEf: 0,
+      mes: { res: 0, rf: 0, vol: 0, dFat: 0, dCus: 0, ef: 0, ep: 0, fat: 0, ff: 0, cr: 0, cf: 0, n: 0 } };
+    lista.forEach(function (d) {
+      if (!d) return;
+      ["FR", "FE", "CR", "CE", "RR", "RE", "fatEsp", "cusEsp", "vol", "dFat", "dCus", "resto", "adm", "dem", "resc"].forEach(function (k) { T[k] += d[k] || 0; });
+      if (d.n) { T.efMed += d.efMed || 0; T.exMed += d.exMed || 0; T.n++; } else T.semEf++;
+      if (d.mes && d.mes.rf != null) { var x = d.mes; T.mes.n++; ["res", "rf", "fat", "ff", "cr", "cf", "ef", "ep"].forEach(function (k) { T.mes[k] += x[k] || 0; });
+        if (x.vol != null) { T.mes.vol += x.vol; T.mes.dFat += x.dFat; T.mes.dCus += x.dCus; } else T.mes.resto = (T.mes.resto || 0) + (x.res - x.rf); }
+    });
+    return T;
+  }
+  function diagLinhaGrupo(nome, d) {
+    if (!d) return nome + ": sem dados para o diagnóstico.";
+    return nome + ": efetivo médio " + (d.n ? fmt(d.efMed, 0) + " x executivo " + fmt(d.exMed, 0) : "sem efetivo no executivo") + " | admissões " + d.adm + ", demissões " + d.dem + " | faturamento " + rs(d.FR) + " x esperado pelo efetivo " + rs(d.fatEsp) +
+      " | custo " + rs(d.CR) + " x esperado " + rs(d.cusEsp) + " | resultado " + rs(d.RR) + " x executivo " + rs(d.RE) + " = volume " + rs(d.vol) + " + faturamento por pessoa " + rs(d.dFat) + " + custo por pessoa " + rs(d.dCus) +
+      (Math.abs(d.resto || 0) >= 1 ? " + sem efetivo no executivo " + rs(d.resto) : "") + (d.mes && d.mes.rf != null ? " | mês: resultado " + rs(d.mes.res) + " x FCST " + rs(d.mes.rf) + (d.mes.vol != null ? " (volume " + rs(d.mes.vol) + ", faturamento por pessoa " + rs(d.mes.dFat) + ", custo por pessoa " + rs(d.mes.dCus) + ")" : "") + ", efetivo " + fmt(d.mes.ef) + " x PR " + fmt(d.mes.ep) : "");
+  }
+  function tabelaDiagGrupo(linhas, rotulo) {
+    return '<div class="rl-tab"><table><thead><tr><th>' + rotulo + '</th><th>Efetivo médio x executivo</th><th>Adm./dem.</th><th>Resultado − executivo</th><th>Volume de pessoas</th><th>Faturamento por pessoa</th><th>Custo por pessoa</th><th>Mês x FCST anterior</th></tr></thead><tbody>' +
+      linhas.map(function (x) {
+        var d = x.d; if (!d) return "<tr><td>" + esc(x.nome) + '</td><td colspan="7">sem dados</td></tr>';
+        return "<tr><td>" + esc(x.nome) + "</td><td>" + (d.n ? fmt(d.efMed, 0) + " x " + fmt(d.exMed, 0) : "sem executivo") + "</td><td>" + d.adm + "/" + d.dem + "</td>" + difCel(d.RR - d.RE, moeda) + difCel(d.vol, moeda) + difCel(d.dFat, moeda) + difCel(d.dCus, moeda) +
+          (d.mes && d.mes.rf != null ? difCel(d.mes.res - d.mes.rf, moeda) : "<td>–</td>") + "</tr>";
+      }).join("") + "</tbody></table><p class=\"rl-nota\">Volume = o que o efetivo a mais ou a menos traria na margem do executivo; faturamento e custo por pessoa = realizado contra o esperado com o efetivo real. As três parcelas somam a diferença contra o executivo (valor negativo = tirou resultado).</p></div>";
+  }
   // quem justificou o mes (qualquer texto do responsavel em faturamento, resultado, assertividade, efetivo, HHT ou observacoes)
   var IDS_JUST_COER = [1, 2, 4, 9, 10, 23];
   function justificouMes(os, m) {
@@ -697,6 +856,7 @@
     L.push("15. Coerência: os pontos de atenção, o foco do próximo mês e o orçamento seguem a classificação dos planos. Só diga trocar o plano quando ele estiver SEM EFEITO, PIOROU ou SEM PLANO; PARCIAL é ajustar; FUNCIONANDO e AGUARDANDO é manter. Nunca recomende trocar um plano que está PARCIAL.");
     L.push("16. Normalidade e justificativa: tudo o que fugir da normalidade (indicador fora, variação de faturamento, custo ou resultado de um mês para o outro, número fora da proporção) precisa de justificativa do responsável. Para cada desvio diga se ele justificou; se não justificou, aponte a falta de justificativa com todas as letras; se justificou, diga se a justificativa é coerente com os números e, se não for, aponte e diga o que falta responder. Vale para todos os indicadores e valores.");
     L.push("17. Faturamento e resultado se explicam pelo efetivo, não só pelo executivo (o executivo não é corrigido de um mês para o outro). Use o bloco COERÊNCIA FATURAMENTO x EFETIVO x CUSTO: o faturamento deve variar na mesma proporção do efetivo (faturamento por pessoa estável) e o custo deve cair quando o efetivo cai. No mês da redução de efetivo é esperado aumento de custo pelas demissões (rescisões, multa de 40%): aponte esse custo e o valor. Nos demais meses, custo fora da proporção do efetivo não é aceitável: aponte e cobre a justificativa. Isso vale nos dois sentidos: custo ACIMA da proporção e também custo ABAIXO da proporção (subiu menos ou caiu mais que o efetivo). Custo abaixo não é ganho: indica custo de pessoal ainda não lançado, lançado em outro mês ou estornado, e o mês seguinte tende a pagar a conta. Cite cada mês com custo abaixo, o percentual do custo e do efetivo, e cobre a explicação do responsável. Ao explicar variação de faturamento ou de resultado no mês ou no ano, diga se houve movimentação de efetivo e se a variação ficou na proporção dela.");
+    L.push("18. " + REGRA_DIAG);
     L.push("14. Perda de receita: sempre leve o valor da perda para as contas (é faturamento que não entrou e reduz o resultado) e diga se ela está melhorando ou piorando ao longo dos meses, com os números mês a mês.");
     L.push("12. SSMA (SAF, CAF, PBI/PBD): um acidente pode parar um dia inteiro de serviço, e esse dia deixa de ser medido. Quando houver acidente ou ocorrência, procure a perda de receita do mesmo mês e diga se o evento ajuda a explicar a perda; se os DADOS não permitirem ligar os dois, diga que não há registro. Avalie se as ações de segurança informadas evitaram nova ocorrência.");
     L.push("9. Gestão ou orçamento. Para cada causa, decida: é GESTÃO (o contrato controla: hora extra, absenteísmo, demissões evitáveis, perdas por falta de mão de obra, SLA, recursos sem faturar) ou é PREMISSA DE ORÇAMENTO (o preço não previu: custo estrutural não orçado ou que fica acima do executivo todo mês, absenteísmo e turnover da região). Seja assertivo. Diga isso no próprio ponto de atenção. Se o problema é de gestão, o parecer ao Orçamento diz isso com todas as letras.");
@@ -709,7 +869,7 @@
     L.push("- Custos são sempre escritos positivos (Hospedagem R$ 308.361; custou R$ 582.396 a mais que a proporção). Parênteses só para resultado ou margem negativos.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
-    L.push('{"situacao":"(2 parágrafos, até 900 caracteres: onde o contrato está, só o retrato geral; sem causas)","positivos":[{"titulo":"(até 45 caracteres)","texto":"(até 260 caracteres: o que está dando certo, com o número, e o que manter)"}] (2 a 5 itens; se nada vai bem, 1 item dizendo isso),"receita":"(2 parágrafos, até 1300 caracteres: perdas por motivo e a evolução mês a mês, SLA, não faturáveis, % do faturamento, resultado potencial e faturamento x efetivo; diluídos só como informação; gestão ou orçamento)","custos":"(3 parágrafos, até 2100 caracteres: proporcionalidade, ponte da margem, contas, rescisões e encargos rescisórios (multa de 40%), o FCST nos 2 ou 3 meses decisivos e a coerência mês a mês de faturamento e custo com o efetivo, com os meses fora da proporção, os de custo acima E os de custo abaixo do efetivo, e se o responsável justificou cada um; gestão ou orçamento)","pessoas":"(2 ou 3 parágrafos, até 1500 caracteres: efetivo e movimentação, HHT, HE, absenteísmo, turnover, acúmulo de férias em pessoas (30 e 45 dias ou mais) e o efeito dele no dissídio e na reoneração ' + (ano + 1) + ', e a coerência da projeção dos próximos meses)","ssma":"(até 700 caracteres: segurança, satisfação do cliente, boas práticas e renovação)","coerencia":[{"mes":"(jan, fev, ...)","avaliacao":"(COERENTE, INCOERENTE ou SEM JUSTIFICATIVA)","nota":"(até 140 caracteres: o que o responsável escreveu sobre o mês e por que explica ou não o número)"}] (um item para CADA mês listado em O QUE O RESPONSÁVEL ESCREVEU NOS MESES FORA DA PROPORÇÃO; texto genérico, repetido de outro mês ou que não fala do desvio daquele mês é SEM JUSTIFICATIVA ou INCOERENTE, nunca COERENTE; [] se não houver mês fora),"planos":[{"indicador":"(#número e nome)","acao":"(o que o gestor informou que está fazendo, resumido, até 160 caracteres; nenhuma ação informada, se for o caso)","desde":"(mês em que a ação atual aparece pela primeira vez)","efeito":"(FUNCIONANDO, PARCIAL, SEM EFEITO, PIOROU, AGUARDANDO, SEM PLANO ou NÃO SE APLICA)","texto":"(até 300 caracteres: a evidência mês a mês pelos números do indicador (percentuais, pessoas, ocorrências) e o parecer do Setor de Performance; valores em R$ já citados acima não se repetem)","recomendacao":"(até 220 caracteres: começa com MANTER, AJUSTAR, TROCAR ou CRIAR e diz o que fazer)"}] (todos os indicadores que não atenderam em algum mês do ano, do mais grave para o menos grave, até 10 itens; [] se todos atenderam o ano todo),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres: o efeito esperado, citando o problema pelo nome, sem repetir valores já citados)","acompanhar":"(até 90 caracteres)"}] (3 a 5 itens: o foco do próximo mês),"parecerOrcamento":"(até 450 caracteres: o veredito para a renovação: o que considerar no preço, ou corrigir a gestão antes; cite os assuntos pelo nome)","orcamento":[{"titulo":"(até 40 caracteres)","valor":"(até 30 caracteres: a recorrência ou o %, sem repetir valores em R$ já citados)","texto":"(até 300 caracteres)"}] (4 a 8 itens: absenteísmo, turnover, custos acima do executivo de forma recorrente, acúmulo de férias e o que mais os DADOS sustentarem; dissídio e reoneração não entram como item)}');
+    L.push('{"situacao":"(2 parágrafos, até 900 caracteres: onde o contrato está, só o retrato geral; sem causas)","positivos":[{"titulo":"(até 45 caracteres)","texto":"(até 260 caracteres: o que está dando certo, com o número, e o que manter)"}] (2 a 5 itens; se nada vai bem, 1 item dizendo isso),"diagnostico":"(3 ou 4 parágrafos, até 2400 caracteres: a história única de efetivo, faturamento e custo pelo bloco DIAGNÓSTICO INTEGRADO; ano contra o executivo com as três parcelas e a movimentação contra o executivo; depois o mês contra o FCST anterior; gestão ou orçamento)","receita":"(até 1000 caracteres: SÓ perdas por motivo e a evolução mês a mês, SLA, não faturáveis, % do faturamento e resultado potencial; diluídos só como informação; não repita o diagnóstico)","custos":"(2 parágrafos, até 1500 caracteres: as CONTAS que explicam o custo por pessoa do diagnóstico (ponte da margem, contas, rescisões e encargos rescisórios, multa de 40%), os meses fora da proporção, acima E abaixo do efetivo, e se o responsável justificou cada um; não reconte o diagnóstico)","pessoas":"(2 ou 3 parágrafos, até 1500 caracteres: efetivo e movimentação, HHT, HE, absenteísmo, turnover, acúmulo de férias em pessoas (30 e 45 dias ou mais) e o efeito dele no dissídio e na reoneração ' + (ano + 1) + ', e a coerência da projeção dos próximos meses)","ssma":"(até 700 caracteres: segurança, satisfação do cliente, boas práticas e renovação)","coerencia":[{"mes":"(jan, fev, ...)","avaliacao":"(COERENTE, INCOERENTE ou SEM JUSTIFICATIVA)","nota":"(até 140 caracteres: o que o responsável escreveu sobre o mês e por que explica ou não o número)"}] (um item para CADA mês listado em O QUE O RESPONSÁVEL ESCREVEU NOS MESES FORA DA PROPORÇÃO; texto genérico, repetido de outro mês ou que não fala do desvio daquele mês é SEM JUSTIFICATIVA ou INCOERENTE, nunca COERENTE; [] se não houver mês fora),"planos":[{"indicador":"(#número e nome)","acao":"(o que o gestor informou que está fazendo, resumido, até 160 caracteres; nenhuma ação informada, se for o caso)","desde":"(mês em que a ação atual aparece pela primeira vez)","efeito":"(FUNCIONANDO, PARCIAL, SEM EFEITO, PIOROU, AGUARDANDO, SEM PLANO ou NÃO SE APLICA)","texto":"(até 300 caracteres: a evidência mês a mês pelos números do indicador (percentuais, pessoas, ocorrências) e o parecer do Setor de Performance; valores em R$ já citados acima não se repetem)","recomendacao":"(até 220 caracteres: começa com MANTER, AJUSTAR, TROCAR ou CRIAR e diz o que fazer)"}] (todos os indicadores que não atenderam em algum mês do ano, do mais grave para o menos grave, até 10 itens; [] se todos atenderam o ano todo),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres: o efeito esperado, citando o problema pelo nome, sem repetir valores já citados)","acompanhar":"(até 90 caracteres)"}] (3 a 5 itens: o foco do próximo mês),"parecerOrcamento":"(até 450 caracteres: o veredito para a renovação: o que considerar no preço, ou corrigir a gestão antes; cite os assuntos pelo nome)","orcamento":[{"titulo":"(até 40 caracteres)","valor":"(até 30 caracteres: a recorrência ou o %, sem repetir valores em R$ já citados)","texto":"(até 300 caracteres)"}] (4 a 8 itens: absenteísmo, turnover, custos acima do executivo de forma recorrente, acúmulo de férias e o que mais os DADOS sustentarem; dissídio e reoneração não entram como item)}');
     L.push("");
     L.push("DADOS");
     var hOS = C.H.hist || {};
@@ -794,6 +954,7 @@
     if (efe.length) L.push("EFEITO DAS ADMISSÕES NO MÊS SEGUINTE (calculado; use estes números, não deduza outra tendência): " + efe.join(" | ") + ".");
     L.push("HHT realizado (h): " + linhaSerie(S.rh.hht) + " | % HE: " + linhaSerie(S.rh.he, function (v) { return fmt(v, 2) + "%"; }) + " | % absenteísmo: " + linhaSerie(S.rh.abs, function (v) { return fmt(v, 2) + "%"; }));
     L.push("Faturamento do mês: " + linhaSerie(S.rh.fat, rs) + " | resultado do mês: " + linhaSerie(S.rh.res, rs));
+    diagLinhas(diagEfetivo(S)).forEach(function (l) { L.push(l); });
     var coe = coerenciaEfetivo(S);
     if (coe.linhas.length) {
       L.push("COERÊNCIA FATURAMENTO x EFETIVO x CUSTO, MÊS CONTRA O MÊS ANTERIOR (calculado; custo = faturamento - resultado; tolerância de 5 p.p.; use estes números e esta leitura):");
@@ -945,6 +1106,7 @@
     if (!j || typeof j !== "object") return ["tudo"];
     if (temN && (!Array.isArray(j.planos) || !j.planos.length)) falta.push("planos");
     ["receita", "custos", "pessoas", "ssma", "parecerOrcamento"].forEach(function (k) { if (!j[k] || String(j[k]).length < 40) falta.push(k); });
+    if (!j.diagnostico || String(j.diagnostico).length < 300) falta.push("diagnostico");
     if (!j.situacao || String(j.situacao).length < 200) falta.push("situacao");
     if (!Array.isArray(j.positivos) || !j.positivos.length) falta.push("positivos");
     if (!Array.isArray(j.plano) || j.plano.length < 3) falta.push("plano");
@@ -996,7 +1158,7 @@
       if (nFora && (!Array.isArray(jj.coerencia) || !jj.coerencia.length)) f.push("coerencia (um item por mês fora da proporção)");
       var cx = semAcento(jj.custos).split(/[.;]/), semAbx = mesesAbaixo.filter(function (m) { return !cx.some(function (fr) { var tk = fr.split(/[^a-z]+/); return (tk.indexOf(MES[m]) >= 0 || tk.indexOf(MESF[m]) >= 0) && /abaixo|menos que o efetivo|caiu mais/.test(fr); }); });
       if (semAbx.length) f.push("custos: aponte também o custo ABAIXO da proporção do efetivo em " + semAbx.map(function (m) { return MES[m]; }).join(", ") + " (custo não lançado, lançado em outro mês ou estorno) e se o responsável explicou");
-      var rpt = valoresRepetidos({ situacao: jj.situacao, positivos: jj.positivos, receita: jj.receita, custos: jj.custos, pessoas: jj.pessoas, ssma: jj.ssma,
+      var rpt = valoresRepetidos({ situacao: jj.situacao, positivos: jj.positivos, diagnostico: jj.diagnostico, receita: jj.receita, custos: jj.custos, pessoas: jj.pessoas, ssma: jj.ssma,
         planos: (jj.planos || []).map(function (q) { return [q.acao, q.texto, q.recomendacao].join(" "); }).join(" "), foco: jj.plano, orcamento: [jj.parecerOrcamento, JSON.stringify(jj.orcamento || [])].join(" ") });
       if (rpt.length) f.push(MSG_REPETICAO + rpt.join("; "));
       var tr = trocasIndevidas(jj);
@@ -1012,7 +1174,7 @@
       v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: (H.rotulo && H.rotulo.indexOf("|") > 0 && H.grupo) ? H.grupo : (H.desc || C.contract.name || ""), descCtt: !!H.ctt, hist: hist, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
       ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal, semTrat: C.semTrat, semAtiv: C.semAtiv, estagio: (C.contract && C.contract.estagio) || "", pauta: montarPauta(dados.pautaRaw, dados.custos, mes),
       kpi: C.kpi, S: C.S, inds: C.inds, valoresSemOrigem: gc.semOrigem, coerJust: (function () { var o = {}; coerenciaEfetivo(C.S).rows.forEach(function (r) { if (r.ruim) o[r.m] = justificouMes(os, r.m); }); return o; })(),
-      txt: { coerencia: Array.isArray(j.coerencia) ? j.coerencia.slice(0, 12) : [], situacao: j.situacao, positivos: j.positivos.slice(0, 5), receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
+      txt: { coerencia: Array.isArray(j.coerencia) ? j.coerencia.slice(0, 12) : [], situacao: j.situacao, positivos: j.positivos.slice(0, 5), diagnostico: j.diagnostico || "", receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
         plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10), repetidos: valoresRepetidos({ situacao: j.situacao, positivos: j.positivos, receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, foco: j.plano }) }
     };
     if (opts.gravar === false) return book;
@@ -1636,7 +1798,7 @@
       efet: S.rh.efet[n], adm: soma(S.rh.adm), dem: soma(S.rh.dem), he: S.rh.he[n], abs: k.absAcum, turn: k.turnAcum, demTurn: soma(S.rh.demTurn || []),
       f30: S.rh.fer30, f45: S.rh.fer45, ferTot: S.rh.ferTot, alerta: S.proj && S.proj.alerta ? S.proj.alerta.problemas : null,
       fatAno: k.fatAno, fatMeta: k.fatMeta, resAno: k.resAno, resMeta: k.resMeta, diag: (b.txt && (b.txt.diagnostico || [b.txt.situacao].concat((b.txt.positivos || []).map(function (q) { return "positivo: " + q.titulo; })).join(" "))) || "", trocas: trocasTxt(b.hist),
-      mm: (f.fc || []).map(function (o) { return [o.m, o.fat, o.res, o.fatEx, o.resEx, o.resFc]; }), efetM: S.rh.efet.slice() };
+      mm: (f.fc || []).map(function (o) { return [o.m, o.fat, o.res, o.fatEx, o.resEx, o.resFc]; }), efetM: S.rh.efet.slice(), neg: b.neg || "", dg: S.rh && S.rh.efetEx ? diagResumo(diagEfetivo(S)) : null };
   }
   function agregarGrupo(books) {
     var A2 = { FR: 0, FE: 0, resReal: 0, resExec: 0, linhas: [], contas: [], receita: { perda: 0, sla: 0, nf: 0, dil: 0, perdaPR: 0 }, promessa: { res: 0, fc: 0, grupos: [], n: 0 },
@@ -1664,6 +1826,7 @@
     var mm = {};
     A2.linhasOS.forEach(function (o) { o.mm.forEach(function (x) { var t = mm[x[0]] = mm[x[0]] || [x[0], 0, 0, 0, 0, 0, 0]; t[1] += x[1] || 0; t[2] += x[2] || 0; t[3] += x[3] || 0; t[4] += x[4] || 0; if (x[5] != null) { t[5] += x[5]; t[6]++; } }); });
     A2.mesAMes = Object.keys(mm).map(function (k) { return mm[k]; }).sort(function (a, b) { return a[0] - b[0]; });
+    A2.diag = somarDiag(A2.linhasOS.map(function (o) { return o.dg; }));
     return A2;
   }
 
@@ -1690,13 +1853,19 @@
     L.push("- Português do Brasil, tom executivo, frases curtas, sem listas dentro dos textos, parágrafos separados por linha em branco, **negrito** só para 1 ou 2 números por texto. Não invente nada; sem registro, diga que não há registro. Todo valor em R$ que você escrever tem que estar nos DADOS ou ser a soma ou a diferença de valores que você cita no mesmo trecho, com as parcelas escritas (ex.: transporte R$ 121.126 e passagens R$ 75.485, total R$ 196.611). Nunca escreva um total sem as parcelas nem um número que não venha dos DADOS.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
-    L.push(ger ? '{"situacao":"(2 parágrafos, até 900 caracteres)","quadro":"(até 700 caracteres: quais OSs sustentam o resultado e quais puxam para baixo, só os nomes, um contrato por linha; cada OS aparece em um grupo só)","positivos":[{"titulo":"(até 45 caracteres)","texto":"(até 260 caracteres: o que vai bem, com o número, e o que manter)","oss":"(códigos)"}] (2 a 5 itens),"receita":"(até 1100 caracteres: perdas, SLA, não faturáveis, resultado potencial e faturamento contra o executivo, com as OSs que causam; gestão ou orçamento; margem não entra aqui, fica em custos)","custos":"(até 1500 caracteres: contas acima da proporção, recorrências, rescisões e multa de 40%, o FCST prometido x entregue por grupo de custo, com as OSs)","pessoas":"(até 1000 caracteres: efetivo, HE, absenteísmo, turnover, férias em pessoas por contrato (efetivo, 30 dias ou mais, 45 dias ou mais) e alertas de projeção, com as OSs)","planos":"(uma linha por contrato com problema, começando pelo código e descrição da OS: para cada indicador, MANTER, AJUSTAR, TROCAR ou CRIAR o plano, citando o problema pelo nome, sem repetir valores; até 1300 caracteres)","plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres: o efeito esperado, citando o problema pelo nome, sem repetir valores)","acompanhar":"(até 90 caracteres)","oss":"(códigos)"}] (3 a 5 itens: o foco do próximo mês)}'
-      : '{"situacao":"(2 parágrafos, até 800 caracteres)","quadro":"(até 700 caracteres: quais gerências sustentam o resultado e quais puxam para baixo, só os nomes, uma gerência por linha; cada gerência aparece em um grupo só)","positivos":[{"titulo":"(até 45 caracteres)","texto":"(até 240 caracteres: o que vai bem, com o número, a gerência e as OSs, e o que manter)","oss":"(gerência e códigos)"}] (2 a 4 itens),"receita":"(até 900 caracteres: perdas, SLA, não faturáveis e resultado potencial, com gerências e OSs)","custos":"(até 1200 caracteres: contas acima da proporção, recorrências e rescisões, com gerências e OSs)","pessoas":"(até 700 caracteres: férias, absenteísmo, turnover e alertas de projeção, com gerências e OSs)","planos":"(uma linha por gerência, começando pelo nome: os contratos e indicadores em que o plano tem de ser trocado ou criado, e onde deve ser mantido ou ajustado, citando o problema pelo nome; até 1000 caracteres)","plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres)","acompanhar":"(até 90 caracteres)","oss":"(gerência e códigos)"}] (3 a 5 itens: as decisões do superintendente para o próximo mês)}');
+    L.push(ger ? '{"situacao":"(2 parágrafos, até 900 caracteres)","quadro":"(até 700 caracteres: quais OSs sustentam o resultado e quais puxam para baixo, só os nomes, um contrato por linha; cada OS aparece em um grupo só)","positivos":[{"titulo":"(até 45 caracteres)","texto":"(até 260 caracteres: o que vai bem, com o número, e o que manter)","oss":"(códigos)"}] (2 a 5 itens),"diagnostico":"(3 parágrafos, até 2000 caracteres: a história única de efetivo, faturamento e custo pelo DIAGNÓSTICO INTEGRADO: efetivo do grupo contra o executivo e a movimentação, a diferença de resultado nas três parcelas com as OSs que explicam cada uma, e o mês contra o FCST anterior)","receita":"(até 900 caracteres: SÓ perdas, SLA, não faturáveis e resultado potencial, com as OSs que causam; não repita o diagnóstico)","custos":"(até 1500 caracteres: contas acima da proporção, recorrências, rescisões e multa de 40%, o FCST prometido x entregue por grupo de custo, com as OSs)","pessoas":"(até 1000 caracteres: efetivo, HE, absenteísmo, turnover, férias em pessoas por contrato (efetivo, 30 dias ou mais, 45 dias ou mais) e alertas de projeção, com as OSs)","planos":"(uma linha por contrato com problema, começando pelo código e descrição da OS: para cada indicador, MANTER, AJUSTAR, TROCAR ou CRIAR o plano, citando o problema pelo nome, sem repetir valores; até 1300 caracteres)","plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres: o efeito esperado, citando o problema pelo nome, sem repetir valores)","acompanhar":"(até 90 caracteres)","oss":"(códigos)"}] (3 a 5 itens: o foco do próximo mês)}'
+      : '{"situacao":"(2 parágrafos, até 800 caracteres)","quadro":"(até 700 caracteres: quais gerências sustentam o resultado e quais puxam para baixo, só os nomes, uma gerência por linha; cada gerência aparece em um grupo só)","positivos":[{"titulo":"(até 45 caracteres)","texto":"(até 240 caracteres: o que vai bem, com o número, a gerência e as OSs, e o que manter)","oss":"(gerência e códigos)"}] (2 a 4 itens),"diagnostico":"(2 ou 3 parágrafos, até 1600 caracteres: a história única de efetivo, faturamento e custo pelo DIAGNÓSTICO INTEGRADO, com as gerências e OSs que explicam cada parcela, e o mês contra o FCST anterior)","receita":"(até 800 caracteres: SÓ perdas, SLA, não faturáveis e resultado potencial, com gerências e OSs; não repita o diagnóstico)","custos":"(até 1200 caracteres: contas acima da proporção, recorrências e rescisões, com gerências e OSs)","pessoas":"(até 700 caracteres: férias, absenteísmo, turnover e alertas de projeção, com gerências e OSs)","planos":"(uma linha por gerência, começando pelo nome: os contratos e indicadores em que o plano tem de ser trocado ou criado, e onde deve ser mantido ou ajustado, citando o problema pelo nome; até 1000 caracteres)","plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres)","acompanhar":"(até 90 caracteres)","oss":"(gerência e códigos)"}] (3 a 5 itens: as decisões do superintendente para o próximo mês)}');
     L.push("");
     L.push("DADOS (" + quem + ", " + G.linhasOS.length + " OSs elegíveis" + (extra.semBook && extra.semBook.length ? "; sem dados no painel: " + extra.semBook.join(", ") : "") + ")");
     L.push("JAN A " + MES[mes].toUpperCase() + ": faturamento real " + rs(G.FR) + " x executivo " + rs(G.FE) + " (" + (G.FE ? fmt((G.FR / G.FE - 1) * 100, 2) + "%" : "–") + ") | resultado real " + rs(G.resReal) + " x executivo " + rs(G.resExec) + " | margem real " + pct(G.FR ? G.resReal / G.FR : null) + " x executivo " + pct(G.FE ? G.resExec / G.FE : null) + ".");
     if (G.mesAMes && G.mesAMes.length) L.push("MÊS A MÊS DO GRUPO (faturamento real x executivo | resultado real x executivo | resultado previsto no FCST do mês anterior): " + G.mesAMes.map(function (t) { return MES[t[0]] + ": " + rs(t[1]) + " x " + rs(t[3]) + " | " + rs(t[2]) + " x " + rs(t[4]) + (t[6] ? " | FCST " + rs(t[5]) : ""); }).join(" · ") + ".");
     L.push("PROJEÇÃO DO ANO (real até o mês + projetado no painel até dezembro, somando as OSs): faturamento " + rs(G.kpi.fatAno) + " x meta " + rs(G.kpi.fatMeta) + " | resultado " + rs(G.kpi.resAno) + " x meta " + rs(G.kpi.resMeta) + ".");
+    if (G.diag) {
+      L.push("DIAGNÓSTICO INTEGRADO EFETIVO x FATURAMENTO x CUSTO (calculado pelo app, somando as OSs; as parcelas somam a diferença de resultado contra o executivo):");
+      L.push("  GRUPO: " + diagLinhaGrupo("total", Object.assign({ n: G.diag.n, efMed: G.diag.efMed, exMed: G.diag.exMed }, G.diag)) + (G.diag.semEf ? " (" + G.diag.semEf + " OS(s) sem efetivo no executivo)" : ""));
+      G.linhasOS.forEach(function (o) { L.push("  " + diagLinhaGrupo(nomeOS(o.os, o.desc) + (ger ? "" : " (gerência " + (o.ger || "–") + ")"), o.dg)); });
+      L.push("  " + REGRA_DIAG + " No grupo, diga quais OSs explicam cada parcela.");
+    }
     if (an) L.push("PONTE DA MARGEM DO GRUPO (p.p. por grupo de custo; negativo = custou mais que a proporção): " + an.grupos.map(function (g) { return g.nome + " " + (g.pp > 0 ? "+" : "") + fmt(g.pp, 2); }).join("; ") + ".");
     L.push("CONTAS QUE MAIS PESARAM (quanto custaram a mais que a proporção, somando as OSs; e as OSs que mais contribuíram): " + G.contas.slice(0, 10).map(function (c) { return c.conta + " " + dif(c.desvio) + " (" + c.oss.filter(function (o) { return o[1] < 0; }).map(function (o) { return o[0] + " " + moeda(Math.abs(o[1])); }).join(", ") + ")"; }).join("; ") + ".");
     if (G.recorrentes.length) L.push("CUSTOS ACIMA DO EXECUTIVO DE FORMA RECORRENTE (conta: OSs): " + G.recorrentes.map(function (r) { return r.conta + ": " + r.oss.join(", "); }).join("; ") + ".");
@@ -1726,6 +1895,7 @@
     var falta = [];
     if (!j || typeof j !== "object") return ["tudo"];
     ["situacao", "quadro", "receita", "custos", "pessoas", "planos"].forEach(function (k) { if (!j[k] || String(j[k]).length < 60) falta.push(k); });
+    if (!j.diagnostico || String(j.diagnostico).length < 250) falta.push("diagnostico");
     if (!Array.isArray(j.positivos) || !j.positivos.length) falta.push("positivos");
     if (!Array.isArray(j.plano) || j.plano.length < 2) falta.push("plano");
     var rpt = valoresRepetidos({ situacao: j.situacao, quadro: j.quadro, positivos: j.positivos, receita: j.receita, custos: j.custos, pessoas: j.pessoas, planos: j.planos, foco: j.plano });
@@ -1795,7 +1965,7 @@
     var Gs = Object.assign({}, G, { linhasOS: G.linhasOS.map(function (o) { var c = Object.assign({}, o); delete c.diag; c.planos = o.planos ? o.planos.map(function (q) { return { indicador: q.indicador, efeito: q.efeito }; }) : null; return c; }) });
     var book = { v: 2, nivel: nivel, chave: alvo, nome: titulo, sup: nivel === "ger" ? maisComum(res.map(function (b) { return b.sup; })) : titulo, ano: ano, mes: mes, em: new Date().toISOString(), por: s2 ? s2.login : "",
       G: Gs, porGer: extra.porGer || null, semBook: semDados,
-      txt: { situacao: j.situacao, quadro: j.quadro, positivos: j.positivos.slice(0, 5), receita: j.receita, custos: j.custos, pessoas: j.pessoas, planos: j.planos || "", plano: j.plano.slice(0, 6) } };
+      txt: { situacao: j.situacao, quadro: j.quadro, positivos: j.positivos.slice(0, 5), diagnostico: j.diagnostico || "", receita: j.receita, custos: j.custos, pessoas: j.pessoas, planos: j.planos || "", plano: j.plano.slice(0, 6) } };
     if (opts.gravar === false) return book;
     progresso("Gravando no SharePoint…");
     await gravar(nivel, alvo, book);
@@ -1821,15 +1991,33 @@
     });
     return svg(f, s + eixoX(f, mm.map(function (t) { return MES[t[0]]; })), "Resultado mês a mês");
   }
+  // 23/11/2026 (usuario): nomes saiam cortados a esquerda (M00100 + M05100 - CBMM - ARAXA). Agora o nome e o mesmo
+  // da tabela (nomeOS), quebra em duas linhas quando e longo (codigos | descricao) e a margem acompanha o maior nome.
+  function quebrarNomeOS(n) {
+    n = String(n || "");
+    if (n.length <= 30) return [n];
+    var m = /^((?:[A-Z]\d{5}\s*\+\s*)*[A-Z]\d{5})\s*-\s*(.+)$/.exec(n);
+    if (m) return [m[1], m[2].length > 34 ? m[2].slice(0, 33) + "…" : m[2]];
+    var corte = n.lastIndexOf(" ", 30); if (corte < 10) corte = 30;
+    var r = n.slice(corte).trim();
+    return [n.slice(0, corte).trim(), r.length > 34 ? r.slice(0, 33) + "…" : r];
+  }
   function chGap(linhas) {
     var xs = linhas.slice(0, 14), max = Math.max.apply(null, xs.map(function (o) { return Math.abs(o.gap); }).concat([1]));
-    var lh = 30, f = fr(1100, 20 + xs.length * lh, { l: 300, r: 150, t: 10, b: 10 }), mid = f.m.l + f.iw / 2, sc = function (v) { return Math.abs(v) / max * (f.iw / 2 - 10); };
+    var rot = xs.map(function (o) { return quebrarNomeOS(nomeOS(o.os, o.desc)); });
+    var dupla = rot.some(function (r) { return r.length > 1; });
+    var maior = Math.max.apply(null, rot.map(function (r) { return Math.max.apply(null, r.map(function (l) { return l.length; })); }).concat([8]));
+    var lh = dupla ? 44 : 30, fs = 15.5, ml = Math.min(470, Math.max(160, Math.round(maior * fs * 0.58) + 24));
+    var f = fr(1100, 20 + xs.length * lh, { l: ml, r: 160, t: 10, b: 10 }), mid = f.m.l + f.iw / 2, sc = function (v) { return Math.abs(v) / max * (f.iw / 2 - 10); };
     var s = '<line x1="' + mid + '" x2="' + mid + '" y1="' + f.m.t + '" y2="' + (f.H - f.m.b) + '" stroke="' + COR.muted + '"/>';
     xs.forEach(function (o, i) {
-      var y = f.m.t + i * lh, w = sc(o.gap), neg = o.gap < 0;
-      s += '<text x="' + (f.m.l - 10) + '" y="' + (y + 19) + '" text-anchor="end" font-size="17.5" fill="' + COR.ink + '">' + esc((o.os + " " + o.desc.replace(/^\S+\s*-\s*/, "")).slice(0, 40)) + "</text>";
-      s += '<rect x="' + (neg ? mid - w : mid) + '" y="' + (y + 6) + '" width="' + w + '" height="17" rx="2" fill="' + (neg ? COR.red : COR.teal) + '"/>';
-      s += '<text x="' + (f.W - 6) + '" y="' + (y + 19) + '" text-anchor="end" font-size="17" font-weight="700" fill="' + (neg ? COR.badfg : COR.okfg) + '">' + moeda(o.gap) + "</text>";
+      var y = f.m.t + i * lh, w = sc(o.gap), neg = o.gap < 0, yc = y + lh / 2;
+      var r = rot[i];
+      if (r.length === 1) s += '<text x="' + (f.m.l - 10) + '" y="' + (yc + 5) + '" text-anchor="end" font-size="' + fs + '" fill="' + COR.ink + '">' + esc(r[0]) + "</text>";
+      else s += '<text x="' + (f.m.l - 10) + '" y="' + (yc - 4) + '" text-anchor="end" font-size="' + fs + '" font-weight="700" fill="' + COR.ink + '">' + esc(r[0]) + "</text>" +
+                '<text x="' + (f.m.l - 10) + '" y="' + (yc + 14) + '" text-anchor="end" font-size="' + (fs - 1) + '" fill="' + COR.ink + '">' + esc(r[1]) + "</text>";
+      s += '<rect x="' + (neg ? mid - w : mid) + '" y="' + (yc - 9) + '" width="' + w + '" height="18" rx="2" fill="' + (neg ? COR.red : COR.teal) + '"/>';
+      s += '<text x="' + (f.W - 6) + '" y="' + (yc + 6) + '" text-anchor="end" font-size="16.5" font-weight="700" fill="' + (neg ? COR.badfg : COR.okfg) + '">' + moeda(o.gap) + "</text>";
     });
     return svg(f, s, "Resultado contra o executivo por OS");
   }
@@ -1940,6 +2128,9 @@
     h.push('<section class="rl-cap"><h2><span>3</span>Destaques positivos: o que manter</h2>' + cardsPositivos(t.positivos) + "</section>");
     // 4. pontos de atencao
     var p4 = "";
+    // 23/11/2026: o diagnostico integrado vem antes de receita e custos (book antigo sem o texto mostra so os quadros)
+    var DG = (S.rh && S.rh.efetEx) ? diagEfetivo(S) : null;   // book gravado antes de 23/11 nao tem o efetivo do executivo
+    if (DG) p4 += sub("Diagnóstico: efetivo, faturamento e custo, contra o executivo e o FCST anterior") + par(t.diagnostico) + diagHTML(DG, figura, MES[b.mes]);
     var rc = c.receita, r2 = par(t.receita);
     if (rc && c.FR) {
       var perda = rc.perdaRI != null ? rc.perdaRI : rc.perdaPR, pot = c.resReal + (perda || 0) + (rc.sla || 0) + (rc.nf || 0);
@@ -2037,6 +2228,15 @@
     // 4. pontos de atencao
     var rc = G.receita, pot = G.resReal + rc.perda + rc.sla + rc.nf, p4 = "";
     var fPot = figura("Resultado potencial do grupo", "sem perdas, SLA e não faturáveis · margem real " + pct(margR) + " → potencial " + pct(G.FR ? pot / G.FR : null), chPotencial({ res: G.resReal, perda: rc.perda, sla: rc.sla, nf: rc.nf }));
+    // 23/11/2026: diagnostico integrado do grupo (somas das OSs) antes de receita e custos
+    if (G.diag || (G.linhasOS || []).some(function (o) { return o.dg; })) {
+      var GD = G.diag || somarDiag(G.linhasOS.map(function (o) { return o.dg; }));
+      var linD = G.linhasOS.map(function (o) { return { nome: nm(o), d: o.dg }; });
+      p4 += sub("Diagnóstico: efetivo, faturamento e custo, contra o executivo e o FCST anterior") + par(t.diagnostico) +
+        (GD.n ? '<div class="rl-duas">' + figura("De onde vem a diferença de resultado contra o executivo", "jan a " + MES[b.mes] + " · soma das OSs", chDiag(GD.RE, GD, GD.RR, "Resultado executivo")) +
+          (GD.mes && GD.mes.n ? figura("O mês contra o FCST anterior", MESF[b.mes] + " · soma das OSs com FCST", chDiag(GD.mes.rf, { vol: GD.mes.vol, dFat: GD.mes.dFat, dCus: GD.mes.dCus, resto: GD.mes.resto || 0 }, GD.mes.res, "Resultado no FCST")) : "") + "</div>" : "") +
+        figura("Por OS: efetivo e as três parcelas da diferença", "jan a " + MES[b.mes] + " contra o executivo; mês contra o FCST anterior", tabelaDiagGrupo(linD, "OS"));
+    }
     p4 += sub("Receita: perdas, SLA e não faturáveis") + '<div class="rl-duas rl-duas-txt"><div class="rl-txt">' + par(t.receita) + "</div>" + fPot + "</div>";
     var tabC = '<div class="rl-tab"><table><thead><tr><th>Conta</th><th>Custou a mais que a proporção</th><th>OSs que mais contribuíram</th></tr></thead><tbody>' +
       G.contas.filter(function (c) { return c.desvio < 0; }).slice(0, 8).map(function (c) { return "<tr><td>" + esc(String(c.conta).replace(/^\d+\s*-\s*/, "")) + '</td><td class="neg">' + moeda(-c.desvio) + '</td><td class="rl-cx">' + esc(c.oss.filter(function (o) { return o[1] < 0; }).map(function (o) { return (MN[o[0]] || o[0]) + " " + moeda(-o[1]); }).join(" · ")) + "</td></tr>"; }).join("") + "</tbody></table></div>";
@@ -2361,9 +2561,10 @@
     L.push("- Ao falar de negócios ou OSs, um por linha: cada linha começa com o nome do negócio ou com o código e a descrição da OS; quebre a linha (\\n) a cada um.");
     L.push("- Pessoas são citadas só pelo nome; nunca presuma gênero. Não invente nada; sem registro, diga que não há registro. Todo valor em R$ que você escrever tem que estar nos DADOS ou ser a soma ou a diferença de valores que você cita no mesmo trecho, com as parcelas escritas (ex.: transporte R$ 121.126 e passagens R$ 75.485, total R$ 196.611). Nunca escreva um total sem as parcelas nem um número que não venha dos DADOS.");
     L.push("- Português do Brasil, tom executivo, frases curtas. **Negrito** só para 1 ou 2 números por texto.");
+    L.push("- " + REGRA_DIAG + " Na Diretoria, use o DIAGNÓSTICO INTEGRADO de cada negócio (soma das OSs com book) dentro do texto do negócio, dizendo que cobre só essas OSs.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
-    L.push('{"sumario":"(2 parágrafos, até 900 caracteres: a empresa no período e no ano)","negocios":{' + NEGOCIOS.map(function (k) { return '"' + k + '":"(até 700 caracteres: o negócio contra o Executivo e o FCST, mês a mês quando relevante, e as OSs que explicam)"'; }).join(",") + '},"riscos":"(até 700 caracteres: o que ameaça o resultado do ano)","decisoes":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres)","negocio":"(negócio e OSs)"}] (3 a 5 itens)}');
+    L.push('{"sumario":"(2 parágrafos, até 900 caracteres: a empresa no período e no ano)","negocios":{' + NEGOCIOS.map(function (k) { return '"' + k + '":"(até 900 caracteres: o negócio contra o Executivo e o FCST, mês a mês quando relevante; efetivo, faturamento e custo juntos pelo diagnóstico, com as parcelas; e as OSs que explicam)"'; }).join(",") + '},"riscos":"(até 700 caracteres: o que ameaça o resultado do ano)","decisoes":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres)","negocio":"(negócio e OSs)"}] (3 a 5 itens)}');
     L.push("");
     L.push("DADOS");
     L.push("EMPRESA (soma dos 5 negócios), JAN A " + MES[mes].toUpperCase() + ": faturamento " + rs(T.FR) + " x executivo " + rs(T.FE) + " | resultado " + rs(T.RR) + " x executivo " + rs(T.RE) + " | margem " + pct(T.FR ? T.RR / T.FR : null) + " x " + pct(T.FE ? T.RE / T.FE : null) + ".");
@@ -2378,6 +2579,10 @@
       if (z.ponteG) L.push("  ponte da margem (p.p.; negativo = custou mais que a proporção do faturamento): " + z.ponteG.map(function (x) { return x[0] + " " + (x[1] > 0 ? "+" : "") + fmt(x[1], 2); }).join("; ") + ".");
       L.push("  grupos de custo, real x executivo (custo positivo): " + z.grupos.slice(0, 8).map(function (x) { return x.nome + " " + cu(x.real) + " x " + cu(x.exec); }).join("; ") + ".");
       if (z.piores.length) L.push("  OSs que mais tiraram resultado (resultado real x executivo): " + z.piores.map(function (o) { return o[1] + " " + rs(o[4]) + " x " + rs(o[5]); }).join("; ") + ".");
+      if (z.diag) {
+        L.push("  DIAGNÓSTICO INTEGRADO (soma das " + z.diagOS.length + " OSs do acompanhamento com book de " + MES[mes] + "; não cobre o negócio inteiro): " + diagLinhaGrupo("total dessas OSs", z.diag));
+        z.diagOS.slice().sort(function (a, b) { return (a.d.RR - a.d.RE) - (b.d.RR - b.d.RE); }).slice(0, 6).forEach(function (x) { L.push("    " + diagLinhaGrupo(x.nome, x.d)); });
+      } else L.push("  DIAGNÓSTICO INTEGRADO: sem books de OS deste negócio no mês (OVERHEAD e LOCACOES não têm OSs no acompanhamento).");
       if (z.melhores.length) L.push("  OSs que mais somaram: " + z.melhores.map(function (o) { return o[1] + " " + rs(o[4]) + " x " + rs(o[5]); }).join("; ") + ".");
     });
     return L.join("\n");
@@ -2406,6 +2611,19 @@
     var dados = await lerDadosFluxo("-", ano, mes, tk, opts.urlFluxo, { diretoria: "1" });
     if (!dados.dir || !dados.dir.length) throw new Error("O painel não devolveu os dados por negócio (perfil sem acesso ou fluxo sem a Consulta Dir).");
     var D = montarDiretoria(dados.dir, mes);
+    // 23/11/2026: diagnostico por negocio = soma das OSs com book do mesmo mes (a consulta por negocio no modelo
+    // estoura o limite de memoria da capacidade; o book de cada OS ja traz o efetivo do executivo e do PR)
+    try {
+      progresso("Somando o diagnóstico de efetivo dos books das OSs…");
+      var bOS = await lerNivel("os", true), porNeg = {};
+      Object.keys(bOS).forEach(function (k) {
+        var bk = bOS[k].d; if (!bk || bk.mes !== mes || bk.ano !== ano || !bk.S) return;
+        if (!bk.S.rh || !bk.S.rh.efetEx) return;   // book da OS anterior a 23/11: sem efetivo do executivo
+        var dg = diagResumo(diagEfetivo(bk.S)); if (!dg) return;
+        var ng = String(bk.neg || "").toUpperCase(); (porNeg[ng] = porNeg[ng] || []).push({ nome: nomeOS(bk.os, bk.desc), d: dg });
+      });
+      D.forEach(function (z) { var l = porNeg[String(z.neg).toUpperCase()] || []; z.diagOS = l; z.diag = l.length ? somarDiag(l.map(function (x) { return x.d; })) : null; });
+    } catch (eD) { /* sem books de OS: o relatorio segue sem o diagnostico */ }
     var prompt = promptDiretoria(ano, mes, D);
     progresso("A IA está escrevendo o relatório da Diretoria…");
     var gc = await gerarConferido(prompt, conferirDiretoria), j = gc.j, falta = gc.falta;
@@ -2457,7 +2675,9 @@
     D.forEach(function (z) {
       var tabO = (z.piores.length || z.melhores.length) ? '<div class="rl-tab"><table><thead><tr><th>OS / centro de custo</th><th>Faturamento</th><th>Resultado</th><th>Executivo</th></tr></thead><tbody>' +
         z.piores.concat(z.melhores).map(function (o) { return "<tr><td>" + esc(o[1]) + "</td><td>" + moeda(o[2]) + '</td><td class="' + (o[4] < o[5] ? "neg" : "pos") + '">' + moeda(o[4]) + "</td><td>" + moeda(o[5]) + "</td></tr>"; }).join("") + "</tbody></table></div>" : "";
-      h.push(cap(++nc, z.neg, par(t.negocios && t.negocios[z.neg]) + figura("Resultado do mês · " + z.neg, "barra = realizado · traço = executivo do mês", chMesGrupo(z.mm)) + (tabO ? figura("OSs que mais tiraram e mais somaram resultado", "jan a " + MES[b.mes], tabO) : "")));
+      var fDg = z.diag && z.diag.n ? '<div class="rl-duas">' + figura("Efetivo, faturamento e custo · " + z.neg, "soma das " + z.diagOS.length + " OSs com book de " + MES[b.mes] + " (não cobre o negócio inteiro)", chDiag(z.diag.RE, z.diag, z.diag.RR, "Resultado executivo")) +
+        figura("Por OS: as três parcelas da diferença", "jan a " + MES[b.mes], tabelaDiagGrupo(z.diagOS.slice().sort(function (a, b2) { return (a.d.RR - a.d.RE) - (b2.d.RR - b2.d.RE); }).slice(0, 10), "OS")) + "</div>" : "";
+      h.push(cap(++nc, z.neg, par(t.negocios && t.negocios[z.neg]) + figura("Resultado do mês · " + z.neg, "barra = realizado · traço = executivo do mês", chMesGrupo(z.mm)) + fDg + (tabO ? figura("OSs que mais tiraram e mais somaram resultado", "jan a " + MES[b.mes], tabO) : "")));
     });
     h.push(cap(++nc, "Riscos para o ano", par(t.riscos)));
     h.push(cap(++nc, "Decisões", '<ol class="rl-plano">' + (t.decisoes || []).map(function (p) { return "<li><b>" + esc(p.acao || "") + "</b>" + (p.efeito ? "<span>" + rico(p.efeito) + "</span>" : "") + (p.negocio ? "<em>" + esc(p.negocio) + "</em>" : "") + "</li>"; }).join("") + "</ol>"));
