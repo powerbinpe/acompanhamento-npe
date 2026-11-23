@@ -690,15 +690,15 @@
     if (!D) return null;
     var A = D.ano, M = D.mes || {};
     return { n: A.n, FR: A.FR, FE: A.FE, CR: A.CR, CE: A.CE, RR: A.RR, RE: A.RE, fatEsp: A.fatEspT, cusEsp: A.cusEspT, vol: A.vol, dFat: A.dFat, dCus: A.dCus, resto: A.resto, sEf: A.sEf, sEx: A.sEx, nm: A.n,
-      efMed: A.efMed, exMed: A.exMed, adm: D.mov.adm, dem: D.mov.dem, resc: D.mov.resc,
+      efMed: A.efMed, exMed: A.exMed, adm: D.mov.adm, dem: D.mov.dem, resc: D.mov.resc, tin: D.mov.tin, tout: D.mov.tout, ef0: D.mov.ef0, ef1: D.mov.ef1, ex0: D.mov.ex0, ex1: D.mov.ex1,
       mes: D.mes ? { res: M.res, rf: M.rf, vol: M.vol == null ? null : M.vol, dFat: M.dFat == null ? null : M.dFat, dCus: M.dCus == null ? null : M.dCus, ef: M.ef, ep: M.ep, h: M.h, hp: M.hp, fat: M.fat, ff: M.ff, cr: M.cr, cf: M.cf } : null };
   }
   function somarDiag(lista) {
-    var T = { FR: 0, FE: 0, CR: 0, CE: 0, RR: 0, RE: 0, fatEsp: 0, cusEsp: 0, vol: 0, dFat: 0, dCus: 0, resto: 0, adm: 0, dem: 0, resc: 0, efMed: 0, exMed: 0, n: 0, semEf: 0,
+    var T = { FR: 0, FE: 0, CR: 0, CE: 0, RR: 0, RE: 0, fatEsp: 0, cusEsp: 0, vol: 0, dFat: 0, dCus: 0, resto: 0, adm: 0, dem: 0, resc: 0, tin: 0, tout: 0, ef0: 0, ef1: 0, ex0: 0, ex1: 0, efMed: 0, exMed: 0, n: 0, semEf: 0,
       mes: { res: 0, rf: 0, vol: 0, dFat: 0, dCus: 0, ef: 0, ep: 0, fat: 0, ff: 0, cr: 0, cf: 0, n: 0 } };
     lista.forEach(function (d) {
       if (!d) return;
-      ["FR", "FE", "CR", "CE", "RR", "RE", "fatEsp", "cusEsp", "vol", "dFat", "dCus", "resto", "adm", "dem", "resc"].forEach(function (k) { T[k] += d[k] || 0; });
+      ["FR", "FE", "CR", "CE", "RR", "RE", "fatEsp", "cusEsp", "vol", "dFat", "dCus", "resto", "adm", "dem", "resc", "tin", "tout", "ef0", "ef1", "ex0", "ex1"].forEach(function (k) { T[k] += d[k] || 0; });
       if (d.n) { T.efMed += d.efMed || 0; T.exMed += d.exMed || 0; T.n++; } else T.semEf++;
       if (d.mes && d.mes.rf != null) { var x = d.mes; T.mes.n++; ["res", "rf", "fat", "ff", "cr", "cf", "ef", "ep"].forEach(function (k) { T.mes[k] += x[k] || 0; });
         if (x.vol != null) { T.mes.vol += x.vol; T.mes.dFat += x.dFat; T.mes.dCus += x.dCus; } else T.mes.resto = (T.mes.resto || 0) + (x.res - x.rf); }
@@ -707,7 +707,7 @@
   }
   function diagLinhaGrupo(nome, d) {
     if (!d) return nome + ": sem dados para o diagnóstico.";
-    return nome + ": efetivo médio " + (d.n ? fmt(d.efMed, 0) + " x executivo " + fmt(d.exMed, 0) : "sem efetivo no executivo") + " | admissões " + d.adm + ", demissões " + d.dem + " | faturamento " + rs(d.FR) + " x esperado pelo efetivo " + rs(d.fatEsp) +
+    return nome + ": efetivo médio " + (d.n ? fmt(d.efMed, 0) + " x executivo " + fmt(d.exMed, 0) : "sem efetivo no executivo") + " | admissões " + d.adm + ", demissões " + d.dem + ", transferências entrando " + (d.tin || 0) + " e saindo " + (d.tout || 0) + " | efetivo da folha " + fmt(d.ef0) + " → " + fmt(d.ef1) + (d.ex0 || d.ex1 ? "; executivo previa " + fmt(d.ex0) + " → " + fmt(d.ex1) : "") + " | faturamento " + rs(d.FR) + " x esperado pelo efetivo " + rs(d.fatEsp) +
       " | custo " + rs(d.CR) + " x esperado " + rs(d.cusEsp) + " | resultado " + rs(d.RR) + " x executivo " + rs(d.RE) + " = volume " + rs(d.vol) + " + faturamento por pessoa " + rs(d.dFat) + " + custo por pessoa " + rs(d.dCus) +
       (Math.abs(d.resto || 0) >= 1 ? " + sem efetivo no executivo " + rs(d.resto) : "") + (d.mes && d.mes.rf != null ? " | mês: resultado " + rs(d.mes.res) + " x FCST " + rs(d.mes.rf) + (d.mes.vol != null ? " (volume " + rs(d.mes.vol) + ", faturamento por pessoa " + rs(d.mes.dFat) + ", custo por pessoa " + rs(d.mes.dCus) + ")" : "") + ", efetivo " + fmt(d.mes.ef) + " x PR " + fmt(d.mes.ep) : "");
   }
@@ -2227,7 +2227,6 @@
     h.push(cap(++nc, "Destaques positivos: o que manter", cardsPositivos(t.positivos, xo)));
     // 4. pontos de atencao
     var rc = G.receita, pot = G.resReal + rc.perda + rc.sla + rc.nf, p4 = "";
-    var fPot = figura("Resultado potencial do grupo", "sem perdas, SLA e não faturáveis · margem real " + pct(margR) + " → potencial " + pct(G.FR ? pot / G.FR : null), chPotencial({ res: G.resReal, perda: rc.perda, sla: rc.sla, nf: rc.nf }));
     // 23/11/2026: diagnostico integrado do grupo (somas das OSs) antes de receita e custos
     if (G.diag || (G.linhasOS || []).some(function (o) { return o.dg; })) {
       var GD = G.diag || somarDiag(G.linhasOS.map(function (o) { return o.dg; }));
@@ -2237,6 +2236,7 @@
           (GD.mes && GD.mes.n ? figura("O mês contra o FCST anterior", MESF[b.mes] + " · soma das OSs com FCST", chDiag(GD.mes.rf, { vol: GD.mes.vol, dFat: GD.mes.dFat, dCus: GD.mes.dCus, resto: GD.mes.resto || 0 }, GD.mes.res, "Resultado no FCST")) : "") + "</div>" : "") +
         figura("Por OS: efetivo e as três parcelas da diferença", "jan a " + MES[b.mes] + " contra o executivo; mês contra o FCST anterior", tabelaDiagGrupo(linD, "OS"));
     }
+    var fPot = figura("Resultado potencial do grupo", "sem perdas, SLA e não faturáveis · margem real " + pct(margR) + " → potencial " + pct(G.FR ? pot / G.FR : null), chPotencial({ res: G.resReal, perda: rc.perda, sla: rc.sla, nf: rc.nf }));
     p4 += sub("Receita: perdas, SLA e não faturáveis") + '<div class="rl-duas rl-duas-txt"><div class="rl-txt">' + par(t.receita) + "</div>" + fPot + "</div>";
     var tabC = '<div class="rl-tab"><table><thead><tr><th>Conta</th><th>Custou a mais que a proporção</th><th>OSs que mais contribuíram</th></tr></thead><tbody>' +
       G.contas.filter(function (c) { return c.desvio < 0; }).slice(0, 8).map(function (c) { return "<tr><td>" + esc(String(c.conta).replace(/^\d+\s*-\s*/, "")) + '</td><td class="neg">' + moeda(-c.desvio) + '</td><td class="rl-cx">' + esc(c.oss.filter(function (o) { return o[1] < 0; }).map(function (o) { return (MN[o[0]] || o[0]) + " " + moeda(-o[1]); }).join(" · ")) + "</td></tr>"; }).join("") + "</tbody></table></div>";
