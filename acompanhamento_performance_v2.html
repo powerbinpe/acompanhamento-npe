@@ -1034,7 +1034,7 @@ function hydrateFromPowerBI() {
     // Carimbo da versao publicada. O CDN do GitHub Pages guarda a pagina por alguns
     // minutos, entao "ja publiquei" e "ja chegou" nao sao a mesma coisa -- este numero
     // encerra a duvida em vez de a gente testar comportamento numa versao antiga.
-    window.NPE_BUILD = "2026-11-24 15:30";
+    window.NPE_BUILD = "2026-11-24 18:00";
 
     var CHAVES_PERSISTENTES = ["npe_acesso_sessao", "npe_active_role", "pbi_active_tab",
                                "npe_flow_gerar_texto_mini_url", "npe_flow_gerar_texto_gpt41_url", "npe_flow_ler_url_app_url", "npe_flow_iniciar_agente_url", "npe_flow_ler_dados_book_url",
@@ -3736,7 +3736,7 @@ function hydrateFromPowerBI() {
           extraValueBlockHTML += '<div style="margin-top:10px; background:#f8fafc; padding:8px 14px; border-radius:8px; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:space-between;">' +
             '<span style="font-weight:800; color:#0f2b5c; font-size:0.88rem;">Preenchimento Acum. Ano</span>' +
             '<span style="font-weight:800; font-size:0.95rem; color:' + (preenchAccumPct === null ? '#64748b' : (preenchAccumPct >= 0.8 ? '#15803d' : '#b91c1c')) + ';">' + (preenchAccumPct === null ? '-' : (preenchAccumPct * 100).toFixed(0) + '%') + '</span>' +
-          '</div>';
+          '</div>' + adesaoBlocoAba1(activeOS, monthNum);
         }
 
         // O selo com o nome da categoria (ex.: "FINANCEIRO") foi removido daqui -- é redundante
@@ -6515,16 +6515,20 @@ function hydrateFromPowerBI() {
             '\u26a0\ufe0f <b>Ainda n\u00e3o congelado.</b> Os n\u00fameros s\u00e3o recalculados a cada abertura e podem mudar. ' +
             'Use <b>Congelar Fechamento</b> quando o m\u00eas estiver fechado.' +
           '</div>') +
-        painelPendentes() +
-        '<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">' +
+        painelPendentes();
+
+      // 24/11/2026: adesao = OS elegivel no mes (dElegivelMes) que preencheu alguma justificativa.
+      // Os cartoes antigos (OSs que acompanharam algum mes / elegiveis de hoje) ficam so como reserva
+      // enquanto a elegibilidade por mes nao chega do fluxo.
+      var cartoesAntigos = '<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">' +
         tab5Cartao("OSs eleg\u00edveis", elegiveis.length, "#0f2b5c", "#f1f5f9") +
         tab5Cartao("Acompanharam algum m\u00eas", comAcomp.length, "#15803d", "#f0fdf4") +
         tab5Cartao("Nunca preencheram", semAcomp.length, "#b91c1c", "#fef2f2") +
         tab5Cartao("Ades\u00e3o no ano", pct + "%", "#b45309", "#fffbeb") +
-      '</div>';
-
-      html += '<div style="height:12px; background:#e2e8f0; border-radius:6px; overflow:hidden; margin-bottom:24px;">' +
+      '</div>' +
+      '<div style="height:12px; background:#e2e8f0; border-radius:6px; overflow:hidden; margin-bottom:24px;">' +
         '<div style="height:100%; width:' + pct + '%; background:linear-gradient(90deg,#16a34a,#4ade80);"></div></div>';
+      html += tab5BlocoAdesao(ano, resumo, cartoesAntigos);
 
       // ---- TOP 10 e Listas de Desempenho (Snapshots Globais da Empresa) ----
       // OS que nunca teve um mes preenchido NAO entra em ranking: pode ser contrato novo
@@ -6783,6 +6787,22 @@ function hydrateFromPowerBI() {
       var lista = TAB5_FILTRO === "PENDENTES" ? minhasSemAcomp : (TAB5_FILTRO === "FEITAS" ? minhasComAcomp : minhas);
 
       function adesaoDe(oss) {
+        // 24/11/2026 (usuario): adesao = meses em que a OS era elegivel (dElegivelMes: dentro do filtro e
+        // com faturamento ou custo) e preencheu alguma justificativa, sobre os meses elegiveis ate o
+        // ultimo mes fechado. Sem a elegibilidade por mes carregada, fica a conta antiga abaixo.
+        if (window.ELEG_MES && window.ELEG_MES.carregado) {
+          var ateEl = ultimoMesFechado(ano), fEl = 0, eEl = 0;
+          for (var mEl = 1; mEl <= ateEl; mEl++) {
+            var elM = elegiveisNoMes(ano * 100 + mEl);
+            oss.forEach(function(o) {
+              if (!elM[o.codigo]) return;
+              eEl++;
+              var rr = resumo[o.codigo];
+              if (rr && rr.meses && rr.meses[mEl] && rr.meses[mEl].topicos > 0) fEl++;
+            });
+          }
+          return { feitos: fEl, esperados: eEl, pct: eEl ? Math.round(fEl * 100 / eEl) : 0 };
+        }
         var feitos = 0, esperados = 0;
         oss.forEach(function(o) {
           var e = resumo[o.codigo];
@@ -10877,6 +10897,333 @@ function hydrateFromPowerBI() {
       metasAtualizaDirtyInfo();
     }
 
+    // ===================== ELEGIBILIDADE POR MES E ADESAO (24/11/2026) =====================
+    // Fonte unica: tabela dElegivelMes do modelo, lida pelo fluxo NPE-Ler-Elegiveis-Mes.
+    // Regra (usuario, 24/11): o FILTRO da elegibilidade (negocio, estagio, setor) e o limite de
+    // entrada e saida mes a mes (foto do fechamento grava ELEG_EVENTO); o ajuste manual ELEG_MANUAL
+    // (OS|SIM ou OS|NAO, vigencia = mes de inicio, comentario obrigatorio) vale por cima e so coloca
+    // a OS dentro ou fora do filtro; dentro do filtro a OS e cobrada nos meses com faturamento OU
+    // custo. As datas da CTT sao so referencia.
+    // ADESAO = participacao no acompanhamento: OS elegivel que preencheu alguma justificativa no mes,
+    // mesmo parcial. O preenchimento parcial pesa na NOTA (indicador de Preenchimento, 21 itens),
+    // nao na adesao. Blocos contam uma vez, pela OS ancora.
+    window.FLOW_LER_ELEGIVEIS_URL = safeGetStorage("npe_flow_ler_elegiveis_url", "");
+    window.ELEG_MES = { carregado: false, carregando: false, erro: "", porOS: {} };
+    var ELEG_PROMESSA = null;
+    function carregarElegiveisMes(forcar) {
+      if (ELEG_PROMESSA && !forcar) return ELEG_PROMESSA;
+      var url = window.FLOW_LER_ELEGIVEIS_URL;
+      if (!url) { window.ELEG_MES.erro = "fluxo NPE-Ler-Elegiveis-Mes não configurado"; return Promise.resolve(window.ELEG_MES); }
+      window.ELEG_MES.carregando = true;
+      ELEG_PROMESSA = fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+        .then(function (t) {
+          var j = JSON.parse(t);
+          var rows = (j && j.results && j.results[0] && j.results[0].tables && j.results[0].tables[0] && j.results[0].tables[0].rows) || (j && j.firstTableRows) || [];
+          elegMontar(rows);
+          return window.ELEG_MES;
+        })
+        .catch(function (e) {
+          window.ELEG_MES.erro = String((e && e.message) || e);
+          window.ELEG_MES.carregando = false;
+          ELEG_PROMESSA = null;
+          return window.ELEG_MES;
+        });
+      return ELEG_PROMESSA;
+    }
+    function elegMontar(rows) {
+      var por = {};
+      (rows || []).forEach(function (r) {
+        var g = function (k) { return r["[" + k + "]"] !== undefined ? r["[" + k + "]"] : r[k]; };
+        var os = String(g("os") || "").trim(), am = parseInt(g("am"), 10);
+        if (!os || !am) return;
+        var e = por[os] || (por[os] = {
+          os: os, desc: g("desc") || os, neg: g("neg") || "", setor: g("setor") || "", est: g("est") || "",
+          ini: String(g("ini") || "").slice(0, 10), fim: String(g("fim") || "").slice(0, 10),
+          hoje: +g("hoje") === 1, meses: {}
+        });
+        e.meses[am] = {
+          fat: +g("fat") === 1, cus: +g("cus") === 1, dentro: +g("dentro") === 1, filtro: +g("filtro") === 1,
+          eleg: +g("eleg") === 1, orig: g("orig") || "", ancora: g("ancora") || os
+        };
+      });
+      window.ELEG_MES = { carregado: true, carregando: false, erro: "", porOS: por };
+    }
+    function elegEsc(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+    function elegPct(v) { return v === null || v === undefined ? "—" : (Math.round(v * 1000) / 10).toFixed(1).replace(".", ",") + "%"; }
+    function elegCorPct(v) { return v === null ? "#64748b" : (v >= 0.9 ? "#15803d" : (v >= 0.7 ? "#0369a1" : (v >= 0.5 ? "#b45309" : "#b91c1c"))); }
+    var ELEG_MES_ABREV = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+    function elegRotuloAM(am) { am = parseInt(am, 10); return am ? ELEG_MES_ABREV[(am % 100) - 1] + "/" + String(Math.floor(am / 100)).slice(2) : ""; }
+    // Chave da adesao: o bloco do app (mesmo cadastro do modelo); sem bloco, a ancora do modelo.
+    function elegChave(os, mesInfo) {
+      var b = obterMapaDeBlocosOS();
+      return (b && b.alias && b.alias[os]) || (mesInfo && mesInfo.ancora) || os;
+    }
+    // { chave: { oss: [...], desc } } das OSs elegiveis no AnoMes
+    function elegiveisNoMes(am) {
+      var cache = window.ELEG_MES._cache || (window.ELEG_MES._cache = {});
+      if (cache[am]) return cache[am];
+      var out = {}, por = window.ELEG_MES.porOS;
+      Object.keys(por).forEach(function (os) {
+        var e = por[os], m = e.meses[am];
+        if (!m || !m.eleg) return;
+        var k = elegChave(os, m);
+        var item = out[k] || (out[k] = { oss: [], desc: "" });
+        item.oss.push(os);
+        if (k === os || !item.desc) item.desc = (por[k] || e).desc;
+      });
+      cache[am] = out;
+      return out;
+    }
+    // participou(chave, mes) -> bool; filtroChave(chave) -> bool (opcional)
+    function calcularAdesao(ano, ateMes, participou, filtroChave) {
+      var res = { meses: [], elegTot: 0, partTot: 0, pct: null };
+      for (var m = 1; m <= ateMes; m++) {
+        var el = elegiveisNoMes(ano * 100 + m), nao = [], n = 0, p = 0;
+        Object.keys(el).sort().forEach(function (k) {
+          if (filtroChave && !filtroChave(k)) return;
+          n++;
+          if (participou(k, m)) p++; else nao.push({ chave: k, desc: el[k].desc });
+        });
+        res.meses.push({ mes: m, eleg: n, part: p, nao: nao, pct: n ? p / n : null });
+        res.elegTot += n; res.partTot += p;
+      }
+      res.pct = res.elegTot ? res.partTot / res.elegTot : null;
+      return res;
+    }
+    // Aba 1: adesao da OS selecionada -- meses em que participou sobre os meses em que era elegivel
+    function adesaoDaOS(osRaw, ano, ateMes) {
+      if (!window.ELEG_MES.carregado || !ano || ateMes < 1) return null;
+      var prim = (typeof extractPrimaryOSCode === "function" ? extractPrimaryOSCode(osRaw) : osRaw) || osRaw;
+      var b = obterMapaDeBlocosOS();
+      var chave = (b && b.alias && b.alias[prim]) || prim;
+      var tot = 0, part = 0, faltou = [];
+      for (var m = 1; m <= ateMes; m++) {
+        if (!elegiveisNoMes(ano * 100 + m)[chave]) continue;
+        tot++;
+        if (getOSCompletionStatus(prim, m).filledCount > 0) part++; else faltou.push(ELEG_MES_ABREV[m - 1]);
+      }
+      return { tot: tot, part: part, pct: tot ? part / tot : null, faltou: faltou };
+    }
+    var ELEG_ABA1_PEDIDO = false;
+    function adesaoBlocoAba1(activeOS, monthNum) {
+      var ano = parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10);
+      if (!window.ELEG_MES.carregado) {
+        if (!ELEG_ABA1_PEDIDO && window.FLOW_LER_ELEGIVEIS_URL) {
+          ELEG_ABA1_PEDIDO = true;
+          carregarElegiveisMes().then(function () { if (!window.USUARIO_DIGITOU && typeof renderRows === "function") { try { renderRows(); } catch (e) {} } });
+        }
+        return "";
+      }
+      var ate = Math.min(monthNum, ultimoMesFechado(ano));
+      var ad = adesaoDaOS(activeOS, ano, ate);
+      if (!ad || !ad.tot) return "";
+      return '<div style="margin-top:8px; background:#f8fafc; padding:8px 14px; border-radius:8px; border:1.5px solid #cbd5e1;">' +
+        '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">' +
+          '<span style="font-weight:800; color:#0f2b5c; font-size:0.88rem;">Adesão ao Acompanhamento (jan–' + ELEG_MES_ABREV[ate - 1].toLowerCase() + ')</span>' +
+          '<span style="font-weight:800; font-size:0.95rem; color:' + elegCorPct(ad.pct) + ';">' + elegPct(ad.pct) + '</span>' +
+        '</div>' +
+        '<div style="font-size:0.76rem; color:#475569; margin-top:3px;">Participou em ' + ad.part + ' de ' + ad.tot + ' meses elegíveis' +
+          (ad.faltou.length ? ' · sem nenhuma justificativa em ' + ad.faltou.join(", ") : '') + '</div>' +
+      '</div>';
+    }
+    // Aba 5: cartoes de adesao (mes fechado e acumulado), faixa por mes e lista de quem nao participou
+    var TAB5_ADESAO_ABERTO = false;
+    function tab5BlocoAdesao(ano, resumo, fallbackHtml) {
+      if (!window.ELEG_MES.carregado) {
+        if (!window.ELEG_MES.carregando && window.FLOW_LER_ELEGIVEIS_URL) carregarElegiveisMes().then(function () { renderTab5(); });
+        return fallbackHtml + (window.FLOW_LER_ELEGIVEIS_URL && !window.ELEG_MES.erro
+          ? '<div style="font-size:0.80rem; color:#64748b; margin:-12px 0 18px;">⏳ Carregando a elegibilidade por mês para a adesão...</div>' : '');
+      }
+      var ate = ultimoMesFechado(ano);
+      if (ate < 1) return fallbackHtml;
+      var ad = calcularAdesao(ano, ate, function (k, m) {
+        var e = resumo[k];
+        return !!(e && e.meses && e.meses[m] && e.meses[m].topicos > 0);
+      });
+      var ult = ad.meses[ad.meses.length - 1];
+      var rotMes = ELEG_MES_ABREV[ate - 1];
+      var h = '<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">' +
+        tab5Cartao("Elegíveis em " + rotMes, ult.eleg, "#0f2b5c", "#f1f5f9") +
+        tab5Cartao("Participaram em " + rotMes, ult.part, "#15803d", "#f0fdf4") +
+        tab5Cartao("Não participaram em " + rotMes, ult.eleg - ult.part, "#b91c1c", "#fef2f2") +
+        tab5Cartao("Adesão jan–" + rotMes.toLowerCase(), elegPct(ad.pct), elegCorPct(ad.pct), "#fffbeb") +
+      '</div>';
+      h += '<div style="height:12px; background:#e2e8f0; border-radius:6px; overflow:hidden; margin-bottom:10px;">' +
+        '<div style="height:100%; width:' + Math.round((ad.pct || 0) * 100) + '%; background:linear-gradient(90deg,#16a34a,#4ade80);"></div></div>';
+      h += '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">' + ad.meses.map(function (x) {
+        return '<div title="' + x.part + ' de ' + x.eleg + ' OSs elegíveis participaram" style="flex:1; min-width:74px; background:#fff; border:1.5px solid #e2e8f0; border-radius:8px; padding:5px 6px; text-align:center;">' +
+          '<div style="font-size:0.70rem; font-weight:800; color:#64748b;">' + ELEG_MES_ABREV[x.mes - 1] + '</div>' +
+          '<div style="font-size:0.95rem; font-weight:900; color:' + elegCorPct(x.pct) + ';">' + elegPct(x.pct) + '</div>' +
+          '<div style="font-size:0.68rem; color:#94a3b8;">' + x.part + '/' + x.eleg + '</div></div>';
+      }).join("") + '</div>';
+      h += '<div style="margin-bottom:22px;">' +
+        '<button type="button" onclick="TAB5_ADESAO_ABERTO=!TAB5_ADESAO_ABERTO; renderTab5();" style="background:none; border:none; padding:0; color:#b91c1c; font-weight:800; font-size:0.86rem; cursor:pointer;">' +
+          (TAB5_ADESAO_ABERTO ? "▾" : "▸") + ' Não participaram em ' + rotMes + ' (' + ult.nao.length + ')</button>' +
+        (TAB5_ADESAO_ABERTO ? '<div style="margin-top:8px; display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:4px 14px;">' +
+          ult.nao.map(function (x) { return '<div style="font-size:0.82rem; color:#334155; padding:3px 0; border-bottom:1px solid #f1f5f9;">' + elegEsc(x.desc || x.chave) + '</div>'; }).join("") + '</div>' : '') +
+        '<div style="font-size:0.74rem; color:#64748b; margin-top:6px;">Adesão = OS elegível que preencheu alguma justificativa no mês, mesmo parcial. Elegível = dentro do filtro da elegibilidade e com faturamento ou custo no mês (tabela dElegivelMes). Blocos contam uma vez.</div>' +
+      '</div>';
+      return h;
+    }
+
+    // ---- Cadastro de Metas > Elegibilidade: lista por mes e ajuste manual ----
+    var ELEG_BUSCA = "", ELEG_SO_FORA = false, ELEG_AJUSTE_OS = "";
+    function elegAnoCadastro() {
+      return parseInt(new URLSearchParams(window.location.search).get("SelectedAno"), 10) || new Date().getFullYear();
+    }
+    function elegAjustesDaOS(os) {
+      return (window.METAS_DB.parametros || []).filter(function (p) {
+        return String(p.tipo) === "ELEG_MANUAL" && String(p.valor || "").split("|")[0] === os;
+      }).sort(function (a, b) { return (parseInt(a.vigencia, 10) || 0) - (parseInt(b.vigencia, 10) || 0); });
+    }
+    function elegEntrouSaiu(e) {
+      var ams = Object.keys(e.meses).map(Number).sort(function (a, b) { return a - b; });
+      var entrou = "", ultDentro = 0, ultAm = ams.length ? ams[ams.length - 1] : 0;
+      ams.forEach(function (am) { var m = e.meses[am]; if (m.eleg && !entrou) entrou = am; if (m.dentro) ultDentro = am; });
+      var saiu = "";
+      if (ultDentro && ultDentro < ultAm) { var y = Math.floor(ultDentro / 100), mm = ultDentro % 100 + 1; if (mm > 12) { mm = 1; y++; } saiu = y * 100 + mm; }
+      return { entrou: entrou, saiu: saiu };
+    }
+    function secaoElegiveisMes() {
+      var ano = elegAnoCadastro();
+      var h = '<div style="margin:24px 0 18px; border-top:2px solid #e2e8f0; padding-top:16px;">' +
+        '<div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:4px;">' +
+          '<span style="font-size:0.92rem; font-weight:900; color:#0f2b5c; text-transform:uppercase;">OSs elegíveis por mês — ' + ano + '</span>' +
+          '<span style="font-size:0.76rem; color:#64748b;">fonte única para Aba 1, Aba 5, RPCO e demais painéis</span>' +
+        '</div>' +
+        '<div style="font-size:0.78rem; color:#475569; margin-bottom:10px; max-width:110ch;">O filtro acima é o limite: a OS entra e sai conforme ele, mês a mês (a foto do fechamento registra quem entrou ou saiu). Dentro do filtro ela é cobrada nos meses com faturamento ou custo. O ajuste manual vale por cima do filtro, a partir do mês informado, e pede comentário.</div>';
+      if (!window.ELEG_MES.carregado) {
+        if (!window.ELEG_MES.carregando && window.FLOW_LER_ELEGIVEIS_URL) carregarElegiveisMes().then(function () { if (METAS_ABA === "ELEGIBILIDADE") renderMetasPanel(); });
+        h += window.ELEG_MES.erro
+          ? '<div style="color:#b91c1c; font-weight:700; font-size:0.84rem;">Não foi possível ler a elegibilidade por mês: ' + elegEsc(window.ELEG_MES.erro) + '</div>'
+          : '<div style="color:#64748b; font-weight:700; font-size:0.84rem;">⏳ Lendo a elegibilidade por mês...</div>';
+        return h + '</div>';
+      }
+      h += '<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">' +
+        '<input id="elegBuscaInput" type="search" value="' + elegEsc(ELEG_BUSCA) + '" oninput="ELEG_BUSCA=this.value; elegAtualizaLista();" placeholder="Buscar OS ou descrição" style="padding:6px 10px; border:1.5px solid #cbd5e1; border-radius:7px; font-size:0.84rem; min-width:240px;" />' +
+        '<label style="font-size:0.80rem; color:#475569; display:flex; align-items:center; gap:6px; cursor:pointer;"><input id="elegSoFora" type="checkbox"' + (ELEG_SO_FORA ? " checked" : "") + ' onchange="ELEG_SO_FORA=this.checked; elegAtualizaLista();" /> Só OSs fora do filtro com movimento</label>' +
+        '<span style="margin-left:auto; display:flex; gap:10px; font-size:0.74rem; color:#475569; flex-wrap:wrap;">' +
+          '<span><b style="display:inline-block; width:12px; height:12px; background:#16a34a; border-radius:3px; vertical-align:-2px;"></b> elegível</span>' +
+          '<span><b style="display:inline-block; width:12px; height:12px; background:#e2e8f0; border-radius:3px; vertical-align:-2px;"></b> no filtro, sem movimento</span>' +
+          '<span><b style="display:inline-block; width:12px; height:12px; background:#f59e0b; border-radius:3px; vertical-align:-2px;"></b> fora do filtro com movimento</span>' +
+          '<span><b style="display:inline-block; width:12px; height:12px; border:2px solid #7c3aed; border-radius:3px; vertical-align:-3px;"></b> ajuste manual</span>' +
+        '</span>' +
+      '</div>';
+      h += '<div id="elegMesLista">' + elegListaHTML(ano) + '</div>';
+      return h + '</div>';
+    }
+    function elegAtualizaLista() {
+      var el = document.getElementById("elegMesLista");
+      if (el) el.innerHTML = elegListaHTML(elegAnoCadastro());
+    }
+    function elegListaHTML(ano) {
+      var por = window.ELEG_MES.porOS;
+      var hojeAM = new Date().getFullYear() * 100 + new Date().getMonth() + 1;
+      var busca = String(ELEG_BUSCA || "").trim().toUpperCase();
+      var lista = Object.keys(por).sort().map(function (os) { return por[os]; }).filter(function (e) {
+        if (busca && (e.os + " " + e.desc).toUpperCase().indexOf(busca) === -1) return false;
+        if (ELEG_SO_FORA) {
+          return Object.keys(e.meses).some(function (am) { var m = e.meses[am]; return Math.floor(am / 100) === ano && !m.dentro && (m.fat || m.cus); });
+        }
+        return true;
+      });
+      var th = 'style="background:#0f2b5c; color:#fff; font-size:0.72rem; font-weight:800; padding:6px 6px; position:sticky; top:0; z-index:1;';
+      var h = '<div style="overflow:auto; max-height:560px; border:1px solid #e2e8f0; border-radius:8px;">' +
+        '<table style="border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums;">' +
+        '<thead><tr><th ' + th + ' text-align:left;">OS</th><th ' + th + ' text-align:left;">NEGÓCIO · SETOR · ESTÁGIO</th><th ' + th + ' text-align:center;">CTT INÍCIO–FIM</th>' +
+        '<th ' + th + ' text-align:center;">ENTROU</th><th ' + th + ' text-align:center;">SAIU</th>' +
+        ELEG_MES_ABREV.map(function (m) { return '<th ' + th + ' text-align:center; width:30px;">' + m + '</th>'; }).join("") +
+        '<th ' + th + ' text-align:center;">AJUSTE</th></tr></thead><tbody>';
+      // linha de totais: OSs (blocos) elegiveis em cada mes
+      h += '<tr style="background:#f1f5f9;"><td colspan="5" style="padding:5px 8px; font-size:0.76rem; font-weight:800; color:#0f2b5c;">Elegíveis no mês (blocos contam uma vez)</td>' +
+        ELEG_MES_ABREV.map(function (x, i) { var am = ano * 100 + i + 1; var n = am > hojeAM ? "" : Object.keys(elegiveisNoMes(am)).length; return '<td style="text-align:center; font-size:0.76rem; font-weight:800; color:#0f2b5c;">' + n + '</td>'; }).join("") +
+        '<td></td></tr>';
+      lista.forEach(function (e) {
+        var es = elegEntrouSaiu(e);
+        var ajustes = elegAjustesDaOS(e.os);
+        var celulas = ELEG_MES_ABREV.map(function (x, i) {
+          var am = ano * 100 + i + 1, m = e.meses[am];
+          var base = 'display:inline-block; width:18px; height:18px; border-radius:4px; vertical-align:middle;';
+          if (!m || am > hojeAM) return '<td style="text-align:center; padding:2px;"><span style="' + base + ' background:#f8fafc;"></span></td>';
+          var cor = m.eleg ? "#16a34a" : (m.dentro ? "#e2e8f0" : ((m.fat || m.cus) ? "#f59e0b" : "#fff"));
+          var borda = m.orig === "MANUAL" ? "border:2px solid #7c3aed;" : (cor === "#fff" ? "border:1px solid #e2e8f0;" : "");
+          var dica = elegRotuloAM(am) + ": " + (m.eleg ? "elegível" : (m.dentro ? "no filtro, sem faturamento nem custo" : ((m.fat || m.cus) ? "fora do filtro, com movimento" : "fora do filtro"))) +
+            (m.fat ? " · faturamento" : "") + (m.cus ? " · custo" : "") + " · origem: " + (m.orig === "MANUAL" ? "ajuste manual" : (m.orig === "FOTO" ? "foto do fechamento" : "situação de hoje na CTT"));
+          return '<td style="text-align:center; padding:2px;"><span title="' + elegEsc(dica) + '" style="' + base + ' background:' + cor + ';' + borda + '"></span></td>';
+        }).join("");
+        var td = 'style="padding:5px 8px; font-size:0.80rem; color:#334155; border-bottom:1px solid #f1f5f9; white-space:nowrap;"';
+        h += '<tr>' +
+          '<td ' + td + '><b style="color:#0f2b5c;">' + elegEsc(e.desc) + '</b>' + (ajustes.length ? ' <span title="' + ajustes.length + ' ajuste(s) manual(is)" style="color:#7c3aed; font-weight:900;">●</span>' : '') + '</td>' +
+          '<td ' + td + '>' + elegEsc([e.neg, e.setor, e.est].filter(Boolean).join(" · ")) + '</td>' +
+          '<td ' + td.replace("white-space:nowrap;", "white-space:nowrap; text-align:center;") + '>' + (e.ini ? e.ini.split("-").reverse().join("/") : "—") + ' – ' + (e.fim ? e.fim.split("-").reverse().join("/") : "—") + '</td>' +
+          '<td ' + td.replace("white-space:nowrap;", "white-space:nowrap; text-align:center;") + '>' + (es.entrou ? elegRotuloAM(es.entrou) : "—") + '</td>' +
+          '<td ' + td.replace("white-space:nowrap;", "white-space:nowrap; text-align:center;") + '>' + (es.saiu ? elegRotuloAM(es.saiu) : "—") + '</td>' +
+          celulas +
+          '<td style="text-align:center; padding:2px 6px;"><button type="button" onclick="ELEG_AJUSTE_OS=(ELEG_AJUSTE_OS===\'' + e.os + '\' ? \'\' : \'' + e.os + '\'); elegAtualizaLista();" style="background:' + (ELEG_AJUSTE_OS === e.os ? "#7c3aed" : "#ede9fe") + '; color:' + (ELEG_AJUSTE_OS === e.os ? "#fff" : "#5b21b6") + '; border:none; padding:4px 10px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">Ajustar</button></td>' +
+        '</tr>';
+        if (ELEG_AJUSTE_OS === e.os) h += '<tr><td colspan="18" style="background:#faf5ff; padding:10px 12px; border-bottom:2px solid #ddd6fe;"><div style="position:sticky; left:12px; max-width:min(1100px, 82vw);">' + elegFormAjuste(e, ano, ajustes) + '</div></td></tr>';
+      });
+      if (!lista.length) h += '<tr><td colspan="18" style="padding:16px; text-align:center; color:#64748b; font-size:0.84rem;">Nenhuma OS encontrada.</td></tr>';
+      return h + '</tbody></table></div>';
+    }
+    function elegFormAjuste(e, ano, ajustes) {
+      var hojeAM = new Date().getFullYear() * 100 + new Date().getMonth() + 1;
+      var opcoes = "";
+      for (var y = ano - 1; y <= ano + 1; y++) for (var m = 1; m <= 12; m++) {
+        var am = y * 100 + m;
+        opcoes += '<option value="' + am + '"' + (am === hojeAM ? " selected" : "") + '>' + ELEG_MES_ABREV[m - 1] + '/' + y + '</option>';
+      }
+      var hist = ajustes.length ? ajustes.map(function (p) {
+        var est = String(p.valor || "").split("|")[1] || "";
+        var inativo = String(p.ativo) !== "Sim";
+        return '<div style="display:flex; gap:10px; align-items:flex-start; padding:4px 0; border-bottom:1px solid #ede9fe; font-size:0.80rem;' + (inativo ? " color:#94a3b8; text-decoration:line-through;" : " color:#334155;") + '">' +
+          '<b style="min-width:150px;">' + (est === "SIM" ? "Elegível" : "Não elegível") + ' desde ' + elegRotuloAM(p.vigencia) + '</b>' +
+          '<span style="flex:1;">' + elegEsc(p.comentario || "(sem comentário)") + (p._dirty ? ' <i style="color:#b45309;">— não salvo</i>' : '') + '</span>' +
+          (inativo ? '' : '<button type="button" onclick="elegDesativarAjuste(\'' + p.id + '\')" style="background:none; border:1px solid #c4b5fd; color:#6d28d9; padding:2px 8px; border-radius:5px; font-size:0.72rem; font-weight:800; cursor:pointer;">Desativar</button>') +
+        '</div>';
+      }).join("") : '<div style="font-size:0.78rem; color:#64748b;">Nenhum ajuste manual nesta OS.</div>';
+      return '<div style="font-size:0.82rem; font-weight:900; color:#5b21b6; margin-bottom:6px;">Ajuste manual — ' + elegEsc(e.desc) + '</div>' +
+        '<div style="display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;">' +
+          '<div><div style="font-size:0.72rem; font-weight:800; color:#475569; margin-bottom:3px;">SITUAÇÃO</div>' +
+            '<label style="font-size:0.82rem; margin-right:10px;"><input type="radio" name="elegAjSit" id="elegAjSim" value="SIM" checked /> Elegível</label>' +
+            '<label style="font-size:0.82rem;"><input type="radio" name="elegAjSit" id="elegAjNao" value="NAO" /> Não elegível</label></div>' +
+          '<div><div style="font-size:0.72rem; font-weight:800; color:#475569; margin-bottom:3px;">A PARTIR DE</div>' +
+            '<select id="elegAjMes" style="padding:4px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.82rem;">' + opcoes + '</select></div>' +
+          '<div style="flex:1; min-width:260px;"><div style="font-size:0.72rem; font-weight:800; color:#475569; margin-bottom:3px;">COMENTÁRIO (OBRIGATÓRIO)</div>' +
+            '<textarea id="elegAjComentario" rows="2" placeholder="Motivo do ajuste, por exemplo: OS encerrada em maio, saiu do acompanhamento" style="width:100%; box-sizing:border-box; padding:6px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-family:inherit;"></textarea></div>' +
+          '<button type="button" onclick="elegIncluirAjuste(\'' + e.os + '\')" style="background:#7c3aed; color:#fff; border:none; padding:8px 14px; border-radius:7px; font-weight:800; font-size:0.80rem; cursor:pointer;">Incluir ajuste</button>' +
+        '</div>' +
+        '<div style="font-size:0.74rem; color:#6b7280; margin-bottom:8px;">O ajuste só coloca a OS dentro ou fora do filtro; ela continua cobrada apenas nos meses com faturamento ou custo. Depois de incluir, clique em <b>Salvar</b>. Os painéis passam a usar o ajuste na próxima atualização do modelo.</div>' +
+        '<div style="font-size:0.72rem; font-weight:800; color:#475569; margin:6px 0 2px;">AJUSTES DESTA OS</div>' + hist;
+    }
+    function elegIncluirAjuste(os) {
+      var sim = document.getElementById("elegAjSim");
+      var mes = document.getElementById("elegAjMes");
+      var com = document.getElementById("elegAjComentario");
+      var txt = String((com && com.value) || "").trim();
+      if (txt.length < 10) { showToast("⚠️ Escreva o motivo do ajuste (no mínimo 10 caracteres)."); if (com) com.focus(); return; }
+      var am = parseInt(mes && mes.value, 10);
+      if (!am) { showToast("⚠️ Escolha o mês de início."); return; }
+      window.METAS_DB.parametros.push({
+        id: -Date.now(), tipo: "ELEG_MANUAL", valor: os + "|" + (sim && sim.checked ? "SIM" : "NAO"),
+        ativo: "Sim", vigencia: am, comentario: txt, _dirty: true, _novo: true
+      });
+      if (typeof metasAtualizaDirtyInfo === "function") metasAtualizaDirtyInfo();
+      elegAtualizaLista();
+      showToast("✅ Ajuste incluído. Clique em Salvar para gravar.");
+    }
+    function elegDesativarAjuste(id) {
+      var p = (window.METAS_DB.parametros || []).find(function (x) { return String(x.id) === String(id); });
+      if (!p) return;
+      if (p._novo && p._dirty) {
+        window.METAS_DB.parametros = window.METAS_DB.parametros.filter(function (x) { return x !== p; });
+      } else { p.ativo = "Não"; p._dirty = true; }
+      if (typeof metasAtualizaDirtyInfo === "function") metasAtualizaDirtyInfo();
+      elegAtualizaLista();
+    }
+    // ===================== fim ELEGIBILIDADE POR MES =====================
+
     function renderElegibilidadePanel(body) {
       var html = '<div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:0.82rem; color:#1e3a8a;">' +
         'Estes par\u00e2metros decidem <b>quais OSs entram no Acompanhamento Mensal</b>. Antes eram uma lista fixa dentro da f\u00f3rmula; agora ficam aqui, porque o cadastro vem da CTT e muda.' +
@@ -10916,6 +11263,7 @@ function hydrateFromPowerBI() {
         html += '</div>';
       });
 
+      html += secaoElegiveisMes();
       html += '<div style="margin-top:8px; background:#fef9c3; border:1px solid #fde68a; border-radius:8px; padding:10px 12px; font-size:0.80rem; color:#92400e;">' +
         '<b>Aten\u00e7\u00e3o:</b> diferente das metas, a elegibilidade decide quais OSs o Power BI monta. Depois de salvar, ela s\u00f3 vale <b>na pr\u00f3xima atualiza\u00e7\u00e3o do modelo</b> \u2014 no Desktop, fechar e reabrir o arquivo.' +
       '</div>';
@@ -11756,7 +12104,8 @@ function hydrateFromPowerBI() {
               // id negativo = linha criada aqui e ainda sem ID do SharePoint; o fluxo trata 0 como "criar"
               return { id: (parseInt(r.id, 10) > 0 ? parseInt(r.id, 10) : 0), tipo: r.tipo,
                 valor: r.valor, ativo: r.ativo || "Sim",
-                vigencia: parseInt(r.vigencia, 10) || 202601 };
+                vigencia: parseInt(r.vigencia, 10) || 202601,
+                comentario: r.comentario || "" };
             }) })
           });
           okP = rP.ok;
