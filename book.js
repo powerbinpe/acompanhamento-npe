@@ -586,14 +586,14 @@
     if (!R) return "";
     var mg = function (v) { return v == null ? "–" : pct(v, 1); };
     var cls = /OTIMISTA/.test(R.leitura) ? "bad" : (/CONSERVADORA/.test(R.leitura) ? "na" : "ok");
-    var h = '<section class="rl-cap rl-resumo"><h2><span>★</span>Resumo para a RPCO</h2><div class="rl-tab"><table><tbody>' +
-      '<tr><td style="width:150px"><b>Situação</b></td><td>Margem acumulada <b>' + mg(R.margAcum) + "</b> contra " + mg(R.margExecAcum) + " do executivo; o ano fecha em <b>" + mg(R.margAno) + "</b> contra " + mg(R.margProm) + " prometidos.</td></tr>";
+    var h = '<section class="rl-cap rl-resumo"><h2><span>★</span>Resumo para a RPCO</h2><div class="rl-tab rl-tab-txt"><table><colgroup><col style="width:180px"><col></colgroup><tbody>' +
+      '<tr><td><b>Situação</b></td><td>Margem acumulada <b>' + mg(R.margAcum) + "</b> contra " + mg(R.margExecAcum) + " do executivo; o ano fecha em <b>" + mg(R.margAno) + "</b> contra " + mg(R.margProm) + " prometidos.</td></tr>";
     if (R.quem && R.quem.length) h += "<tr><td><b>Quem puxa</b></td><td>" + R.quem.map(function (q) { return esc(q.nome) + " (" + moeda(q.gap) + ")"; }).join("; ") + "</td></tr>";
     h += "<tr><td><b>Principais causas</b></td><td>" + (R.causas.length ? "<ol style=\"margin:0;padding-left:18px\">" + R.causas.map(function (x) {
         return "<li><b>" + esc(x.conta) + "</b>: " + moeda(x.valor) + " " + esc(x.tipo) + (x.rec ? ", em " + esc(x.rec) : "") + (x.oss && x.oss.length && R.nivel !== "os" ? " (" + esc(x.oss.join(", ")) + ")" : "") + "</li>"; }).join("") + "</ol>" : "Nenhuma conta de custo acima da proporção do efetivo.") +
       (R.favor && R.favor.length ? '<div style="margin-top:4px">A favor: ' + R.favor.map(function (x) { return esc(x.conta) + " " + moeda(x.valor); }).join(", ") + "</div>" : "") + "</td></tr>" +
       "<tr><td><b>Projeção " + esc(R.horiz || "") + '</b></td><td><span class="bk-pill ' + cls + '">' + esc(R.leitura || "sem projeção") + "</span> " + (R.margProj != null ? "margem projetada " + mg(R.margProj) + " contra " + mg(R.margUlt) + " dos últimos 3 meses" : "") +
-      (R.otimistas != null ? "; " + R.otimistas + " de " + R.nOS + " OSs com projeção otimista" : "") + (R.alertas && R.alertas.length ? ". " + esc(R.alertas.join("; ")) : "") + "</td></tr>" +
+      (R.otimistas != null ? "; " + R.otimistas + " de " + R.nOS + " OSs com projeção otimista" : "") + (R.alertas && R.alertas.length ? '.<div style="margin-top:4px"><b>Alertas:</b> ' + esc(R.alertas.join("; ")) + ".</div>" : "") + "</td></tr>" +
       "<tr><td><b>Cobrar</b></td><td>" + (cobrar ? esc(cobrar) : "–") + "</td></tr></tbody></table></div></section>";
     return h;
   }
