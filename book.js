@@ -449,7 +449,7 @@
     var anoR = { f: (acum.f || 0) + (pj.f || 0), r: (acum.r || 0) + (pj.r || 0) }; anoR.marg = div(anoR.r, anoR.f);
     var anoEx = { f: (ex.f || 0) + (exP.f || 0), r: (ex.r || 0) + (exP.r || 0) }; anoEx.marg = div(anoEx.r, anoEx.f);
     var margProm = anoEx.marg != null ? anoEx.marg : ex.marg;   // margem prometida = executivo do ano
-    var tol = tolAssert(), pp = function (v) { return v == null ? "–" : (v >= 0 ? "+" : "") + fmt(v * 100, 1) + " p.p."; };
+    var tol = tolAssert() / 100, pp = function (v) { return v == null ? "–" : (v >= 0 ? "+" : "") + fmt(v * 100, 1) + " p.p."; };
     var mg = function (v) { return v == null ? "–" : fmt(v * 100, 1) + "%"; }, var1 = function (a, b) { return a == null || b == null || !b ? null : a / b - 1; };
     var vp = function (v) { return v == null ? "–" : (v >= 0 ? "+" : "") + fmt(v * 100, 1) + "%"; };
     var mesesP = P.map(function (x) { return EVT_ABREV[x.m]; });
