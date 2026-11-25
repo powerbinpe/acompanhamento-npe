@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RPCO Nota</title>
+<style>
+/* Painel de nota da pagina RPCO (RESULTADOS). Substitui os dois visuais de "Analise de performance".
+   A adesao vem pronta da medida _mHTML_RPCO_NOTA (parametro ad); as notas vem do fluxo NPE-Ler-Notas. */
+:root{--navy:#132B50;--ink:#1b2430;--muted:#6b7686;--line:#e3e7ec;--ref:#0E7C66;--con:#1F4E9A;--rec:#B45309;--cri:#C62828;--sem:#9aa4b2}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#fff;color:var(--ink);font:13px/1.25 "Segoe UI",system-ui,Arial,sans-serif;overflow:hidden}
+.np{display:grid;grid-template-rows:22px 56px 1fr;height:100%;border:1px solid #c9d1db}
+.h{background:var(--navy);color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:22px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
+.k{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--line)}
+.k div{text-align:center;padding-top:3px;min-width:0}
+.k small{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.03em}
+.k b{display:block;font-size:20px;line-height:24px;font-variant-numeric:tabular-nums}
+.k i{display:block;font-style:normal;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+.c{display:grid;grid-template-columns:repeat(5,1fr)}
+.c div{border-right:1px solid var(--line);padding:3px 3px 0;text-align:center;overflow:hidden;min-width:0}
+.c div:last-child{border-right:none}
+.c small{display:block;font-size:8.5px;font-weight:700;color:var(--ink);line-height:11px;height:22px;overflow:hidden;letter-spacing:-.15px}
+.c b{display:block;font-size:15px;margin-top:3px;font-variant-numeric:tabular-nums}
+.c em{display:block;font-style:normal;font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.f-ref{color:var(--ref)}.f-con{color:var(--con)}.f-rec{color:var(--rec)}.f-cri{color:var(--cri)}.f-sem{color:var(--sem)}
+.msg{display:grid;place-items:center;color:var(--muted);font-size:12px;padding:8px;text-align:center}
+</style>
+</head>
+<body>
+<div class="np" id="np"><div class="h">ACOMPANHAMENTO DE PERFORMANCE</div><div class="msg" style="grid-row:2/4">Carregando as notas…</div></div>
+<script>
+(function(){
+  var FLOW_NOTAS = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/08/workflows/cf28ed50eda241978acc9600ed3055c8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4QtyCBqqnuWJ-NtaYo3Zfop1KmZMJrzYu9wdUwlg0WA";   // NPE-Ler-Notas: notas gravadas (TopicoId 0) do ano
+  var MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  var P = new URLSearchParams(location.search);
+  var ANO = parseInt(P.get("a"), 10) || new Date().getFullYear();
+  var MF = parseInt(P.get("mf"), 10) || 0;            // ultimo mes fechado dentro do filtro
+  var CHAVES = (P.get("k") || "").split("|").filter(Boolean);   // OSs (ancora do bloco) elegiveis no filtro
+  var AD = {};                                         // mes -> [participaram, elegiveis]
+  (P.get("ad") || "").split(".").forEach(function(s){ var x = s.split(":"); if (x.length === 3) AD[+x[0]] = [+x[1], +x[2]]; });
+  var p1 = new Intl.NumberFormat("pt-BR", {minimumFractionDigits:1, maximumFractionDigits:1});
+  var el = document.getElementById("np");
+  function faixa(v){ return v == null ? ["f-sem","Sem apuração"] : v >= 90 ? ["f-ref","Referência Operacional"] : v >= 70 ? ["f-con","Controlado"] : v >= 50 ? ["f-rec","Em Recuperação"] : ["f-cri","Crítico"]; }
+  function fad(v){ return v == null ? "f-sem" : v >= 0.9 ? "f-ref" : v >= 0.7 ? "f-con" : v >= 0.5 ? "f-rec" : "f-cri"; }
+  function media(a){ var b = a.filter(function(v){ return v !== null && v !== undefined && v !== "" && !isNaN(+v); }).map(Number); return b.length ? b.reduce(function(x, y){ return x + y; }, 0) / b.length : null; }
+  function pct(v){ return v == null ? "—" : p1.format(v) + "%"; }
+  function cabecalho(){ return '<div class="h">ACOMPANHAMENTO DE PERFORMANCE · ACUMULADO ' + (MF ? "JAN–" + MESES[MF - 1] + "/" + ANO : ANO) + "</div>"; }
+  if (!MF) { el.innerHTML = cabecalho() + '<div class="msg" style="grid-row:2/4">Nenhum mês fechado no filtro.</div>'; return; }
+
+  // adesao: participaram / elegiveis, acumulado jan ate o mes fechado e so o mes fechado
+  var pa = 0, ea = 0;
+  for (var m = 1; m <= MF; m++) if (AD[m]) { pa += AD[m][0]; ea += AD[m][1]; }
+  var am = AD[MF] || [0, 0];
+  var adA = ea ? pa / ea : null, adM = am[1] ? am[0] / am[1] : null;
+  var uma = CHAVES.length === 1;
+  var txtA = ea ? (uma ? "participou em " + pa + " de " + ea + " meses" : pa + " de " + ea + " OS × mês") : "sem OS elegível";
+  var txtM = am[1] ? (uma ? (am[0] ? "participou em " : "não participou em ") + MESES[MF - 1].toLowerCase() : am[0] + " de " + am[1] + " OSs em " + MESES[MF - 1].toLowerCase()) : "sem OS elegível no mês";
+
+  function desenha(notas, erro){
+    var sel = {}; CHAVES.forEach(function(k){ sel[k] = 1; });
+    var linhas = (notas || []).filter(function(r){ return sel[String(r.os || "")] && +r.ano === ANO && +r.mes >= 1 && +r.mes <= MF; });
+    var acum = media(linhas.map(function(r){ return r.notaMes; }));
+    var fa = faixa(acum);
+    var h = cabecalho() + '<div class="k">' +
+      '<div><small>NOTA ACUMULADA</small><b class="' + fa[0] + '">' + pct(acum) + '</b><i class="' + fa[0] + '">' + (erro ? "notas indisponíveis" : fa[1]) + "</i></div>" +
+      '<div><small>% ADESÃO ACUMULADA</small><b class="' + fad(adA) + '">' + (adA == null ? "—" : p1.format(adA * 100) + "%") + '</b><i style="color:var(--muted)">' + txtA + "</i></div>" +
+      '<div><small>% ADESÃO NO MÊS</small><b class="' + fad(adM) + '">' + (adM == null ? "—" : p1.format(adM * 100) + "%") + '</b><i style="color:var(--muted)">' + txtM + "</i></div></div>" +
+      '<div class="c">';
+    [["pctFinanceiro","FINANCEIRO"],["pctGovernanca","GOVERNANÇA DO CONTRATO"],["pctAcompanhamento","GESTÃO E ACOMPANHAMENTO"],["pctPessoas","PESSOAS"],["pctSSMA","SSMA E QUALIDADE"]].forEach(function(c){
+      var a = media(linhas.map(function(r){ return r[c[0]]; })), f = faixa(a);
+      h += '<div><small>' + c[1] + '</small><b class="' + f[0] + '">' + pct(a) + "</b><em>" + f[1] + "</em></div>";
+    });
+    el.innerHTML = h + "</div>";
+  }
+
+  fetch(FLOW_NOTAS, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ano:ANO})})
+    .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(function(j){ var rows = Array.isArray(j) ? j : (j && (j.value || j.notas || j.body)) || []; desenha(rows, false); })
+    .catch(function(){ desenha([], true); });
+})();
+</script>
+</body>
+</html>
