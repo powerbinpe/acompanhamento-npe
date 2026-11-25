@@ -563,39 +563,53 @@
     var favor = custos.filter(function (x) { return x.desvio >= 1; }).sort(function (a, b) { return b.desvio - a.desvio; }).slice(0, 2).map(function (x) { return { conta: nomeConta(x.conta), valor: Math.round(x.desvio) }; });
     return { contra: contra, favor: favor };
   }
+  // 25/11/2026 (usuario): o resumo nao repete o que ja esta no visual. Diagnostico por um indicador so,
+  // o CUSTO POR HHT, com a margem do executivo como base: ideal = faturamento por hora x (1 - margem exec).
+  // Acumulado x executivo, projecao do horizonte, fechamento do ano e o que o horizonte precisaria para
+  // fechar na margem do executivo. Depois, so os pontos (contas e alertas) e o que cobrar (IA).
   function resumoRpcoOS(S, regua) {
-    var an = analisarCustos(S.fin); if (!an) return null;
-    var c = causasDeCusto(an.contas, S.fin.recorrentes, 3), G = regua || {};
-    return { nivel: "os", margAcum: an.margReal, margExecAcum: an.margExec, margAno: G.anoR ? G.anoR.marg : null, margProm: G.margProm,
-      causas: c.contra, favor: c.favor, leitura: G.leitura || "", margProj: G.pj ? G.pj.marg : null, margUlt: G.ult ? G.ult.marg : null,
-      horiz: G.horiz || "", alertas: (G.curtos || []).slice(0, 2) };
+    var G = regua; if (!G || !G.acum || G.margProm == null) return null;
+    var an = analisarCustos(S.fin), c = an ? causasDeCusto(an.contas, S.fin.recorrentes, 3) : { contra: [], favor: [] };
+    var m = G.margProm, ms = S.meses || [], A = G.acum, U = G.ult || {}, P = G.pj || {}, X = G.ex || {};
+    var ideal = function (fph) { return fph == null ? null : fph * (1 - m); };
+    var hAno = (A.h || 0) + (P.h || 0), cAno = G.anoR && G.anoR.f != null ? G.anoR.f - G.anoR.r : null;
+    var fphAno = hAno ? G.anoR.f / hAno : null, cphAno = hAno && cAno != null ? cAno / hAno : null;
+    var precisa = P.h ? (G.anoR.f * (1 - m) - (A.c || 0)) / P.h : null;   // custo/h que o horizonte precisaria para fechar o ano na margem do executivo
+    var semReaj = (G.curtos || []).some(function (t) { return /sem reajuste/.test(t); });
+    return { nivel: "os", v: 2, margBase: m, periodo: ms.length ? MES[ms[0]] + "–" + MES[ms[ms.length - 1]] : "", horiz: G.horiz || "",
+      acum: { fph: A.fph, cph: A.cph, ideal: ideal(A.fph), exec: X.cph },
+      ult: { fph: U.fph, cph: U.cph },
+      proj: { fph: P.fph, cph: P.cph, ideal: ideal(P.fph), dFph: U.fph && P.fph ? P.fph / U.fph - 1 : null, semReaj: semReaj },
+      ano: { fph: fphAno, cph: cphAno, ideal: ideal(fphAno), precisa: precisa },
+      leitura: G.leitura || "", causas: c.contra, alertas: (G.curtos || []).slice(0, 2) };
+  }
+  function rsh(v) { return v == null ? "–" : "R$ " + fmt(v, 2); }
+  function resumoTextos(R) {
+    if (!R || !R.acum) return null;
+    var mb = fmt(R.margBase * 100, 1) + "%", d = function (a, b) { return a == null || b == null ? "" : (a > b ? rsh(a - b) + "/h acima do ideal" : rsh(b - a) + "/h abaixo do ideal"); };
+    var T = {};
+    T.ideal = "Custo por HHT ideal para a margem do executivo (" + mb + "): " + rsh(R.acum.ideal) + " sobre o faturamento real de " + rsh(R.acum.fph) + "/h.";
+    T.acum = "Acumulado " + R.periodo + ": " + rsh(R.acum.cph) + " (executivo " + rsh(R.acum.exec) + "), " + d(R.acum.cph, R.acum.ideal) + ".";
+    T.proj = R.horiz ? "Projeção " + R.horiz + ": " + rsh(R.proj.cph) + " contra o ideal de " + rsh(R.proj.ideal) + " e " + rsh(R.ult.cph) + " dos últimos 3 meses" +
+      (R.proj.dFph != null && Math.abs(R.proj.dFph) >= 0.05 ? "; faturamento por hora " + (R.proj.dFph > 0 ? "+" : "") + fmt(R.proj.dFph * 100, 1) + "% sobre os últimos 3 meses" + (R.proj.semReaj && R.proj.dFph > 0 ? " sem reajuste cadastrado" : "") : "") +
+      " (" + R.leitura + ")." : "";
+    T.ano = "Fechamento do ano: " + rsh(R.ano.cph) + " contra o ideal de " + rsh(R.ano.ideal) + (R.horiz && R.ano.precisa != null ? "; para fechar em " + mb + ", " + R.horiz + " precisaria de " + rsh(R.ano.precisa) + "/h" : "") + ".";
+    var pts = (R.causas || []).map(function (x) { return x.conta + " " + rs(x.valor) + (x.tipo === "sem orçamento" ? " sem orçamento" : "") + (x.rec ? " (" + x.rec + ")" : ""); }).concat(R.alertas || []);
+    T.pontos = pts.length ? "Pontos: " + pts.join("; ") + "." : "";
+    return T;
   }
   function resumoLinhas(R) {
-    if (!R) return [];
-    var mg = function (v) { return v == null ? "–" : fmt(v * 100, 1) + "%"; };
-    var L = ["Situação: margem acumulada " + mg(R.margAcum) + " contra " + mg(R.margExecAcum) + " do executivo; o ano fecha em " + mg(R.margAno) + " contra " + mg(R.margProm) + " prometidos" +
-      (R.margAno != null && R.margProm != null ? " (" + (R.margAno - R.margProm >= 0 ? "+" : "") + fmt((R.margAno - R.margProm) * 100, 1) + " p.p.)" : "") + "."];
-    if (R.quem && R.quem.length) L.push("Quem mais puxa a margem para baixo: " + R.quem.map(function (q) { return q.nome + " (" + rs(q.gap) + ")"; }).join("; ") + ".");
-    L.push("Principais causas: " + (R.causas.length ? R.causas.map(function (x, i) { return (i + 1) + ". " + x.conta + ": " + rs(x.valor) + " " + x.tipo + (x.rec ? ", em " + x.rec : "") + (x.oss && x.oss.length && R.nivel !== "os" ? " (" + x.oss.join(", ") + ")" : ""); }).join("; ") + "." : "nenhuma conta de custo acima da proporção do efetivo") +
-      (R.favor && R.favor.length ? " A favor: " + R.favor.map(function (x) { return x.conta + " " + rs(x.valor); }).join(", ") + "." : ""));
-    L.push("Projeção " + (R.horiz || "") + ": " + (R.leitura || "sem projeção") + (R.margProj != null ? " (margem projetada " + mg(R.margProj) + " contra " + mg(R.margUlt) + " dos últimos 3 meses)" : "") +
-      (R.otimistas != null ? "; " + R.otimistas + " de " + R.nOS + " OSs com projeção otimista" : "") + (R.alertas && R.alertas.length ? ": " + R.alertas.join("; ") : "") + ".");
-    return L;
+    var T = resumoTextos(R); if (!T) return [];
+    return [T.ideal, T.acum, T.proj, T.ano, T.pontos].filter(Boolean);
   }
   function resumoHTML(R, cobrar) {
-    if (!R) return "";
-    var mg = function (v) { return v == null ? "–" : pct(v, 1); };
+    var T = resumoTextos(R); if (!T) return "";
     var cls = /OTIMISTA/.test(R.leitura) ? "bad" : (/CONSERVADORA/.test(R.leitura) ? "na" : "ok");
-    var h = '<section class="rl-cap rl-resumo"><h2><span>★</span>Resumo para a RPCO</h2><div class="rl-tab rl-tab-txt"><table><colgroup><col style="width:180px"><col></colgroup><tbody>' +
-      '<tr><td><b>Situação</b></td><td>Margem acumulada <b>' + mg(R.margAcum) + "</b> contra " + mg(R.margExecAcum) + " do executivo; o ano fecha em <b>" + mg(R.margAno) + "</b> contra " + mg(R.margProm) + " prometidos.</td></tr>";
-    if (R.quem && R.quem.length) h += "<tr><td><b>Quem puxa</b></td><td>" + R.quem.map(function (q) { return esc(q.nome) + " (" + moeda(q.gap) + ")"; }).join("; ") + "</td></tr>";
-    h += "<tr><td><b>Principais causas</b></td><td>" + (R.causas.length ? "<ol style=\"margin:0;padding-left:18px\">" + R.causas.map(function (x) {
-        return "<li><b>" + esc(x.conta) + "</b>: " + moeda(x.valor) + " " + esc(x.tipo) + (x.rec ? ", em " + esc(x.rec) : "") + (x.oss && x.oss.length && R.nivel !== "os" ? " (" + esc(x.oss.join(", ")) + ")" : "") + "</li>"; }).join("") + "</ol>" : "Nenhuma conta de custo acima da proporção do efetivo.") +
-      (R.favor && R.favor.length ? '<div style="margin-top:4px">A favor: ' + R.favor.map(function (x) { return esc(x.conta) + " " + moeda(x.valor); }).join(", ") + "</div>" : "") + "</td></tr>" +
-      "<tr><td><b>Projeção " + esc(R.horiz || "") + '</b></td><td><span class="bk-pill ' + cls + '">' + esc(R.leitura || "sem projeção") + "</span> " + (R.margProj != null ? "margem projetada " + mg(R.margProj) + " contra " + mg(R.margUlt) + " dos últimos 3 meses" : "") +
-      (R.otimistas != null ? "; " + R.otimistas + " de " + R.nOS + " OSs com projeção otimista" : "") + (R.alertas && R.alertas.length ? '.<div style="margin-top:4px"><b>Alertas:</b> ' + esc(R.alertas.join("; ")) + ".</div>" : "") + "</td></tr>" +
-      "<tr><td><b>Cobrar</b></td><td>" + (cobrar ? esc(cobrar) : "–") + "</td></tr></tbody></table></div></section>";
-    return h;
+    var li = [T.ideal, T.acum, T.proj, T.ano, T.pontos].filter(Boolean).map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("");
+    li = li.replace("(" + esc(R.leitura) + ")", '<span class="bk-pill ' + cls + '">' + esc(R.leitura) + "</span>");
+    return '<section class="rl-cap rl-resumo"><h2><span>★</span>Resumo para a RPCO · custo por HHT</h2>' +
+      '<ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:18px;line-height:1.55">' + li +
+      (cobrar ? "<li><b>Cobrar:</b> " + esc(cobrar) + "</li>" : "") + "</ul></section>";
   }
 
   function coletarOS(os, ano, mes, dados) {
@@ -1060,7 +1074,7 @@
     L.push("- Custos são sempre escritos positivos (Hospedagem R$ 308.361; custou R$ 582.396 a mais que a proporção). Parênteses só para resultado ou margem negativos.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
-    L.push('{"situacao":"(2 parágrafos, até 900 caracteres: onde o contrato está, só o retrato geral; sem causas)","positivos":[{"titulo":"(até 45 caracteres)","texto":"(até 260 caracteres: o que está dando certo, com o número, e o que manter)"}] (2 a 5 itens; se nada vai bem, 1 item dizendo isso),"cobrar":"(até 300 caracteres: o que cobrar do responsável, em 2 ou 3 ações curtas separadas por ponto e vírgula, tiradas do RESUMO PARA A RPCO e dos ALERTAS DA PROJEÇÃO: corrigir a projeção, plano para as principais causas e os meses sem justificativa; sem repetir os valores do resumo)","diagnostico":"(3 ou 4 parágrafos, até 2400 caracteres: a história única de efetivo, faturamento e custo pelo bloco DIAGNÓSTICO INTEGRADO; ano contra o executivo com as três parcelas e a movimentação contra o executivo; depois o mês contra o FCST anterior; gestão ou orçamento)","receita":"(até 1000 caracteres: SÓ perdas por motivo e a evolução mês a mês, SLA, não faturáveis, % do faturamento e resultado potencial; diluídos só como informação; não repita o diagnóstico)","custos":"(2 parágrafos, até 1500 caracteres: as CONTAS que explicam o custo por pessoa do diagnóstico (ponte da margem, contas, rescisões e encargos rescisórios, multa de 40%), os meses fora da proporção, acima E abaixo do efetivo, e se o responsável justificou cada um; não reconte o diagnóstico)","pessoas":"(2 ou 3 parágrafos, até 1500 caracteres: efetivo e movimentação, HHT, HE, absenteísmo, turnover, acúmulo de férias em pessoas (30 e 45 dias ou mais) e o efeito dele no dissídio e na reoneração ' + (ano + 1) + ', e a coerência da projeção dos próximos meses)","ssma":"(até 700 caracteres: segurança, satisfação do cliente, boas práticas e renovação)","coerencia":[{"mes":"(jan, fev, ...)","avaliacao":"(COERENTE, INCOERENTE ou SEM JUSTIFICATIVA)","nota":"(até 140 caracteres: o que o responsável escreveu sobre o mês e por que explica ou não o número)"}] (um item para CADA mês listado em O QUE O RESPONSÁVEL ESCREVEU NOS MESES FORA DA PROPORÇÃO; texto genérico, repetido de outro mês ou que não fala do desvio daquele mês é SEM JUSTIFICATIVA ou INCOERENTE, nunca COERENTE; [] se não houver mês fora),"planos":[{"indicador":"(#número e nome)","acao":"(o que o gestor informou que está fazendo, resumido, até 160 caracteres; nenhuma ação informada, se for o caso)","desde":"(mês em que a ação atual aparece pela primeira vez)","efeito":"(FUNCIONANDO, PARCIAL, SEM EFEITO, PIOROU, AGUARDANDO, SEM PLANO ou NÃO SE APLICA)","texto":"(até 300 caracteres: a evidência mês a mês pelos números do indicador (percentuais, pessoas, ocorrências) e o parecer do Setor de Performance; valores em R$ já citados acima não se repetem)","recomendacao":"(até 220 caracteres: começa com MANTER, AJUSTAR, TROCAR ou CRIAR e diz o que fazer)"}] (todos os indicadores que não atenderam em algum mês do ano, do mais grave para o menos grave, até 10 itens; [] se todos atenderam o ano todo),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres: o efeito esperado, citando o problema pelo nome, sem repetir valores já citados)","acompanhar":"(até 90 caracteres)"}] (3 a 5 itens: o foco do próximo mês),"parecerOrcamento":"(até 450 caracteres: o veredito para a renovação: o que considerar no preço, ou corrigir a gestão antes; cite os assuntos pelo nome)","orcamento":[{"titulo":"(até 40 caracteres)","valor":"(até 30 caracteres: a recorrência ou o %, sem repetir valores em R$ já citados)","texto":"(até 300 caracteres)"}] (4 a 8 itens: absenteísmo, turnover, custos acima do executivo de forma recorrente, acúmulo de férias e o que mais os DADOS sustentarem; dissídio e reoneração não entram como item)}');
+    L.push('{"situacao":"(2 parágrafos, até 900 caracteres: onde o contrato está, só o retrato geral; sem causas)","positivos":[{"titulo":"(até 45 caracteres)","texto":"(até 260 caracteres: o que está dando certo, com o número, e o que manter)"}] (2 a 5 itens; se nada vai bem, 1 item dizendo isso),"cobrar":"(até 300 caracteres: o que cobrar do responsável, em 2 ou 3 ações curtas separadas por ponto e vírgula, tiradas do RESUMO PARA A RPCO (régua: custo por HHT contra o ideal da margem do executivo) e dos ALERTAS DA PROJEÇÃO: corrigir a projeção, plano para os pontos que tiram o custo por hora do ideal e os meses sem justificativa; sem repetir os valores do resumo)","diagnostico":"(3 ou 4 parágrafos, até 2400 caracteres: a história única de efetivo, faturamento e custo pelo bloco DIAGNÓSTICO INTEGRADO; ano contra o executivo com as três parcelas e a movimentação contra o executivo; depois o mês contra o FCST anterior; gestão ou orçamento)","receita":"(até 1000 caracteres: SÓ perdas por motivo e a evolução mês a mês, SLA, não faturáveis, % do faturamento e resultado potencial; diluídos só como informação; não repita o diagnóstico)","custos":"(2 parágrafos, até 1500 caracteres: as CONTAS que explicam o custo por pessoa do diagnóstico (ponte da margem, contas, rescisões e encargos rescisórios, multa de 40%), os meses fora da proporção, acima E abaixo do efetivo, e se o responsável justificou cada um; não reconte o diagnóstico)","pessoas":"(2 ou 3 parágrafos, até 1500 caracteres: efetivo e movimentação, HHT, HE, absenteísmo, turnover, acúmulo de férias em pessoas (30 e 45 dias ou mais) e o efeito dele no dissídio e na reoneração ' + (ano + 1) + ', e a coerência da projeção dos próximos meses)","ssma":"(até 700 caracteres: segurança, satisfação do cliente, boas práticas e renovação)","coerencia":[{"mes":"(jan, fev, ...)","avaliacao":"(COERENTE, INCOERENTE ou SEM JUSTIFICATIVA)","nota":"(até 140 caracteres: o que o responsável escreveu sobre o mês e por que explica ou não o número)"}] (um item para CADA mês listado em O QUE O RESPONSÁVEL ESCREVEU NOS MESES FORA DA PROPORÇÃO; texto genérico, repetido de outro mês ou que não fala do desvio daquele mês é SEM JUSTIFICATIVA ou INCOERENTE, nunca COERENTE; [] se não houver mês fora),"planos":[{"indicador":"(#número e nome)","acao":"(o que o gestor informou que está fazendo, resumido, até 160 caracteres; nenhuma ação informada, se for o caso)","desde":"(mês em que a ação atual aparece pela primeira vez)","efeito":"(FUNCIONANDO, PARCIAL, SEM EFEITO, PIOROU, AGUARDANDO, SEM PLANO ou NÃO SE APLICA)","texto":"(até 300 caracteres: a evidência mês a mês pelos números do indicador (percentuais, pessoas, ocorrências) e o parecer do Setor de Performance; valores em R$ já citados acima não se repetem)","recomendacao":"(até 220 caracteres: começa com MANTER, AJUSTAR, TROCAR ou CRIAR e diz o que fazer)"}] (todos os indicadores que não atenderam em algum mês do ano, do mais grave para o menos grave, até 10 itens; [] se todos atenderam o ano todo),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres: o efeito esperado, citando o problema pelo nome, sem repetir valores já citados)","acompanhar":"(até 90 caracteres)"}] (3 a 5 itens: o foco do próximo mês),"parecerOrcamento":"(até 450 caracteres: o veredito para a renovação: o que considerar no preço, ou corrigir a gestão antes; cite os assuntos pelo nome)","orcamento":[{"titulo":"(até 40 caracteres)","valor":"(até 30 caracteres: a recorrência ou o %, sem repetir valores em R$ já citados)","texto":"(até 300 caracteres)"}] (4 a 8 itens: absenteísmo, turnover, custos acima do executivo de forma recorrente, acúmulo de férias e o que mais os DADOS sustentarem; dissídio e reoneração não entram como item)}');
     L.push("");
     L.push("DADOS");
     var hOS = C.H.hist || {};
