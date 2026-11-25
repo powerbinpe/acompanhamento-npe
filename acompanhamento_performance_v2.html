@@ -11224,6 +11224,151 @@ function hydrateFromPowerBI() {
     }
     // ===================== fim ELEGIBILIDADE POR MES =====================
 
+    // ===================== EVENTOS DE CUSTO E RECEITA (25/11/2026) =====================
+    // Cadastro que a regua de tendencia usa para cobrar a projecao: data-base do dissidio e reajuste do
+    // contrato por OS (Tipo EVENTO_OS, Valor OS|MES_DATA_BASE|%_DISSIDIO|MES_REAJUSTE|%_REAJUSTE|INDICE,
+    // vigencia = ano*100+1) e eventos gerais como a reoneracao (Tipo EVENTO_GERAL, Valor
+    // NOME|AAAAMM|EFEITO|%|ABRANGENCIA). Grava pelo Salvar do Cadastro (NPE-Gravar-Parametros).
+    var EVT_MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+    var EVT_BUSCA = "";
+    function evtAno() { return elegAnoCadastro(); }
+    function evtLimpo(t) { return String(t == null ? "" : t).replace(/\|/g, "/").trim(); }
+    function evtNum(t) { var s = String(t == null ? "" : t).trim().replace(/\./g, "").replace(",", "."); if (s === "") return ""; var n = parseFloat(s); return isNaN(n) ? "" : String(n); }
+    function evtPctTxt(t) { return t === "" || t == null ? "" : String(t).replace(".", ","); }
+    function evtLinhaOS(os, ano) {
+      return (window.METAS_DB.parametros || []).filter(function (p) {
+        return String(p.tipo) === "EVENTO_OS" && String(p.ativo) === "Sim" && String(p.valor || "").split("|")[0] === os &&
+          Math.floor((parseInt(p.vigencia, 10) || 0) / 100) === ano;
+      })[0] || null;
+    }
+    function evtCampos(p) {
+      var v = String((p && p.valor) || "").split("|");
+      return { db: v[1] || "", dbp: v[2] || "", rj: v[3] || "", rjp: v[4] || "", ind: v[5] || "" };
+    }
+    function evtOSsDoAno(ano) {
+      var por = (window.ELEG_MES && window.ELEG_MES.porOS) || {}, lista = [];
+      Object.keys(por).forEach(function (os) {
+        var e = por[os], tem = Object.keys(e.meses || {}).some(function (am) { return Math.floor(+am / 100) === ano && e.meses[am].eleg; });
+        if (tem || evtLinhaOS(os, ano)) lista.push(e);
+      });
+      return lista.sort(function (a, b) { return String(a.desc).localeCompare(String(b.desc)); });
+    }
+    function evtAlterarOS(os, campo, valor) {
+      var ano = evtAno(), p = evtLinhaOS(os, ano), c = evtCampos(p);
+      if (campo === "db" || campo === "rj") c[campo] = valor ? String(parseInt(valor, 10)) : "";
+      else if (campo === "dbp" || campo === "rjp") c[campo] = evtNum(valor);
+      else if (campo === "ind") c[campo] = evtLimpo(valor);
+      var novo = [os, c.db, c.dbp, c.rj, c.rjp, c.ind].join("|");
+      if (p) { if (p.valor !== novo) { p.valor = novo; p._dirty = true; } }
+      else if (c.db || c.dbp || c.rj || c.rjp || c.ind) {
+        window.METAS_DB.parametros.push({ id: -Date.now() - Math.floor(Math.random() * 1000), tipo: "EVENTO_OS", valor: novo, ativo: "Sim",
+          vigencia: ano * 100 + 1, comentario: "", _dirty: true, _novo: true });
+      }
+      if (typeof metasAtualizaDirtyInfo === "function") metasAtualizaDirtyInfo();
+    }
+    function evtComentarioOS(os, txt) {
+      var p = evtLinhaOS(os, evtAno());
+      if (!p) { showToast("⚠️ Preencha a data-base ou o reajuste antes da observação."); return; }
+      p.comentario = String(txt || "").trim(); p._dirty = true;
+      if (typeof metasAtualizaDirtyInfo === "function") metasAtualizaDirtyInfo();
+    }
+    function evtSelMes(id, atual, onchange) {
+      return '<select id="' + id + '" onchange="' + onchange + '" style="padding:3px 6px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.80rem;">' +
+        '<option value="">—</option>' + EVT_MESES.map(function (m, i) { return '<option value="' + (i + 1) + '"' + (String(atual) === String(i + 1) ? " selected" : "") + ">" + m + "</option>"; }).join("") + "</select>";
+    }
+    function evtInp(id, atual, onchange, w, ph) {
+      return '<input id="' + id + '" value="' + elegEsc(atual) + '" placeholder="' + (ph || "") + '" onchange="' + onchange + '" style="width:' + w + 'px; padding:3px 6px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.80rem;" />';
+    }
+    function renderEventosPanel(body) {
+      var ano = evtAno();
+      if (!window.ELEG_MES.carregado) {
+        body.innerHTML = '<div style="padding:30px; text-align:center; color:#64748b; font-weight:700;">' + (window.ELEG_MES.erro ? "Não foi possível ler as OSs elegíveis: " + elegEsc(window.ELEG_MES.erro) : "⏳ Lendo as OSs elegíveis...") + "</div>";
+        if (!window.ELEG_MES.carregando && window.FLOW_LER_ELEGIVEIS_URL) carregarElegiveisMes().then(function () { if (METAS_ABA === "EVENTOS") renderMetasPanel(); });
+        return;
+      }
+      var h = '<div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:0.82rem; color:#1e3a8a; max-width:120ch;">' +
+        'Eventos que mudam o custo ou o faturamento por pessoa em meses conhecidos. A análise de tendência confere se a <b>projeção</b> de cada OS já considera esses valores ' +
+        '(dissídio na data-base, reajuste do contrato com o cliente, reoneração) e cobra a correção quando não considera. Vale para o ano ' + ano + '.</div>';
+      // ---- por OS ----
+      var lista = evtOSsDoAno(ano), q = EVT_BUSCA.toUpperCase();
+      var vis = lista.filter(function (e) { return !q || String(e.desc).toUpperCase().indexOf(q) >= 0 || String(e.os).indexOf(q) >= 0; });
+      var preench = lista.filter(function (e) { return evtLinhaOS(e.os, ano); }).length;
+      h += '<div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:6px;">' +
+        '<span style="font-size:0.88rem; font-weight:900; color:#0f2b5c; text-transform:uppercase;">Dissídio e reajuste por OS — ' + ano + '</span>' +
+        '<span style="font-size:0.76rem; color:#64748b;">' + preench + ' de ' + lista.length + ' OSs elegíveis preenchidas</span>' +
+        '<input id="evtBusca" placeholder="Buscar OS" value="' + elegEsc(EVT_BUSCA) + '" oninput="EVT_BUSCA=this.value; evtAtualizar();" style="margin-left:auto; padding:4px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.80rem; width:220px;" /></div>';
+      h += '<div style="overflow:auto; max-height:520px; border:1px solid #e2e8f0; border-radius:8px;"><table style="border-collapse:collapse; width:100%; font-size:0.80rem;">' +
+        '<thead><tr style="background:#0f2b5c; color:#fff; position:sticky; top:0;">' +
+        ['OS', 'Negócio', 'Data-base do dissídio', '% dissídio estimado', 'Reajuste do contrato', '% reajuste estimado', 'Índice do contrato', 'Observação'].map(function (t, i) {
+          return '<th style="padding:6px 8px; text-align:' + (i < 2 ? "left" : "center") + '; font-weight:800; white-space:nowrap;">' + t + "</th>"; }).join("") + "</tr></thead><tbody>";
+      vis.forEach(function (e, i) {
+        var p = evtLinhaOS(e.os, ano), c = evtCampos(p), o = e.os, k = "evt" + i;
+        h += '<tr style="border-bottom:1px solid #f1f5f9;' + (p ? "" : " color:#64748b;") + '">' +
+          '<td style="padding:4px 8px; font-weight:700; white-space:nowrap;">' + elegEsc(e.desc) + '</td>' +
+          '<td style="padding:4px 8px; white-space:nowrap;">' + elegEsc(e.neg || "") + '</td>' +
+          '<td style="padding:4px 8px; text-align:center;">' + evtSelMes(k + "db", c.db, "evtAlterarOS('" + o + "','db',this.value)") + '</td>' +
+          '<td style="padding:4px 8px; text-align:center;">' + evtInp(k + "dbp", evtPctTxt(c.dbp), "evtAlterarOS('" + o + "','dbp',this.value)", 64, "0,00") + '</td>' +
+          '<td style="padding:4px 8px; text-align:center;">' + evtSelMes(k + "rj", c.rj, "evtAlterarOS('" + o + "','rj',this.value)") + '</td>' +
+          '<td style="padding:4px 8px; text-align:center;">' + evtInp(k + "rjp", evtPctTxt(c.rjp), "evtAlterarOS('" + o + "','rjp',this.value)", 64, "0,00") + '</td>' +
+          '<td style="padding:4px 8px; text-align:center;">' + evtInp(k + "ind", c.ind, "evtAlterarOS('" + o + "','ind',this.value)", 110, "ex.: IPCA") + '</td>' +
+          '<td style="padding:4px 8px;">' + evtInp(k + "obs", p ? p.comentario || "" : "", "evtComentarioOS('" + o + "',this.value)", 220, "") + '</td></tr>';
+      });
+      h += "</tbody></table></div>";
+      h += '<div style="font-size:0.74rem; color:#64748b; margin:6px 0 22px;">Data-base = mês em que o dissídio passa a valer na folha. Reajuste = mês em que o novo preço entra no faturamento. Percentuais são estimativas para conferir a projeção; o realizado vem do contábil. Depois de preencher, clique em <b>Salvar</b>.</div>';
+      // ---- eventos gerais ----
+      var ger = (window.METAS_DB.parametros || []).filter(function (p) { return String(p.tipo) === "EVENTO_GERAL" && String(p.ativo) === "Sim"; })
+        .sort(function (a, b) { return String(a.valor).split("|")[1] < String(b.valor).split("|")[1] ? -1 : 1; });
+      var setores = {}, negs = {}; Object.keys(window.ELEG_MES.porOS || {}).forEach(function (os) { var e = window.ELEG_MES.porOS[os]; if (e.setor) setores[e.setor] = 1; if (e.neg) negs[e.neg] = 1; });
+      var optMes = ""; [ano, ano + 1].forEach(function (a) { EVT_MESES.forEach(function (m, i) { var am = a * 100 + i + 1; optMes += '<option value="' + am + '">' + m + "/" + a + "</option>"; }); });
+      var optAbr = '<option value="TODAS">Todas as OSs</option>' + Object.keys(negs).sort().map(function (n) { return '<option value="NEGOCIO:' + elegEsc(n) + '">Negócio ' + elegEsc(n) + "</option>"; }).join("") +
+        Object.keys(setores).sort().map(function (s) { return '<option value="SETOR:' + elegEsc(s) + '">Setor ' + elegEsc(s) + "</option>"; }).join("");
+      h += '<div style="font-size:0.88rem; font-weight:900; color:#0f2b5c; text-transform:uppercase; margin-bottom:6px;">Eventos gerais</div>' +
+        '<div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;">' +
+          '<div><div style="font-size:0.72rem; font-weight:800; color:#475569; margin-bottom:3px;">EVENTO</div><input id="evtGNome" placeholder="ex.: Reoneração da folha" style="width:220px; padding:4px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.82rem;" /></div>' +
+          '<div><div style="font-size:0.72rem; font-weight:800; color:#475569; margin-bottom:3px;">MÊS</div><select id="evtGMes" style="padding:4px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.82rem;">' + optMes + '</select></div>' +
+          '<div><div style="font-size:0.72rem; font-weight:800; color:#475569; margin-bottom:3px;">AFETA</div><select id="evtGEfeito" style="padding:4px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.82rem;"><option value="CUSTO">Custo</option><option value="FATURAMENTO">Faturamento</option></select></div>' +
+          '<div><div style="font-size:0.72rem; font-weight:800; color:#475569; margin-bottom:3px;">% ESTIMADO</div><input id="evtGPct" placeholder="0,00" style="width:80px; padding:4px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.82rem;" /></div>' +
+          '<div><div style="font-size:0.72rem; font-weight:800; color:#475569; margin-bottom:3px;">ABRANGÊNCIA</div><select id="evtGAbr" style="padding:4px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.82rem; max-width:240px;">' + optAbr + '</select></div>' +
+          '<div style="flex:1; min-width:240px;"><div style="font-size:0.72rem; font-weight:800; color:#475569; margin-bottom:3px;">COMENTÁRIO (OBRIGATÓRIO)</div><input id="evtGCom" placeholder="O que muda e sobre qual base, por exemplo: encargos sobre a folha a partir de janeiro" style="width:100%; box-sizing:border-box; padding:4px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.82rem;" /></div>' +
+          '<button type="button" onclick="evtIncluirGeral()" style="background:#0f766e; color:#fff; border:none; padding:8px 14px; border-radius:7px; font-weight:800; font-size:0.80rem; cursor:pointer;">Incluir evento</button></div>';
+      h += ger.length ? '<table style="border-collapse:collapse; width:100%; font-size:0.80rem; margin-bottom:8px;"><thead><tr style="background:#f1f5f9;">' +
+          ['Evento', 'Mês', 'Afeta', '% estimado', 'Abrangência', 'Comentário', ''].map(function (t) { return '<th style="padding:5px 8px; text-align:left; font-weight:800; color:#334155;">' + t + "</th>"; }).join("") + "</tr></thead><tbody>" +
+          ger.map(function (p) { var v = String(p.valor).split("|"), am = parseInt(v[1], 10) || 0;
+            var abr = v[4] === "TODAS" ? "Todas as OSs" : String(v[4] || "").replace("NEGOCIO:", "Negócio ").replace("SETOR:", "Setor ");
+            return '<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 8px; font-weight:700;">' + elegEsc(v[0]) + '</td><td style="padding:4px 8px;">' + (am ? EVT_MESES[am % 100 - 1] + "/" + Math.floor(am / 100) : "") + '</td><td style="padding:4px 8px;">' + (v[2] === "FATURAMENTO" ? "Faturamento" : "Custo") +
+              '</td><td style="padding:4px 8px;">' + (v[3] ? evtPctTxt(v[3]) + "%" : "—") + '</td><td style="padding:4px 8px;">' + elegEsc(abr) + '</td><td style="padding:4px 8px;">' + elegEsc(p.comentario || "") +
+              '</td><td style="padding:4px 8px; text-align:right;"><button type="button" onclick="evtDesativarGeral(\'' + p.id + '\')" style="background:none; border:1px solid #fecaca; color:#b91c1c; border-radius:6px; padding:2px 8px; font-size:0.74rem; cursor:pointer;">Retirar</button></td></tr>'; }).join("") + "</tbody></table>"
+        : '<div style="font-size:0.78rem; color:#64748b; margin-bottom:8px;">Nenhum evento geral cadastrado.</div>';
+      body.innerHTML = h;
+    }
+    function evtAtualizar() {
+      var body = document.getElementById("metasPanelBody");
+      if (body) renderEventosPanel(body);
+      var b = document.getElementById("evtBusca"); if (b) { b.focus(); b.setSelectionRange(b.value.length, b.value.length); }
+    }
+    function evtIncluirGeral() {
+      var g = function (id) { var n = document.getElementById(id); return n ? n.value : ""; };
+      var nome = evtLimpo(g("evtGNome")), com = String(g("evtGCom") || "").trim();
+      if (nome.length < 3) { showToast("⚠️ Informe o nome do evento."); return; }
+      if (com.length < 10) { showToast("⚠️ Escreva o comentário (no mínimo 10 caracteres)."); return; }
+      var am = parseInt(g("evtGMes"), 10);
+      window.METAS_DB.parametros.push({ id: -Date.now(), tipo: "EVENTO_GERAL", valor: [nome, am, g("evtGEfeito"), evtNum(g("evtGPct")), g("evtGAbr")].join("|"),
+        ativo: "Sim", vigencia: am, comentario: com, _dirty: true, _novo: true });
+      if (typeof metasAtualizaDirtyInfo === "function") metasAtualizaDirtyInfo();
+      renderMetasPanel();
+      showToast("✅ Evento incluído. Clique em Salvar para gravar.");
+    }
+    function evtDesativarGeral(id) {
+      var p = (window.METAS_DB.parametros || []).find(function (x) { return String(x.id) === String(id); });
+      if (!p) return;
+      if (p._novo && p._dirty) window.METAS_DB.parametros = window.METAS_DB.parametros.filter(function (x) { return x !== p; });
+      else { p.ativo = "Não"; p._dirty = true; }
+      if (typeof metasAtualizaDirtyInfo === "function") metasAtualizaDirtyInfo();
+      renderMetasPanel();
+    }
+    // ===================== fim EVENTOS DE CUSTO E RECEITA =====================
+
+
     function renderElegibilidadePanel(body) {
       var html = '<div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:0.82rem; color:#1e3a8a;">' +
         'Estes par\u00e2metros decidem <b>quais OSs entram no Acompanhamento Mensal</b>. Antes eram uma lista fixa dentro da f\u00f3rmula; agora ficam aqui, porque o cadastro vem da CTT e muda.' +
@@ -11963,7 +12108,7 @@ function hydrateFromPowerBI() {
 
       var barra = document.getElementById("metasAbasBar");
       if (barra) {
-        var abas = [["METAS", "\ud83c\udfaf Metas"], ["ELEGIBILIDADE", "\u2699\ufe0f Elegibilidade das OSs"], ["AGRUPAMENTOS", "\ud83d\udd17 Agrupamentos"], ["RESPONSAVEIS", "\ud83d\udc64 Respons\u00e1veis"]];
+        var abas = [["METAS", "\ud83c\udfaf Metas"], ["ELEGIBILIDADE", "\u2699\ufe0f Elegibilidade das OSs"], ["AGRUPAMENTOS", "\ud83d\udd17 Agrupamentos"], ["RESPONSAVEIS", "\ud83d\udc64 Respons\u00e1veis"], ["EVENTOS", "\ud83d\udcc5 Eventos de custo e receita"]];
         // O Master ve a aba para trocar a propria senha; o conteudo dela e que muda.
         if (sessaoAcesso()) abas.push(["USUARIOS", "\ud83d\udc65 Usu\u00e1rios"]);
         barra.innerHTML = abas.map(function(a) {
@@ -11976,6 +12121,7 @@ function hydrateFromPowerBI() {
       if (METAS_ABA === "ELEGIBILIDADE") { renderElegibilidadePanel(body); return; }
       if (METAS_ABA === "AGRUPAMENTOS") { renderAgrupamentosPanel(body); return; }
       if (METAS_ABA === "RESPONSAVEIS") { renderResponsaveisPanel(body); return; }
+      if (METAS_ABA === "EVENTOS") { renderEventosPanel(body); return; }
       if (METAS_ABA === "USUARIOS") {
         // Sem o perfil de dono nao ha por que buscar a lista inteira: o Master so ve a si
         // mesmo, e esses dados ja estao na sessao.
