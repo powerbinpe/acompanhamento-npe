@@ -253,7 +253,7 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
         if (SEL.length === 1 || cob.length === 1) { var o1 = cob[0] || SEL[0]; achou = porOS[o1] || null; if (!achou && base[o1]) { mostra("OS <b>" + esc(base[o1].nome || o1) + "</b>", R0.deBases([base[o1]], "os", base[o1].nome), "", mesRef); return; } }
         if (!achou && G) achou = grupos.filter(function(d){ return d.nivel === "ger" && nomeBate(d.nome || d.chave, G); })[0] || null;
         if (!achou && S && !G) achou = grupos.filter(function(d){ return d.nivel === "sup" && nomeBate(d.nome || d.chave, S); })[0] || null;
-        if (!achou) achou = grupos.filter(function(d){ return mesmoConjunto(d); }).sort(function(a, b){ return ({ger:0, sup:1, dir:2}[a.nivel] || 3) - ({ger:0, sup:1, dir:2}[b.nivel] || 3); })[0] || null;
+        if (!achou) achou = grupos.filter(function(d){ return mesmoConjunto(d); }).sort(function(a, b){ return b.R.oss.length - a.R.oss.length; })[0] || null;   // o maior nivel que cabe inteiro no filtro
         if (achou) { mostra(nivelTxt(achou.nivel) + " <b>" + esc(achou.nivel === "os" ? (achou.nome || achou.chave) : (achou.nome || achou.chave)) + "</b>" + (achou.nivel !== "os" ? " · " + achou.R.nOS + " OSs" : ""), achou.R, achou.cobrar || "", mesRef); return; }
         if (!cob.length) { msg("As OSs do filtro ainda não têm resumo gravado. Ele é gerado no fechamento do mês (Aba 6)."); return; }
         var R = R0.deBases(cob.map(function(o){ return base[o]; }), "sel", cob.length + " OSs");
