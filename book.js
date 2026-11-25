@@ -567,49 +567,55 @@
   // o CUSTO POR HHT, com a margem do executivo como base: ideal = faturamento por hora x (1 - margem exec).
   // Acumulado x executivo, projecao do horizonte, fechamento do ano e o que o horizonte precisaria para
   // fechar na margem do executivo. Depois, so os pontos (contas e alertas) e o que cobrar (IA).
-  function resumoRpcoOS(S, regua) {
-    var G = regua; if (!G || !G.acum || G.margProm == null) return null;
-    var an = analisarCustos(S.fin), c = an ? causasDeCusto(an.contas, S.fin.recorrentes, 3) : { contra: [], favor: [] };
-    var m = G.margProm, ms = S.meses || [], A = G.acum, U = G.ult || {}, P = G.pj || {}, X = G.ex || {};
-    var ideal = function (fph) { return fph == null ? null : fph * (1 - m); };
-    var hAno = (A.h || 0) + (P.h || 0), cAno = G.anoR && G.anoR.f != null ? G.anoR.f - G.anoR.r : null;
-    var fphAno = hAno ? G.anoR.f / hAno : null, cphAno = hAno && cAno != null ? cAno / hAno : null;
-    var precisa = P.h ? (G.anoR.f * (1 - m) - (A.c || 0)) / P.h : null;   // custo/h que o horizonte precisaria para fechar o ano na margem do executivo
-    var semReaj = (G.curtos || []).some(function (t) { return /sem reajuste/.test(t); });
-    return { nivel: "os", v: 2, margBase: m, periodo: ms.length ? MES[ms[0]] + "–" + MES[ms[ms.length - 1]] : "", horiz: G.horiz || "",
-      acum: { fph: A.fph, cph: A.cph, ideal: ideal(A.fph), exec: X.cph },
-      ult: { fph: U.fph, cph: U.cph },
-      proj: { fph: P.fph, cph: P.cph, ideal: ideal(P.fph), dFph: U.fph && P.fph ? P.fph / U.fph - 1 : null, semReaj: semReaj },
-      ano: { fph: fphAno, cph: cphAno, ideal: ideal(fphAno), precisa: precisa },
-      leitura: G.leitura || "", causas: c.contra, alertas: (G.curtos || []).slice(0, 2) };
+  // base da OS para o resumo (somas que permitem juntar OSs: gerencia, superintendencia, empresa ou selecao na RPCO)
+  function resumoBase(S, regua, meta) {
+    var G = regua; if (!G || !G.acum || !G.acum.h) return null;
+    var an = analisarCustos(S.fin), c = an ? causasDeCusto(an.contas, S.fin.recorrentes, 4) : { contra: [] }, ms = S.meses || [];
+    var r0 = function (v) { return v == null || !isFinite(v) ? null : Math.round(v); };
+    var p = function (x) { return x ? { f: r0(x.f), c: r0(x.c), h: r0(x.h) } : null; };
+    meta = meta || {};
+    return { os: meta.os || "", nome: meta.nome || meta.os || "", ger: meta.ger || "", sup: meta.sup || "", neg: meta.neg || "", ms0: ms[0] || 1, ms1: ms[ms.length - 1] || 1,
+      horiz: G.horiz || "", tol: tolAssert() / 100, acum: p(G.acum), ult: p(G.ult), pj: p(G.pj),
+      ex: G.ex ? { f: r0(G.ex.f), r: r0(G.ex.r), c: r0(G.ex.c), h: r0(G.ex.h) } : null, anoEx: G.anoEx ? { f: r0(G.anoEx.f), r: r0(G.anoEx.r) } : null,
+      causas: c.contra.map(function (x) { return { conta: x.conta, valor: x.valor, tipo: x.tipo, rec: x.rec }; }),
+      alertas: (G.curtos || []).slice(0, 2), semReaj: (G.curtos || []).some(function (q) { return /sem reajuste/.test(q); }) };
   }
-  function rsh(v) { return v == null ? "–" : "R$ " + fmt(v, 2); }
-  function resumoTextos(R) {
-    if (!R || !R.acum) return null;
-    var mb = fmt(R.margBase * 100, 1) + "%", d = function (a, b) { return a == null || b == null ? "" : (a > b ? rsh(a - b) + "/h acima do ideal" : rsh(b - a) + "/h abaixo do ideal"); };
-    var T = {};
-    T.ideal = "Custo por HHT ideal para a margem do executivo (" + mb + "): " + rsh(R.acum.ideal) + " sobre o faturamento real de " + rsh(R.acum.fph) + "/h.";
-    T.acum = "Acumulado " + R.periodo + ": " + rsh(R.acum.cph) + " (executivo " + rsh(R.acum.exec) + "), " + d(R.acum.cph, R.acum.ideal) + ".";
-    T.proj = R.horiz ? "Projeção " + R.horiz + ": " + rsh(R.proj.cph) + " contra o ideal de " + rsh(R.proj.ideal) + " e " + rsh(R.ult.cph) + " dos últimos 3 meses" +
-      (R.proj.dFph != null && Math.abs(R.proj.dFph) >= 0.05 ? "; faturamento por hora " + (R.proj.dFph > 0 ? "+" : "") + fmt(R.proj.dFph * 100, 1) + "% sobre os últimos 3 meses" + (R.proj.semReaj && R.proj.dFph > 0 ? " sem reajuste cadastrado" : "") : "") +
-      " (" + R.leitura + ")." : "";
-    T.ano = "Fechamento do ano: " + rsh(R.ano.cph) + " contra o ideal de " + rsh(R.ano.ideal) + (R.horiz && R.ano.precisa != null ? "; para fechar em " + mb + ", " + R.horiz + " precisaria de " + rsh(R.ano.precisa) + "/h" : "") + ".";
-    var pts = (R.causas || []).map(function (x) { return x.conta + " " + rs(x.valor) + (x.tipo === "sem orçamento" ? " sem orçamento" : "") + (x.rec ? " (" + x.rec + ")" : ""); }).concat(R.alertas || []);
-    T.pontos = pts.length ? "Pontos: " + pts.join("; ") + "." : "";
-    return T;
+  function resumoRpcoOS(S, regua, meta) {
+    var b = resumoBase(S, regua, meta); if (!b || !window.NPE_RESUMO) return null;
+    var R = window.NPE_RESUMO.deBases([b], "os", b.nome); if (R) R.base = b;
+    return R;
   }
-  function resumoLinhas(R) {
-    var T = resumoTextos(R); if (!T) return [];
-    return [T.ideal, T.acum, T.proj, T.ano, T.pontos].filter(Boolean);
+  function resumoLinhas(R) { return window.NPE_RESUMO && R ? window.NPE_RESUMO.linhas(R) : []; }
+  function resumoHTML(R, cobrar, titulo) { return window.NPE_RESUMO && R ? window.NPE_RESUMO.html(R, cobrar, titulo) : ""; }
+  // registro leve para a pagina RPCO (SNAPSHOT ano 9991): o resumo de cada OS, gerencia, superintendencia e da empresa
+  var ANO_RPCO = 9991;
+  async function lerRpco(forcar) {
+    if (st.rpco && !forcar) return st.rpco;
+    var mapa = {}, linhas = await A.tab5Post(window.FLOW_LER_SNAPSHOT_URL, { ano: ANO_RPCO });
+    (linhas || []).forEach(function (l) {
+      var tit = String(l && l.titulo || ""); if (tit.indexOf("RPCO_") !== 0 || !l.dados) return;
+      var id = parseInt(l.id, 10) || 0; if (mapa[tit] && mapa[tit].id >= id) return;
+      var d = null; try { d = JSON.parse(l.dados); } catch (e) { return; }
+      mapa[tit] = { id: id, d: d };
+    });
+    st.rpco = mapa; return mapa;
   }
-  function resumoHTML(R, cobrar) {
-    var T = resumoTextos(R); if (!T) return "";
-    var cls = /OTIMISTA/.test(R.leitura) ? "bad" : (/CONSERVADORA/.test(R.leitura) ? "na" : "ok");
-    var li = [T.ideal, T.acum, T.proj, T.ano, T.pontos].filter(Boolean).map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("");
-    li = li.replace("(" + esc(R.leitura) + ")", '<span class="bk-pill ' + cls + '">' + esc(R.leitura) + "</span>");
-    return '<section class="rl-cap rl-resumo"><h2><span>★</span>Resumo para a RPCO · custo por HHT</h2>' +
-      '<ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:18px;line-height:1.55">' + li +
-      (cobrar ? "<li><b>Cobrar:</b> " + esc(cobrar) + "</li>" : "") + "</ul></section>";
+  async function gravarRpco(nivel, k, R, cobrar, meta) {
+    if (!R) return false;
+    var mapa = await lerRpco(true), tit = "RPCO_" + nivel.toUpperCase() + " " + k, reg = mapa[tit] || { id: 0 };
+    var dados = Object.assign({ nivel: nivel, chave: k, R: R, cobrar: cobrar || "", em: new Date().toISOString() }, meta || {});
+    var corpo = JSON.stringify(dados);
+    if (corpo.length > 60000 && dados.bases) { delete dados.bases; corpo = JSON.stringify(dados); }
+    var r = await fetch(window.FLOW_GRAVAR_SNAPSHOT_URL, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: reg.id || 0, titulo: tit, ano: ANO_RPCO, mes: dados.mes || 1, dados: corpo, geradoPor: "" }) });
+    if (!(r.ok || r.status === 202)) throw new Error("O SharePoint recusou o resumo da RPCO (" + r.status + ").");
+    st.rpco = null; return true;
+  }
+  function basesLeves(bs) { return bs.map(function (b) { var c = Object.assign({}, b); delete c.alertas; c.causas = (b.causas || []).slice(0, 3); return c; }); }
+  function promptCobrar(R, lim, acoes, quem) {
+    return "\n\nRESUMO PARA A RPCO (calculado; régua: custo por HHT contra o ideal da margem do executivo; é o bloco que vai para a página RPCO):\n" +
+      resumoLinhas(R).map(function (l) { return "  " + l; }).join("\n") +
+      "\nINCLUA NO JSON TAMBÉM o campo \"cobrar\": (até " + lim + " caracteres: " + acoes + " curta(s), separadas por ponto e vírgula, citando " + quem + " que mais tiram o custo por hora do ideal e o que corrigir na projeção; sem repetir os valores do resumo).";
   }
 
   function coletarOS(os, ano, mes, dados) {
@@ -1389,9 +1395,11 @@
       txt: { coerencia: Array.isArray(j.coerencia) ? j.coerencia.slice(0, 12) : [], situacao: j.situacao, positivos: j.positivos.slice(0, 5), cobrar: j.cobrar || "", diagnostico: j.diagnostico || "", receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
         plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10), repetidos: valoresRepetidos({ situacao: j.situacao, positivos: j.positivos, receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, foco: j.plano }) }
     };
+    if (book.S.resumo && book.S.resumo.base) { var b0 = book.S.resumo.base; b0.os = os; b0.nome = nomeOS(os, book.desc); b0.ger = book.ger; b0.sup = book.sup; b0.neg = book.neg; book.S.resumo.rotulo = b0.nome; }
     if (opts.gravar === false) return book;
     progresso("Gravando no SharePoint…");
     await gravar("os", os, book);
+    try { await gravarRpco("os", os, book.S.resumo, book.txt.cobrar, { nome: nomeOS(os, book.desc), ger: book.ger, sup: book.sup, neg: book.neg, ano: ano, mes: mes }); } catch (eR) { console.warn("resumo RPCO da OS", eR); }
     return book;
   }
 
@@ -1988,7 +1996,9 @@
     var kpi = { fatAno: f.FR + soma(proj.map(function (x) { return x.fat; })), resAno: f.resReal + soma(proj.map(function (x) { return x.res; })),
       fatMeta: f.FE + soma((dados.projx || []).map(function (x) { return x.fe; })), resMeta: f.resExec + soma((dados.projx || []).map(function (x) { return x.re; })),
       absAcum: absPonderado(S), turnAcum: null };
-    return { v: 2, os: o.codigo, rotulo: o.rotulo || o.codigo, hist: hist, desc: (blocoCod.indexOf("|") > 0 && ct.grupo) ? ct.grupo : (ct.desc || o.desc || o.codigo), gestor: atualDe(hist.gestor) || ct.gestor || "", ger: atualDe(hist.ger) || ct.gerente || "", sup: atualDe(hist.sup) || ct.sup || "", neg: ct.neg || "", ano: ano, mes: mes, S: S, kpi: kpi };
+    var bk = { v: 2, os: o.codigo, rotulo: o.rotulo || o.codigo, hist: hist, desc: (blocoCod.indexOf("|") > 0 && ct.grupo) ? ct.grupo : (ct.desc || o.desc || o.codigo), gestor: atualDe(hist.gestor) || ct.gestor || "", ger: atualDe(hist.ger) || ct.gerente || "", sup: atualDe(hist.sup) || ct.sup || "", neg: ct.neg || "", ano: ano, mes: mes, S: S, kpi: kpi };
+    try { S.regua = reguaTendencia(S, dados, mes, o.codigo, ano, hier()[o.codigo] || {}); bk.base = resumoBase(S, S.regua, { os: o.codigo, nome: nomeOS(o.codigo, bk.desc), ger: bk.ger, sup: bk.sup, neg: bk.neg }); } catch (eB) { bk.base = null; }
+    return bk;
   }
   // Ferias contadas em pessoas: efetivo, quantas com 30+ dias (ja tem direito) e, dentro delas, quantas com 45+ (atencao).
   function feriasTxt(efet, f30, f45) {
@@ -2124,6 +2134,7 @@
     var ano = opts.ano || anoAtivo(), mes = opts.mes || mesAtivo() || (A.ultimoMesFechado ? A.ultimoMesFechado(ano) : 0);
     if (!(mes >= 1)) throw new Error("Selecione o mês no Power BI.");
     if (A.garantirHierarquia) await A.garantirHierarquia();
+    try { if (window.METAS_DB && !window.METAS_DB.carregado && typeof window.carregarMetasDoFluxo === 'function') await window.carregarMetasDoFluxo(); } catch (eM) {}
     var alvo = String(nome).toUpperCase(), lista = elegiveis().filter(function (o) { return String((nivel === "ger" ? o.ger : o.sup) || "").trim().toUpperCase() === alvo; });
     if (!lista.length) throw new Error("Nenhuma OS elegível do acompanhamento para " + nome + ".");
     var tk;
@@ -2167,9 +2178,11 @@
     var G = agregarGrupo(res), extra = { semBook: semDados };
     if (nivel === "sup") extra.porGer = porGerencia(G.linhasOS);
     var titulo = maisComum(res.map(function (b) { return nivel === "ger" ? b.ger : b.sup; })) || nome;
-    var prompt = promptGrupo(nivel, titulo, ano, mes, G, extra);
+    var basesG = res.map(function (b) { return b.base; }).filter(Boolean), RG = null;
+    try { RG = window.NPE_RESUMO ? window.NPE_RESUMO.deBases(basesG, nivel, titulo) : null; } catch (eG) { RG = null; }
+    var prompt = promptGrupo(nivel, titulo, ano, mes, G, extra) + (RG ? promptCobrar(RG, nivel === "ger" ? 220 : 160, nivel === "ger" ? "2 ações" : "1 ação", nivel === "ger" ? "as OSs" : "as gerências e OSs") : "");
     progresso("A IA está escrevendo o relatório de " + titulo + " (" + res.length + " OSs)…");
-    var gc = await gerarConferido(prompt, function (jj) { return conferirGrupo(jj, nivel); }), j = gc.j, falta = gc.falta;
+    var gc = await gerarConferido(prompt, function (jj) { var fx = conferirGrupo(jj, nivel); if (RG && jj && (!jj.cobrar || String(jj.cobrar).length < 40)) fx.push("cobrar"); return fx; }), j = gc.j, falta = gc.falta;
     if (falta.length && falta.every(function (x) { return /^repetição de valores/.test(x); })) falta = [];   // nao derruba o relatorio; a regra ja foi cobrada nas novas tentativas
     if (falta.length) throw new Error("A IA não completou o relatório (faltou: " + falta.join(", ") + ").");
     var s2 = A.sessaoAcesso ? A.sessaoAcesso() : null;
@@ -2177,10 +2190,11 @@
     var Gs = Object.assign({}, G, { linhasOS: G.linhasOS.map(function (o) { var c = Object.assign({}, o); delete c.diag; c.planos = o.planos ? o.planos.map(function (q) { return { indicador: q.indicador, efeito: q.efeito }; }) : null; return c; }) });
     var book = { v: 2, nivel: nivel, chave: alvo, nome: titulo, sup: nivel === "ger" ? maisComum(res.map(function (b) { return b.sup; })) : titulo, ano: ano, mes: mes, em: new Date().toISOString(), por: s2 ? s2.login : "",
       G: Gs, porGer: extra.porGer || null, semBook: semDados,
-      txt: { situacao: j.situacao, quadro: j.quadro, positivos: j.positivos.slice(0, 5), diagnostico: j.diagnostico || "", receita: j.receita, custos: j.custos, pessoas: j.pessoas, planos: j.planos || "", plano: j.plano.slice(0, 6) } };
+      resumo: RG, txt: { situacao: j.situacao, quadro: j.quadro, positivos: j.positivos.slice(0, 5), diagnostico: j.diagnostico || "", receita: j.receita, custos: j.custos, pessoas: j.pessoas, planos: j.planos || "", plano: j.plano.slice(0, 6), cobrar: j.cobrar || "" } };
     if (opts.gravar === false) return book;
     progresso("Gravando no SharePoint…");
     await gravar(nivel, alvo, book);
+    try { await gravarRpco(nivel, alvo, RG, j.cobrar, { nome: titulo, sup: book.sup, ano: ano, mes: mes, bases: basesLeves(basesG) }); } catch (eR) { console.warn("resumo RPCO do grupo", eR); }
     return book;
   }
 
@@ -2473,6 +2487,7 @@
     // 6. foco
     h.push(cap(++nc, "Foco do próximo mês", '<ol class="rl-plano">' + (t.plano || []).map(function (p) { return "<li><b>" + esc(p.acao || "") + "</b>" + (p.efeito ? "<span>" + rico(xo(p.efeito)) + "</span>" : "") + (p.acompanhar || p.oss ? '<em>' + (p.acompanhar ? "Acompanhar: " + esc(xo(p.acompanhar)) : "") + (p.oss ? " · " + esc(xo(p.oss)) : "") + "</em>" : "") + "</li>"; }).join("") + "</ol>"));
     h.push('<div class="bk-fontes">' + NOTA_ENC + 'Dados de todas as OSs elegíveis do acompanhamento, direto do painel (RESULTADOS, RECEITA IDEAL e CTT), janeiro a ' + MESF[b.mes] + ". Textos escritos por IA. Gerado em " + esc(new Date(b.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })) + (b.por ? " por " + esc(b.por) : "") + ".</div>");
+    if (b.resumo) h.splice(1, 0, resumoHTML(b.resumo, (b.txt || {}).cobrar || ""));
     return '<article class="rl">' + h.join("") + "</article>";
   }
 
@@ -2838,16 +2853,25 @@
       });
       D.forEach(function (z) { var l = porNeg[String(z.neg).toUpperCase()] || []; z.diagOS = l; z.diag = l.length ? somarDiag(l.map(function (x) { return x.d; })) : null; });
     } catch (eD) { /* sem books de OS: o relatorio segue sem o diagnostico */ }
-    var prompt = promptDiretoria(ano, mes, D);
+    var RD = null;
+    try {
+      var mr = await lerRpco(true), porOS = {};
+      Object.keys(mr).forEach(function (k) { var d0 = mr[k].d; if (!d0 || d0.ano !== ano || d0.mes !== mes) return; if (d0.nivel !== "os" && d0.bases) d0.bases.forEach(function (b) { if (b && b.os && !porOS[b.os]) porOS[b.os] = b; }); });
+      Object.keys(mr).forEach(function (k) { var d0 = mr[k].d; if (d0 && d0.nivel === "os" && d0.ano === ano && d0.mes === mes && d0.R && d0.R.base) porOS[d0.R.base.os || d0.chave] = d0.R.base; });
+      var bD = Object.keys(porOS).map(function (k) { return porOS[k]; });
+      RD = bD.length && window.NPE_RESUMO ? window.NPE_RESUMO.deBases(bD, "dir", "EMPRESA") : null;
+    } catch (eD2) { RD = null; }
+    var prompt = promptDiretoria(ano, mes, D) + (RD ? promptCobrar(RD, 160, "1 ação", "as superintendências e OSs") : "");
     progresso("A IA está escrevendo o relatório da Diretoria…");
-    var gc = await gerarConferido(prompt, conferirDiretoria), j = gc.j, falta = gc.falta;
+    var gc = await gerarConferido(prompt, function (jj) { var fx = conferirDiretoria(jj); if (RD && jj && (!jj.cobrar || String(jj.cobrar).length < 40)) fx.push("cobrar"); return fx; }), j = gc.j, falta = gc.falta;
     if (falta.length) throw new Error("A IA não completou o relatório (faltou: " + falta.join(", ") + ").");
     var s2 = A.sessaoAcesso ? A.sessaoAcesso() : null;
     var book = { v: 2, nivel: "dir", nome: "EMPRESA", ano: ano, mes: mes, em: new Date().toISOString(), por: s2 ? s2.login : "", D: D,
-      txt: { sumario: j.sumario, negocios: j.negocios, riscos: j.riscos, decisoes: j.decisoes.slice(0, 5) } };
+      resumo: RD, txt: { sumario: j.sumario, negocios: j.negocios, riscos: j.riscos, decisoes: j.decisoes.slice(0, 5), cobrar: j.cobrar || "" } };
     if (opts.gravar === false) return book;
     progresso("Gravando no SharePoint…");
     await gravar("dir", "EMPRESA", book);
+    try { await gravarRpco("dir", "EMPRESA", RD, j.cobrar, { nome: "EMPRESA", ano: ano, mes: mes }); } catch (eR) { console.warn("resumo RPCO da empresa", eR); }
     return book;
   }
   function chNegocios(D) {
@@ -2896,6 +2920,7 @@
     h.push(cap(++nc, "Riscos para o ano", par(t.riscos)));
     h.push(cap(++nc, "Decisões", '<ol class="rl-plano">' + (t.decisoes || []).map(function (p) { return "<li><b>" + esc(p.acao || "") + "</b>" + (p.efeito ? "<span>" + rico(p.efeito) + "</span>" : "") + (p.negocio ? "<em>" + esc(p.negocio) + "</em>" : "") + "</li>"; }).join("") + "</ol>"));
     h.push('<div class="bk-fontes">' + NOTA_ENC + 'Resultado da empresa por negócio direto do painel RESULTADOS (realizado, Executivo e FCST do mês anterior). Textos escritos por IA. Gerado em ' + esc(new Date(b.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })) + (b.por ? " por " + esc(b.por) : "") + ".</div>");
+    if (b.resumo) h.splice(1, 0, resumoHTML(b.resumo, (b.txt || {}).cobrar || ""));
     return '<article class="rl">' + h.join("") + "</article>";
   }
   async function renderDir(box) {
@@ -3099,5 +3124,5 @@
     }
   }
 
-  window.BOOK = { lerGestoresCTT: lerGestoresCTT, render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao, gerarGrupo: gerarGrupo, listarGrupos: listarGrupos, gerarDiretoria: gerarDiretoria, _montarDiretoria: montarDiretoria, _renderRelatorioDir: renderRelatorioDir, _agregarGrupo: agregarGrupo, _promptGrupo: promptGrupo, _renderRelatorioGrupo: renderRelatorioGrupo, _renderPauta: renderPauta, _gruposLiberados: gruposLiberados, _nivelLiberado: nivelLiberado, _osPermitidas: osPermitidas, _montarPauta: montarPauta, _resumoRpcoOS: resumoRpcoOS, _resumoLinhas: resumoLinhas, _resumoHTML: resumoHTML };
+  window.BOOK = { lerGestoresCTT: lerGestoresCTT, render: render, acao: acao, gerarOS: gerarOS, lerNivel: lerNivel, _promptOS: promptOS, _coletarOS: coletarOS, _montarSeries: montarSeries, _renderBookOS: renderBookOS, _renderRelatorioOS: renderRelatorioOS, _analisarCustos: analisarCustos, _montarFin: montarFin, _conferirProjecao: conferirProjecao, gerarGrupo: gerarGrupo, listarGrupos: listarGrupos, gerarDiretoria: gerarDiretoria, _montarDiretoria: montarDiretoria, _renderRelatorioDir: renderRelatorioDir, _agregarGrupo: agregarGrupo, _promptGrupo: promptGrupo, _renderRelatorioGrupo: renderRelatorioGrupo, _renderPauta: renderPauta, _gruposLiberados: gruposLiberados, _nivelLiberado: nivelLiberado, _osPermitidas: osPermitidas, _montarPauta: montarPauta, _resumoRpcoOS: resumoRpcoOS, _resumoLinhas: resumoLinhas, _resumoHTML: resumoHTML, _resumoBase: resumoBase, _lerRpco: lerRpco, _gravarRpco: gravarRpco, _resumoOS: resumoOS };
 })();
