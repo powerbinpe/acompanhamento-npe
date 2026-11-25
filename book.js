@@ -576,7 +576,7 @@
     var L = ["Situação: margem acumulada " + mg(R.margAcum) + " contra " + mg(R.margExecAcum) + " do executivo; o ano fecha em " + mg(R.margAno) + " contra " + mg(R.margProm) + " prometidos" +
       (R.margAno != null && R.margProm != null ? " (" + (R.margAno - R.margProm >= 0 ? "+" : "") + fmt((R.margAno - R.margProm) * 100, 1) + " p.p.)" : "") + "."];
     if (R.quem && R.quem.length) L.push("Quem mais puxa a margem para baixo: " + R.quem.map(function (q) { return q.nome + " (" + rs(q.gap) + ")"; }).join("; ") + ".");
-    L.push("Principais causas: " + (R.causas.length ? R.causas.map(function (x, i) { return (i + 1) + ". " + x.conta + ": " + rs(x.valor) + " " + x.tipo + (x.rec ? ", em " + x.rec : "") + (x.oss && x.oss.length && R.nivel !== "os" ? " (" + x.oss.join(", ") + ")" : ""); }).join(" ") : "nenhuma conta de custo acima da proporção do efetivo") +
+    L.push("Principais causas: " + (R.causas.length ? R.causas.map(function (x, i) { return (i + 1) + ". " + x.conta + ": " + rs(x.valor) + " " + x.tipo + (x.rec ? ", em " + x.rec : "") + (x.oss && x.oss.length && R.nivel !== "os" ? " (" + x.oss.join(", ") + ")" : ""); }).join("; ") + "." : "nenhuma conta de custo acima da proporção do efetivo") +
       (R.favor && R.favor.length ? " A favor: " + R.favor.map(function (x) { return x.conta + " " + rs(x.valor); }).join(", ") + "." : ""));
     L.push("Projeção " + (R.horiz || "") + ": " + (R.leitura || "sem projeção") + (R.margProj != null ? " (margem projetada " + mg(R.margProj) + " contra " + mg(R.margUlt) + " dos últimos 3 meses)" : "") +
       (R.otimistas != null ? "; " + R.otimistas + " de " + R.nOS + " OSs com projeção otimista" : "") + (R.alertas && R.alertas.length ? ": " + R.alertas.join("; ") : "") + ".");
