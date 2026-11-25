@@ -22,15 +22,16 @@ html,body{margin:0;height:100%;overflow:hidden;background:#fff;color:var(--ink);
 .box{position:absolute;overflow:auto;background:#fff;border:1px solid var(--frame)}
 .title{position:absolute;left:0;top:0;right:0;height:28px;background:var(--bar);text-align:center;font-weight:800;font-size:19px;letter-spacing:.04em;line-height:28px;color:var(--navy)}
 /* cartoes */
-.kg{position:absolute;border:1px solid var(--frame);background:#fff}
+.kg{position:absolute;border:1px solid var(--frame);background:#fff;box-shadow:0 2px 6px rgba(19,43,80,.22);border-radius:3px;overflow:hidden}
 .kt{background:var(--bar);text-align:center;font-weight:800;font-size:16px;line-height:24px;white-space:nowrap}
 .kv{display:grid;grid-template-columns:1fr 1fr .55fr;text-align:center}
 .kv small{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-top:2px}
 .kv strong{display:block;font-size:22px;color:var(--pos);font-variant-numeric:tabular-nums;line-height:32px;white-space:nowrap}
 .n{color:var(--neg)!important}
 .mg{position:absolute;display:flex;gap:6px}
-.mg .grp{display:flex;flex:var(--n) 1 0;border:1px solid var(--frame);background:#fff;min-width:0}
-.mg .cel{flex:1 1 0;min-width:0;border-right:1px solid var(--frame)}
+.mg .grp{display:flex;flex:var(--n) 1 0;border:1px solid var(--frame);background:#fff;min-width:0;height:100%;box-shadow:0 2px 6px rgba(19,43,80,.22);border-radius:3px;overflow:hidden}
+.mg .cel{flex:1 1 0;min-width:0;border-right:1px solid var(--frame);display:flex;flex-direction:column}
+.mg .cel .kv{flex:1 1 auto;align-items:center}
 .mg .cel:last-child{border-right:none}
 .mg .kt{font-size:14px}
 .mg .kv{grid-template-columns:1.15fr 1.1fr .75fr}
@@ -96,18 +97,18 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
 
   // ---------- TOPO: titulo + Mes atual / Acumulado / Ano atual / Contrato + trimestres, quadrimestres e semestres ----------
   function topo(){
-    var W = app.clientWidth, c = nums(P.get("c")), p = nums(P.get("p"));
+    var M0 = 4, W = app.clientWidth - 2 * M0, c = nums(P.get("c")), p = nums(P.get("p"));
     var h = '<div class="title">RPCO - REUNIÃO DE PRESTAÇÃO DE CONTAS OPERACIONAL</div>';
-    var L1 = ["MÊS ATUAL","ACUMULADO","ANO ATUAL","CONTRATO"], w = (W - 3 * 4) / 4;
+    var L1 = ["MÊS ATUAL","ACUMULADO","ANO ATUAL","CONTRATO"], w = (W - 3 * 6) / 4;
     L1.forEach(function(t, i){
       var f = c[i * 3], r = c[i * 3 + 1], m = c[i * 3 + 2] === null ? null : c[i * 3 + 2] / 10000;
-      h += '<div class="kg" style="left:' + (i * (w + 4)) + 'px;top:34px;width:' + w + 'px;height:84px"><div class="kt">' + t + '</div><div class="kv">' +
+      h += '<div class="kg" style="left:' + (M0 + i * (w + 6)) + 'px;top:33px;width:' + w + 'px;height:82px"><div class="kt">' + t + '</div><div class="kv">' +
         '<div><small>FATURAMENTO</small><strong class="' + (f < 0 ? "n" : "") + '">' + txt(f) + '</strong></div>' +
         '<div><small>RESULTADO</small><strong class="' + (r < 0 ? "n" : "") + '">' + txt(r) + '</strong></div>' +
         '<div><small>%</small><strong class="' + (m < 0 ? "n" : "") + '">' + txt(m, true) + "</strong></div></div></div>";
     });
     var G = [["1º TRIMESTRE","2º TRIMESTRE","3º TRIMESTRE","4º TRIMESTRE"],["1º QUADRIMESTRE","2º QUADRIMESTRE","3º QUADRIMESTRE"],["1º SEMESTRE","2º SEMESTRE"]], k = 0;
-    h += '<div class="mg" style="left:0;top:126px;width:' + W + 'px;height:96px">';
+    h += '<div class="mg" style="left:' + M0 + 'px;top:122px;width:' + W + 'px;height:92px">';
     G.forEach(function(gr){
       h += '<div class="grp" style="--n:' + gr.length + '">';
       gr.forEach(function(t){
