@@ -175,7 +175,8 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
     if (!MF) { el.innerHTML = cab + '<div class="msg" style="grid-row:2/4">Nenhum mês fechado no filtro.</div>'; return; }
     var pa = 0, ea = 0; for (var m = 1; m <= MF; m++) if (AD[m]) { pa += AD[m][0]; ea += AD[m][1]; }
     var am = AD[MF] || [0, 0], adA = ea ? pa / ea : null, adM = am[1] ? am[0] / am[1] : null, uma = CHAVES.length === 1;
-    var txtA = ea ? (uma ? "participou em " + pa + " de " + ea + " meses" : pa + " de " + ea + " OS × mês") : "sem OS elegível";
+    var pico = 0, mPico = 0; for (var mm = 1; mm <= MF; mm++) if (AD[mm] && AD[mm][1] >= pico) { pico = AD[mm][1]; mPico = mm; }
+    var txtA = ea ? (uma ? "participou em " + pa + " de " + ea + " meses" : "pico de " + pico + " OSs elegíveis (" + MESES[mPico - 1].toLowerCase() + ")") : "sem OS elegível";
     var txtM = am[1] ? (uma ? (am[0] ? "participou em " : "não participou em ") + MESES[MF - 1].toLowerCase() : am[0] + " de " + am[1] + " OSs em " + MESES[MF - 1].toLowerCase()) : "sem OS elegível no mês";
     function desenha(notas, erro){
       var sel = {}; CHAVES.forEach(function(k){ sel[k] = 1; });
