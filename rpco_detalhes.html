@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RPCO Detalhes</title>
+<style>
+/* Visual HTML da tabela DETALHES da pagina RPCO (RESULTADOS). Os numeros vem da medida
+   _mHTML_RPCO_DETALHES pela URL; a perda da Receita Ideal vem do fluxo NPE-Ler-Perda-RI. */
+:root{--navy:#132B50;--ink:#1b2430;--muted:#6b7686;--line:#e3e7ec;--pos:#1F4E9A;--neg:#C62828;--new:#0E7C66;--newbg:#e6f4f0;--warn:#B45309;--warnbg:#FDF1DC;--ok:#1E7B3A;--okbg:#E8F5EC}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#fff;color:var(--ink);font:13px/1.3 "Segoe UI",system-ui,Arial,sans-serif}
+.wrap{height:100%;overflow:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th{background:var(--navy);color:#fff;font-weight:700;font-size:12px;padding:5px 5px;text-align:right;white-space:nowrap;position:sticky;top:0;z-index:2}
+th:first-child{text-align:left;position:sticky;left:0;z-index:3}
+td{padding:2px 5px;height:23px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line);font-size:13px;color:var(--pos)}
+td:first-child{text-align:left;color:var(--ink);font-weight:600;font-size:12px;position:sticky;left:0;background:#fff;z-index:1;max-width:300px;overflow:hidden;text-overflow:ellipsis}
+td.pc{text-align:center}
+td.n{color:var(--neg)}
+td.z{color:#9aa4b2}
+td.red{background:#FDE8E8;color:var(--neg);font-weight:700}
+tr.nwr td{background:var(--newbg)}
+tr.nwr td:first-child{background:var(--newbg)}
+tr.dif td{font-weight:700}
+td.ok{background:var(--okbg);color:var(--ok)}
+td.warn{background:var(--warnbg);color:var(--warn);box-shadow:inset 0 0 0 1px #F2C98A}
+td.ano{font-weight:800;border-left:2px solid #d5dbe3}
+small.meta{color:var(--muted);font-weight:500;margin-left:4px}
+.aviso{font-size:11px;color:var(--muted);padding:6px 8px}
+.tog{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.tog:focus-visible{outline:2px solid var(--new);outline-offset:2px}
+.chev{display:inline-block;width:16px;height:16px;border-radius:3px;background:var(--new);color:#fff;font-size:11px;line-height:16px;text-align:center;transition:transform 180ms cubic-bezier(.2,.8,.2,1)}
+.open .chev{transform:rotate(90deg)}
+tr.g1 td{background:#f4faf8}
+tr.g1 td:first-child{padding-left:22px;background:#f4faf8}
+tr.g2 td{font-size:12px;background:#fbfcfd;color:#3d5a8a}
+tr.g2 td:first-child{padding-left:46px;font-weight:500;color:#3d4756;background:#fbfcfd}
+tr.show{animation:rowIn 200ms cubic-bezier(.2,.8,.2,1) both}
+@keyframes rowIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap"><table id="t"></table><div class="aviso" id="aviso"></div></div>
+<script>
+(function(){
+  var FLOW_RI = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/31/workflows/108c6edc70ee4d4b88540d8c432d4921/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lcW3SxD98NvxAtaBiIf3ZDG9PjwYDDGpkVhO2B77BSA";   // NPE-Ler-Perda-RI-Motivos: perda (sem negativos) por mes e motivo, OSs do filtro
+  var CLASSE = {};   // motivo -> grupo (lista RI_MOTIVO do Cadastro, vem da medida no parametro cm)
+  (new URLSearchParams(location.search).get("cm") || "").split("~").forEach(function(par){ var i = par.lastIndexOf("|"); if (i > 0) CLASSE[par.slice(0, i)] = par.slice(i + 1); });
+  var ABERTO = {};   // grupos abertos
+  var P = new URLSearchParams(location.search);
+  var ANO = parseInt(P.get("a"), 10) || new Date().getFullYear();
+  var OSL = P.get("os") || "";
+  var MA = P.get("ma") === "" || P.get("ma") === null ? null : (+P.get("ma")) / 10000;
+  var MT = P.get("mt") === "" || P.get("mt") === null ? null : (+P.get("mt")) / 10000;
+  var REF_PERDA = 0.04;   // referencia de perda da empresa (usuario, 24/11/2026)
+  var MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  // series na ordem da medida: 12 meses + ano; % multiplicados por 10000
+  var K = ["nota","fat","custo","res","mg","aj","prov","fs","rs","ms","fr","rr","mr","ef","efmod","efpr","efprmod","abs","turn","he","perda","pperda","hht","hhtmod","hhpr","hhprmod"];
+  var PCT = {mg:1, ms:1, mr:1, abs:1, turn:1, he:1, pperda:1};
+  var D = {};
+  (P.get("d") || "").split("_").forEach(function(s, i){
+    if (!K[i]) return;
+    D[K[i]] = s.split(".").map(function(v){ if (v === "") return null; var n = +v; return PCT[K[i]] ? n / 10000 : n; });
+  });
+  var nf = new Intl.NumberFormat("pt-BR", {maximumFractionDigits:0});
+  var pf = new Intl.NumberFormat("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
+  function cel(v, pct, extra){
+    extra = extra || "";
+    if (v === null || v === undefined || (typeof v === "number" && isNaN(v))) return '<td class="z ' + (pct ? "pc " : "") + extra + '"></td>';
+    var txt = pct ? pf.format(v * 100) + "%" : nf.format(v);
+    return '<td class="' + (v < 0 ? "n " : "") + (pct ? "pc " : "") + extra + '">' + txt + "</td>";
+  }
+  function serie(k){ return D[k] || []; }
+  function linha(rot, k, cls, meta){
+    var s = serie(k), pct = !!PCT[k], h = '<tr class="' + (cls || "") + '"><td title="' + rot.replace(/<[^>]+>/g, "") + '">' + rot + "</td>";
+    for (var i = 0; i < 13; i++) {
+      var v = s[i] === undefined ? null : s[i];
+      var red = (meta !== null && meta !== undefined && v !== null && v >= meta) ? "red" : "";
+      h += cel(v, pct, (i === 12 ? "ano " : "") + red);
+    }
+    return h + "</tr>";
+  }
+  var RI = null;  // {mes: perda total}
+  var RIM = null; // {motivo: {mes: perda}}
+  function somaAno(o){ var t = 0, tem = false; for (var k in o) { if (o[k] !== null && o[k] !== undefined) { t += o[k]; tem = true; } } return tem ? t : null; }
+  // Grupo -> Motivo, ordenados pela perda do ano (maior primeiro). Motivo sem classificacao cai em "Sem classificação".
+  function linhasGrupos(){
+    var G = {};
+    Object.keys(RIM).forEach(function(mot){
+      var g = CLASSE[mot] || "Sem classificação";
+      var gr = G[g] || (G[g] = { meses: {}, mots: {} });
+      gr.mots[mot] = RIM[mot];
+      for (var m in RIM[mot]) gr.meses[m] = (gr.meses[m] || 0) + RIM[mot][m];
+    });
+    var out = "";
+    Object.keys(G).sort(function(a, b){ return (somaAno(G[b].meses) || 0) - (somaAno(G[a].meses) || 0); }).forEach(function(g){
+      var gr = G[g], ab = !!ABERTO[g];
+      out += '<tr class="g1 show"><td><button class="tog' + (ab ? " open" : "") + '" data-g="' + g.replace(/"/g, "&quot;") + '" aria-expanded="' + ab + '"><span class="chev">▸</span>' + g + '</button></td>';
+      for (var i = 1; i <= 12; i++) out += cel(gr.meses[i] === undefined ? null : gr.meses[i], false);
+      out += cel(somaAno(gr.meses), false, "ano") + "</tr>";
+      if (!ab) return;
+      Object.keys(gr.mots).sort(function(a, b){ return (somaAno(gr.mots[b]) || 0) - (somaAno(gr.mots[a]) || 0); }).forEach(function(mot){
+        var mm = gr.mots[mot];
+        out += '<tr class="g2 show"><td title="' + mot.replace(/"/g, "&quot;") + '">' + mot + "</td>";
+        for (var j = 1; j <= 12; j++) out += cel(mm[j] === undefined ? null : mm[j], false);
+        out += cel(somaAno(mm), false, "ano") + "</tr>";
+      });
+    });
+    return out;
+  }
+  document.addEventListener("click", function(e){ var b = e.target.closest(".tog"); if (!b) return; var g = b.getAttribute("data-g"); ABERTO[g] = !ABERTO[g]; render(); });
+  function render(){
+    var h = "<thead><tr><th>MÊS/ANO</th>" + MESES.map(function(m){ return "<th>" + m + "</th>"; }).join("") + '<th>ANO</th></tr></thead><tbody>';
+    h += linha("FATURAMENTO REAL (NOTA EMITIDA)", "nota", "nwr");
+    h += linha("FATURAMENTO (BRUTO)", "fat") + linha("CUSTO TOTAL (BRUTO)", "custo") + linha("RESULTADO TOTAL (BRUTO)", "res") + linha("% MARGEM (BRUTO)", "mg");
+    h += linha("AJUSTE DE EMISSÃO", "aj") + linha("PROVISÃO DE RECEITA", "prov");
+    h += linha("FATURAMENTO - SERVIÇO", "fs") + linha("RESULTADO - SERVIÇO", "rs") + linha("MARGEM - SERVIÇO", "ms");
+    h += linha("FATURAMENTO - REVENDA", "fr") + linha("RESULTADO - REVENDA", "rr") + linha("MARGEM - REVENDA", "mr");
+    h += linha("EFETIVO REAL", "ef") + linha("EFETIVO REAL - MOD", "efmod") + linha("EFETIVO PR", "efpr") + linha("EFETIVO PR - MOD", "efprmod");
+    h += linha("% ABSENTEÍSMO" + (MA !== null ? '<small class="meta">meta ' + pf.format(MA * 100) + "%</small>" : ""), "abs", "", MA);
+    h += linha("% TURNOVER" + (MT !== null ? '<small class="meta">meta ' + pf.format(MT * 100) + "%</small>" : ""), "turn", "", MT);
+    h += linha("% HORA EXTRA", "he");
+    h += linha("PERDAS DE RECEITA (PR)", "perda");
+    // Receita Ideal: perda do mes vinda do painel Receita Ideal
+    var ri = [], soma = null;
+    for (var m = 1; m <= 12; m++) { var v = RI && RI[m] !== undefined ? RI[m] : null; ri.push(v); if (v !== null) soma = (soma || 0) + v; }
+    var temMot = RIM && Object.keys(RIM).length;
+    h += '<tr class="nwr"><td>' + (temMot ? '<button class="tog' + (ABERTO.__ri ? " open" : "") + '" data-g="__ri" aria-expanded="' + (ABERTO.__ri ? "true" : "false") + '"><span class="chev">▸</span>PERDA DE RECEITA (RECEITA IDEAL)</button>' : "PERDA DE RECEITA (RECEITA IDEAL)") + '</td>' + ri.map(function(v){ return cel(v, false); }).join("") + cel(soma, false, "ano") + "</tr>";
+    if (temMot && ABERTO.__ri) h += linhasGrupos();
+    var pr = serie("perda");
+    var dif = '<tr class="nwr dif"><td>DIFERENÇA PR − RECEITA IDEAL</td>', sd = null;
+    for (var j = 0; j < 12; j++) {
+      var a = pr[j], b = ri[j];
+      if ((a === null || a === undefined) && b === null) { dif += '<td class="z"></td>'; continue; }
+      var d = (a || 0) - (b || 0); sd = (sd || 0) + d;
+      dif += Math.abs(d) < 1 ? '<td class="ok">✓ 0</td>' : '<td class="warn">' + (d > 0 ? "+" : "−") + nf.format(Math.abs(d)) + "</td>";
+    }
+    dif += sd === null ? '<td class="z ano"></td>' : (Math.abs(sd) < 1 ? '<td class="ok ano">✓ 0</td>' : '<td class="warn ano">' + (sd > 0 ? "+" : "−") + nf.format(Math.abs(sd)) + "</td>");
+    h += dif + "</tr>";
+    // % de perda (usuario, 24/11/2026): perda da RECEITA IDEAL sobre o faturamento bruto, no lugar da perda da PR.
+    // Referencia da empresa: 4%; acima disso fica em vermelho. No ano, o faturamento entra so dos meses com Receita Ideal.
+    var fat = serie("fat"), pl = '<tr><td>% PERDA S/ FATURAMENTO (RECEITA IDEAL)<small class="meta">ref. ' + pf.format(REF_PERDA * 100) + '%</small></td>', sp = 0, sf = 0, tem = false;
+    for (var q = 0; q < 12; q++) {
+      var pv = ri[q], fv = fat[q];
+      if (pv === null || !fv) { pl += '<td class="z pc"></td>'; continue; }
+      var pc = pv / fv; sp += pv; sf += fv; tem = true;
+      pl += cel(pc, true, pc > REF_PERDA ? "red" : "");
+    }
+    var pa = tem && sf ? sp / sf : null;
+    pl += cel(pa, true, "ano " + (pa !== null && pa > REF_PERDA ? "red" : ""));
+    h += pl + "</tr>";
+    h += linha("HHT REAL", "hht") + linha("HHT REAL - MOD", "hhtmod") + linha("HHT PR", "hhpr") + linha("HHT PR - MOD", "hhprmod");
+    document.getElementById("t").innerHTML = h + "</tbody>";
+  }
+  render();
+  var av = document.getElementById("aviso");
+  if (!OSL) { av.textContent = "Nenhuma OS do filtro tem Receita Ideal."; return; }
+  av.textContent = "Lendo a perda da Receita Ideal...";
+  fetch(FLOW_RI, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ os: OSL, ano: ANO }) })
+    .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+    .then(function(t){
+      var j = JSON.parse(t);
+      var rows = (j && j.results && j.results[0] && j.results[0].tables && j.results[0].tables[0] && j.results[0].tables[0].rows) || (j && j.firstTableRows) || [];
+      RI = {}; RIM = {};
+      rows.forEach(function(r){
+        var m = parseInt(r["[mes]"], 10), pe = +r["[perda]"], mot = String(r["[mot]"] || "(SEM JUSTIFICATIVA)");
+        if (!m || !pe) return;
+        if (r["[grp]"] && !CLASSE[mot]) CLASSE[mot] = String(r["[grp]"]);   // se o fluxo ja trouxer o grupo, vale quando o cm nao tiver o motivo
+        RI[m] = (RI[m] || 0) + pe;
+        (RIM[mot] = RIM[mot] || {})[m] = ((RIM[mot] || {})[m] || 0) + pe;
+      });
+      av.textContent = "";
+      render();
+    })
+    .catch(function(e){ av.textContent = "Não foi possível ler a Receita Ideal (" + e.message + ")."; });
+})();
+</script>
+</body>
+</html>
