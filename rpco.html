@@ -243,7 +243,10 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
         doMes.forEach(function(d){ if (d.nivel !== "os" && d.bases) d.bases.forEach(function(b){ if (b && b.os && !base[b.os]) base[b.os] = b; }); });
         doMes.forEach(function(d){ if (d.nivel === "os" && d.R) { porOS[d.chave] = d; if (d.R.base) base[d.chave] = d.R.base; } });
         var cob = SEL.filter(function(o){ return base[o]; });
-        function mesmoConjunto(d){ var a = (d.R && d.R.oss) || []; if (!a.length || a.length !== cob.length) return false; var s = {}; a.forEach(function(o){ s[o] = 1; }); return cob.every(function(o){ return s[o]; }); }
+        // o nivel vale quando todas as OSs dele estao no filtro e as OSs com resumo no filtro sao dele
+        // (o filtro traz tambem OSs de bloco e encerradas, que nao tem resumo proprio)
+        var selS = {}; SEL.forEach(function(o){ selS[o] = 1; });
+        function mesmoConjunto(d){ var a = (d.R && d.R.oss) || []; if (!a.length || !a.every(function(o){ return selS[o]; })) return false; var s = {}; a.forEach(function(o){ s[o] = 1; }); return cob.every(function(o){ return s[o]; }); }
         function nivelTxt(n){ return n === "ger" ? "Gerência" : n === "sup" ? "Superintendência" : n === "dir" ? "Empresa" : "OS"; }
         var grupos = doMes.filter(function(d){ return d.nivel !== "os" && d.R; });
         var achou = null;
