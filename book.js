@@ -409,6 +409,142 @@
     return { meses: proj, alerta: a.problemas.length ? a : null, base: a };
   }
 
+  // ---- REGUA DE TENDENCIA (25/11/2026, usuario) ------------------------------------------------
+  // A referencia e a MARGEM prometida no executivo. Faturamento e custo so precisam seguir o efetivo
+  // (por pessoa e por HHT); quando a margem sai da regua, o desvio precisa de causa, mes e destino
+  // (fica no mes, segue nos meses projetados ou passa para o ano seguinte). Eventos previsiveis do
+  // Cadastro de Metas > Eventos (EVENTO_OS: data-base do dissidio e reajuste do contrato; EVENTO_GERAL:
+  // reoneracao etc.) e as ferias vencidas (regra do #14) tem que aparecer na projecao.
+  var EVT_ABREV = ["", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  function eventosDaOS(codigos, neg, setor, ano) {
+    var ps = (window.METAS_DB && window.METAS_DB.parametros) || [], out = { os: [], ger: [] };
+    ps.forEach(function (p) {
+      if (String(p.ativo) !== "Sim") return;
+      var v = String(p.valor || "").split("|");
+      if (String(p.tipo) === "EVENTO_OS" && codigos.indexOf(String(v[0]).toUpperCase()) >= 0 && Math.floor((parseInt(p.vigencia, 10) || 0) / 100) === ano)
+        out.os.push({ os: v[0], db: parseInt(v[1], 10) || 0, dbp: v[2] === "" || v[2] == null ? null : +v[2] / 100, rj: parseInt(v[3], 10) || 0, rjp: v[4] === "" || v[4] == null ? null : +v[4] / 100, ind: v[5] || "", obs: p.comentario || "" });
+      else if (String(p.tipo) === "EVENTO_GERAL") {
+        var abr = String(v[4] || "TODAS"), vale = abr === "TODAS" || (abr.indexOf("NEGOCIO:") === 0 && abr.slice(8) === String(neg || "")) || (abr.indexOf("SETOR:") === 0 && abr.slice(6) === String(setor || ""));
+        if (vale) out.ger.push({ nome: v[0], am: parseInt(v[1], 10) || 0, efeito: v[2] || "CUSTO", pct: v[3] === "" || v[3] == null ? null : +v[3] / 100, abr: abr, obs: p.comentario || "" });
+      }
+    });
+    return out;
+  }
+  function reguaTendencia(S, dados, mes, os, ano, H) {
+    var soma = function (a) { var s = 0, h = false; (a || []).forEach(function (v) { if (v != null && v !== "" && !isNaN(v)) { s += +v; h = true; } }); return h ? s : null; };
+    var div = function (a, b) { return a == null || b == null || !b ? null : a / b; };
+    var ms = S.meses || [], n = ms.length; if (!n || !S.rh) return null;
+    var F = S.rh.fat || [], R = S.rh.res || [], E = S.rh.efet || [], Hh = S.rh.hht || [];
+    function jan(fs, rs, es, hs) {
+      var f = soma(fs), r = soma(rs), e = soma(es), h = soma(hs), c = f == null || r == null ? null : f - r;
+      return { f: f, r: r, c: c, e: e, h: h, marg: div(r, f), fpp: div(f, e), cpp: div(c, e), fph: div(f, h), cph: div(c, h), hpp: div(h, e) };
+    }
+    var acum = jan(F, R, E, Hh), i3 = Math.max(0, n - 3), ult = jan(F.slice(i3), R.slice(i3), E.slice(i3), Hh.slice(i3));
+    var mx = {}; (dados.mesx || []).forEach(function (r) { mx[parseInt(r.MesNo, 10)] = r; });
+    var ex = jan(ms.map(function (m) { return mx[m] ? mx[m].fe : null; }), ms.map(function (m) { return mx[m] ? mx[m].re : null; }), S.rh.efetEx, S.rh.hhtEx);
+    var P = (dados.proj || []).filter(function (x) { return +x.m > mes; }).sort(function (a, b) { return a.m - b.m; });
+    var pj = jan(P.map(function (x) { return x.fat; }), P.map(function (x) { return x.res; }), P.map(function (x) { return x.efet; }), P.map(function (x) { return x.hht; }));
+    var PX = (dados.projx || []).filter(function (x) { return +x.m > mes; });
+    var exP = jan(PX.map(function (x) { return x.fe; }), PX.map(function (x) { return x.re; }), [], []);
+    var anoR = { f: (acum.f || 0) + (pj.f || 0), r: (acum.r || 0) + (pj.r || 0) }; anoR.marg = div(anoR.r, anoR.f);
+    var anoEx = { f: (ex.f || 0) + (exP.f || 0), r: (ex.r || 0) + (exP.r || 0) }; anoEx.marg = div(anoEx.r, anoEx.f);
+    var margProm = anoEx.marg != null ? anoEx.marg : ex.marg;   // margem prometida = executivo do ano
+    var tol = tolAssert(), pp = function (v) { return v == null ? "–" : (v >= 0 ? "+" : "") + fmt(v * 100, 1) + " p.p."; };
+    var mg = function (v) { return v == null ? "–" : fmt(v * 100, 1) + "%"; }, var1 = function (a, b) { return a == null || b == null || !b ? null : a / b - 1; };
+    var vp = function (v) { return v == null ? "–" : (v >= 0 ? "+" : "") + fmt(v * 100, 1) + "%"; };
+    var mesesP = P.map(function (x) { return EVT_ABREV[x.m]; });
+    var horiz = mesesP.length ? mesesP[0] + (mesesP.length > 1 ? "–" + mesesP[mesesP.length - 1] : "") : "";
+    // leitura da projecao: contra o que o contrato vem entregando (ultimos 3 meses) e contra a promessa
+    var leitura = pj.marg == null || ult.marg == null ? "sem projeção" : (pj.marg - ult.marg > tol ? "OTIMISTA" : (pj.marg - ult.marg < -tol ? "CONSERVADORA" : "COERENTE com os últimos meses"));
+    var alertas = [], causas = [];
+    var dF = var1(pj.fpp, ult.fpp), dC = var1(pj.cpp, ult.cpp), dH = var1(pj.hpp, ult.hpp);
+    var eUlt = E[n - 1], ePj = P.length ? P[P.length - 1].efet : null, hUlt = Hh[n - 1], hPj = P.length ? P[P.length - 1].hht : null;
+    if (dH != null && Math.abs(dH) > 0.10) alertas.push("horas por pessoa projetadas " + fmt(pj.hpp, 0) + " h contra " + fmt(ult.hpp, 0) + " h nos últimos 3 meses (" + vp(dH) + "): efetivo PR (" + fmt(eUlt) + " → " + fmt(ePj) + ") e HHT PR (" + fmt(hUlt, 0) + " → " + fmt(hPj, 0) + " h) não se explicam");
+    // eventos cadastrados
+    var cods = codigosBloco((H && H.rotulo) || os).split("|").filter(Boolean); if (cods.indexOf(os) < 0) cods.push(os);
+    var setor = window.ELEG_MES && window.ELEG_MES.porOS && window.ELEG_MES.porOS[os] ? window.ELEG_MES.porOS[os].setor : "";
+    var ev = eventosDaOS(cods, (H && H.neg) || "", setor, ano), evTxt = [];
+    // peso da folha no custo (salario + encargos + provisoes do contabil), para estimar o efeito do dissidio
+    var fo = S.fin && S.fin.folha, pesoFolha = null;
+    if (fo && fo.base) { var fl = -((soma(fo.base) || 0) + (soma(fo.enc) || 0) + (soma(fo.prov) || 0)); pesoFolha = div(fl, acum.c); }
+    if (pesoFolha == null || pesoFolha <= 0 || pesoFolha > 1) pesoFolha = 0.6;
+    var reajNoHoriz = false;
+    ev.os.forEach(function (e) {
+      if (e.db) {
+        var txt = "dissídio " + (e.dbp != null ? fmt(e.dbp * 100, 2) + "% " : "") + "na data-base de " + EVT_ABREV[e.db];
+        if (e.db > mes) {
+          var esperado = e.dbp != null ? e.dbp * pesoFolha * 0.5 : 0.02;
+          if (dC == null || dC < esperado) alertas.push(txt + " não aparece na projeção: custo por pessoa projetado " + vp(dC) + " sobre os últimos 3 meses, esperado ao menos " + vp(esperado));
+          else evTxt.push(txt + " considerado na projeção (custo por pessoa " + vp(dC) + ")");
+        } else {
+          var ib = ms.indexOf(e.db), antes = ib > 0 ? jan(F.slice(Math.max(0, ib - 3), ib), R.slice(Math.max(0, ib - 3), ib), E.slice(Math.max(0, ib - 3), ib), []) : null, depois = ib >= 0 ? jan(F.slice(ib), R.slice(ib), E.slice(ib), []) : null;
+          var dReal = antes && depois ? var1(depois.cpp, antes.cpp) : null, espR = e.dbp != null ? e.dbp * pesoFolha * 0.5 : 0.02;
+          if (dReal != null && dReal >= espR) evTxt.push(txt + " já aparece no realizado (custo por pessoa " + vp(dReal) + " desde " + EVT_ABREV[e.db] + ")");
+          else alertas.push(txt + " ainda não aparece no realizado (custo por pessoa " + vp(dReal) + " desde " + EVT_ABREV[e.db] + "): o reajuste e o retroativo precisam estar na projeção");
+        }
+      }
+      if (e.rj) {
+        var tr = "reajuste do contrato " + (e.rjp != null ? fmt(e.rjp * 100, 2) + "% " : "") + (e.ind ? "(" + e.ind + ") " : "") + "em " + EVT_ABREV[e.rj];
+        if (e.rj > mes) {
+          reajNoHoriz = true;
+          var espF = e.rjp != null ? e.rjp * 0.5 : 0.02;
+          if (dF == null || dF < espF) alertas.push(tr + " não aparece no faturamento projetado: faturamento por pessoa " + vp(dF) + ", esperado ao menos " + vp(espF));
+          else evTxt.push(tr + " considerado na projeção (faturamento por pessoa " + vp(dF) + ")");
+        } else evTxt.push(tr + " (já passou; conferir se o novo preço entrou no faturamento a partir desse mês)");
+      }
+    });
+    ev.ger.forEach(function (g) {
+      var ag = Math.floor(g.am / 100), mg0 = g.am % 100, nome = g.nome + (g.pct != null ? " (" + fmt(g.pct * 100, 2) + "%)" : "") + " em " + EVT_ABREV[mg0] + "/" + ag;
+      if (ag > ano) evTxt.push(nome + ": fora do horizonte do FCST de " + ano + "; a projeção de " + ag + " precisa considerar");
+      else if (ag === ano && mg0 > mes) {
+        var alvo = g.efeito === "FATURAMENTO" ? dF : dC, esp = g.pct != null ? g.pct * (g.efeito === "FATURAMENTO" ? 0.5 : pesoFolha * 0.5) : 0.02;
+        if (alvo == null || alvo < esp) alertas.push(nome + " não aparece na projeção (" + (g.efeito === "FATURAMENTO" ? "faturamento" : "custo") + " por pessoa " + vp(alvo) + ")");
+        else evTxt.push(nome + " considerado na projeção");
+      }
+    });
+    if (!reajNoHoriz && dF != null && dF > 0.10) alertas.push("faturamento por pessoa projetado sobe " + vp(dF) + " sobre os últimos 3 meses sem reajuste cadastrado para " + horiz);
+    // ferias vencidas (regra do #14)
+    var f45 = S.rh.fer45;
+    if (f45 != null && eUlt) {
+      var qf = f45 / eUlt;
+      if (qf >= 0.10 && (dC == null || dC <= 0.02)) alertas.push(fmt(f45) + " pessoas com férias vencidas (" + fmt(qf * 100, 1) + "% do efetivo) e o custo por pessoa projetado não sobe (" + vp(dC) + "): reservar o custo das férias nos meses de saída");
+      else if (f45 > 0) evTxt.push(fmt(f45) + " pessoas com férias vencidas (" + fmt(qf * 100, 1) + "% do efetivo)");
+    }
+    // destino do desvio: o que ficou para tras contra a margem prometida e o que a projecao recupera
+    var gapAcum = acum.f != null && margProm != null ? acum.r - acum.f * margProm : null;
+    var gapProj = pj.f != null && margProm != null ? pj.r - pj.f * margProm : null;
+    var destino = "";
+    if (gapAcum != null) {
+      if (gapAcum < 0 && gapProj != null && gapProj > 0) destino = "a projeção de " + horiz + " recupera " + rs(gapProj) + " de " + rs(-gapAcum) + " abaixo da margem prometida até " + EVT_ABREV[mes] + " (" + fmt(Math.min(1, gapProj / -gapAcum) * 100, 0) + "%)";
+      else if (gapAcum < 0) destino = "nada do desvio de " + rs(-gapAcum) + " volta na projeção de " + horiz;
+      else destino = "acumulado acima da margem prometida em " + rs(gapAcum);
+      if (anoR.marg != null && margProm != null && anoR.marg < margProm - 0.001) destino += "; o ano fecha " + pp(anoR.marg - margProm) + " abaixo da margem prometida, e o que não se confirmar passa para " + (ano + 1);
+    }
+    var linhas = [
+      "RÉGUA DE TENDÊNCIA (calculado; referência = margem prometida no executivo do ano " + mg(margProm) + "; faturamento e custo devem seguir o efetivo):",
+      "  Margem: acumulada jan–" + EVT_ABREV[mes] + " " + mg(acum.marg) + " | últimos 3 meses " + mg(ult.marg) + " | projetada " + horiz + " " + mg(pj.marg) + " | executivo " + mg(margProm) + " | ano (real + projeção) " + mg(anoR.marg) + ".",
+      "  Leitura da projeção: " + leitura + " (projetada " + pp(pj.marg != null && ult.marg != null ? pj.marg - ult.marg : null) + " sobre os últimos 3 meses; tolerância " + fmt(tol * 100, 2) + " p.p.).",
+      "  Por pessoa-mês: faturamento acumulado " + rs(acum.fpp) + ", últimos 3 meses " + rs(ult.fpp) + ", projetado " + rs(pj.fpp) + " (" + vp(dF) + "), executivo " + rs(ex.fpp) + " | custo acumulado " + rs(acum.cpp) + ", últimos 3 meses " + rs(ult.cpp) + ", projetado " + rs(pj.cpp) + " (" + vp(dC) + "), executivo " + rs(ex.cpp) + ".",
+      "  Por HHT: faturamento " + (acum.fph != null ? "R$ " + fmt(acum.fph, 2) : "–") + " acumulado, " + (pj.fph != null ? "R$ " + fmt(pj.fph, 2) : "–") + " projetado, " + (ex.fph != null ? "R$ " + fmt(ex.fph, 2) : "–") + " executivo | custo " + (acum.cph != null ? "R$ " + fmt(acum.cph, 2) : "–") + " acumulado, " + (pj.cph != null ? "R$ " + fmt(pj.cph, 2) : "–") + " projetado, " + (ex.cph != null ? "R$ " + fmt(ex.cph, 2) : "–") + " executivo | horas por pessoa " + fmt(ult.hpp, 0) + " h nos últimos 3 meses x " + fmt(pj.hpp, 0) + " h projetadas.",
+      "  Destino do desvio: " + (destino || "–") + ".",
+      "  Eventos cadastrados e férias: " + (evTxt.length ? evTxt.join("; ") : "nenhum evento cadastrado para esta OS no Cadastro de Metas > Eventos") + ".",
+      "  ALERTAS DA PROJEÇÃO: " + (alertas.length ? alertas.join(" | ") : "nenhum") + "."
+    ];
+    return { acum: acum, ult: ult, ex: ex, pj: pj, exP: exP, anoR: anoR, anoEx: anoEx, margProm: margProm, leitura: leitura, alertas: alertas, eventos: evTxt, destino: destino, horiz: horiz, linhas: linhas };
+  }
+  function reguaHTML(G) {
+    if (!G) return "";
+    var mg = function (v) { return v == null ? "–" : pct(v, 1); }, r0 = function (v) { return v == null ? "–" : moeda(v); };
+    var cls = /OTIMISTA/.test(G.leitura) ? "bad" : (/CONSERVADORA/.test(G.leitura) ? "na" : "ok");
+    return '<div class="rl-tab"><table><thead><tr><th></th><th>Acumulado</th><th>Últimos 3 meses</th><th>Projetado ' + esc(G.horiz) + '</th><th>Executivo</th></tr></thead><tbody>' +
+      "<tr><td>Margem</td><td>" + mg(G.acum.marg) + "</td><td>" + mg(G.ult.marg) + "</td><td><b>" + mg(G.pj.marg) + "</b></td><td>" + mg(G.margProm) + "</td></tr>" +
+      "<tr><td>Faturamento por pessoa-mês</td><td>" + r0(G.acum.fpp) + "</td><td>" + r0(G.ult.fpp) + "</td><td>" + r0(G.pj.fpp) + "</td><td>" + r0(G.ex.fpp) + "</td></tr>" +
+      "<tr><td>Custo por pessoa-mês</td><td>" + r0(G.acum.cpp) + "</td><td>" + r0(G.ult.cpp) + "</td><td>" + r0(G.pj.cpp) + "</td><td>" + r0(G.ex.cpp) + "</td></tr>" +
+      "<tr><td>Horas por pessoa</td><td>" + fmt(G.acum.hpp, 0) + "</td><td>" + fmt(G.ult.hpp, 0) + "</td><td>" + fmt(G.pj.hpp, 0) + "</td><td>" + fmt(G.ex.hpp, 0) + "</td></tr>" +
+      '</tbody></table><p class="rl-nota">Leitura da projeção: <span class="bk-pill ' + cls + '">' + esc(G.leitura) + "</span> · ano (real + projeção) " + mg(G.anoR.marg) + " contra " + mg(G.margProm) + " prometidos" +
+      (G.alertas.length ? "<br><b>Alertas:</b> " + esc(G.alertas.join(" · ")) : "") + "</p></div>";
+  }
+
   function coletarOS(os, ano, mes, dados) {
     var contract = contratoDa(os);
     if (!contract || !contract.monthHistory) throw new Error("Os dados da OS " + os + " não chegaram ao app. Selecione uma única OS no Power BI.");
@@ -428,6 +564,7 @@
     if (dados.fer) { S.rh.fer30 = dados.fer.f30; S.rh.fer45 = dados.fer.f45; S.rh.ferSaldo = dados.fer.saldo; S.rh.ferTot = dados.fer.tot; }
     if (dados.ferRH && dados.ferRH.f45 != null) S.rh.fer45 = dados.ferRH.f45;   // 16/11: mais de 45 dias pela regra do painel RH (igual ao #14)
     S.proj = conferirProjecao(S, (dados.proj || []).slice().sort(function (a, b) { return a.m - b.m; }));
+    try { S.regua = reguaTendencia(S, dados, mes, os, ano, H); } catch (eR) { S.regua = null; console.warn('regua de tendencia', eR); }
     var semAtiv = [];
     for (var ma = 1; ma <= mes; ma++) if (!mesComAtividade(S, ma)) semAtiv.push(ma);
     function inat(m) { return semAtiv.indexOf(m) >= 0; }
@@ -869,7 +1006,7 @@
     L.push("- Custos são sempre escritos positivos (Hospedagem R$ 308.361; custou R$ 582.396 a mais que a proporção). Parênteses só para resultado ou margem negativos.");
     L.push("");
     L.push("SAÍDA: responda SOMENTE com um JSON válido, sem texto antes ou depois, sem ```:");
-    L.push('{"situacao":"(2 parágrafos, até 900 caracteres: onde o contrato está, só o retrato geral; sem causas)","positivos":[{"titulo":"(até 45 caracteres)","texto":"(até 260 caracteres: o que está dando certo, com o número, e o que manter)"}] (2 a 5 itens; se nada vai bem, 1 item dizendo isso),"diagnostico":"(3 ou 4 parágrafos, até 2400 caracteres: a história única de efetivo, faturamento e custo pelo bloco DIAGNÓSTICO INTEGRADO; ano contra o executivo com as três parcelas e a movimentação contra o executivo; depois o mês contra o FCST anterior; gestão ou orçamento)","receita":"(até 1000 caracteres: SÓ perdas por motivo e a evolução mês a mês, SLA, não faturáveis, % do faturamento e resultado potencial; diluídos só como informação; não repita o diagnóstico)","custos":"(2 parágrafos, até 1500 caracteres: as CONTAS que explicam o custo por pessoa do diagnóstico (ponte da margem, contas, rescisões e encargos rescisórios, multa de 40%), os meses fora da proporção, acima E abaixo do efetivo, e se o responsável justificou cada um; não reconte o diagnóstico)","pessoas":"(2 ou 3 parágrafos, até 1500 caracteres: efetivo e movimentação, HHT, HE, absenteísmo, turnover, acúmulo de férias em pessoas (30 e 45 dias ou mais) e o efeito dele no dissídio e na reoneração ' + (ano + 1) + ', e a coerência da projeção dos próximos meses)","ssma":"(até 700 caracteres: segurança, satisfação do cliente, boas práticas e renovação)","coerencia":[{"mes":"(jan, fev, ...)","avaliacao":"(COERENTE, INCOERENTE ou SEM JUSTIFICATIVA)","nota":"(até 140 caracteres: o que o responsável escreveu sobre o mês e por que explica ou não o número)"}] (um item para CADA mês listado em O QUE O RESPONSÁVEL ESCREVEU NOS MESES FORA DA PROPORÇÃO; texto genérico, repetido de outro mês ou que não fala do desvio daquele mês é SEM JUSTIFICATIVA ou INCOERENTE, nunca COERENTE; [] se não houver mês fora),"planos":[{"indicador":"(#número e nome)","acao":"(o que o gestor informou que está fazendo, resumido, até 160 caracteres; nenhuma ação informada, se for o caso)","desde":"(mês em que a ação atual aparece pela primeira vez)","efeito":"(FUNCIONANDO, PARCIAL, SEM EFEITO, PIOROU, AGUARDANDO, SEM PLANO ou NÃO SE APLICA)","texto":"(até 300 caracteres: a evidência mês a mês pelos números do indicador (percentuais, pessoas, ocorrências) e o parecer do Setor de Performance; valores em R$ já citados acima não se repetem)","recomendacao":"(até 220 caracteres: começa com MANTER, AJUSTAR, TROCAR ou CRIAR e diz o que fazer)"}] (todos os indicadores que não atenderam em algum mês do ano, do mais grave para o menos grave, até 10 itens; [] se todos atenderam o ano todo),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres: o efeito esperado, citando o problema pelo nome, sem repetir valores já citados)","acompanhar":"(até 90 caracteres)"}] (3 a 5 itens: o foco do próximo mês),"parecerOrcamento":"(até 450 caracteres: o veredito para a renovação: o que considerar no preço, ou corrigir a gestão antes; cite os assuntos pelo nome)","orcamento":[{"titulo":"(até 40 caracteres)","valor":"(até 30 caracteres: a recorrência ou o %, sem repetir valores em R$ já citados)","texto":"(até 300 caracteres)"}] (4 a 8 itens: absenteísmo, turnover, custos acima do executivo de forma recorrente, acúmulo de férias e o que mais os DADOS sustentarem; dissídio e reoneração não entram como item)}');
+    L.push('{"situacao":"(2 parágrafos, até 900 caracteres: onde o contrato está, só o retrato geral; sem causas)","positivos":[{"titulo":"(até 45 caracteres)","texto":"(até 260 caracteres: o que está dando certo, com o número, e o que manter)"}] (2 a 5 itens; se nada vai bem, 1 item dizendo isso),"tendencia":"(até 600 caracteres, um parágrafo: a tendência de fechamento do ano pela RÉGUA DE TENDÊNCIA -- margem acumulada, dos últimos 3 meses e projetada contra a prometida, se a projeção é otimista, conservadora ou coerente e por quê, o principal alerta a corrigir e se o responsável justificou; é o resumo que vai para a página RPCO)","diagnostico":"(3 ou 4 parágrafos, até 2400 caracteres: a história única de efetivo, faturamento e custo pelo bloco DIAGNÓSTICO INTEGRADO; ano contra o executivo com as três parcelas e a movimentação contra o executivo; depois o mês contra o FCST anterior; gestão ou orçamento)","receita":"(até 1000 caracteres: SÓ perdas por motivo e a evolução mês a mês, SLA, não faturáveis, % do faturamento e resultado potencial; diluídos só como informação; não repita o diagnóstico)","custos":"(2 parágrafos, até 1500 caracteres: as CONTAS que explicam o custo por pessoa do diagnóstico (ponte da margem, contas, rescisões e encargos rescisórios, multa de 40%), os meses fora da proporção, acima E abaixo do efetivo, e se o responsável justificou cada um; não reconte o diagnóstico)","pessoas":"(2 ou 3 parágrafos, até 1500 caracteres: efetivo e movimentação, HHT, HE, absenteísmo, turnover, acúmulo de férias em pessoas (30 e 45 dias ou mais) e o efeito dele no dissídio e na reoneração ' + (ano + 1) + ', e a coerência da projeção dos próximos meses)","ssma":"(até 700 caracteres: segurança, satisfação do cliente, boas práticas e renovação)","coerencia":[{"mes":"(jan, fev, ...)","avaliacao":"(COERENTE, INCOERENTE ou SEM JUSTIFICATIVA)","nota":"(até 140 caracteres: o que o responsável escreveu sobre o mês e por que explica ou não o número)"}] (um item para CADA mês listado em O QUE O RESPONSÁVEL ESCREVEU NOS MESES FORA DA PROPORÇÃO; texto genérico, repetido de outro mês ou que não fala do desvio daquele mês é SEM JUSTIFICATIVA ou INCOERENTE, nunca COERENTE; [] se não houver mês fora),"planos":[{"indicador":"(#número e nome)","acao":"(o que o gestor informou que está fazendo, resumido, até 160 caracteres; nenhuma ação informada, se for o caso)","desde":"(mês em que a ação atual aparece pela primeira vez)","efeito":"(FUNCIONANDO, PARCIAL, SEM EFEITO, PIOROU, AGUARDANDO, SEM PLANO ou NÃO SE APLICA)","texto":"(até 300 caracteres: a evidência mês a mês pelos números do indicador (percentuais, pessoas, ocorrências) e o parecer do Setor de Performance; valores em R$ já citados acima não se repetem)","recomendacao":"(até 220 caracteres: começa com MANTER, AJUSTAR, TROCAR ou CRIAR e diz o que fazer)"}] (todos os indicadores que não atenderam em algum mês do ano, do mais grave para o menos grave, até 10 itens; [] se todos atenderam o ano todo),"plano":[{"acao":"(até 90 caracteres)","efeito":"(até 200 caracteres: o efeito esperado, citando o problema pelo nome, sem repetir valores já citados)","acompanhar":"(até 90 caracteres)"}] (3 a 5 itens: o foco do próximo mês),"parecerOrcamento":"(até 450 caracteres: o veredito para a renovação: o que considerar no preço, ou corrigir a gestão antes; cite os assuntos pelo nome)","orcamento":[{"titulo":"(até 40 caracteres)","valor":"(até 30 caracteres: a recorrência ou o %, sem repetir valores em R$ já citados)","texto":"(até 300 caracteres)"}] (4 a 8 itens: absenteísmo, turnover, custos acima do executivo de forma recorrente, acúmulo de férias e o que mais os DADOS sustentarem; dissídio e reoneração não entram como item)}');
     L.push("");
     L.push("DADOS");
     var hOS = C.H.hist || {};
@@ -974,6 +1111,10 @@
       L.push("PROJEÇÃO LANÇADA PELO CONTRATO PARA OS PRÓXIMOS MESES (EFETIVO PR, HHT PR, faturamento e resultado projetados): " + S.proj.meses.map(function (x) { return MES[x.m] + ": efetivo " + fmt(x.efet) + ", HHT " + fmt(x.hht) + " h, faturamento " + rs(x.fat) + ", resultado " + rs(x.res); }).join(" | ") + ".");
       if (S.proj.alerta) L.push("ALERTA DE PROJEÇÃO (calculado): " + S.proj.alerta.problemas.join("; ") + ". Chame a atenção do gestor para corrigir a projeção (efetivo, HHT e o faturamento que vem com eles); sem isso a comparação do próximo mês fica errada.");
       else if (S.proj.base) L.push("CONFERÊNCIA DA PROJEÇÃO (calculado): a projeção de " + MES[S.proj.base.prox] + " está coerente com a movimentação de " + MES[S.proj.base.mes] + " (" + S.proj.base.adm + " admissões, " + S.proj.base.dem + " demissões).");
+    }
+    if (S.regua) {
+      S.regua.linhas.forEach(function (l) { L.push(l); });
+      L.push("COMO USAR A RÉGUA DE TENDÊNCIA (campo tendencia e diagnóstico): a referência é a margem prometida no executivo, não o faturamento nem o custo isolados; faturamento e custo variam com o efetivo e a margem deve se manter. Diga se a projeção é OTIMISTA, CONSERVADORA ou COERENTE com o que o contrato vem entregando, com os números da régua. Para cada ALERTA DA PROJEÇÃO, cobre a correção da projeção (efetivo PR, HHT PR, custo ou faturamento projetado) citando o evento ou a incoerência. Diga o destino do desvio: se a projeção recupera o que ficou para trás ou se ele passa para o ano seguinte. Confira com o comentário do responsável e o parecer de performance se o desvio e a projeção estão justificados; se não estiverem, diga que falta a justificativa. Eventos previsíveis (dissídio na data-base, reajuste do contrato com o cliente, reoneração, férias vencidas) têm que aparecer na projeção do mês em que acontecem; sem variação de efetivo, um pico de custo por pessoa costuma ser um desses eventos.");
     }
     L.push("ACÚMULO DE FÉRIAS (posição de hoje, em pessoas): " + feriasTxt(S.rh.ferTot, S.rh.fer30, S.rh.fer45) + ".");
     L.push("Perda PR acumulada " + rs(k.perdaAcum) + " (" + pct(k.perdaPct) + "). Absenteísmo acumulado " + pct(k.absAcum) + " (referência " + pct(k.absMeta) + "). Turnover acumulado " + pct(k.turnAcum) + ".");
@@ -1107,6 +1248,7 @@
     if (temN && (!Array.isArray(j.planos) || !j.planos.length)) falta.push("planos");
     ["receita", "custos", "pessoas", "ssma", "parecerOrcamento"].forEach(function (k) { if (!j[k] || String(j[k]).length < 40) falta.push(k); });
     if (!j.diagnostico || String(j.diagnostico).length < 300) falta.push("diagnostico");
+    if (!j.tendencia || String(j.tendencia).length < 150) falta.push("tendencia");
     if (!j.situacao || String(j.situacao).length < 200) falta.push("situacao");
     if (!Array.isArray(j.positivos) || !j.positivos.length) falta.push("positivos");
     if (!Array.isArray(j.plano) || j.plano.length < 3) falta.push("plano");
@@ -1141,6 +1283,7 @@
     var ct = (dados.ctt || {})[os];
     var hist = historicoOS(dados, os, ano, mes);
     if (ct) { H = { rotulo: codigosBloco(rotBloco) || os, grupo: ct.grupo || "", desc: ct.desc || "", neg: ct.neg || "", ger: ct.gerente || "", sup: ct.sup || "", gestor: ct.gestor || "", ctt: true }; window.OS_HIER_CTT = window.OS_HIER_CTT || {}; window.OS_HIER_CTT[os] = H; }
+    try { if (window.METAS_DB && !window.METAS_DB.carregado && typeof window.carregarMetasDoFluxo === 'function') await window.carregarMetasDoFluxo(); } catch (eM) { console.warn('eventos do cadastro', eM); }
     var C = coletarOS(os, ano, mes, dados);
     if (ct) { H.hist = hist; C.H = H; }
     var prompt = promptOS(os, ano, mes, C);
@@ -1174,7 +1317,7 @@
       v: 2, nivel: "os", os: os, rotulo: H.rotulo || os, desc: (H.rotulo && H.rotulo.indexOf("|") > 0 && H.grupo) ? H.grupo : (H.desc || C.contract.name || ""), descCtt: !!H.ctt, hist: hist, neg: H.neg || "", ger: H.ger || "", sup: H.sup || "", gestor: H.gestor || "",
       ano: ano, mes: mes, em: new Date().toISOString(), por: s ? s.login : "", p0: C.p0, mesesVal: C.mesesVal, semTrat: C.semTrat, semAtiv: C.semAtiv, estagio: (C.contract && C.contract.estagio) || "", pauta: montarPauta(dados.pautaRaw, dados.custos, mes),
       kpi: C.kpi, S: C.S, inds: C.inds, valoresSemOrigem: gc.semOrigem, coerJust: (function () { var o = {}; coerenciaEfetivo(C.S).rows.forEach(function (r) { if (r.ruim) o[r.m] = justificouMes(os, r.m); }); return o; })(),
-      txt: { coerencia: Array.isArray(j.coerencia) ? j.coerencia.slice(0, 12) : [], situacao: j.situacao, positivos: j.positivos.slice(0, 5), diagnostico: j.diagnostico || "", receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
+      txt: { coerencia: Array.isArray(j.coerencia) ? j.coerencia.slice(0, 12) : [], situacao: j.situacao, positivos: j.positivos.slice(0, 5), tendencia: j.tendencia || "", diagnostico: j.diagnostico || "", receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, planos: Array.isArray(j.planos) ? j.planos.slice(0, 10) : [],
         plano: j.plano.slice(0, 6), parecerOrcamento: j.parecerOrcamento, orcamento: j.orcamento.slice(0, 10), repetidos: valoresRepetidos({ situacao: j.situacao, positivos: j.positivos, receita: j.receita, custos: j.custos, pessoas: j.pessoas, ssma: j.ssma, foco: j.plano }) }
     };
     if (opts.gravar === false) return book;
@@ -2119,7 +2262,8 @@
       cel("Margem", pct(k.fatAno ? k.resAno / k.fatAno : null), "meta " + pct(k.fatMeta ? k.resMeta / k.fatMeta : null), (k.fatAno && k.fatMeta && k.resAno / k.fatAno >= k.resMeta / k.fatMeta) ? "ok" : "bad") + "</div></div>";
     var pa = S.proj && S.proj.alerta;
     var projBox = pa ? '<div class="rl-alerta"><b>Atenção à projeção de ' + MES[pa.prox] + '</b>' + esc(pa.problemas.join("; ")) + '. Corrija o EFETIVO PR, o HHT PR e o faturamento projetado; sem isso a comparação do próximo mês fica errada.</div>' : "";
-    h.push('<section class="rl-cap"><h2><span>1</span>Onde o contrato está</h2>' + nums + par(t.situacao) + projBox + "</section>");
+    var tendBox = S.regua ? '<h3 class="rl-sub">Tendência do ano: projeção contra a margem prometida</h3>' + (t.tendencia ? par(t.tendencia) : "") + reguaHTML(S.regua) : "";
+    h.push('<section class="rl-cap"><h2><span>1</span>Onde o contrato está</h2>' + nums + par(t.situacao) + projBox + tendBox + "</section>");
     // 2. indicadores mes a mes
     h.push('<section class="rl-cap"><h2><span>2</span>Indicadores mês a mês</h2><div class="rl-tab"><table><thead><tr><th>Indicador</th><th>Situação em ' + MES[b.mes] + '</th><th>Jan → ' + MES[b.mes] + '</th><th>Valores do mês</th></tr></thead><tbody>' +
       b.inds.map(function (x) { return "<tr><td>#" + x.id + " " + esc(x.nome) + '</td><td><span class="bk-pill ' + x.st + '">' + esc(x.pill) + "</span></td><td>" + stripHtml(x.strip) + '</td><td class="rl-cx">' + esc(x.val || "") + "</td></tr>"; }).join("") +
