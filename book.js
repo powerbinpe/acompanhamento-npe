@@ -2858,6 +2858,12 @@
       var mr = await lerRpco(true), porOS = {};
       Object.keys(mr).forEach(function (k) { var d0 = mr[k].d; if (!d0 || d0.ano !== ano || d0.mes !== mes) return; if (d0.nivel !== "os" && d0.bases) d0.bases.forEach(function (b) { if (b && b.os && !porOS[b.os]) porOS[b.os] = b; }); });
       Object.keys(mr).forEach(function (k) { var d0 = mr[k].d; if (d0 && d0.nivel === "os" && d0.ano === ano && d0.mes === mes && d0.R && d0.R.base) porOS[d0.R.base.os || d0.chave] = d0.R.base; });
+      // OSs elegiveis sem resumo gravado no mes: le os dados no painel (sem IA) para a empresa ficar completa
+      if (A.garantirHierarquia) await A.garantirHierarquia();
+      var faltam = elegiveis().filter(function (o) { return !porOS[o.codigo]; }), nf = 0;
+      try { if (window.METAS_DB && !window.METAS_DB.carregado && typeof window.carregarMetasDoFluxo === 'function') await window.carregarMetasDoFluxo(); } catch (eM) {}
+      async function trabD() { while (faltam.length) { var o = faltam.shift(); try { var bk = await resumoOS(o, ano, mes, tk, opts.urlFluxo); if (bk.base) porOS[o.codigo] = bk.base; } catch (eF) {} nf++; progresso("Resumo da RPCO: lendo as OSs sem resumo no painel (" + nf + ")…"); } }
+      if (faltam.length) await Promise.all([trabD(), trabD(), trabD()]);
       var bD = Object.keys(porOS).map(function (k) { return porOS[k]; });
       RD = bD.length && window.NPE_RESUMO ? window.NPE_RESUMO.deBases(bD, "dir", "EMPRESA") : null;
     } catch (eD2) { RD = null; }
