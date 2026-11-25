@@ -254,7 +254,7 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
         if (!achou && G) achou = grupos.filter(function(d){ return d.nivel === "ger" && nomeBate(d.nome || d.chave, G); })[0] || null;
         if (!achou && S && !G) achou = grupos.filter(function(d){ return d.nivel === "sup" && nomeBate(d.nome || d.chave, S); })[0] || null;
         if (!achou) achou = grupos.filter(function(d){ return mesmoConjunto(d); }).sort(function(a, b){ return b.R.oss.length - a.R.oss.length; })[0] || null;   // o maior nivel que cabe inteiro no filtro
-        if (achou) { mostra(nivelTxt(achou.nivel) + " <b>" + esc(achou.nivel === "os" ? (achou.nome || achou.chave) : (achou.nome || achou.chave)) + "</b>" + (achou.nivel !== "os" ? " · " + achou.R.nOS + " OSs" : ""), achou.R, achou.cobrar || "", mesRef); return; }
+        if (achou) { mostra(achou.nivel === "dir" ? "<b>Empresa</b>" : nivelTxt(achou.nivel) + " <b>" + esc(achou.nome || achou.chave) + "</b>" + (achou.nivel !== "os" ? " · " + achou.R.nOS + " OSs" : ""), achou.R, achou.cobrar || "", mesRef); return; }
         if (!cob.length) { msg("As OSs do filtro ainda não têm resumo gravado. Ele é gerado no fechamento do mês (Aba 6)."); return; }
         var R = R0.deBases(cob.map(function(o){ return base[o]; }), "sel", cob.length + " OSs");
         var cobr = cob.length <= 3 ? cob.filter(function(o){ return porOS[o] && porOS[o].cobrar; }).map(function(o){ return o + ": " + porOS[o].cobrar; }).join(" | ") : "";
