@@ -70,10 +70,20 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
 .np .c em{display:block;font-style:normal;font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .f-ref{color:var(--ref)}.f-con{color:var(--con)}.f-rec{color:var(--rec)}.f-cri{color:var(--cri)}.f-sem{color:var(--sem)}
 .msg{display:grid;place-items:center;color:var(--muted);font-size:12px;padding:8px;text-align:center}
+/* resumo para a RPCO */
+.rs{position:absolute;left:0;right:0;top:29px;bottom:0;border:1px solid var(--frame);padding:6px 10px 4px;overflow:hidden}
+.rs .lv{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.03em;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs .lv b{color:var(--navy)}
+.rs ul{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:3px}
+.rs li{font-size:13px;line-height:1.35;color:var(--ink)}
+.rs li b{color:var(--navy)}
+.rs .pill{display:inline-block;padding:0 7px;border-radius:9px;font-size:11px;font-weight:800;line-height:17px}
+.rs .pill.bad{background:#FDECEC;color:var(--neg)}.rs .pill.ok{background:#E6F4EF;color:var(--ref)}.rs .pill.na{background:#EEF2F8;color:var(--pos)}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<script src="resumo_rpco.js?v=2026-11-25_2300"></script>
 <script>
 (function(){
   var FLOW_NOTAS = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/08/workflows/cf28ed50eda241978acc9600ed3055c8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4QtyCBqqnuWJ-NtaYo3Zfop1KmZMJrzYu9wdUwlg0WA";   // NPE-Ler-Notas: notas gravadas (TopicoId 0) do ano
@@ -198,8 +208,60 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
       .catch(function(){ desenha([], true); });
   }
 
+  // ---------- RESUMO PARA A RPCO: o resumo gravado no fechamento (book da Aba 6), escolhido pelo filtro ----------
+  var FLOW_SNAP = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/07/workflows/17d843a50a304fe196cd6a75e10cd00f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=tM5zTVNKdpuNpCuQeRqKzo5oz1zNs97ya6ABTou5SNc";   // NPE-Ler-Snapshot (ano 9991 = resumos da RPCO)
+  function resumo(){
+    app.innerHTML = '<div class="bar" style="top:0">RESUMO PARA A RPCO · CUSTO POR HHT</div><div class="rs" id="rs"><div class="msg" style="height:100%">Carregando o resumo…</div></div>';
+    var el = document.getElementById("rs"), R0 = window.NPE_RESUMO;
+    var SEL = (P.get("o") || "").split(".").filter(Boolean), G = (P.get("g") || "").trim().toUpperCase(), S = (P.get("s") || "").trim().toUpperCase();
+    function msg(t){ el.innerHTML = '<div class="msg" style="height:100%">' + esc(t) + "</div>"; }
+    if (!R0) { msg("Resumo indisponível (script não carregou)."); return; }
+    if (!SEL.length) { msg("Nenhuma OS elegível no filtro."); return; }
+    function nomeBate(a, b){ a = String(a || "").toUpperCase().trim(); b = String(b || "").toUpperCase().trim(); return !!a && !!b && (a === b || a.indexOf(b + " ") === 0 || b.indexOf(a + " ") === 0 || a.indexOf(b) === 0 || b.indexOf(a) === 0); }
+    function mostra(rotulo, R, cobrar, mes){
+      var T = R0.textos(R); if (!T) { msg("Sem dados para o resumo."); return; }
+      var cls = /OTIMISTA/.test(R.leitura) ? "bad" : (/CONSERVADORA/.test(R.leitura) ? "na" : "ok");
+      var li = T.l.map(function(x){ return "<li>" + esc(x) + "</li>"; }).join("").replace("(" + esc(R.leitura) + ")", '<span class="pill ' + cls + '">' + esc(R.leitura) + "</span>");
+      el.innerHTML = '<div class="lv">' + rotulo + (mes ? " · fechamento de " + MESES[mes - 1].toLowerCase() + "/" + ANO : "") + "</div><ul>" + li + (cobrar ? "<li><b>Cobrar:</b> " + esc(cobrar) + "</li>" : "") + "</ul>";
+    }
+    fetch(FLOW_SNAP, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ano:9991})})
+      .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+      .then(function(txt){
+        var linhas = txt.trim() ? JSON.parse(txt) : [], rec = {};
+        (Array.isArray(linhas) ? linhas : []).forEach(function(l){
+          var tit = String(l && l.titulo || ""); if (tit.indexOf("RPCO_") !== 0 || !l.dados) return;
+          var id = parseInt(l.id, 10) || 0; if (rec[tit] && rec[tit].id >= id) return;
+          var d = null; try { d = JSON.parse(l.dados); } catch (e) { return; }
+          if (d && +d.ano === ANO) rec[tit] = { id: id, d: d };
+        });
+        var todos = Object.keys(rec).map(function(k){ return rec[k].d; });
+        if (!todos.length) { msg("Ainda não há resumo gravado para " + ANO + ". Ele é gerado no fechamento do mês (Aba 6)."); return; }
+        var mesRef = Math.max.apply(null, todos.map(function(d){ return +d.mes || 0; }));
+        var doMes = todos.filter(function(d){ return +d.mes === mesRef; });
+        // base de cada OS: registro da OS ou, se faltar, a base guardada no grupo
+        var base = {}, porOS = {};
+        doMes.forEach(function(d){ if (d.nivel !== "os" && d.bases) d.bases.forEach(function(b){ if (b && b.os && !base[b.os]) base[b.os] = b; }); });
+        doMes.forEach(function(d){ if (d.nivel === "os" && d.R) { porOS[d.chave] = d; if (d.R.base) base[d.chave] = d.R.base; } });
+        var cob = SEL.filter(function(o){ return base[o]; });
+        function mesmoConjunto(d){ var a = (d.R && d.R.oss) || []; if (!a.length || a.length !== cob.length) return false; var s = {}; a.forEach(function(o){ s[o] = 1; }); return cob.every(function(o){ return s[o]; }); }
+        function nivelTxt(n){ return n === "ger" ? "Gerência" : n === "sup" ? "Superintendência" : n === "dir" ? "Empresa" : "OS"; }
+        var grupos = doMes.filter(function(d){ return d.nivel !== "os" && d.R; });
+        var achou = null;
+        if (SEL.length === 1 || cob.length === 1) { var o1 = cob[0] || SEL[0]; achou = porOS[o1] || null; if (!achou && base[o1]) { mostra("OS <b>" + esc(base[o1].nome || o1) + "</b>", R0.deBases([base[o1]], "os", base[o1].nome), "", mesRef); return; } }
+        if (!achou && G) achou = grupos.filter(function(d){ return d.nivel === "ger" && nomeBate(d.nome || d.chave, G); })[0] || null;
+        if (!achou && S && !G) achou = grupos.filter(function(d){ return d.nivel === "sup" && nomeBate(d.nome || d.chave, S); })[0] || null;
+        if (!achou) achou = grupos.filter(function(d){ return mesmoConjunto(d); }).sort(function(a, b){ return ({ger:0, sup:1, dir:2}[a.nivel] || 3) - ({ger:0, sup:1, dir:2}[b.nivel] || 3); })[0] || null;
+        if (achou) { mostra(nivelTxt(achou.nivel) + " <b>" + esc(achou.nivel === "os" ? (achou.nome || achou.chave) : (achou.nome || achou.chave)) + "</b>" + (achou.nivel !== "os" ? " · " + achou.R.nOS + " OSs" : ""), achou.R, achou.cobrar || "", mesRef); return; }
+        if (!cob.length) { msg("As OSs do filtro ainda não têm resumo gravado. Ele é gerado no fechamento do mês (Aba 6)."); return; }
+        var R = R0.deBases(cob.map(function(o){ return base[o]; }), "sel", cob.length + " OSs");
+        var cobr = cob.length <= 3 ? cob.filter(function(o){ return porOS[o] && porOS[o].cobrar; }).map(function(o){ return o + ": " + porOS[o].cobrar; }).join(" | ") : "";
+        mostra("Seleção de <b>" + cob.length + " OSs</b>" + (cob.length < SEL.length ? " (" + (SEL.length - cob.length) + " sem resumo gravado)" : ""), R, cobr, mesRef);
+      })
+      .catch(function(e){ msg("Não consegui ler o resumo (" + e.message + ")."); });
+  }
+
   try {
-    if (B === "topo") topo(); else if (B === "mes") mes(); else if (B === "ano") ano(); else if (B === "info") info();
+    if (B === "topo") topo(); else if (B === "mes") mes(); else if (B === "ano") ano(); else if (B === "info") info(); else if (B === "resumo") resumo();
     else app.innerHTML = '<div class="msg" style="height:100%">Bloco não informado.</div>';
   } catch (e) { app.innerHTML = '<div class="msg" style="height:100%">Erro ao montar o bloco: ' + esc(e.message) + "</div>"; }
   window.addEventListener("resize", function(){ if (B === "topo") topo(); });
