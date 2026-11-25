@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RPCO</title>
+<style>
+/* Pagina RPCO (RESULTADOS) em HTML, no visual aprovado da maquete v7 (24/11/2026).
+   Cada visual HTML Content do Power BI abre esta pagina com ?b=<bloco> e os numeros na URL,
+   gerados pelas medidas _mHTML_RPCO_TOPO / _MES / _ANO / _INFO. As notas vem do fluxo NPE-Ler-Notas.
+   Medidas em unidades da pagina do Power BI (2560 x 1440): o visual mostra a pagina nesse tamanho. */
+:root{
+  --navy:#132B50; --bar:#d9dde3; --ink:#1b2430; --muted:#6b7686; --line:#e3e7ec;
+  --pos:#1F4E9A; --neg:#C62828; --frame:#c9d1db;
+  --ref:#0E7C66; --con:#1F4E9A; --rec:#B45309; --cri:#C62828; --sem:#9aa4b2;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#fff;color:var(--ink);font:14px/1.35 "Segoe UI",system-ui,Arial,sans-serif}
+#app{position:relative;width:100%;height:100%}
+.ab{position:absolute}
+.bar{position:absolute;left:0;right:0;background:var(--bar);text-align:center;font-weight:800;font-size:15px;letter-spacing:.05em;line-height:22px;height:22px;color:var(--ink)}
+.box{position:absolute;overflow:auto;background:#fff;border:1px solid var(--frame)}
+.title{position:absolute;left:0;top:0;right:0;height:28px;background:var(--bar);text-align:center;font-weight:800;font-size:19px;letter-spacing:.04em;line-height:28px;color:var(--navy)}
+/* cartoes */
+.kg{position:absolute;border:1px solid var(--frame);background:#fff}
+.kt{background:var(--bar);text-align:center;font-weight:800;font-size:16px;line-height:24px;white-space:nowrap}
+.kv{display:grid;grid-template-columns:1fr 1fr .55fr;text-align:center}
+.kv small{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-top:2px}
+.kv strong{display:block;font-size:22px;color:var(--pos);font-variant-numeric:tabular-nums;line-height:32px;white-space:nowrap}
+.n{color:var(--neg)!important}
+.mg{position:absolute;display:flex;gap:6px}
+.mg .grp{display:flex;flex:var(--n) 1 0;border:1px solid var(--frame);background:#fff;min-width:0}
+.mg .cel{flex:1 1 0;min-width:0;border-right:1px solid var(--frame)}
+.mg .cel:last-child{border-right:none}
+.mg .kt{font-size:14px}
+.mg .kv{grid-template-columns:1.15fr 1.1fr .75fr}
+.mg .kv small{font-size:9.5px;margin-top:3px}
+.mg .kv strong{font-size:15.5px;line-height:28px}
+/* tabelas */
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th{background:var(--navy);color:#fff;font-weight:700;font-size:12.5px;padding:4px 6px;text-align:right;white-space:nowrap;position:sticky;top:0;z-index:1}
+td{padding:2px 6px;height:24px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line);font-size:14px;color:var(--pos)}
+th:first-child,td:first-child{text-align:left}
+td:first-child{color:var(--ink);font-weight:600;font-size:12.5px}
+th.pc,td.pc{text-align:center}
+td.z{color:#9aa4b2}
+td.k{color:var(--ink)}
+tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;position:sticky;bottom:0;background:#fff}
+#tMes td,#tMes th{padding:2px 5px;font-size:13px}
+#tMes td:first-child{font-size:12.5px}
+.sm td,.sm th{font-size:12px}
+.sm td{height:22px}
+/* painel de nota */
+.np{display:grid;grid-template-rows:22px 54px 1fr;height:100%}
+.np .h{background:var(--navy);color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:22px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
+.np .k{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--line)}
+.np .k div{text-align:center;padding-top:3px;min-width:0}
+.np .k small{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.03em}
+.np .k b{display:block;font-size:20px;line-height:24px;font-variant-numeric:tabular-nums}
+.np .k i{display:block;font-style:normal;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+.np .c{display:grid;grid-template-columns:repeat(5,1fr)}
+.np .c div{border-right:1px solid var(--line);padding:3px 3px 0;text-align:center;overflow:hidden;min-width:0}
+.np .c div:last-child{border-right:none}
+.np .c small{display:block;font-size:9px;font-weight:700;color:var(--ink);line-height:11px;height:22px;overflow:hidden;letter-spacing:-.1px}
+.np .c b{display:block;font-size:15px;margin-top:3px;font-variant-numeric:tabular-nums}
+.np .c em{display:block;font-style:normal;font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.f-ref{color:var(--ref)}.f-con{color:var(--con)}.f-rec{color:var(--rec)}.f-cri{color:var(--cri)}.f-sem{color:var(--sem)}
+.msg{display:grid;place-items:center;color:var(--muted);font-size:12px;padding:8px;text-align:center}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+  var FLOW_NOTAS = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/08/workflows/cf28ed50eda241978acc9600ed3055c8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4QtyCBqqnuWJ-NtaYo3Zfop1KmZMJrzYu9wdUwlg0WA";   // NPE-Ler-Notas: notas gravadas (TopicoId 0) do ano
+  var MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  var P = new URLSearchParams(location.search);
+  var B = P.get("b") || "";
+  var ANO = parseInt(P.get("a"), 10) || new Date().getFullYear();
+  var app = document.getElementById("app");
+  var nf = new Intl.NumberFormat("pt-BR", {maximumFractionDigits:0});
+  var pf = new Intl.NumberFormat("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
+  var p1 = new Intl.NumberFormat("pt-BR", {minimumFractionDigits:1, maximumFractionDigits:1});
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }
+  // lista "v.v.v" -> numeros; vazio = null; pct = valor guardado x10000
+  function nums(s, pct){ return (s || "").split(".").map(function(v){ if (v === "") return null; var n = +v; return isNaN(n) ? null : (pct ? n / 10000 : n); }); }
+  function txt(v, pct){ if (v === null || v === undefined) return ""; return pct ? pf.format(v * 100) + "%" : nf.format(v); }
+  function cel(v, pct, extra){
+    if (v === null || v === undefined) return '<td class="z ' + (pct ? "pc " : "") + (extra || "") + '"></td>';
+    return '<td class="' + (v < 0 ? "n " : "") + (pct ? "pc " : "") + (extra || "") + '">' + txt(v, pct) + "</td>";
+  }
+  function pares(s){ return (s || "").split("~").filter(Boolean).map(function(x){ var i = x.lastIndexOf("|"); return [x.slice(0, i), x.slice(i + 1)]; }); }
+
+  // ---------- TOPO: titulo + Mes atual / Acumulado / Ano atual / Contrato + trimestres, quadrimestres e semestres ----------
+  function topo(){
+    var W = app.clientWidth, c = nums(P.get("c")), p = nums(P.get("p"));
+    var h = '<div class="title">RPCO - REUNIÃO DE PRESTAÇÃO DE CONTAS OPERACIONAL</div>';
+    var L1 = ["MÊS ATUAL","ACUMULADO","ANO ATUAL","CONTRATO"], w = (W - 3 * 4) / 4;
+    L1.forEach(function(t, i){
+      var f = c[i * 3], r = c[i * 3 + 1], m = c[i * 3 + 2] === null ? null : c[i * 3 + 2] / 10000;
+      h += '<div class="kg" style="left:' + (i * (w + 4)) + 'px;top:34px;width:' + w + 'px;height:84px"><div class="kt">' + t + '</div><div class="kv">' +
+        '<div><small>FATURAMENTO</small><strong class="' + (f < 0 ? "n" : "") + '">' + txt(f) + '</strong></div>' +
+        '<div><small>RESULTADO</small><strong class="' + (r < 0 ? "n" : "") + '">' + txt(r) + '</strong></div>' +
+        '<div><small>%</small><strong class="' + (m < 0 ? "n" : "") + '">' + txt(m, true) + "</strong></div></div></div>";
+    });
+    var G = [["1º TRIMESTRE","2º TRIMESTRE","3º TRIMESTRE","4º TRIMESTRE"],["1º QUADRIMESTRE","2º QUADRIMESTRE","3º QUADRIMESTRE"],["1º SEMESTRE","2º SEMESTRE"]], k = 0;
+    h += '<div class="mg" style="left:0;top:126px;width:' + W + 'px;height:96px">';
+    G.forEach(function(gr){
+      h += '<div class="grp" style="--n:' + gr.length + '">';
+      gr.forEach(function(t){
+        var f = p[k * 3], r = p[k * 3 + 1], m = p[k * 3 + 2] === null ? null : p[k * 3 + 2] / 10000; k++;
+        h += '<div class="cel"><div class="kt">' + t + '</div><div class="kv">' +
+          '<div><small>FATURAMENTO</small><strong class="' + (f < 0 ? "n" : "") + '">' + txt(f) + '</strong></div>' +
+          '<div><small>RESULTADO</small><strong class="' + (r < 0 ? "n" : "") + '">' + txt(r) + '</strong></div>' +
+          '<div><small>%</small><strong class="' + (m < 0 ? "n" : "") + '">' + txt(m, true) + "</strong></div></div></div>";
+      });
+      h += "</div>";
+    });
+    app.innerHTML = h + "</div>";
+  }
+
+  // ---------- MES A MES (12 meses + total; FCST anterior) ----------
+  function mes(){
+    var K = ["fat","fexe","fant","res","rexe","rant","mg","mexe","mant"], PCT = {mg:1, mexe:1, mant:1}, D = {};
+    (P.get("d") || "").split("_").forEach(function(s, i){ if (K[i]) D[K[i]] = nums(s, !!PCT[K[i]]); });
+    var cols = [["fat","FAT"],["fexe","FAT EXE"],["fant","FAT ANT"],["res","RES"],["rexe","RES EXE"],["rant","RES ANT"],["mg","%"],["mexe","% EXE"],["mant","% ANT"]];
+    var h = '<table id="tMes"><thead><tr><th>MÊS/ANO</th>' + cols.map(function(c){ return '<th class="' + (PCT[c[0]] ? "pc" : "") + '">' + c[1] + "</th>"; }).join("") + "</tr></thead><tbody>";
+    for (var i = 0; i < 12; i++) {
+      var tem = cols.some(function(c){ return (D[c[0]] || [])[i] !== null && (D[c[0]] || [])[i] !== undefined; });
+      if (!tem) continue;
+      h += "<tr><td>" + MESES[i] + "/" + ANO + "</td>" + cols.map(function(c){ return cel((D[c[0]] || [])[i], !!PCT[c[0]]); }).join("") + "</tr>";
+    }
+    h += '<tr class="tot"><td>Total</td>' + cols.map(function(c){ return cel((D[c[0]] || [])[12], !!PCT[c[0]]); }).join("") + "</tr></tbody></table>";
+    app.innerHTML = '<div class="bar" style="top:0">MÊS A MÊS</div><div class="box" style="left:0;right:0;top:25px;bottom:0">' + h + "</div>";
+  }
+
+  // ---------- ANO A ANO ----------
+  function ano(){
+    var anos = (P.get("y") || "").split(".").filter(Boolean);
+    var K = ["fat","fexe","res","rexe","mg","mexe"], PCT = {mg:1, mexe:1}, D = {};
+    (P.get("d") || "").split("_").forEach(function(s, i){ if (K[i]) D[K[i]] = nums(s, !!PCT[K[i]]); });
+    var cols = [["fat","FAT"],["fexe","FAT EXE"],["res","RES"],["rexe","RES EXE"],["mg","%"],["mexe","% EXE"]];
+    var h = '<table><thead><tr><th>ANO</th>' + cols.map(function(c){ return '<th class="' + (PCT[c[0]] ? "pc" : "") + '">' + c[1] + "</th>"; }).join("") + "</tr></thead><tbody>";
+    anos.forEach(function(a, i){ h += "<tr><td>" + esc(a) + "</td>" + cols.map(function(c){ return cel((D[c[0]] || [])[i], !!PCT[c[0]]); }).join("") + "</tr>"; });
+    h += '<tr class="tot"><td>Total</td>' + cols.map(function(c){ return cel((D[c[0]] || [])[anos.length], !!PCT[c[0]]); }).join("") + "</tr></tbody></table>";
+    app.innerHTML = '<div class="bar" style="top:0">ANO A ANO</div><div class="box" style="left:0;right:0;top:25px;bottom:0">' + h + "</div>";
+  }
+
+  // ---------- INFORMACOES DIVERSAS: estagio, negocio e painel de nota ----------
+  function info(){
+    function lista(tit, s){
+      var h = '<table><thead><tr><th>' + tit + '</th><th>QUANT.</th></tr></thead><tbody>';
+      pares(s).forEach(function(x){ h += "<tr><td>" + esc(x[0]) + '</td><td class="k">' + nf.format(+x[1]) + "</td></tr>"; });
+      return h + "</tbody></table>";
+    }
+    app.innerHTML = '<div class="bar" style="top:0">INFORMAÇÕES DIVERSAS</div>' +
+      '<div class="box sm" style="left:6px;top:26px;width:208px;bottom:10px">' + lista("ESTÁGIO", P.get("e")) + "</div>" +
+      '<div class="box sm" style="left:220px;top:26px;width:210px;bottom:10px">' + lista("NEGÓCIO", P.get("n")) + "</div>" +
+      '<div class="box" style="left:439px;top:26px;width:444px;bottom:10px;overflow:hidden"><div class="np" id="np"><div class="h">ACOMPANHAMENTO DE PERFORMANCE</div><div class="msg" style="grid-row:2/4">Carregando as notas…</div></div></div>';
+    nota(document.getElementById("np"));
+  }
+  function nota(el){
+    var MF = parseInt(P.get("mf"), 10) || 0;
+    var CHAVES = (P.get("k") || "").split("|").filter(Boolean);
+    var AD = {}; (P.get("ad") || "").split(".").forEach(function(s){ var x = s.split(":"); if (x.length === 3) AD[+x[0]] = [+x[1], +x[2]]; });
+    function faixa(v){ return v == null ? ["f-sem","Sem apuração"] : v >= 90 ? ["f-ref","Referência Operacional"] : v >= 70 ? ["f-con","Controlado"] : v >= 50 ? ["f-rec","Em Recuperação"] : ["f-cri","Crítico"]; }
+    function fad(v){ return v == null ? "f-sem" : v >= 0.9 ? "f-ref" : v >= 0.7 ? "f-con" : v >= 0.5 ? "f-rec" : "f-cri"; }
+    function media(a){ var b = a.filter(function(v){ return v !== null && v !== undefined && v !== "" && !isNaN(+v); }).map(Number); return b.length ? b.reduce(function(x, y){ return x + y; }, 0) / b.length : null; }
+    function pct(v){ return v == null ? "—" : p1.format(v) + "%"; }
+    var cab = '<div class="h">ACOMPANHAMENTO DE PERFORMANCE · ACUMULADO ' + (MF ? "JAN–" + MESES[MF - 1] + "/" + ANO : ANO) + "</div>";
+    if (!MF) { el.innerHTML = cab + '<div class="msg" style="grid-row:2/4">Nenhum mês fechado no filtro.</div>'; return; }
+    var pa = 0, ea = 0; for (var m = 1; m <= MF; m++) if (AD[m]) { pa += AD[m][0]; ea += AD[m][1]; }
+    var am = AD[MF] || [0, 0], adA = ea ? pa / ea : null, adM = am[1] ? am[0] / am[1] : null, uma = CHAVES.length === 1;
+    var txtA = ea ? (uma ? "participou em " + pa + " de " + ea + " meses" : pa + " de " + ea + " OS × mês") : "sem OS elegível";
+    var txtM = am[1] ? (uma ? (am[0] ? "participou em " : "não participou em ") + MESES[MF - 1].toLowerCase() : am[0] + " de " + am[1] + " OSs em " + MESES[MF - 1].toLowerCase()) : "sem OS elegível no mês";
+    function desenha(notas, erro){
+      var sel = {}; CHAVES.forEach(function(k){ sel[k] = 1; });
+      var linhas = (notas || []).filter(function(r){ return sel[String(r.os || "")] && +r.ano === ANO && +r.mes >= 1 && +r.mes <= MF; });
+      var acum = media(linhas.map(function(r){ return r.notaMes; })), fa = faixa(acum);
+      var h = cab + '<div class="k">' +
+        '<div><small>NOTA ACUMULADA</small><b class="' + fa[0] + '">' + pct(acum) + '</b><i class="' + fa[0] + '">' + (erro ? "notas indisponíveis" : fa[1]) + "</i></div>" +
+        '<div><small>% ADESÃO ACUMULADA</small><b class="' + fad(adA) + '">' + (adA == null ? "—" : p1.format(adA * 100) + "%") + '</b><i style="color:var(--muted)">' + txtA + "</i></div>" +
+        '<div><small>% ADESÃO NO MÊS</small><b class="' + fad(adM) + '">' + (adM == null ? "—" : p1.format(adM * 100) + "%") + '</b><i style="color:var(--muted)">' + txtM + "</i></div></div><div class=\"c\">";
+      [["pctFinanceiro","FINANCEIRO"],["pctGovernanca","GOVERNANÇA DO CONTRATO"],["pctAcompanhamento","GESTÃO E ACOMPANHAMENTO"],["pctPessoas","PESSOAS"],["pctSSMA","SSMA E QUALIDADE"]].forEach(function(c){
+        var a = media(linhas.map(function(r){ return r[c[0]]; })), f = faixa(a);
+        h += "<div><small>" + c[1] + '</small><b class="' + f[0] + '">' + pct(a) + "</b><em>" + f[1] + "</em></div>";
+      });
+      el.innerHTML = h + "</div>";
+    }
+    fetch(FLOW_NOTAS, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ano:ANO})})
+      .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function(j){ desenha(Array.isArray(j) ? j : (j && (j.value || j.notas || j.body)) || [], false); })
+      .catch(function(){ desenha([], true); });
+  }
+
+  try {
+    if (B === "topo") topo(); else if (B === "mes") mes(); else if (B === "ano") ano(); else if (B === "info") info();
+    else app.innerHTML = '<div class="msg" style="height:100%">Bloco não informado.</div>';
+  } catch (e) { app.innerHTML = '<div class="msg" style="height:100%">Erro ao montar o bloco: ' + esc(e.message) + "</div>"; }
+  window.addEventListener("resize", function(){ if (B === "topo") topo(); });
+})();
+</script>
+</body>
+</html>
