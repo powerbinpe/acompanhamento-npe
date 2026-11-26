@@ -136,9 +136,9 @@ tr.show{animation:rowIn 200ms cubic-bezier(.2,.8,.2,1) both}
       var a = pr[j], b = ri[j];
       if ((a === null || a === undefined) && b === null) { dif += '<td class="z"></td>'; continue; }
       var d = (a || 0) - (b || 0); sd = (sd || 0) + d;
-      dif += Math.abs(d) < 1 ? '<td class="ok">✓ 0</td>' : '<td class="warn">' + (d > 0 ? "+" : "−") + nf.format(Math.abs(d)) + "</td>";
+      dif += Math.abs(d) < 1 ? '<td>0</td>' : '<td class="' + (d < 0 ? "n" : "") + '">' + (d > 0 ? "+" : "−") + nf.format(Math.abs(d)) + "</td>";   // vermelho so no negativo
     }
-    dif += sd === null ? '<td class="z ano"></td>' : (Math.abs(sd) < 1 ? '<td class="ok ano">✓ 0</td>' : '<td class="warn ano">' + (sd > 0 ? "+" : "−") + nf.format(Math.abs(sd)) + "</td>");
+    dif += sd === null ? '<td class="z ano"></td>' : (Math.abs(sd) < 1 ? '<td class="ano">0</td>' : '<td class="ano' + (sd < 0 ? " n" : "") + '">' + (sd > 0 ? "+" : "−") + nf.format(Math.abs(sd)) + "</td>");
     h += dif + "</tr>";
     // % de perda (usuario, 24/11/2026): perda da RECEITA IDEAL sobre o faturamento bruto, no lugar da perda da PR.
     // Referencia da empresa: 4%; acima disso fica em vermelho. No ano, o faturamento entra so dos meses com Receita Ideal.
