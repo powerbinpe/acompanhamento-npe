@@ -10,7 +10,7 @@
    gerados pelas medidas _mHTML_RPCO_TOPO / _MES / _ANO / _INFO. As notas vem do fluxo NPE-Ler-Notas.
    Medidas em unidades da pagina do Power BI (2560 x 1440): o visual mostra a pagina nesse tamanho. */
 :root{
-  --navy:#132B50; --bar:#d9dde3; --ink:#1b2430; --muted:#6b7686; --line:#e3e7ec;
+  --navy:#132B50; --bar:#d9dde3; --ink:#1b2430; --muted:#6b7686; --line:#c3cbd5;
   --pos:#1F4E9A; --neg:#C62828; --frame:#c9d1db;
   --pg:#B3BCC8; --ref:#0E7C66; --con:#1F4E9A; --rec:#B45309; --cri:#C62828; --sem:#9aa4b2;
 }
@@ -49,6 +49,8 @@ td.k{color:var(--ink)}
 tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;position:sticky;bottom:0;background:#fff}
 #tMes td,#tMes th{padding:1px 5px;font-size:15px}
 #tMes td:first-child{font-size:14.5px}
+#tMes td{height:23px}
+#tAno td{height:22px}
 .sm table{table-layout:fixed}
 .sm th{font-size:12.5px;padding:3px 6px}
 .sm td{font-size:13px;height:20px;padding:1px 6px;overflow:hidden;text-overflow:ellipsis}
@@ -82,7 +84,7 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
 </head>
 <body>
 <div id="app"></div>
-<script src="resumo_rpco.js?v=2026-11-25_2300"></script>
+<script src="resumo_rpco.js?v=2026-11-26_1130"></script>
 <script>
 (function(){
   var FLOW_NOTAS = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/08/workflows/cf28ed50eda241978acc9600ed3055c8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4QtyCBqqnuWJ-NtaYo3Zfop1KmZMJrzYu9wdUwlg0WA";   // NPE-Ler-Notas: notas gravadas (TopicoId 0) do ano
@@ -103,6 +105,23 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
     if (v === null || v === undefined) return '<td class="z ' + (pct ? "pc " : "") + (extra || "") + '"></td>';
     return '<td class="' + (v < 0 ? "n " : "") + (pct ? "pc " : "") + (extra || "") + '">' + txt(v, pct) + "</td>";
   }
+  // 26/11: o tamanho real do visual no Power BI varia um pouco; em vez de barra de rolagem, a tabela
+  // encolhe so o necessario para caber (zoom), no minimo 60%.
+  function caber(box, el){
+    if (!box || !el) return;
+    el.style.zoom = "";
+    var ov = box.style.overflow; box.style.overflow = "hidden";
+    for (var i = 0; i < 8; i++) {
+      var sh = box.scrollHeight, sw = box.scrollWidth, ch = box.clientHeight, cw = box.clientWidth;
+      if (sh <= ch + 1 && sw <= cw + 1) break;
+      var z = +(el.style.zoom || 1) * Math.min(ch / sh, cw / sw) * 0.995;
+      el.style.zoom = Math.max(0.6, z).toFixed(4);
+      if (z <= 0.6) break;
+    }
+    box.style.overflow = ov;
+    try { console.log("RPCO caber", B, innerWidth + "x" + innerHeight, "zoom", el.style.zoom || 1); } catch (e) {}
+  }
+  function caberTudo(){ [].forEach.call(document.querySelectorAll(".box"), function(b){ caber(b, b.querySelector("table")); }); var r = document.querySelector(".rs"); if (r) caber(r, r.querySelector(".rsi")); }
   function pares(s){ return (s || "").split("~").filter(Boolean).map(function(x){ var i = x.lastIndexOf("|"); return [x.slice(0, i), x.slice(i + 1)]; }); }
 
   // ---------- TOPO: titulo + Mes atual / Acumulado / Ano atual / Contrato + trimestres, quadrimestres e semestres ----------
@@ -120,15 +139,14 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
     var G = [["1º QUADRIMESTRE","2º QUADRIMESTRE","3º QUADRIMESTRE"],["1º SEMESTRE","2º SEMESTRE"]], k = 4;   // 26/11: trimestres retirados (os 4 primeiros grupos da URL ficam sem uso)
     h += '<div class="mg" style="left:' + M0 + 'px;top:130px;width:' + W + 'px;height:92px">';
     G.forEach(function(gr){
-      h += '<div class="grp" style="--n:' + gr.length + '">';
       gr.forEach(function(t){
+        h += '<div class="grp" style="--n:1">';   // 26/11: um cartao por periodo, separados como os de cima
         var f = p[k * 3], r = p[k * 3 + 1], m = p[k * 3 + 2] === null ? null : p[k * 3 + 2] / 10000; k++;
         h += '<div class="cel"><div class="kt">' + t + '</div><div class="kv">' +
           '<div><small>FATURAMENTO</small><strong class="' + (f < 0 ? "n" : "") + '">' + txt(f) + '</strong></div>' +
           '<div><small>RESULTADO</small><strong class="' + (r < 0 ? "n" : "") + '">' + txt(r) + '</strong></div>' +
-          '<div><small>%</small><strong class="' + (m < 0 ? "n" : "") + '">' + txt(m, true) + "</strong></div></div></div>";
+          '<div><small>%</small><strong class="' + (m < 0 ? "n" : "") + '">' + txt(m, true) + "</strong></div></div></div></div>";
       });
-      h += "</div>";
     });
     app.innerHTML = h + "</div>";
   }
@@ -154,7 +172,7 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
     var K = ["fat","fexe","res","rexe","mg","mexe"], PCT = {mg:1, mexe:1}, D = {};
     (P.get("d") || "").split("_").forEach(function(s, i){ if (K[i]) D[K[i]] = nums(s, !!PCT[K[i]]); });
     var cols = [["fat","FAT"],["fexe","FAT EXE"],["res","RES"],["rexe","RES EXE"],["mg","%"],["mexe","% EXE"]];
-    var h = '<table><thead><tr><th>ANO</th>' + cols.map(function(c){ return '<th class="' + (PCT[c[0]] ? "pc" : "") + '">' + c[1] + "</th>"; }).join("") + "</tr></thead><tbody>";
+    var h = '<table id="tAno"><thead><tr><th>ANO</th>' + cols.map(function(c){ return '<th class="' + (PCT[c[0]] ? "pc" : "") + '">' + c[1] + "</th>"; }).join("") + "</tr></thead><tbody>";
     anos.forEach(function(a, i){ h += "<tr><td>" + esc(a) + "</td>" + cols.map(function(c){ return cel((D[c[0]] || [])[i], !!PCT[c[0]]); }).join("") + "</tr>"; });
     h += '<tr class="tot"><td>Total</td>' + cols.map(function(c){ return cel((D[c[0]] || [])[anos.length], !!PCT[c[0]]); }).join("") + "</tr></tbody></table>";
     app.innerHTML = '<div class="bar" style="top:0">ANO A ANO</div><div class="box" style="left:0;right:0;top:29px;bottom:0">' + h + "</div>";
@@ -222,7 +240,7 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
       var T = R0.textos(R); if (!T) { msg("Sem dados para o resumo."); return; }
       var cls = /OTIMISTA/.test(R.leitura) ? "bad" : (/CONSERVADORA/.test(R.leitura) ? "na" : "ok");
       var li = T.l.map(function(x){ return "<li>" + esc(x) + "</li>"; }).join("").replace("(" + esc(R.leitura) + ")", '<span class="pill ' + cls + '">' + esc(R.leitura) + "</span>");
-      el.innerHTML = '<div class="lv">' + rotulo + (mes ? " · fechamento de " + MESES[mes - 1].toLowerCase() + "/" + ANO : "") + "</div><ul>" + li + (cobrar ? "<li><b>Cobrar:</b> " + esc(cobrar) + "</li>" : "") + "</ul>";
+      el.innerHTML = '<div class="rsi"><div class="lv">' + rotulo + (mes ? " · fechamento de " + MESES[mes - 1].toLowerCase() + "/" + ANO : "") + "</div><ul>" + li + (cobrar ? "<li><b>Cobrar:</b> " + esc(cobrar) + "</li>" : "") + "</ul></div>"; caber(el, el.querySelector(".rsi"));
     }
     fetch(FLOW_SNAP, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ano:9991})})
       .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
@@ -265,9 +283,10 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
 
   try {
     if (B === "topo") topo(); else if (B === "mes") mes(); else if (B === "ano") ano(); else if (B === "info") info(); else if (B === "resumo") resumo();
+    if (B !== "topo") caberTudo();
     else app.innerHTML = '<div class="msg" style="height:100%">Bloco não informado.</div>';
   } catch (e) { app.innerHTML = '<div class="msg" style="height:100%">Erro ao montar o bloco: ' + esc(e.message) + "</div>"; }
-  window.addEventListener("resize", function(){ if (B === "topo") topo(); });
+  window.addEventListener("resize", function(){ if (B === "topo") topo(); else caberTudo(); });
 })();
 </script>
 </body>

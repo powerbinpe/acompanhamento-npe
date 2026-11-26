@@ -7,7 +7,7 @@
 <style>
 /* Visual HTML da tabela DETALHES da pagina RPCO (RESULTADOS). Os numeros vem da medida
    _mHTML_RPCO_DETALHES pela URL; a perda da Receita Ideal vem do fluxo NPE-Ler-Perda-RI. */
-:root{--navy:#132B50;--ink:#1b2430;--muted:#6b7686;--line:#e3e7ec;--pos:#1F4E9A;--neg:#C62828;--new:#0E7C66;--newbg:#e6f4f0;--warn:#B45309;--warnbg:#FDF1DC;--ok:#1E7B3A;--okbg:#E8F5EC}
+:root{--navy:#132B50;--ink:#1b2430;--muted:#6b7686;--line:#c3cbd5;--pos:#1F4E9A;--neg:#C62828;--new:#0E7C66;--newbg:#e6f4f0;--warn:#B45309;--warnbg:#FDF1DC;--ok:#1E7B3A;--okbg:#E8F5EC}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#B3BCC8;color:var(--ink);font:13px/1.3 "Segoe UI",system-ui,Arial,sans-serif}
 #card{position:absolute;inset:6px;background:#fff;box-shadow:0 0 5px 1px #fff}
@@ -154,7 +154,31 @@ tr.show{animation:rowIn 200ms cubic-bezier(.2,.8,.2,1) both}
     h += pl + "</tr>";
     h += linha("HHT REAL", "hht") + linha("HHT REAL - MOD", "hhtmod") + linha("HHT PR", "hhpr") + linha("HHT PR - MOD", "hhprmod");
     document.getElementById("t").innerHTML = h + "</tbody>";
+    caber();
   }
+  // 26/11: o tamanho real do visual no Power BI varia um pouco; em vez de barra de rolagem, a tabela encolhe
+  // so o necessario para caber (zoom, minimo 60%). Com um grupo de motivos aberto, a altura pode rolar
+  // (mantem o zoom da tabela fechada) e so a largura e ajustada.
+  var ZF = 1;
+  function caber(){
+    var box = document.querySelector(".wrap"), t = document.getElementById("t");
+    var aberto = Object.keys(ABERTO).some(function(k){ return ABERTO[k]; });
+    t.style.zoom = "";
+    var ov = box.style.overflow; box.style.overflow = "hidden";
+    for (var i = 0; i < 8; i++) {
+      var sh = box.scrollHeight, sw = box.scrollWidth, ch = box.clientHeight, cw = box.clientWidth;
+      var r = Math.min(aberto ? 1 : ch / sh, cw / sw);
+      if (r >= 1 - 0.002 && (aberto || sh <= ch + 1) && sw <= cw + 1) break;
+      var z = +(t.style.zoom || 1) * Math.min(r, 1) * 0.995;
+      t.style.zoom = Math.max(0.6, z).toFixed(4);
+      if (z <= 0.6) break;
+    }
+    if (aberto && +(t.style.zoom || 1) > ZF) t.style.zoom = ZF.toFixed(4);
+    if (!aberto) ZF = +(t.style.zoom || 1);
+    box.style.overflow = ov;
+    try { console.log("RPCO caber detalhes", innerWidth + "x" + innerHeight, "zoom", t.style.zoom || 1); } catch (e) {}
+  }
+  window.addEventListener("resize", function(){ caber(); });
   render();
   var av = document.getElementById("aviso");
   if (!OSL) { av.textContent = "Nenhuma OS do filtro tem Receita Ideal."; return; }
