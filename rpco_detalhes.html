@@ -157,7 +157,7 @@ tr.show{animation:rowIn 200ms cubic-bezier(.2,.8,.2,1) both}
     caber();
   }
   // 26/11: o tamanho real do visual no Power BI varia um pouco; em vez de barra de rolagem, a tabela encolhe
-  // so o necessario para caber (zoom, minimo 60%). Com um grupo de motivos aberto, a altura pode rolar
+  // so o necessario para caber (zoom, minimo 35%). Com um grupo de motivos aberto, a altura pode rolar
   // (mantem o zoom da tabela fechada) e so a largura e ajustada.
   var ZF = 1;
   function caber(){
@@ -170,13 +170,13 @@ tr.show{animation:rowIn 200ms cubic-bezier(.2,.8,.2,1) both}
       var r = Math.min(aberto ? 1 : ch / sh, cw / sw);
       if (r >= 1 - 0.002 && (aberto || sh <= ch + 1) && sw <= cw + 1) break;
       var z = +(t.style.zoom || 1) * Math.min(r, 1) * 0.995;
-      t.style.zoom = Math.max(0.6, z).toFixed(4);
-      if (z <= 0.6) break;
+      t.style.zoom = Math.max(0.35, z).toFixed(4);
+      if (z <= 0.35) break;
     }
     if (aberto && +(t.style.zoom || 1) > ZF) t.style.zoom = ZF.toFixed(4);
     if (!aberto) ZF = +(t.style.zoom || 1);
     box.style.overflow = ov;
-    try { console.log("RPCO caber detalhes", innerWidth + "x" + innerHeight, "zoom", t.style.zoom || 1); } catch (e) {}
+    try { document.getElementById("card").setAttribute("aria-label", "RPCODIM det " + innerWidth + "x" + innerHeight + " box " + box.clientWidth + "x" + box.clientHeight + " sh " + box.scrollHeight + " sw " + box.scrollWidth + " zoom " + (t.style.zoom || 1)); } catch (e) {}
   }
   window.addEventListener("resize", function(){ caber(); });
   // o visual do Power BI pode abrir a pagina antes de ter o tamanho final: refaz o ajuste depois
