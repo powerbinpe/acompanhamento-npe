@@ -179,6 +179,9 @@ tr.show{animation:rowIn 200ms cubic-bezier(.2,.8,.2,1) both}
     try { console.log("RPCO caber detalhes", innerWidth + "x" + innerHeight, "zoom", t.style.zoom || 1); } catch (e) {}
   }
   window.addEventListener("resize", function(){ caber(); });
+  // o visual do Power BI pode abrir a pagina antes de ter o tamanho final: refaz o ajuste depois
+  [300, 1200, 3000].forEach(function(ms){ setTimeout(caber, ms); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(caber);
   render();
   var av = document.getElementById("aviso");
   if (!OSL) { av.textContent = "Nenhuma OS do filtro tem Receita Ideal."; return; }

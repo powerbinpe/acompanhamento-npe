@@ -283,10 +283,12 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
 
   try {
     if (B === "topo") topo(); else if (B === "mes") mes(); else if (B === "ano") ano(); else if (B === "info") info(); else if (B === "resumo") resumo();
-    if (B !== "topo") caberTudo();
     else app.innerHTML = '<div class="msg" style="height:100%">Bloco não informado.</div>';
+    if (B !== "topo") caberTudo();
   } catch (e) { app.innerHTML = '<div class="msg" style="height:100%">Erro ao montar o bloco: ' + esc(e.message) + "</div>"; }
   window.addEventListener("resize", function(){ if (B === "topo") topo(); else caberTudo(); });
+  // o visual do Power BI pode abrir a pagina antes de ter o tamanho final: refaz o ajuste depois
+  if (B !== "topo") { [300, 1200, 3000].forEach(function(ms){ setTimeout(caberTudo, ms); }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(caberTudo); }
 })();
 </script>
 </body>
