@@ -15,7 +15,8 @@
   --pg:#B3BCC8; --ref:#0E7C66; --con:#1F4E9A; --rec:#B45309; --cri:#C62828; --sem:#9aa4b2;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;overflow:hidden;background:var(--pg);color:var(--ink);font:14px/1.35 "Segoe UI",system-ui,Arial,sans-serif}
+html,body{margin:0;height:100%;overflow:hidden;}
+body{position:relative;background:var(--pg);color:var(--ink);font:14px/1.35 "Segoe UI",system-ui,Arial,sans-serif}
 #app{position:absolute;inset:6px;background:#fff;box-shadow:0 0 5px 1px #fff}
 #app.topo{background:transparent;box-shadow:none}
 .ab{position:absolute}
@@ -43,7 +44,7 @@ table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 th{background:var(--navy);color:#fff;font-weight:700;font-size:14.5px;padding:3px 6px;text-align:center;white-space:nowrap;position:sticky;top:0;z-index:1}
 td{padding:1px 6px;height:24px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line);font-size:16px;color:var(--pos)}
 td:first-child{text-align:left;color:var(--ink);font-weight:600;font-size:14.5px}
-th.pc,td.pc{text-align:center}
+td.pc{text-align:right}   /* 26/11: % a direita como os demais numeros (cabecalho segue centralizado) */
 td.z{color:#9aa4b2}
 td.k{color:var(--ink)}
 tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;position:sticky;bottom:0;background:#fff}
@@ -94,6 +95,18 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
   var ANO = parseInt(P.get("a"), 10) || new Date().getFullYear();
   var app = document.getElementById("app");
   app.className = B;   // topo: cartoes soltos; demais blocos: uma caixa branca com brilho
+  // 26/11: o Power BI desenha o visual no tamanho da TELA (na tela ajustada a pagina, ~56% da pagina),
+  // nao no tamanho da pagina do relatorio. A pagina e montada na largura do visual em unidades do relatorio
+  // (DW) e escalada inteira com zoom, como os visuais nativos: faixas, margens, cartoes e listas acompanham.
+  var DW = {topo:2484, mes:912, ano:912, resumo:912, info:912}[B] || 912;
+  function escala(){
+    var s = innerWidth / DW;
+    if (!(s > 0)) return;
+    document.body.style.zoom = s.toFixed(5);
+    document.body.style.width = DW + "px";
+    document.body.style.height = (innerHeight / s).toFixed(2) + "px";
+  }
+  escala();
   var nf = new Intl.NumberFormat("pt-BR", {maximumFractionDigits:0});
   var pf = new Intl.NumberFormat("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
   var p1 = new Intl.NumberFormat("pt-BR", {minimumFractionDigits:1, maximumFractionDigits:1});
@@ -286,9 +299,10 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
     else app.innerHTML = '<div class="msg" style="height:100%">Bloco não informado.</div>';
     if (B !== "topo") caberTudo();
   } catch (e) { app.innerHTML = '<div class="msg" style="height:100%">Erro ao montar o bloco: ' + esc(e.message) + "</div>"; }
-  window.addEventListener("resize", function(){ if (B === "topo") topo(); else caberTudo(); });
+  window.addEventListener("resize", function(){ escala(); if (B === "topo") topo(); else caberTudo(); });
   // o visual do Power BI pode abrir a pagina antes de ter o tamanho final: refaz o ajuste depois
-  if (B !== "topo") { [300, 1200, 3000].forEach(function(ms){ setTimeout(caberTudo, ms); }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(caberTudo); }
+  [300, 1200, 3000].forEach(function(ms){ setTimeout(function(){ escala(); if (B === "topo") topo(); else caberTudo(); }, ms); });
+  if (B !== "topo") { if (document.fonts && document.fonts.ready) document.fonts.ready.then(caberTudo); }
 })();
 </script>
 </body>
