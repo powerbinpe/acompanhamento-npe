@@ -20,12 +20,12 @@ body{position:relative;background:var(--pg);color:var(--ink);font:14px/1.35 "Seg
 #app{position:absolute;inset:6px;background:#fff;box-shadow:0 0 5px 1px #fff}
 #app.topo{background:transparent;box-shadow:none}
 .ab{position:absolute}
-.bar{position:absolute;left:0;right:0;background:var(--bar);text-align:center;font-weight:800;font-size:17px;letter-spacing:.05em;line-height:26px;height:26px;color:var(--ink)}
+.bar{position:absolute;left:0;right:0;background:var(--navy);text-align:center;font-weight:800;font-size:17px;letter-spacing:.05em;line-height:26px;height:26px;color:#fff}   /* 26/11: titulos em azul com letra branca */
 .box{position:absolute;overflow:auto;background:#fff;border:1px solid var(--frame)}
-.title{position:absolute;left:0;top:0;right:0;height:28px;background:var(--bar);box-shadow:0 0 5px 1px #fff;text-align:center;font-weight:800;font-size:21px;letter-spacing:.04em;line-height:28px;color:var(--navy)}
+.title{position:absolute;left:0;top:0;right:0;height:28px;background:var(--navy);box-shadow:0 0 5px 1px #fff;text-align:center;font-weight:800;font-size:21px;letter-spacing:.04em;line-height:28px;color:#fff}
 /* cartoes */
 .kg{position:absolute;border:1px solid var(--frame);background:#fff;box-shadow:0 0 5px 1px #fff;border-radius:3px;overflow:hidden}
-.kt{background:var(--bar);text-align:center;font-weight:800;font-size:18px;line-height:24px;white-space:nowrap}
+.kt{background:var(--navy);color:#fff;text-align:center;font-weight:800;font-size:18px;line-height:24px;white-space:nowrap}
 .kv{display:grid;grid-template-columns:1fr 1fr .55fr;text-align:center}
 .kv small{display:block;font-size:13px;color:var(--muted);font-weight:700;margin-top:2px}
 .kv strong{display:block;font-size:27px;color:var(--pos);font-variant-numeric:tabular-nums;line-height:34px;min-height:34px;white-space:nowrap}
@@ -41,7 +41,7 @@ body{position:relative;background:var(--pg);color:var(--ink);font:14px/1.35 "Seg
 .mg .kv strong{font-size:23px;line-height:32px;min-height:32px}
 /* tabelas */
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
-th{background:var(--navy);color:#fff;font-weight:700;font-size:14.5px;padding:3px 6px;text-align:center;white-space:nowrap;position:sticky;top:0;z-index:1}
+th{background:var(--bar);color:var(--ink);font-weight:700;font-size:14.5px;padding:3px 6px;text-align:center;white-space:nowrap;position:sticky;top:0;z-index:1}
 td{padding:1px 6px;height:24px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line);font-size:16px;color:var(--pos)}
 td:first-child{text-align:left;color:var(--ink);font-weight:600;font-size:14.5px}
 td.pc{text-align:right}   /* 26/11: % a direita como os demais numeros (cabecalho segue centralizado) */
@@ -59,7 +59,7 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
 .sm th:last-child,.sm td:last-child{width:52px}
 /* painel de nota */
 .np{display:grid;grid-template-rows:24px 62px 1fr;height:100%}
-.np .h{background:var(--navy);color:#fff;font-size:13.5px;font-weight:700;text-align:center;line-height:24px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
+.np .h{background:var(--bar);color:var(--ink);font-size:13.5px;font-weight:700;text-align:center;line-height:24px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
 .np .k{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--line)}
 .np .k div{text-align:center;padding-top:3px;min-width:0}
 .np .k small{display:block;font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}
