@@ -10,6 +10,7 @@
 :root{--navy:#132B50;--ink:#1b2430;--muted:#6b7686;--line:#e3e7ec;--pos:#1F4E9A;--neg:#C62828;--new:#0E7C66;--newbg:#e6f4f0;--warn:#B45309;--warnbg:#FDF1DC;--ok:#1E7B3A;--okbg:#E8F5EC}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#B3BCC8;color:var(--ink);font:13px/1.3 "Segoe UI",system-ui,Arial,sans-serif}
+#card{position:absolute;inset:6px;background:#fff;box-shadow:0 0 5px 1px #fff}
 .bar{position:absolute;left:0;right:0;top:0;height:26px;background:#d9dde3;text-align:center;font-weight:800;font-size:15px;letter-spacing:.05em;line-height:26px;color:var(--ink)}
 .wrap{position:absolute;left:0;right:0;top:29px;bottom:0;overflow:auto;background:#fff;border:1px solid #c9d1db}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
@@ -42,7 +43,7 @@ tr.show{animation:rowIn 200ms cubic-bezier(.2,.8,.2,1) both}
 </style>
 </head>
 <body>
-<div class="bar">DETALHES</div><div class="wrap"><table id="t"></table><div class="aviso" id="aviso"></div></div>
+<div id="card"><div class="bar">DETALHES</div><div class="wrap"><table id="t"></table><div class="aviso" id="aviso"></div></div></div>
 <script>
 (function(){
   var FLOW_RI = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/31/workflows/108c6edc70ee4d4b88540d8c432d4921/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lcW3SxD98NvxAtaBiIf3ZDG9PjwYDDGpkVhO2B77BSA";   // NPE-Ler-Perda-RI-Motivos: perda (sem negativos) por mes e motivo, OSs do filtro
