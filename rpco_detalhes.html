@@ -28,7 +28,7 @@ td.ok{color:var(--ok);font-weight:700}
 td.warn{color:var(--warn);font-weight:700}
 td.ano{font-weight:800;border-left:2px solid #d5dbe3}
 small.meta{color:var(--muted);font-weight:500;margin-left:4px}
-.aviso{font-size:11px;color:var(--muted);padding:6px 8px}
+.aviso{position:absolute;right:10px;top:0;height:26px;line-height:26px;font-size:11px;font-weight:600;color:var(--muted);z-index:4;white-space:nowrap}   /* na faixa do titulo: nao rouba altura da tabela */
 .aviso:empty{display:none}
 .tog{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 .tog:focus-visible{outline:2px solid var(--new);outline-offset:2px}
@@ -43,7 +43,7 @@ tr.show{animation:rowIn 200ms cubic-bezier(.2,.8,.2,1) both}
 </style>
 </head>
 <body>
-<div id="card"><div class="bar">DETALHES</div><div class="wrap"><table id="t"></table><div class="aviso" id="aviso"></div></div></div>
+<div id="card"><div class="bar">DETALHES</div><div class="aviso" id="aviso"></div><div class="wrap"><table id="t"></table></div></div>
 <script>
 (function(){
   var FLOW_RI = "https://defaultdff5d80f6e7141999a3fbf5dc8891d.18.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/31/workflows/108c6edc70ee4d4b88540d8c432d4921/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lcW3SxD98NvxAtaBiIf3ZDG9PjwYDDGpkVhO2B77BSA";   // NPE-Ler-Perda-RI-Motivos: perda (sem negativos) por mes e motivo, OSs do filtro
