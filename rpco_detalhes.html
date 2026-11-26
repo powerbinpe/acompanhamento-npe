@@ -22,12 +22,16 @@ td:first-child{text-align:left;color:var(--ink);font-weight:600;font-size:14.5px
 td.pc{text-align:right}   /* 26/11: % a direita como os demais numeros */
 td.n{color:var(--neg)}
 td.z{color:#9aa4b2}
+/* 26/11: linhas de coluna na mesma cor das linhas de linha */
+td,th{border-right:1px solid var(--line)}
+td:last-child,th:last-child{border-right:none}
+th{border-bottom:1px solid var(--line)}
 td.red{}   /* acima da meta: sem fundo nem cor propria; vermelho so o negativo (td.n) */
 tr.nwr td{background:#fff}
 tr.dif td{font-weight:700}
 td.ok{color:var(--ok);font-weight:700}
 td.warn{color:var(--warn);font-weight:700}
-td.ano{font-weight:800;border-left:2px solid #d5dbe3}
+td.ano{font-weight:800;border-left:2px solid #9aa6b5}
 small.meta{color:var(--muted);font-weight:500;margin-left:4px}
 .aviso{position:absolute;right:10px;top:0;height:26px;line-height:26px;font-size:12.5px;font-weight:600;color:#c9d4e3;z-index:4;white-space:nowrap}   /* na faixa do titulo: nao rouba altura da tabela */
 .aviso:empty{display:none}

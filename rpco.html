@@ -27,17 +27,19 @@ body{position:relative;background:var(--pg);color:var(--ink);font:14px/1.35 "Seg
 .kg{position:absolute;border:1px solid var(--frame);background:#fff;box-shadow:0 0 5px 1px #fff;border-radius:3px;overflow:hidden}
 .kt{background:var(--navy);color:#fff;text-align:center;font-weight:800;font-size:18px;line-height:24px;white-space:nowrap}
 .kv{display:grid;grid-template-columns:1fr 1fr .55fr;text-align:center}
-.kv small{display:block;font-size:13px;color:var(--muted);font-weight:700;margin-top:2px}
+.kv>div{display:flex;flex-direction:column;min-width:0}
+.kv small{display:block;font-size:13px;color:var(--ink);font-weight:700;background:var(--bar);line-height:20px}   /* 26/11: rotulo do cartao = cabecalho de tabela (cinza, letra escura) */
+.kv strong{flex:1 1 auto;display:flex!important;align-items:center;justify-content:center}
 .kv strong{display:block;font-size:27px;color:var(--pos);font-variant-numeric:tabular-nums;line-height:34px;min-height:34px;white-space:nowrap}
 .n{color:var(--neg)!important}
 .mg{position:absolute;display:flex;gap:10px}
 .mg .grp{display:flex;flex:var(--n) 1 0;border:1px solid var(--frame);background:#fff;min-width:0;height:100%;box-shadow:0 0 5px 1px #fff;border-radius:3px;overflow:hidden}
 .mg .cel{flex:1 1 0;min-width:0;border-right:1px solid var(--frame);display:flex;flex-direction:column}
-.mg .cel .kv{flex:1 1 auto;align-content:center}
+.mg .cel .kv{flex:1 1 auto}
 .mg .cel:last-child{border-right:none}
 .mg .kt{font-size:17px}
 .mg .kv{grid-template-columns:1fr 1fr .6fr}
-.mg .kv small{font-size:12.5px;margin-top:3px}
+.mg .kv small{font-size:12.5px;line-height:20px}
 .mg .kv strong{font-size:23px;line-height:32px;min-height:32px}
 /* tabelas */
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
@@ -46,6 +48,12 @@ td{padding:1px 6px;height:24px;text-align:right;white-space:nowrap;border-bottom
 td:first-child{text-align:left;color:var(--ink);font-weight:600;font-size:14.5px}
 td.pc{text-align:right}   /* 26/11: % a direita como os demais numeros (cabecalho segue centralizado) */
 td.z{color:#9aa4b2}
+/* 26/11: linhas de coluna na mesma cor das linhas de linha, em tabelas e cartoes */
+td,th{border-right:1px solid var(--line)}
+td:last-child,th:last-child{border-right:none}
+th{border-bottom:1px solid var(--line)}
+.kv>div+div{border-left:1px solid var(--line)}
+.np .k div+div{border-left:1px solid var(--line)}
 td.k{color:var(--ink)}
 tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;position:sticky;bottom:0;background:#fff}
 #tMes td,#tMes th{padding:1px 5px;font-size:15px}
@@ -61,14 +69,14 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
 .np{display:grid;grid-template-rows:24px 62px 1fr;height:100%}
 .np .h{background:var(--bar);color:var(--ink);font-size:13.5px;font-weight:700;text-align:center;line-height:24px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
 .np .k{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--line)}
-.np .k div{text-align:center;padding-top:3px;min-width:0}
-.np .k small{display:block;font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}
+.np .k div{text-align:center;min-width:0}
+.np .k small{display:block;font-size:11.5px;font-weight:700;color:var(--ink);letter-spacing:.03em;background:var(--bar);line-height:17px;margin-bottom:2px}
 .np .k b{display:block;font-size:24px;line-height:28px;font-variant-numeric:tabular-nums}
 .np .k i{display:block;font-style:normal;font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
 .np .c{display:grid;grid-template-columns:repeat(5,1fr)}
-.np .c div{border-right:1px solid var(--line);padding:3px 3px 0;text-align:center;overflow:hidden;min-width:0}
+.np .c div{border-right:1px solid var(--line);padding:0;text-align:center;overflow:hidden;min-width:0}
 .np .c div:last-child{border-right:none}
-.np .c small{display:block;font-size:10.5px;font-weight:700;color:var(--ink);line-height:12.5px;height:25px;overflow:hidden;letter-spacing:-.1px}
+.np .c small{display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:var(--ink);line-height:12.5px;height:27px;overflow:hidden;letter-spacing:-.1px;background:var(--bar);padding:0 2px}
 .np .c b{display:block;font-size:17.5px;margin-top:3px;font-variant-numeric:tabular-nums}
 .np .c em{display:block;font-style:normal;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .f-ref{color:var(--ref)}.f-con{color:var(--con)}.f-rec{color:var(--rec)}.f-cri{color:var(--cri)}.f-sem{color:var(--sem)}
