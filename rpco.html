@@ -12,10 +12,10 @@
 :root{
   --navy:#132B50; --bar:#d9dde3; --ink:#1b2430; --muted:#6b7686; --line:#e3e7ec;
   --pos:#1F4E9A; --neg:#C62828; --frame:#c9d1db;
-  --ref:#0E7C66; --con:#1F4E9A; --rec:#B45309; --cri:#C62828; --sem:#9aa4b2;
+  --pg:#B3BCC8; --ref:#0E7C66; --con:#1F4E9A; --rec:#B45309; --cri:#C62828; --sem:#9aa4b2;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;overflow:hidden;background:#fff;color:var(--ink);font:14px/1.35 "Segoe UI",system-ui,Arial,sans-serif}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--pg);color:var(--ink);font:14px/1.35 "Segoe UI",system-ui,Arial,sans-serif}
 #app{position:relative;width:100%;height:100%}
 .ab{position:absolute}
 .bar{position:absolute;left:0;right:0;background:var(--bar);text-align:center;font-weight:800;font-size:15px;letter-spacing:.05em;line-height:26px;height:26px;color:var(--ink)}
@@ -70,7 +70,7 @@ tr.tot td{font-weight:800;border-top:2px solid var(--navy);border-bottom:none;po
 .f-ref{color:var(--ref)}.f-con{color:var(--con)}.f-rec{color:var(--rec)}.f-cri{color:var(--cri)}.f-sem{color:var(--sem)}
 .msg{display:grid;place-items:center;color:var(--muted);font-size:12px;padding:8px;text-align:center}
 /* resumo para a RPCO */
-.rs{position:absolute;left:0;right:0;top:29px;bottom:0;border:1px solid var(--frame);padding:6px 10px 4px;overflow:hidden}
+.rs{position:absolute;left:0;right:0;top:29px;bottom:0;background:#fff;border:1px solid var(--frame);padding:6px 10px 4px;overflow:hidden}
 .rs .lv{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.03em;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rs .lv b{color:var(--navy)}
 .rs ul{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:3px}
