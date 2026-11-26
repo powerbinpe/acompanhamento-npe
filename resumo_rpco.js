@@ -86,8 +86,8 @@
   function linhas(R) { var T = textos(R); return T ? T.l : []; }
   function html(R, cobrar, titulo) {
     var T = textos(R); if (!T) return "";
-    var cls = /OTIMISTA/.test(R.leitura) ? "bad" : (/CONSERVADORA/.test(R.leitura) ? "na" : "ok");
-    var li = T.l.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("").replace("(" + esc(R.leitura) + ")", '<span class="bk-pill ' + cls + '">' + esc(R.leitura) + "</span>");
+    // leitura da projecao em texto simples (negrito), sem etiqueta colorida (26/11/2026)
+    var li = T.l.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("").replace("(" + esc(R.leitura) + ")", "<b>" + esc(R.leitura) + "</b>");
     return '<section class="rl-cap rl-resumo"><h2><span>★</span>' + esc(titulo || "Resumo para a RPCO · custo por HHT") + "</h2>" +
       '<ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:18px;line-height:1.55">' + li +
       (cobrar ? "<li><b>Cobrar:</b> " + esc(cobrar) + "</li>" : "") + "</ul></section>";
